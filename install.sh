@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# GitHub repo used for release downloads
+REPO="Sagit-chu/flux-panel"
+
 # 获取系统架构
 get_architecture() {
     ARCH=$(uname -m)
@@ -16,20 +19,90 @@ get_architecture() {
     esac
 }
 
+# 安装目录
+INSTALL_DIR="/etc/flux_agent"
+
+# 识别国家（用于镜像加速）
+COUNTRY=$(curl -s https://ipinfo.io/country)
+
+maybe_proxy_url() {
+  local url="$1"
+  if [ "$COUNTRY" = "CN" ]; then
+    echo "https://ghfast.top/${url}"
+  else
+    echo "$url"
+  fi
+}
+
+resolve_latest_release_tag() {
+  local effective_url tag api_tag latest_url api_url
+
+  latest_url="https://github.com/${REPO}/releases/latest"
+  api_url="https://api.github.com/repos/${REPO}/releases/latest"
+
+  # 方式1：跟随重定向，取最终 URL 的最后一段作为 tag
+  effective_url=$(curl -fsSL -o /dev/null -w '%{url_effective}' -L "$latest_url" 2>/dev/null || true)
+  tag="${effective_url##*/}"
+  if [[ -n "$tag" && "$tag" != "latest" ]]; then
+    echo "$tag"
+    return 0
+  fi
+
+  # CN 环境下可尝试通过镜像访问（不影响非 CN）
+  if [ "$COUNTRY" = "CN" ]; then
+    effective_url=$(curl -fsSL -o /dev/null -w '%{url_effective}' -L "$(maybe_proxy_url "$latest_url")" 2>/dev/null || true)
+    tag="${effective_url##*/}"
+    if [[ -n "$tag" && "$tag" != "latest" ]]; then
+      echo "$tag"
+      return 0
+    fi
+  fi
+
+  # 方式2：GitHub API（无需 jq）
+  api_tag=$(curl -fsSL "$api_url" 2>/dev/null | grep -m1 '"tag_name"' | sed -E 's/.*"tag_name"[[:space:]]*:[[:space:]]*"([^"]+)".*/\1/' || true)
+  if [[ -n "$api_tag" ]]; then
+    echo "$api_tag"
+    return 0
+  fi
+
+  if [ "$COUNTRY" = "CN" ]; then
+    api_tag=$(curl -fsSL "$(maybe_proxy_url "$api_url")" 2>/dev/null | grep -m1 '"tag_name"' | sed -E 's/.*"tag_name"[[:space:]]*:[[:space:]]*"([^"]+)".*/\1/' || true)
+    if [[ -n "$api_tag" ]]; then
+      echo "$api_tag"
+      return 0
+    fi
+  fi
+
+  return 1
+}
+
+resolve_version() {
+  if [[ -n "${VERSION:-}" ]]; then
+    echo "$VERSION"
+    return 0
+  fi
+  if [[ -n "${FLUX_VERSION:-}" ]]; then
+    echo "$FLUX_VERSION"
+    return 0
+  fi
+
+  if resolve_latest_release_tag; then
+    return 0
+  fi
+
+  echo "❌ 无法获取最新版本号。你可以手动指定版本，例如：VERSION=<版本号> ./install.sh" >&2
+  return 1
+}
+
 # 构建下载地址
 build_download_url() {
     local ARCH=$(get_architecture)
-    echo "https://github.com/Sagit-chu/flux-panel/releases/download/2.0.8/gost-${ARCH}"
+    echo "https://github.com/${REPO}/releases/download/${RESOLVED_VERSION}/gost-${ARCH}"
 }
 
-# 下载地址
-DOWNLOAD_URL=$(build_download_url)
-INSTALL_DIR="/etc/flux_agent"
-COUNTRY=$(curl -s https://ipinfo.io/country)
-if [ "$COUNTRY" = "CN" ]; then
-    # 拼接 URL
-    DOWNLOAD_URL="https://ghfast.top/${DOWNLOAD_URL}"
-fi
+# 解析版本并构建下载地址
+RESOLVED_VERSION=$(resolve_version) || exit 1
+DOWNLOAD_URL=$(maybe_proxy_url "$(build_download_url)")
 
 
 

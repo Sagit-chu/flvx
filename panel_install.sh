@@ -7,16 +7,82 @@ export LC_ALL=C
 
 
 
-# 全局下载地址配置
-DOCKER_COMPOSEV4_URL="https://github.com/Sagit-chu/flux-panel/releases/download/2.0.8/docker-compose-v4.yml"
-DOCKER_COMPOSEV6_URL="https://github.com/Sagit-chu/flux-panel/releases/download/2.0.8/docker-compose-v6.yml"
+# GitHub repo used for release downloads
+REPO="Sagit-chu/flux-panel"
 
 COUNTRY=$(curl -s https://ipinfo.io/country)
-if [ "$COUNTRY" = "CN" ]; then
-    # 拼接 URL
-    DOCKER_COMPOSEV4_URL="https://ghfast.top/${DOCKER_COMPOSEV4_URL}"
-    DOCKER_COMPOSEV6_URL="https://ghfast.top/${DOCKER_COMPOSEV6_URL}"
-fi
+
+maybe_proxy_url() {
+  local url="$1"
+  if [ "$COUNTRY" = "CN" ]; then
+    echo "https://ghfast.top/${url}"
+  else
+    echo "$url"
+  fi
+}
+
+resolve_latest_release_tag() {
+  local effective_url tag api_tag latest_url api_url
+
+  latest_url="https://github.com/${REPO}/releases/latest"
+  api_url="https://api.github.com/repos/${REPO}/releases/latest"
+
+  effective_url=$(curl -fsSL -o /dev/null -w '%{url_effective}' -L "$latest_url" 2>/dev/null || true)
+  tag="${effective_url##*/}"
+  if [[ -n "$tag" && "$tag" != "latest" ]]; then
+    echo "$tag"
+    return 0
+  fi
+
+  if [ "$COUNTRY" = "CN" ]; then
+    effective_url=$(curl -fsSL -o /dev/null -w '%{url_effective}' -L "$(maybe_proxy_url "$latest_url")" 2>/dev/null || true)
+    tag="${effective_url##*/}"
+    if [[ -n "$tag" && "$tag" != "latest" ]]; then
+      echo "$tag"
+      return 0
+    fi
+  fi
+
+  api_tag=$(curl -fsSL "$api_url" 2>/dev/null | grep -m1 '"tag_name"' | sed -E 's/.*"tag_name"[[:space:]]*:[[:space:]]*"([^"]+)".*/\1/' || true)
+  if [[ -n "$api_tag" ]]; then
+    echo "$api_tag"
+    return 0
+  fi
+
+  if [ "$COUNTRY" = "CN" ]; then
+    api_tag=$(curl -fsSL "$(maybe_proxy_url "$api_url")" 2>/dev/null | grep -m1 '"tag_name"' | sed -E 's/.*"tag_name"[[:space:]]*:[[:space:]]*"([^"]+)".*/\1/' || true)
+    if [[ -n "$api_tag" ]]; then
+      echo "$api_tag"
+      return 0
+    fi
+  fi
+
+  return 1
+}
+
+resolve_version() {
+  if [[ -n "${VERSION:-}" ]]; then
+    echo "$VERSION"
+    return 0
+  fi
+  if [[ -n "${FLUX_VERSION:-}" ]]; then
+    echo "$FLUX_VERSION"
+    return 0
+  fi
+
+  if resolve_latest_release_tag; then
+    return 0
+  fi
+
+  echo "❌ 无法获取最新版本号。你可以手动指定版本，例如：VERSION=<版本号> ./panel_install.sh" >&2
+  return 1
+}
+
+# 全局下载地址配置（默认获取最新版本；也可用 VERSION=... 覆盖）
+RESOLVED_VERSION=$(resolve_version) || exit 1
+
+DOCKER_COMPOSEV4_URL=$(maybe_proxy_url "https://github.com/${REPO}/releases/download/${RESOLVED_VERSION}/docker-compose-v4.yml")
+DOCKER_COMPOSEV6_URL=$(maybe_proxy_url "https://github.com/${REPO}/releases/download/${RESOLVED_VERSION}/docker-compose-v6.yml")
 
 
 
