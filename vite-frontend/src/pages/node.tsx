@@ -84,6 +84,35 @@ interface NodeForm {
   socks: number; // 0 关 1 开
 }
 
+const SortableItem = ({
+  id,
+  children,
+}: {
+  id: number;
+  children: (listeners: any) => any;
+}) => {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id });
+
+  const style = {
+    transform: transform ? CSS.Transform.toString(transform) : undefined,
+    transition: transition || undefined,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  return (
+    <div ref={setNodeRef} style={style} {...attributes}>
+      {children(listeners)}
+    </div>
+  );
+};
+
 export default function NodePage() {
   const [nodeList, setNodeList] = useState<Node[]>([]);
   const [nodeOrder, setNodeOrder] = useState<number[]>([]);
@@ -813,35 +842,6 @@ export default function NodePage() {
     }
 
     return sortedNodes;
-  };
-
-  const SortableItem = ({
-    id,
-    children,
-  }: {
-    id: number;
-    children: (listeners: any) => any;
-  }) => {
-    const {
-      attributes,
-      listeners,
-      setNodeRef,
-      transform,
-      transition,
-      isDragging,
-    } = useSortable({ id });
-
-    const style = {
-      transform: transform ? CSS.Transform.toString(transform) : undefined,
-      transition: transition || undefined,
-      opacity: isDragging ? 0.5 : 1,
-    };
-
-    return (
-      <div ref={setNodeRef} style={style} {...attributes}>
-        {children(listeners)}
-      </div>
-    );
   };
 
   return (
