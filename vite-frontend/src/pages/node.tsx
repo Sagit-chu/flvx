@@ -46,6 +46,8 @@ interface Node {
   name: string;
   ip: string;
   serverIp: string;
+  serverIpV4?: string;
+  serverIpV6?: string;
   port: string;
   tcpListenAddr?: string;
   udpListenAddr?: string;
@@ -70,7 +72,8 @@ interface Node {
 interface NodeForm {
   id: number | null;
   name: string;
-  serverIp: string;
+  serverIpV4: string;
+  serverIpV6: string;
   port: string;
   tcpListenAddr: string;
   udpListenAddr: string;
@@ -96,7 +99,8 @@ export default function NodePage() {
   const [form, setForm] = useState<NodeForm>({
     id: null,
     name: '',
-    serverIp: '',
+    serverIpV4: '',
+    serverIpV6: '',
     port: '1000-65535',
     tcpListenAddr: '[::]',
     udpListenAddr: '[::]',
@@ -398,30 +402,12 @@ export default function NodePage() {
     return "danger";
   };
 
-  // 验证IP地址格式
-  const validateIp = (ip: string): boolean => {
-    if (!ip || !ip.trim()) return false;
-    
-    const trimmedIp = ip.trim();
-    
-    // IPv4格式验证
-    const ipv4Regex = /^(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
-    
-    // IPv6格式验证
-    const ipv6Regex = /^(([0-9a-fA-F]{1,4}:){7,7}[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,7}:|([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}|([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}|([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}|([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}|[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})|:((:[0-9a-fA-F]{1,4}){1,7}|:)|fe80:(:[0-9a-fA-F]{0,4}){0,4}%[0-9a-zA-Z]{1,}|::(ffff(:0{1,4}){0,1}:){0,1}((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])|([0-9a-fA-F]{1,4}:){1,4}:((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9]))$/;
-    
-    if (ipv4Regex.test(trimmedIp) || ipv6Regex.test(trimmedIp) || trimmedIp === 'localhost') {
-      return true;
-    }
-    
-    // 验证域名格式
-    if (/^\d+$/.test(trimmedIp)) return false;
-    
-    const domainRegex = /^[a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?)+$/;
-    const singleLabelDomain = /^[a-zA-Z][a-zA-Z0-9\-]{0,62}$/;
-    
-    return domainRegex.test(trimmedIp) || singleLabelDomain.test(trimmedIp);
-  };
+  // IPv4/IPv6 格式验证（仅用于判定地址族）
+  const ipv4Regex = /^(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
+  const ipv6Regex = /^(([0-9a-fA-F]{1,4}:){7,7}[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,7}:|([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}|([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}|([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}|([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}|[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})|:((:[0-9a-fA-F]{1,4}){1,7}|:)|fe80:(:[0-9a-fA-F]{0,4}){0,4}%[0-9a-zA-Z]{1,}|::(ffff(:0{1,4}){0,1}:){0,1}((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])|([0-9a-fA-F]{1,4}:){1,4}:((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9]))$/;
+
+  const validateIpv4Literal = (ip: string): boolean => ipv4Regex.test(ip.trim());
+  const validateIpv6Literal = (ip: string): boolean => ipv6Regex.test(ip.trim());
 
   // 验证端口格式：支持 80,443,100-600
   const validatePort = (portStr: string): { valid: boolean; error?: string } => {
@@ -486,10 +472,19 @@ export default function NodePage() {
       newErrors.name = '节点名称长度不能超过50位';
     }
     
-    if (!form.serverIp.trim()) {
-      newErrors.serverIp = '请输入服务器IP地址';
-    } else if (!validateIp(form.serverIp.trim())) {
-      newErrors.serverIp = '请输入有效的IPv4、IPv6地址或域名';
+    const v4 = form.serverIpV4.trim();
+    const v6 = form.serverIpV6.trim();
+
+    if (!v4 && !v6) {
+      newErrors.serverIpV4 = '请至少填写一个IPv4或IPv6地址';
+      newErrors.serverIpV6 = '请至少填写一个IPv4或IPv6地址';
+    } else {
+      if (v4 && !validateIpv4Literal(v4)) {
+        newErrors.serverIpV4 = '请输入有效的IPv4地址';
+      }
+      if (v6 && !validateIpv6Literal(v6)) {
+        newErrors.serverIpV6 = '请输入有效的IPv6地址';
+      }
     }
     
     const portValidation = validatePort(form.port);
@@ -518,7 +513,8 @@ export default function NodePage() {
     setForm({
       id: node.id,
       name: node.name,
-      serverIp: node.serverIp || '',
+      serverIpV4: node.serverIpV4?.trim() || (validateIpv4Literal((node.serverIp || '').trim()) ? (node.serverIp || '').trim() : ''),
+      serverIpV6: node.serverIpV6?.trim() || (validateIpv6Literal((node.serverIp || '').trim()) ? (node.serverIp || '').trim() : ''),
       port: node.port || '1000-65535',
       tcpListenAddr: node.tcpListenAddr || '[::]',
       udpListenAddr: node.udpListenAddr || '[::]',
@@ -610,7 +606,8 @@ export default function NodePage() {
     try {
       const apiCall = isEdit ? updateNode : createNode;
       const data = { 
-        ...form
+        ...form,
+        serverIp: form.serverIpV4?.trim() || form.serverIpV6?.trim() || ''
       };
       
       const res = await apiCall(data);
@@ -623,7 +620,9 @@ export default function NodePage() {
             n.id === form.id ? {
               ...n,
               name: form.name,
-              serverIp: form.serverIp,
+              serverIp: form.serverIpV4?.trim() || form.serverIpV6?.trim() || '',
+              serverIpV4: form.serverIpV4,
+              serverIpV6: form.serverIpV6,
               port: form.port,
               tcpListenAddr: form.tcpListenAddr,
               udpListenAddr: form.udpListenAddr,
@@ -651,7 +650,8 @@ export default function NodePage() {
     setForm({
       id: null,
       name: '',
-      serverIp: '',
+      serverIpV4: '',
+      serverIpV6: '',
       port: '1000-65535',
       tcpListenAddr: '[::]',
       udpListenAddr: '[::]',
@@ -869,9 +869,24 @@ export default function NodePage() {
                     <div className="flex justify-between items-center text-sm min-w-0">
                       <span className="text-default-600 flex-shrink-0">IP</span>
                       <div className="text-right text-xs min-w-0 flex-1 ml-2">
-                      <span className="font-mono truncate block" title={node.serverIp.trim()}>
-                              {node.serverIp.trim()}
-                      </span>
+                      {(node.serverIpV4?.trim() || node.serverIpV6?.trim()) ? (
+                        <div className="space-y-0.5">
+                          {node.serverIpV4?.trim() && (
+                            <span className="font-mono truncate block" title={node.serverIpV4.trim()}>
+                              {node.serverIpV4.trim()}
+                            </span>
+                          )}
+                          {node.serverIpV6?.trim() && (
+                            <span className="font-mono truncate block" title={node.serverIpV6.trim()}>
+                              {node.serverIpV6.trim()}
+                            </span>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="font-mono truncate block" title={node.serverIp.trim()}>
+                          {node.serverIp.trim()}
+                        </span>
+                      )}
                       </div>
                     </div>
                     <div className="flex justify-between text-sm">
@@ -1044,15 +1059,29 @@ export default function NodePage() {
                   variant="bordered"
                 />
 
-                <Input
-                  label="服务器IP"
-                  placeholder="请输入服务器IP地址，如: 192.168.1.100 或 example.com"
-                  value={form.serverIp}
-                  onChange={(e) => setForm(prev => ({ ...prev, serverIp: e.target.value }))}
-                  isInvalid={!!errors.serverIp}
-                  errorMessage={errors.serverIp}
-                  variant="bordered"
-                />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <Input
+                    label="服务器IPv4"
+                    placeholder="例如: 203.0.113.10"
+                    value={form.serverIpV4}
+                    onChange={(e) => setForm(prev => ({ ...prev, serverIpV4: e.target.value }))}
+                    isInvalid={!!errors.serverIpV4}
+                    errorMessage={errors.serverIpV4}
+                    variant="bordered"
+                    description="双栈节点组隧道时优先使用 IPv4"
+                  />
+
+                  <Input
+                    label="服务器IPv6"
+                    placeholder="例如: 2001:db8::10"
+                    value={form.serverIpV6}
+                    onChange={(e) => setForm(prev => ({ ...prev, serverIpV6: e.target.value }))}
+                    isInvalid={!!errors.serverIpV6}
+                    errorMessage={errors.serverIpV6}
+                    variant="bordered"
+                    description="至少填写一个 IPv4/IPv6 地址"
+                  />
+                </div>
 
                 <Input
                   label="可用端口"
