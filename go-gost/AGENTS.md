@@ -1,31 +1,37 @@
 # GO-GOST SERVICE KNOWLEDGE BASE
 
+**Generated:** Mon Feb 02 2026
+
 ## OVERVIEW
-Core forwarding service based on GOST v3.
-**Stack:** Go 1.23, GOST Core v0.3.1, GOST x (Extensions).
+Forwarding agent built on GOST v3 with a local fork of `github.com/go-gost/x` under `x/`.
+**Stack:** Go 1.23, github.com/go-gost/core v0.3.1, local `go-gost/x` module.
 
 ## STRUCTURE
 ```
 go-gost/
-├── main.go           # Entry point
-├── x/                # Local extensions (REPLACES github.com/go-gost/x)
-│   ├── api/          # Management API
-│   ├── registry/     # Service registry
-│   ├── handler/      # Protocol handlers (socks, tunnel, relay)
-│   └── listener/     # Network listeners (tcp, udp, tun/tap)
-└── go.mod            # Defines local replacement
+├── main.go           # Entry; reads panel config.json; starts svc.Run(program)
+├── config.go         # Panel config.json loader (addr/secret + ports)
+├── program.go        # GOST runtime: parse config, run/reload services
+├── x/                # Local fork of github.com/go-gost/x (has its own go.mod)
+└── go.mod            # replace github.com/go-gost/x => ./x
 ```
 
+## WHERE TO LOOK
+| Task | Location | Notes |
+|------|----------|-------|
+| Panel integration config | `go-gost/config.go` | Expects `config.json` in cwd by default |
+| Service lifecycle/reload | `go-gost/program.go` | Parses config; handles SIGHUP reload |
+| WebSocket reporting | `go-gost/main.go` | Starts reporter + sets HTTP report URL |
+| Protocol behaviors | `go-gost/x/` | Handlers/listeners/dialers live here |
+
 ## CONVENTIONS
-- **Local Replace**: `go.mod` uses `replace github.com/go-gost/x => ./x`.
-- **Extensions**: Custom logic lives in `x/`. This is the primary place for modifications.
-- **Handlers**: Implements SOCKS5, Tunnel, Relay, etc.
+- Two configs exist: panel integration uses `config.json`; forwarding services use GOST config (defaults to `gost.{json,yaml}` via viper search paths).
+- `go-gost/x/` is the primary extension surface; avoid editing vendored deps.
 
 ## COMMANDS
 ```bash
-# Run
+cd go-gost
 go run .
-
-# Build
+go test ./...
 go build .
 ```
