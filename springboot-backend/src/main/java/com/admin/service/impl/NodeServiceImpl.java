@@ -15,6 +15,7 @@ import com.admin.service.*;
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import lombok.extern.slf4j.Slf4j;
@@ -143,7 +144,23 @@ public class NodeServiceImpl extends ServiceImpl<NodeMapper, Node> implements No
 
 
         Node updateNode = buildUpdateNode(nodeUpdateDto);
-        this.updateById(updateNode);
+        // Use LambdaUpdateWrapper to explicitly set nullable fields (serverIpV4/V6)
+        // because updateById() skips null fields by default
+        LambdaUpdateWrapper<Node> wrapper = new LambdaUpdateWrapper<>();
+        wrapper.eq(Node::getId, updateNode.getId())
+               .set(Node::getName, updateNode.getName())
+               .set(Node::getServerIp, updateNode.getServerIp())
+               .set(Node::getServerIpV4, updateNode.getServerIpV4())
+               .set(Node::getServerIpV6, updateNode.getServerIpV6())
+               .set(Node::getPort, updateNode.getPort())
+               .set(Node::getHttp, updateNode.getHttp())
+               .set(Node::getTls, updateNode.getTls())
+               .set(Node::getSocks, updateNode.getSocks())
+               .set(Node::getInterfaceName, updateNode.getInterfaceName())
+               .set(Node::getTcpListenAddr, updateNode.getTcpListenAddr())
+               .set(Node::getUdpListenAddr, updateNode.getUdpListenAddr())
+               .set(Node::getUpdatedTime, updateNode.getUpdatedTime());
+        this.update(wrapper);
         return R.ok();
     }
 
