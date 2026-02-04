@@ -6,9 +6,6 @@ env:
 
 on:
   push:
-    branches:
-      - main
-      - beta
     tags:
       - '[0-9]*'  # 匹配 2.0.8, 2.0.8-beta 等格式
 
