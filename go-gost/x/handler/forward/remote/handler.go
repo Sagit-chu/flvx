@@ -225,9 +225,7 @@ func (h *forwardHandler) Handle(ctx context.Context, conn net.Conn, opts ...hand
 		selectCtx := ctxvalue.ContextWithExcludeNodes(ctx, triedNodes)
 		var target *chain.Node
 		if host != "" {
-			target = &chain.Node{
-				Addr: host,
-			}
+			target = chain.NewNode("", host)
 		}
 		if h.hop != nil {
 			target = h.hop.Select(selectCtx,

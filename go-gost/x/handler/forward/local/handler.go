@@ -195,7 +195,7 @@ func (h *forwardHandler) Handle(ctx context.Context, conn net.Conn, opts ...hand
 	for attempt := 0; attempt < maxRetries; attempt++ {
 		// Select a target node, excluding previously tried nodes
 		selectCtx := ctxvalue.ContextWithExcludeNodes(ctx, triedNodes)
-		target := &chain.Node{}
+		var target *chain.Node
 		if h.hop != nil {
 			target = h.hop.Select(selectCtx,
 				hop.ProtocolSelectOption(proto),

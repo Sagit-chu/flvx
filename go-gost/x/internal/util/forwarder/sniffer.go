@@ -263,9 +263,7 @@ func (h *Sniffer) dial(ctx context.Context, conn net.Conn, req *http.Request, ho
 		// Select a node, excluding previously tried nodes
 		selectCtx := ctxvalue.ContextWithExcludeNodes(ctx, triedNodes)
 
-		node = &chain.Node{
-			Addr: host,
-		}
+		node = chain.NewNode("", host)
 		if ho.Hop != nil {
 			node = ho.Hop.Select(selectCtx,
 				hop.ClientIPSelectOption(net.ParseIP(ro.ClientIP)),
@@ -903,9 +901,7 @@ func (h *Sniffer) dialTLS(ctx context.Context, host string, ho *HandleOptions) (
 
 		node = nil
 		if host != "" {
-			node = &chain.Node{
-				Addr: host,
-			}
+			node = chain.NewNode("", host)
 		}
 		if ho.Hop != nil {
 			node = ho.Hop.Select(selectCtx,
