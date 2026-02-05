@@ -16,6 +16,7 @@ import { Spinner } from "@heroui/spinner";
 import { Alert } from "@heroui/alert";
 import { Progress } from "@heroui/progress";
 import { Accordion, AccordionItem } from "@heroui/accordion";
+import { Checkbox } from "@heroui/checkbox";
 import toast from "react-hot-toast";
 import axios from "axios";
 import {
@@ -43,6 +44,7 @@ import {
   deleteNode,
   getNodeInstallCommand,
   updateNodeOrder,
+  batchDeleteNodes,
 } from "@/api";
 
 interface Node {
@@ -149,6 +151,11 @@ export default function NodePage() {
     socks: 0,
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  const [selectMode, setSelectMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [batchDeleteModalOpen, setBatchDeleteModalOpen] = useState(false);
+  const [batchLoading, setBatchLoading] = useState(false);
 
   // 安装命令相关状态
   const [installCommandModal, setInstallCommandModal] = useState(false);
@@ -890,6 +897,57 @@ export default function NodePage() {
     }
   };
 
+  // 批量操作处理函数
+  const toggleSelectMode = () => {
+    setSelectMode((prev) => {
+      if (prev) {
+        setSelectedIds(new Set());
+      }
+      return !prev;
+    });
+  };
+
+  const toggleSelect = (id: number) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  };
+
+  const selectAll = () => {
+    setSelectedIds(new Set(sortedNodes.map((n) => n.id)));
+  };
+
+  const deselectAll = () => {
+    setSelectedIds(new Set());
+  };
+
+  const handleBatchDelete = async () => {
+    if (selectedIds.size === 0) return;
+    setBatchLoading(true);
+    try {
+      const res = await batchDeleteNodes(Array.from(selectedIds));
+      if (res.code === 0) {
+        toast.success(`成功删除 ${selectedIds.size} 个节点`);
+        setNodeList((prev) => prev.filter((n) => !selectedIds.has(n.id)));
+        setSelectedIds(new Set());
+        setBatchDeleteModalOpen(false);
+        setSelectMode(false);
+      } else {
+        toast.error(res.msg || "批量删除失败");
+      }
+    } catch (error) {
+      toast.error("网络错误，请重试");
+    } finally {
+      setBatchLoading(false);
+    }
+  };
+
   // 传感器配置
   const sensors = useSensors(
     useSensor(MouseSensor, {
@@ -957,10 +1015,45 @@ export default function NodePage() {
       <div className="flex items-center justify-between mb-6">
         <div className="flex-1" />
 
-        <Button color="primary" size="sm" variant="flat" onPress={handleAdd}>
-          新增
-        </Button>
+        <div className="flex gap-2 items-center">
+          <Button
+            color={selectMode ? "warning" : "default"}
+            size="sm"
+            variant="flat"
+            onPress={toggleSelectMode}
+          >
+            {selectMode ? "取消多选" : "多选"}
+          </Button>
+          <Button color="primary" size="sm" variant="flat" onPress={handleAdd}>
+            新增
+          </Button>
+        </div>
       </div>
+
+      {/* 批量操作浮动工具栏 */}
+      {selectMode && selectedIds.size > 0 && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-content1 shadow-lg rounded-full px-6 py-3 flex items-center gap-4 border border-divider">
+          <span className="text-sm font-medium">
+            已选 {selectedIds.size} 项
+          </span>
+          <div className="flex gap-2">
+            <Button size="sm" variant="flat" onPress={selectAll}>
+              全选
+            </Button>
+            <Button size="sm" variant="flat" onPress={deselectAll}>
+              取消全选
+            </Button>
+            <Button
+              color="danger"
+              size="sm"
+              variant="flat"
+              onPress={() => setBatchDeleteModalOpen(true)}
+            >
+              批量删除
+            </Button>
+          </div>
+        </div>
+      )}
 
       {!wsConnected && (
         <Alert
@@ -1027,7 +1120,13 @@ export default function NodePage() {
                     >
                       <CardHeader className="pb-2">
                         <div className="flex justify-between items-start w-full">
-                          <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-1 min-w-0">
+                            {selectMode && (
+                              <Checkbox
+                                isSelected={selectedIds.has(node.id)}
+                                onValueChange={() => toggleSelect(node.id)}
+                              />
+                            )}
                             <h3 className="font-semibold text-foreground truncate text-sm">
                               {node.name}
                             </h3>
@@ -1699,6 +1798,46 @@ export default function NodePage() {
               关闭
             </Button>
           </ModalFooter>
+        </ModalContent>
+      </Modal>
+
+      {/* 批量删除确认模态框 */}
+      <Modal
+        backdrop="blur"
+        isOpen={batchDeleteModalOpen}
+        placement="center"
+        scrollBehavior="outside"
+        size="md"
+        onOpenChange={setBatchDeleteModalOpen}
+      >
+        <ModalContent>
+          {(onClose) => (
+            <>
+              <ModalHeader className="flex flex-col gap-1">
+                <h2 className="text-xl font-bold">确认批量删除</h2>
+              </ModalHeader>
+              <ModalBody>
+                <p>
+                  确定要删除选中的 <strong>{selectedIds.size}</strong> 个节点吗？
+                </p>
+                <p className="text-small text-default-500">
+                  此操作不可恢复，请谨慎操作。
+                </p>
+              </ModalBody>
+              <ModalFooter>
+                <Button variant="light" onPress={onClose}>
+                  取消
+                </Button>
+                <Button
+                  color="danger"
+                  isLoading={batchLoading}
+                  onPress={handleBatchDelete}
+                >
+                  {batchLoading ? "删除中..." : "确认删除"}
+                </Button>
+              </ModalFooter>
+            </>
+          )}
         </ModalContent>
       </Modal>
     </div>

@@ -2,6 +2,8 @@ package com.admin.service.impl;
 
 import cn.hutool.core.util.IdUtil;
 import cn.hutool.core.util.StrUtil;
+import com.admin.common.dto.BatchDeleteDto;
+import com.admin.common.dto.BatchOperationResultDto;
 import com.admin.common.dto.GostDto;
 import com.admin.common.dto.NodeDto;
 import com.admin.common.dto.NodeUpdateDto;
@@ -503,6 +505,31 @@ public class NodeServiceImpl extends ServiceImpl<NodeMapper, Node> implements No
                     throw new RuntimeException("可用端口不合法");
                 }
             }
+        }
+    }
+
+    @Override
+    @Transactional
+    public R batchDeleteNodes(BatchDeleteDto batchDeleteDto) {
+        BatchOperationResultDto result = new BatchOperationResultDto();
+        
+        for (Long id : batchDeleteDto.getIds()) {
+            try {
+                R deleteResult = deleteNode(id);
+                if (deleteResult.getCode() == 0) {
+                    result.incrementSuccess();
+                } else {
+                    result.addFailedItem(id, deleteResult.getMsg());
+                }
+            } catch (Exception e) {
+                result.addFailedItem(id, e.getMessage());
+            }
+        }
+        
+        if (result.isAllSuccess()) {
+            return R.ok(result);
+        } else {
+            return R.ok("部分操作失败", result);
         }
     }
 

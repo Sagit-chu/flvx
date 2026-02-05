@@ -1244,4 +1244,222 @@ public class ForwardServiceImpl extends ServiceImpl<ForwardMapper, Forward> impl
         private Integer toInx;
     }
 
+    @Override
+    @Transactional
+    public R batchDeleteForwards(BatchDeleteDto batchDeleteDto) {
+        UserInfo currentUser = getCurrentUserInfo();
+        BatchOperationResultDto result = new BatchOperationResultDto();
+        
+        for (Long id : batchDeleteDto.getIds()) {
+            try {
+                Forward forward = validateForwardExists(id, currentUser);
+                if (forward == null) {
+                    result.addFailedItem(id, "转发不存在或无权限");
+                    continue;
+                }
+                
+                Tunnel tunnel = validateTunnel(forward.getTunnelId());
+                if (tunnel == null) {
+                    result.addFailedItem(id, "隧道不存在");
+                    continue;
+                }
+                
+                UserTunnel userTunnel = null;
+                if (currentUser.getRoleId() != 0) {
+                    userTunnel = getUserTunnel(currentUser.getUserId(), tunnel.getId().intValue());
+                    if (userTunnel == null) {
+                        result.addFailedItem(id, "没有该隧道权限");
+                        continue;
+                    }
+                } else {
+                    userTunnel = getUserTunnel(forward.getUserId(), tunnel.getId().intValue());
+                }
+                
+                List<ChainTunnel> chainTunnels = chainTunnelService.list(
+                    new QueryWrapper<ChainTunnel>().eq("tunnel_id", tunnel.getId()).eq("chain_type", 1)
+                );
+                
+                boolean deleteSuccess = true;
+                for (ChainTunnel chainTunnel : chainTunnels) {
+                    String serviceName = buildServiceName(forward.getId(), forward.getUserId(), userTunnel);
+                    Node node = nodeService.getById(chainTunnel.getNodeId());
+                    if (node != null) {
+                        JSONArray services = new JSONArray();
+                        services.add(serviceName + "_tcp");
+                        services.add(serviceName + "_udp");
+                        GostUtil.DeleteService(node.getId(), services);
+                    }
+                }
+                
+                if (deleteSuccess) {
+                    forwardPortService.remove(new QueryWrapper<ForwardPort>().eq("forward_id", id));
+                    this.removeById(id);
+                    result.incrementSuccess();
+                }
+            } catch (Exception e) {
+                result.addFailedItem(id, e.getMessage());
+            }
+        }
+        
+        if (result.isAllSuccess()) {
+            return R.ok(result);
+        } else {
+            return R.ok("部分操作失败", result);
+        }
+    }
+
+    @Override
+    @Transactional
+    public R batchRedeployForwards(BatchRedeployDto batchRedeployDto) {
+        UserInfo currentUser = getCurrentUserInfo();
+        BatchOperationResultDto result = new BatchOperationResultDto();
+        
+        for (Long id : batchRedeployDto.getIds()) {
+            try {
+                Forward forward = validateForwardExists(id, currentUser);
+                if (forward == null) {
+                    result.addFailedItem(id, "转发不存在或无权限");
+                    continue;
+                }
+                
+                Tunnel tunnel = validateTunnel(forward.getTunnelId());
+                if (tunnel == null) {
+                    result.addFailedItem(id, "隧道不存在");
+                    continue;
+                }
+                
+                if (tunnel.getStatus() != 1) {
+                    result.addFailedItem(id, "隧道已禁用");
+                    continue;
+                }
+                
+                UserPermissionResult permissionResult = checkUserPermissions(currentUser, tunnel, id);
+                if (permissionResult.isHasError()) {
+                    result.addFailedItem(id, permissionResult.getErrorMessage());
+                    continue;
+                }
+                
+                List<ForwardPort> forwardPorts = forwardPortService.list(
+                    new QueryWrapper<ForwardPort>().eq("forward_id", id)
+                );
+                
+                for (ForwardPort forwardPort : forwardPorts) {
+                    String serviceName = buildServiceName(forward.getId(), forward.getUserId(), permissionResult.getUserTunnel());
+                    Node node = nodeService.getById(forwardPort.getNodeId());
+                    if (node != null) {
+                        GostUtil.AddAndUpdateService(serviceName, permissionResult.getLimiter(), 
+                            node, forward, forwardPort, tunnel, "UpdateService");
+                    }
+                }
+                
+                result.incrementSuccess();
+            } catch (Exception e) {
+                result.addFailedItem(id, e.getMessage());
+            }
+        }
+        
+        if (result.isAllSuccess()) {
+            return R.ok(result);
+        } else {
+            return R.ok("部分操作失败", result);
+        }
+    }
+
+    @Override
+    @Transactional
+    public R batchChangeTunnel(BatchChangeTunnelDto batchChangeTunnelDto) {
+        UserInfo currentUser = getCurrentUserInfo();
+        BatchOperationResultDto result = new BatchOperationResultDto();
+        
+        Long targetTunnelId = batchChangeTunnelDto.getTargetTunnelId();
+        Tunnel targetTunnel = tunnelService.getById(targetTunnelId);
+        if (targetTunnel == null) {
+            return R.err("目标隧道不存在");
+        }
+        if (targetTunnel.getStatus() != 1) {
+            return R.err("目标隧道已禁用");
+        }
+        
+        for (Long forwardId : batchChangeTunnelDto.getForwardIds()) {
+            try {
+                Forward forward = validateForwardExists(forwardId, currentUser);
+                if (forward == null) {
+                    result.addFailedItem(forwardId, "转发不存在或无权限");
+                    continue;
+                }
+                
+                if (forward.getTunnelId().equals(targetTunnelId.intValue())) {
+                    result.addFailedItem(forwardId, "已是目标隧道");
+                    continue;
+                }
+                
+                Tunnel oldTunnel = validateTunnel(forward.getTunnelId());
+                if (oldTunnel != null) {
+                    UserTunnel oldUserTunnel = null;
+                    if (currentUser.getRoleId() != 0) {
+                        oldUserTunnel = getUserTunnel(currentUser.getUserId(), oldTunnel.getId().intValue());
+                    } else {
+                        oldUserTunnel = getUserTunnel(forward.getUserId(), oldTunnel.getId().intValue());
+                    }
+                    
+                    List<ChainTunnel> oldChainTunnels = chainTunnelService.list(
+                        new QueryWrapper<ChainTunnel>().eq("tunnel_id", oldTunnel.getId()).eq("chain_type", 1)
+                    );
+                    for (ChainTunnel chainTunnel : oldChainTunnels) {
+                        String serviceName = buildServiceName(forward.getId(), forward.getUserId(), oldUserTunnel);
+                        Node node = nodeService.getById(chainTunnel.getNodeId());
+                        if (node != null) {
+                            JSONArray services = new JSONArray();
+                            services.add(serviceName + "_tcp");
+                            services.add(serviceName + "_udp");
+                            GostUtil.DeleteService(node.getId(), services);
+                        }
+                    }
+                }
+                
+                forwardPortService.remove(new QueryWrapper<ForwardPort>().eq("forward_id", forwardId));
+                
+                forward.setTunnelId(targetTunnelId.intValue());
+                forward.setUpdatedTime(System.currentTimeMillis());
+                this.updateById(forward);
+                
+                UserPermissionResult permissionResult = checkUserPermissions(currentUser, targetTunnel, forwardId);
+                if (permissionResult.isHasError()) {
+                    result.addFailedItem(forwardId, "切换成功但无法下发: " + permissionResult.getErrorMessage());
+                    continue;
+                }
+                
+                List<ChainTunnel> newChainTunnels = chainTunnelService.list(
+                    new QueryWrapper<ChainTunnel>().eq("tunnel_id", targetTunnel.getId()).eq("chain_type", 1)
+                );
+                List<ChainTunnel> chainTunnelsWithPort = get_port(newChainTunnels, null, forwardId);
+                
+                for (ChainTunnel chainTunnel : chainTunnelsWithPort) {
+                    ForwardPort forwardPort = new ForwardPort();
+                    forwardPort.setForwardId(forwardId);
+                    forwardPort.setNodeId(chainTunnel.getNodeId());
+                    forwardPort.setPort(chainTunnel.getPort());
+                    forwardPortService.save(forwardPort);
+                    
+                    String serviceName = buildServiceName(forward.getId(), forward.getUserId(), permissionResult.getUserTunnel());
+                    Node node = nodeService.getById(chainTunnel.getNodeId());
+                    if (node != null) {
+                        GostUtil.AddAndUpdateService(serviceName, permissionResult.getLimiter(), 
+                            node, forward, forwardPort, targetTunnel, "AddService");
+                    }
+                }
+                
+                result.incrementSuccess();
+            } catch (Exception e) {
+                result.addFailedItem(forwardId, e.getMessage());
+            }
+        }
+        
+        if (result.isAllSuccess()) {
+            return R.ok(result);
+        } else {
+            return R.ok("部分操作失败", result);
+        }
+    }
+
 }

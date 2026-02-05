@@ -1,5 +1,8 @@
 package com.admin.service;
 
+import com.admin.common.dto.BatchDeleteDto;
+import com.admin.common.dto.BatchRedeployDto;
+import com.admin.common.dto.BatchChangeTunnelDto;
 import com.admin.common.dto.ForwardDto;
 import com.admin.common.dto.ForwardUpdateDto;
 import com.admin.common.lang.R;
@@ -80,4 +83,10 @@ public interface ForwardService extends IService<Forward> {
      * @return 更新结果
      */
     R updateForwardOrder(Map<String, Object> params);
+    
+    R batchDeleteForwards(BatchDeleteDto batchDeleteDto);
+    
+    R batchRedeployForwards(BatchRedeployDto batchRedeployDto);
+    
+    R batchChangeTunnel(BatchChangeTunnelDto batchChangeTunnelDto);
 }

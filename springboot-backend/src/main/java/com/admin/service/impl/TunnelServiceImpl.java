@@ -1342,5 +1342,91 @@ public class TunnelServiceImpl extends ServiceImpl<TunnelMapper, Tunnel> impleme
         return forwardId + "_" + userId + "_" + userTunnelId;
     }
 
+    @Override
+    @Transactional
+    public R batchDeleteTunnels(BatchDeleteDto batchDeleteDto) {
+        BatchOperationResultDto result = new BatchOperationResultDto();
+        
+        for (Long id : batchDeleteDto.getIds()) {
+            try {
+                Tunnel tunnel = this.getById(id);
+                if (tunnel == null) {
+                    result.addFailedItem(id, "隧道不存在");
+                    continue;
+                }
+                
+                List<Forward> forwardList = forwardService.list(new QueryWrapper<Forward>().eq("tunnel_id", id));
+                for (Forward forward : forwardList) {
+                    forwardService.deleteForward(forward.getId());
+                }
+                forwardService.remove(new QueryWrapper<Forward>().eq("tunnel_id", id));
+                userTunnelService.remove(new QueryWrapper<UserTunnel>().eq("tunnel_id", id));
+                this.removeById(id);
+                
+                List<ChainTunnel> chainTunnels = chainTunnelService.list(new QueryWrapper<ChainTunnel>().eq("tunnel_id", id));
+                for (ChainTunnel chainTunnel : chainTunnels) {
+                    if (chainTunnel.getChainType() == 1) {
+                        GostUtil.DeleteChains(chainTunnel.getNodeId(), "chains_" + chainTunnel.getTunnelId());
+                    } else if (chainTunnel.getChainType() == 2) {
+                        GostUtil.DeleteChains(chainTunnel.getNodeId(), "chains_" + chainTunnel.getTunnelId());
+                        JSONArray services = new JSONArray();
+                        services.add(chainTunnel.getTunnelId() + "_tls");
+                        GostUtil.DeleteService(chainTunnel.getNodeId(), services);
+                    } else {
+                        JSONArray services = new JSONArray();
+                        services.add(chainTunnel.getTunnelId() + "_tls");
+                        GostUtil.DeleteService(chainTunnel.getNodeId(), services);
+                    }
+                }
+                chainTunnelService.remove(new QueryWrapper<ChainTunnel>().eq("tunnel_id", id));
+                
+                result.incrementSuccess();
+            } catch (Exception e) {
+                result.addFailedItem(id, e.getMessage());
+            }
+        }
+        
+        return R.ok(result);
+    }
+
+    @Override
+    @Transactional
+    public R batchRedeployTunnels(BatchRedeployDto batchRedeployDto) {
+        BatchOperationResultDto result = new BatchOperationResultDto();
+        
+        for (Long id : batchRedeployDto.getIds()) {
+            try {
+                Tunnel tunnel = this.getById(id);
+                if (tunnel == null) {
+                    result.addFailedItem(id, "隧道不存在");
+                    continue;
+                }
+                
+                if (tunnel.getType() != 2) {
+                    result.incrementSuccess();
+                    continue;
+                }
+                
+                List<ChainTunnel> chainTunnels = chainTunnelService.list(
+                    new QueryWrapper<ChainTunnel>().eq("tunnel_id", id)
+                );
+                
+                if (chainTunnels.isEmpty()) {
+                    result.addFailedItem(id, "隧道配置不完整");
+                    continue;
+                }
+                
+                cleanupGostConfig(chainTunnels, id);
+                rebuildGostConfig(chainTunnels, tunnel);
+                
+                result.incrementSuccess();
+            } catch (Exception e) {
+                result.addFailedItem(id, e.getMessage());
+            }
+        }
+        
+        return R.ok(result);
+    }
+
 
 }

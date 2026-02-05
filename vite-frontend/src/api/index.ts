@@ -127,3 +127,19 @@ export const checkCaptcha = () => Network.post("/captcha/check");
 export const generateCaptcha = () => Network.post(`/captcha/generate`);
 export const verifyCaptcha = (data: { captchaId: string; trackData: string }) =>
   Network.post("/captcha/verify", data);
+
+// 批量操作接口
+export const batchDeleteForwards = (ids: number[]) =>
+  Network.post("/forward/batch-delete", { ids });
+export const batchDeleteTunnels = (ids: number[]) =>
+  Network.post("/tunnel/batch-delete", { ids });
+export const batchDeleteNodes = (ids: number[]) =>
+  Network.post("/node/batch-delete", { ids });
+export const batchRedeployForwards = (ids: number[]) =>
+  Network.post("/forward/batch-redeploy", { ids });
+export const batchRedeployTunnels = (ids: number[]) =>
+  Network.post("/tunnel/batch-redeploy", { ids });
+export const batchChangeTunnel = (data: {
+  forwardIds: number[];
+  targetTunnelId: number;
+}) => Network.post("/forward/batch-change-tunnel", data);

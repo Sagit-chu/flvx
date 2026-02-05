@@ -1,5 +1,7 @@
 package com.admin.service;
 
+import com.admin.common.dto.BatchDeleteDto;
+import com.admin.common.dto.BatchRedeployDto;
 import com.admin.common.dto.TunnelDto;
 import com.admin.common.dto.TunnelUpdateDto;
 
@@ -64,4 +66,18 @@ public interface TunnelService extends IService<Tunnel> {
      * @param params 包含tunnels数组的参数，每个元素包含id和inx
      */
     R updateTunnelOrder(Map<String, Object> params);
+
+    /**
+     * 批量删除隧道
+     * @param batchDeleteDto 批量删除数据
+     * @return 操作结果
+     */
+    R batchDeleteTunnels(BatchDeleteDto batchDeleteDto);
+
+    /**
+     * 批量重新下发隧道配置
+     * @param batchRedeployDto 批量重新下发数据
+     * @return 操作结果
+     */
+    R batchRedeployTunnels(BatchRedeployDto batchRedeployDto);
 }

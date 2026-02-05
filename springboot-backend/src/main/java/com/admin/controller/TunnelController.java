@@ -2,6 +2,8 @@ package com.admin.controller;
 
 import com.admin.common.aop.LogAnnotation;
 import com.admin.common.annotation.RequireRole;
+import com.admin.common.dto.BatchDeleteDto;
+import com.admin.common.dto.BatchRedeployDto;
 import com.admin.common.dto.TunnelDto;
 import com.admin.common.dto.TunnelUpdateDto;
 
@@ -155,6 +157,20 @@ public class TunnelController extends BaseController {
     @PostMapping("/update-order")
     public R updateTunnelOrder(@RequestBody Map<String, Object> params) {
         return tunnelService.updateTunnelOrder(params);
+    }
+
+    @LogAnnotation
+    @RequireRole
+    @PostMapping("/batch-delete")
+    public R batchDelete(@Validated @RequestBody BatchDeleteDto batchDeleteDto) {
+        return tunnelService.batchDeleteTunnels(batchDeleteDto);
+    }
+
+    @LogAnnotation
+    @RequireRole
+    @PostMapping("/batch-redeploy")
+    public R batchRedeploy(@Validated @RequestBody BatchRedeployDto batchRedeployDto) {
+        return tunnelService.batchRedeployTunnels(batchRedeployDto);
     }
 
 }

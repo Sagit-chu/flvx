@@ -3,6 +3,7 @@ package com.admin.controller;
 
 import com.admin.common.annotation.RequireRole;
 import com.admin.common.aop.LogAnnotation;
+import com.admin.common.dto.BatchDeleteDto;
 import com.admin.common.dto.NodeDto;
 import com.admin.common.dto.NodeUpdateDto;
 import com.admin.common.lang.R;
@@ -72,6 +73,13 @@ public class NodeController extends BaseController {
     @PostMapping("/update-order")
     public R updateNodeOrder(@RequestBody Map<String, Object> params) {
         return nodeService.updateNodeOrder(params);
+    }
+
+    @LogAnnotation
+    @RequireRole
+    @PostMapping("/batch-delete")
+    public R batchDelete(@Validated @RequestBody BatchDeleteDto batchDeleteDto) {
+        return nodeService.batchDeleteNodes(batchDeleteDto);
     }
 
 }

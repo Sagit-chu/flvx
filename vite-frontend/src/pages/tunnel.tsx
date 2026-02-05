@@ -14,6 +14,7 @@ import { Chip } from "@heroui/chip";
 import { Spinner } from "@heroui/spinner";
 import { Divider } from "@heroui/divider";
 import { Alert } from "@heroui/alert";
+import { Checkbox } from "@heroui/checkbox";
 import toast from "react-hot-toast";
 import {
   DndContext,
@@ -41,6 +42,8 @@ import {
   getNodeList,
   diagnoseTunnel,
   updateTunnelOrder,
+  batchDeleteTunnels,
+  batchRedeployTunnels,
 } from "@/api";
 
 interface ChainTunnel {
@@ -143,6 +146,12 @@ export default function TunnelPage() {
 
   // 表单验证错误
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
+
+  // 批量操作相关状态
+  const [selectMode, setSelectMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [batchDeleteModalOpen, setBatchDeleteModalOpen] = useState(false);
+  const [batchLoading, setBatchLoading] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -644,6 +653,83 @@ export default function TunnelPage() {
     }
   };
 
+  const toggleSelectMode = () => {
+    setSelectMode(!selectMode);
+    if (selectMode) {
+      setSelectedIds(new Set());
+    }
+  };
+
+  const toggleSelect = (id: number) => {
+    const newSet = new Set(selectedIds);
+    if (newSet.has(id)) {
+      newSet.delete(id);
+    } else {
+      newSet.add(id);
+    }
+    setSelectedIds(newSet);
+  };
+
+  const selectAll = () => {
+    const allIds = sortedTunnels.map((t) => t.id);
+    setSelectedIds(new Set(allIds));
+  };
+
+  const deselectAll = () => {
+    setSelectedIds(new Set());
+  };
+
+  const handleBatchDelete = async () => {
+    if (selectedIds.size === 0) return;
+    setBatchLoading(true);
+    try {
+      const res = await batchDeleteTunnels(Array.from(selectedIds));
+      if (res.code === 0) {
+        const result = res.data;
+        if (result.failCount === 0) {
+          toast.success(`成功删除 ${result.successCount} 项`);
+        } else {
+          toast.error(`成功 ${result.successCount} 项，失败 ${result.failCount} 项`);
+        }
+        setSelectedIds(new Set());
+        setSelectMode(false);
+        setBatchDeleteModalOpen(false);
+        loadData();
+      } else {
+        toast.error(res.msg || "批量删除失败");
+      }
+    } catch (e: any) {
+      toast.error(e.message || "批量删除失败");
+    } finally {
+      setBatchLoading(false);
+    }
+  };
+
+  const handleBatchRedeploy = async () => {
+    if (selectedIds.size === 0) return;
+    setBatchLoading(true);
+    try {
+      const res = await batchRedeployTunnels(Array.from(selectedIds));
+      if (res.code === 0) {
+        const result = res.data;
+        if (result.failCount === 0) {
+          toast.success(`成功重新下发 ${result.successCount} 项`);
+        } else {
+          toast.error(`成功 ${result.successCount} 项，失败 ${result.failCount} 项`);
+        }
+        setSelectedIds(new Set());
+        setSelectMode(false);
+        loadData();
+      } else {
+        toast.error(res.msg || "批量重新下发失败");
+      }
+    } catch (e: any) {
+      toast.error(e.message || "批量重新下发失败");
+    } finally {
+      setBatchLoading(false);
+    }
+  };
+
   // 传感器配置
   const sensors = useSensors(
     useSensor(MouseSensor, {
@@ -752,10 +838,49 @@ export default function TunnelPage() {
       <div className="flex items-center justify-between mb-6">
         <div className="flex-1" />
 
-        <Button color="primary" size="sm" variant="flat" onPress={handleAdd}>
-          新增
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            size="sm"
+            variant={selectMode ? "solid" : "flat"}
+            color={selectMode ? "warning" : "default"}
+            onPress={toggleSelectMode}
+          >
+            {selectMode ? "退出选择" : "批量操作"}
+          </Button>
+          <Button color="primary" size="sm" variant="flat" onPress={handleAdd}>
+            新增
+          </Button>
+        </div>
       </div>
+
+      {selectMode && selectedIds.size > 0 && (
+        <div className="fixed bottom-4 left-1/2 transform -translate-x-1/2 z-50 bg-content1 shadow-lg rounded-lg border border-divider p-3 flex items-center gap-3">
+          <span className="text-sm text-default-600">已选择 {selectedIds.size} 项</span>
+          <Button size="sm" variant="flat" onPress={selectAll}>
+            全选
+          </Button>
+          <Button size="sm" variant="flat" onPress={deselectAll}>
+            取消全选
+          </Button>
+          <Button
+            size="sm"
+            color="danger"
+            variant="flat"
+            onPress={() => setBatchDeleteModalOpen(true)}
+          >
+            批量删除
+          </Button>
+          <Button
+            size="sm"
+            color="primary"
+            variant="flat"
+            onPress={handleBatchRedeploy}
+            isLoading={batchLoading}
+          >
+            批量重新下发
+          </Button>
+        </div>
+      )}
 
       {/* 隧道卡片网格 */}
       {tunnels.length > 0 ? (
@@ -777,6 +902,13 @@ export default function TunnelPage() {
                       >
                         <CardHeader className="pb-2">
                           <div className="flex justify-between items-start w-full">
+                            {selectMode && (
+                              <Checkbox
+                                isSelected={selectedIds.has(tunnel.id)}
+                                onValueChange={() => toggleSelect(tunnel.id)}
+                                className="mr-2"
+                              />
+                            )}
                             <div className="flex-1 min-w-0">
                               <h3 className="font-semibold text-foreground truncate text-sm">
                                 {tunnel.name}
@@ -2372,6 +2504,31 @@ export default function TunnelPage() {
                     重新诊断
                   </Button>
                 )}
+              </ModalFooter>
+            </>
+          )}
+        </ModalContent>
+      </Modal>
+
+      <Modal isOpen={batchDeleteModalOpen} onOpenChange={setBatchDeleteModalOpen}>
+        <ModalContent>
+          {(onClose) => (
+            <>
+              <ModalHeader>确认批量删除</ModalHeader>
+              <ModalBody>
+                <p>确定要删除选中的 {selectedIds.size} 项隧道吗？此操作不可撤销，相关转发也将被删除。</p>
+              </ModalBody>
+              <ModalFooter>
+                <Button variant="light" onPress={onClose}>
+                  取消
+                </Button>
+                <Button
+                  color="danger"
+                  onPress={handleBatchDelete}
+                  isLoading={batchLoading}
+                >
+                  确认删除
+                </Button>
               </ModalFooter>
             </>
           )}
