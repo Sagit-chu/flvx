@@ -22,6 +22,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import javax.annotation.Resource;
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
 /**
@@ -669,17 +670,20 @@ public class TunnelServiceImpl extends ServiceImpl<TunnelMapper, Tunnel> impleme
                 .filter(ct -> ct.getChainType() == 3)
                 .toList();
 
-        List<DiagnosisResult> results = new ArrayList<>();
+        List<CompletableFuture<DiagnosisResult>> futures = new ArrayList<>();
 
         if (tunnel.getType() == 1) {
             for (ChainTunnel inNode : inNodes) {
                 Node node = nodeService.getById(inNode.getNodeId());
                 if (node != null) {
-                    DiagnosisResult result = performTcpPingDiagnosisWithConnectionCheck(
-                            node, "www.google.com", 443, "入口(" + node.getName() + ")->外网"
-                    );
-                    result.setFromChainType(1); // 入口
-                    results.add(result);
+                    final Node finalNode = node;
+                    futures.add(CompletableFuture.supplyAsync(() -> {
+                        DiagnosisResult result = performTcpPingDiagnosisWithConnectionCheck(
+                                finalNode, "www.google.com", 443, "入口(" + finalNode.getName() + ")->外网"
+                        );
+                        result.setFromChainType(1);
+                        return result;
+                    }));
                 }
             }
         } else if (tunnel.getType() == 2) {
@@ -691,27 +695,37 @@ public class TunnelServiceImpl extends ServiceImpl<TunnelMapper, Tunnel> impleme
                         for (ChainTunnel firstChainNode : chainNodesList.getFirst()) {
                             Node toNode = nodeService.getById(firstChainNode.getNodeId());
                             if (toNode != null) {
-                                DiagnosisResult result = performTcpPingDiagnosisWithConnectionCheck(
-                                        fromNode, GostUtil.selectDialHost(fromNode, toNode), firstChainNode.getPort(),
-                                        "入口(" + fromNode.getName() + ")->第1跳(" + toNode.getName() + ")"
-                                );
-                                result.setFromChainType(1); // 入口
-                                result.setToChainType(2); // 链
-                                result.setToInx(firstChainNode.getInx());
-                                results.add(result);
+                                final Node finalFromNode = fromNode;
+                                final Node finalToNode = toNode;
+                                final ChainTunnel finalFirstChainNode = firstChainNode;
+                                futures.add(CompletableFuture.supplyAsync(() -> {
+                                    DiagnosisResult result = performTcpPingDiagnosisWithConnectionCheck(
+                                            finalFromNode, GostUtil.selectDialHost(finalFromNode, finalToNode), finalFirstChainNode.getPort(),
+                                            "入口(" + finalFromNode.getName() + ")->第1跳(" + finalToNode.getName() + ")"
+                                    );
+                                    result.setFromChainType(1);
+                                    result.setToChainType(2);
+                                    result.setToInx(finalFirstChainNode.getInx());
+                                    return result;
+                                }));
                             }
                         }
                     } else if (!outNodes.isEmpty()) {
                         for (ChainTunnel outNode : outNodes) {
                             Node toNode = nodeService.getById(outNode.getNodeId());
                             if (toNode != null) {
-                                DiagnosisResult result = performTcpPingDiagnosisWithConnectionCheck(
-                                        fromNode, GostUtil.selectDialHost(fromNode, toNode), outNode.getPort(),
-                                        "入口(" + fromNode.getName() + ")->出口(" + toNode.getName() + ")"
-                                );
-                                result.setFromChainType(1);
-                                result.setToChainType(3);
-                                results.add(result);
+                                final Node finalFromNode = fromNode;
+                                final Node finalToNode = toNode;
+                                final ChainTunnel finalOutNode = outNode;
+                                futures.add(CompletableFuture.supplyAsync(() -> {
+                                    DiagnosisResult result = performTcpPingDiagnosisWithConnectionCheck(
+                                            finalFromNode, GostUtil.selectDialHost(finalFromNode, finalToNode), finalOutNode.getPort(),
+                                            "入口(" + finalFromNode.getName() + ")->出口(" + finalToNode.getName() + ")"
+                                    );
+                                    result.setFromChainType(1);
+                                    result.setToChainType(3);
+                                    return result;
+                                }));
                             }
                         }
                     }
@@ -720,6 +734,7 @@ public class TunnelServiceImpl extends ServiceImpl<TunnelMapper, Tunnel> impleme
 
             for (int i = 0; i < chainNodesList.size(); i++) {
                 List<ChainTunnel> currentHop = chainNodesList.get(i);
+                final int hopIndex = i;
                 
                 for (ChainTunnel currentNode : currentHop) {
                     Node fromNode = nodeService.getById(currentNode.getNodeId());
@@ -729,29 +744,41 @@ public class TunnelServiceImpl extends ServiceImpl<TunnelMapper, Tunnel> impleme
                             for (ChainTunnel nextNode : chainNodesList.get(i + 1)) {
                                 Node toNode = nodeService.getById(nextNode.getNodeId());
                                 if (toNode != null) {
-                                    DiagnosisResult result = performTcpPingDiagnosisWithConnectionCheck(
-                                                fromNode, GostUtil.selectDialHost(fromNode, toNode), nextNode.getPort(),
-                                            "第" + (i + 1) + "跳(" + fromNode.getName() + ")->第" + (i + 2) + "跳(" + toNode.getName() + ")"
-                                    );
-                                    result.setFromChainType(2);
-                                    result.setFromInx(currentNode.getInx());
-                                    result.setToChainType(2);
-                                    result.setToInx(nextNode.getInx());
-                                    results.add(result);
+                                    final Node finalFromNode = fromNode;
+                                    final Node finalToNode = toNode;
+                                    final ChainTunnel finalCurrentNode = currentNode;
+                                    final ChainTunnel finalNextNode = nextNode;
+                                    futures.add(CompletableFuture.supplyAsync(() -> {
+                                        DiagnosisResult result = performTcpPingDiagnosisWithConnectionCheck(
+                                                    finalFromNode, GostUtil.selectDialHost(finalFromNode, finalToNode), finalNextNode.getPort(),
+                                                "第" + (hopIndex + 1) + "跳(" + finalFromNode.getName() + ")->第" + (hopIndex + 2) + "跳(" + finalToNode.getName() + ")"
+                                        );
+                                        result.setFromChainType(2);
+                                        result.setFromInx(finalCurrentNode.getInx());
+                                        result.setToChainType(2);
+                                        result.setToInx(finalNextNode.getInx());
+                                        return result;
+                                    }));
                                 }
                             }
                         } else if (!outNodes.isEmpty()) {
                             for (ChainTunnel outNode : outNodes) {
                                 Node toNode = nodeService.getById(outNode.getNodeId());
                                 if (toNode != null) {
-                                    DiagnosisResult result = performTcpPingDiagnosisWithConnectionCheck(
-                                                fromNode, GostUtil.selectDialHost(fromNode, toNode), outNode.getPort(),
-                                            "第" + (i + 1) + "跳(" + fromNode.getName() + ")->出口(" + toNode.getName() + ")"
-                                    );
-                                    result.setFromChainType(2);
-                                    result.setFromInx(currentNode.getInx());
-                                    result.setToChainType(3);
-                                    results.add(result);
+                                    final Node finalFromNode = fromNode;
+                                    final Node finalToNode = toNode;
+                                    final ChainTunnel finalCurrentNode = currentNode;
+                                    final ChainTunnel finalOutNode = outNode;
+                                    futures.add(CompletableFuture.supplyAsync(() -> {
+                                        DiagnosisResult result = performTcpPingDiagnosisWithConnectionCheck(
+                                                    finalFromNode, GostUtil.selectDialHost(finalFromNode, finalToNode), finalOutNode.getPort(),
+                                                "第" + (hopIndex + 1) + "跳(" + finalFromNode.getName() + ")->出口(" + finalToNode.getName() + ")"
+                                        );
+                                        result.setFromChainType(2);
+                                        result.setFromInx(finalCurrentNode.getInx());
+                                        result.setToChainType(3);
+                                        return result;
+                                    }));
                                 }
                             }
                         }
@@ -761,14 +788,21 @@ public class TunnelServiceImpl extends ServiceImpl<TunnelMapper, Tunnel> impleme
             for (ChainTunnel outNode : outNodes) {
                 Node node = nodeService.getById(outNode.getNodeId());
                 if (node != null) {
-                    DiagnosisResult result = performTcpPingDiagnosisWithConnectionCheck(
-                            node, "www.google.com", 443, "出口(" + node.getName() + ")->外网"
-                    );
-                    result.setFromChainType(3);
-                    results.add(result);
+                    final Node finalNode = node;
+                    futures.add(CompletableFuture.supplyAsync(() -> {
+                        DiagnosisResult result = performTcpPingDiagnosisWithConnectionCheck(
+                                finalNode, "www.google.com", 443, "出口(" + finalNode.getName() + ")->外网"
+                        );
+                        result.setFromChainType(3);
+                        return result;
+                    }));
                 }
             }
         }
+
+        List<DiagnosisResult> results = futures.stream()
+                .map(CompletableFuture::join)
+                .collect(Collectors.toList());
 
         Map<String, Object> diagnosisReport = new HashMap<>();
         diagnosisReport.put("tunnelId", tunnelId);
