@@ -163,6 +163,7 @@ CREATE TABLE IF NOT EXISTS group_permission_grant (
   user_group_id INTEGER NOT NULL,
   tunnel_group_id INTEGER NOT NULL,
   user_tunnel_id INTEGER NOT NULL,
+  created_by_group INTEGER NOT NULL DEFAULT 0,
   created_time INTEGER NOT NULL
 );
 

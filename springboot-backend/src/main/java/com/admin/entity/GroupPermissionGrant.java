@@ -20,5 +20,7 @@ public class GroupPermissionGrant implements Serializable {
 
     private Long userTunnelId;
 
+    private Integer createdByGroup;
+
     private Long createdTime;
 }

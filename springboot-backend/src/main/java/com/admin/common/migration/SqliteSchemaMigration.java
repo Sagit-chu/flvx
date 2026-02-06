@@ -37,7 +37,8 @@ public class SqliteSchemaMigration implements ApplicationRunner {
         ensureTable("CREATE TABLE IF NOT EXISTS tunnel_group_tunnel (id INTEGER PRIMARY KEY AUTOINCREMENT, tunnel_group_id INTEGER NOT NULL, tunnel_id INTEGER NOT NULL, created_time INTEGER NOT NULL)");
         ensureTable("CREATE TABLE IF NOT EXISTS user_group_user (id INTEGER PRIMARY KEY AUTOINCREMENT, user_group_id INTEGER NOT NULL, user_id INTEGER NOT NULL, created_time INTEGER NOT NULL)");
         ensureTable("CREATE TABLE IF NOT EXISTS group_permission (id INTEGER PRIMARY KEY AUTOINCREMENT, user_group_id INTEGER NOT NULL, tunnel_group_id INTEGER NOT NULL, created_time INTEGER NOT NULL)");
-        ensureTable("CREATE TABLE IF NOT EXISTS group_permission_grant (id INTEGER PRIMARY KEY AUTOINCREMENT, user_group_id INTEGER NOT NULL, tunnel_group_id INTEGER NOT NULL, user_tunnel_id INTEGER NOT NULL, created_time INTEGER NOT NULL)");
+        ensureTable("CREATE TABLE IF NOT EXISTS group_permission_grant (id INTEGER PRIMARY KEY AUTOINCREMENT, user_group_id INTEGER NOT NULL, tunnel_group_id INTEGER NOT NULL, user_tunnel_id INTEGER NOT NULL, created_by_group INTEGER NOT NULL DEFAULT 0, created_time INTEGER NOT NULL)");
+        ensureColumn("group_permission_grant", "created_by_group", "INTEGER NOT NULL DEFAULT 0");
         ensureTable("CREATE UNIQUE INDEX IF NOT EXISTS idx_tunnel_group_name ON tunnel_group(name)");
         ensureTable("CREATE UNIQUE INDEX IF NOT EXISTS idx_user_group_name ON user_group(name)");
         ensureTable("CREATE UNIQUE INDEX IF NOT EXISTS idx_tunnel_group_tunnel_unique ON tunnel_group_tunnel(tunnel_group_id, tunnel_id)");

@@ -430,6 +430,7 @@ public class GroupServiceImpl implements GroupService {
                 .map(ut -> ut.getId().longValue())
                 .collect(Collectors.toSet());
         Map<Long, Long> totalGrantCountMap = buildGrantCountMap(pairUserTunnelIds);
+        Set<Long> groupManagedUserTunnelIds = buildGroupManagedUserTunnelIds(pairUserTunnelIds);
 
         Set<Long> currentGrantUserTunnelIds = currentGrants.stream().map(GroupPermissionGrant::getUserTunnelId).collect(Collectors.toSet());
         if (!desiredKeys.isEmpty()) {
@@ -448,9 +449,10 @@ public class GroupServiceImpl implements GroupService {
                     if (userTunnel == null) {
                         userTunnel = createGroupManagedUserTunnel(userId, tunnelId, user);
                         pairUserTunnelMap.put(pairKey, userTunnel);
-                        createGrant(userGroupId, tunnelGroupId, userTunnel.getId().longValue(), now);
+                        createGrant(userGroupId, tunnelGroupId, userTunnel.getId().longValue(), true, now);
                         currentGrantUserTunnelIds.add(userTunnel.getId().longValue());
                         totalGrantCountMap.put(userTunnel.getId().longValue(), 1L);
+                        groupManagedUserTunnelIds.add(userTunnel.getId().longValue());
                         continue;
                     }
 
@@ -460,7 +462,8 @@ public class GroupServiceImpl implements GroupService {
                     }
 
                     long existingGrantCount = totalGrantCountMap.getOrDefault(userTunnelId, 0L);
-                    createGrant(userGroupId, tunnelGroupId, userTunnelId, now);
+                    boolean createdByGroup = groupManagedUserTunnelIds.contains(userTunnelId);
+                    createGrant(userGroupId, tunnelGroupId, userTunnelId, createdByGroup, now);
                     currentGrantUserTunnelIds.add(userTunnelId);
                     totalGrantCountMap.put(userTunnelId, existingGrantCount + 1L);
                 }
@@ -498,7 +501,7 @@ public class GroupServiceImpl implements GroupService {
         return userTunnel;
     }
 
-    private void createGrant(Long userGroupId, Long tunnelGroupId, Long userTunnelId, long createdTime) {
+    private void createGrant(Long userGroupId, Long tunnelGroupId, Long userTunnelId, boolean createdByGroup, long createdTime) {
         int exists = groupPermissionGrantMapper.selectCount(new QueryWrapper<GroupPermissionGrant>()
                 .eq("user_group_id", userGroupId)
                 .eq("tunnel_group_id", tunnelGroupId)
@@ -511,6 +514,7 @@ public class GroupServiceImpl implements GroupService {
         grant.setUserGroupId(userGroupId);
         grant.setTunnelGroupId(tunnelGroupId);
         grant.setUserTunnelId(userTunnelId);
+        grant.setCreatedByGroup(createdByGroup ? 1 : 0);
         grant.setCreatedTime(createdTime);
         groupPermissionGrantMapper.insert(grant);
     }
@@ -528,8 +532,12 @@ public class GroupServiceImpl implements GroupService {
         }
 
         Set<Long> candidateUserTunnelIds = new HashSet<>();
+        Set<Long> groupManagedCandidates = new HashSet<>();
         for (GroupPermissionGrant grant : grants) {
             candidateUserTunnelIds.add(grant.getUserTunnelId());
+            if (grant.getCreatedByGroup() != null && grant.getCreatedByGroup() == 1) {
+                groupManagedCandidates.add(grant.getUserTunnelId());
+            }
             groupPermissionGrantMapper.deleteById(grant.getId());
         }
 
@@ -540,10 +548,23 @@ public class GroupServiceImpl implements GroupService {
                 .collect(Collectors.toSet());
 
         for (Long userTunnelId : candidateUserTunnelIds) {
-            if (!stillGrantedUserTunnelIds.contains(userTunnelId)) {
+            if (!stillGrantedUserTunnelIds.contains(userTunnelId) && groupManagedCandidates.contains(userTunnelId)) {
                 userTunnelService.removeUserTunnel(userTunnelId.intValue());
             }
         }
+    }
+
+    private Set<Long> buildGroupManagedUserTunnelIds(Set<Long> userTunnelIds) {
+        if (userTunnelIds.isEmpty()) {
+            return Collections.emptySet();
+        }
+
+        return groupPermissionGrantMapper.selectList(new QueryWrapper<GroupPermissionGrant>()
+                        .in("user_tunnel_id", userTunnelIds)
+                        .eq("created_by_group", 1))
+                .stream()
+                .map(GroupPermissionGrant::getUserTunnelId)
+                .collect(Collectors.toSet());
     }
 
     private Map<Long, Long> buildGrantCountMap(Set<Long> userTunnelIds) {
