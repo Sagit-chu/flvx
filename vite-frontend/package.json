@@ -84,7 +84,7 @@
     "postcss": "8.5.6",
     "prettier": "3.5.3",
     "typescript": "5.6.3",
-    "vite": "^7.3.1",
+    "vite": "npm:rolldown-vite@^7.3.1",
     "vite-tsconfig-paths": "^6.0.5"
   }
 }
