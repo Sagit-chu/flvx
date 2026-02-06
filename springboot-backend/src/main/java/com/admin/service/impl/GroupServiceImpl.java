@@ -460,11 +460,9 @@ public class GroupServiceImpl implements GroupService {
                     }
 
                     long existingGrantCount = totalGrantCountMap.getOrDefault(userTunnelId, 0L);
-                    if (existingGrantCount > 0L) {
-                        createGrant(userGroupId, tunnelGroupId, userTunnelId, now);
-                        currentGrantUserTunnelIds.add(userTunnelId);
-                        totalGrantCountMap.put(userTunnelId, existingGrantCount + 1L);
-                    }
+                    createGrant(userGroupId, tunnelGroupId, userTunnelId, now);
+                    currentGrantUserTunnelIds.add(userTunnelId);
+                    totalGrantCountMap.put(userTunnelId, existingGrantCount + 1L);
                 }
             }
         }
