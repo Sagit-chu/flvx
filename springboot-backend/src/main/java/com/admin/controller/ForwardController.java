@@ -107,6 +107,18 @@ public class ForwardController extends BaseController {
     }
 
     @LogAnnotation
+    @PostMapping("/batch-pause")
+    public R batchPause(@Validated @RequestBody BatchDeleteDto batchDeleteDto) {
+        return forwardService.batchPauseForwards(batchDeleteDto);
+    }
+
+    @LogAnnotation
+    @PostMapping("/batch-resume")
+    public R batchResume(@Validated @RequestBody BatchDeleteDto batchDeleteDto) {
+        return forwardService.batchResumeForwards(batchDeleteDto);
+    }
+
+    @LogAnnotation
     @PostMapping("/batch-redeploy")
     public R batchRedeploy(@Validated @RequestBody BatchRedeployDto batchRedeployDto) {
         return forwardService.batchRedeployForwards(batchRedeployDto);

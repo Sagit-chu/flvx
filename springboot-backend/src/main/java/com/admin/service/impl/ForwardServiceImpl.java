@@ -1306,6 +1306,37 @@ public class ForwardServiceImpl extends ServiceImpl<ForwardMapper, Forward> impl
 
     @Override
     @Transactional
+    public R batchPauseForwards(BatchDeleteDto batchDeleteDto) {
+        return batchChangeForwardStatus(batchDeleteDto.getIds(), 0, "PauseService");
+    }
+
+    @Override
+    @Transactional
+    public R batchResumeForwards(BatchDeleteDto batchDeleteDto) {
+        return batchChangeForwardStatus(batchDeleteDto.getIds(), 1, "ResumeService");
+    }
+
+    private R batchChangeForwardStatus(List<Long> ids, int targetStatus, String gostMethod) {
+        BatchOperationResultDto result = new BatchOperationResultDto();
+
+        for (Long id : ids) {
+            try {
+                R changeResult = changeForwardStatus(id, targetStatus, gostMethod);
+                if (changeResult.getCode() == 0) {
+                    result.incrementSuccess();
+                } else {
+                    result.addFailedItem(id, changeResult.getMsg());
+                }
+            } catch (Exception e) {
+                result.addFailedItem(id, e.getMessage());
+            }
+        }
+
+        return R.ok(result);
+    }
+
+    @Override
+    @Transactional
     public R batchRedeployForwards(BatchRedeployDto batchRedeployDto) {
         UserInfo currentUser = getCurrentUserInfo();
         BatchOperationResultDto result = new BatchOperationResultDto();

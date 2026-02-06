@@ -62,7 +62,7 @@ export default function AdminLayout({
   const menuItems: MenuItem[] = [
     {
       path: "/dashboard",
-      label: "仪表板",
+      label: "仪表",
       icon: (
         <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
           <path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z" />
@@ -71,7 +71,7 @@ export default function AdminLayout({
     },
     {
       path: "/forward",
-      label: "转发管理",
+      label: "转发",
       icon: (
         <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
           <path
@@ -84,7 +84,7 @@ export default function AdminLayout({
     },
     {
       path: "/tunnel",
-      label: "隧道管理",
+      label: "隧道",
       icon: (
         <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
           <path
@@ -98,7 +98,7 @@ export default function AdminLayout({
     },
     {
       path: "/node",
-      label: "节点监控",
+      label: "节点",
       icon: (
         <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
           <path
@@ -112,7 +112,7 @@ export default function AdminLayout({
     },
     {
       path: "/limit",
-      label: "限速管理",
+      label: "限速",
       icon: (
         <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
           <path
@@ -126,7 +126,7 @@ export default function AdminLayout({
     },
     {
       path: "/user",
-      label: "用户管理",
+      label: "用户",
       icon: (
         <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
           <path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z" />
@@ -136,7 +136,7 @@ export default function AdminLayout({
     },
     {
       path: "/config",
-      label: "网站配置",
+      label: "设置",
       icon: (
         <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
           <path

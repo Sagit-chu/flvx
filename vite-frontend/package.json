@@ -55,7 +55,7 @@
     "react-dom": "18.3.1",
     "react-hot-toast": "^2.5.2",
     "react-is": "^19.2.4",
-    "react-router-dom": "6.23.0",
+    "react-router-dom": "6.30.3",
     "recharts": "^3.1.1",
     "sonner": "^2.0.6",
     "tailwind-variants": "1.0.0",
@@ -64,14 +64,14 @@
   "devDependencies": {
     "@eslint/compat": "1.2.8",
     "@eslint/eslintrc": "3.3.1",
-    "@eslint/js": "9.25.1",
+    "@eslint/js": "9.39.2",
     "@types/node": "^24.3.0",
     "@types/react": "18.3.3",
     "@types/react-dom": "18.3.0",
     "@typescript-eslint/eslint-plugin": "8.31.1",
     "@typescript-eslint/parser": "8.31.1",
     "@vitejs/plugin-react": "4.4.1",
-    "eslint": "9.25.1",
+    "eslint": "9.39.2",
     "eslint-config-prettier": "9.1.0",
     "eslint-plugin-import": "2.31.0",
     "eslint-plugin-jsx-a11y": "6.10.2",
@@ -84,7 +84,7 @@
     "postcss": "8.5.6",
     "prettier": "3.5.3",
     "typescript": "5.6.3",
-    "vite": "5.4.11",
+    "vite": "5.4.21",
     "vite-tsconfig-paths": "4.3.2"
   }
 }

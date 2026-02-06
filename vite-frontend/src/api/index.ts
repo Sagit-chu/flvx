@@ -131,6 +131,10 @@ export const verifyCaptcha = (data: { captchaId: string; trackData: string }) =>
 // 批量操作接口
 export const batchDeleteForwards = (ids: number[]) =>
   Network.post("/forward/batch-delete", { ids });
+export const batchPauseForwards = (ids: number[]) =>
+  Network.post("/forward/batch-pause", { ids });
+export const batchResumeForwards = (ids: number[]) =>
+  Network.post("/forward/batch-resume", { ids });
 export const batchDeleteTunnels = (ids: number[]) =>
   Network.post("/tunnel/batch-delete", { ids });
 export const batchDeleteNodes = (ids: number[]) =>

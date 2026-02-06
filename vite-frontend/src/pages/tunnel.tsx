@@ -854,31 +854,33 @@ export default function TunnelPage() {
       </div>
 
       {selectMode && selectedIds.size > 0 && (
-        <div className="fixed bottom-4 left-1/2 transform -translate-x-1/2 z-50 bg-content1 shadow-lg rounded-lg border border-divider p-3 flex items-center gap-3">
-          <span className="text-sm text-default-600">已选择 {selectedIds.size} 项</span>
-          <Button size="sm" variant="flat" onPress={selectAll}>
-            全选
-          </Button>
-          <Button size="sm" variant="flat" onPress={deselectAll}>
-            清空
-          </Button>
-          <Button
-            size="sm"
-            color="danger"
-            variant="flat"
-            onPress={() => setBatchDeleteModalOpen(true)}
-          >
-            删除
-          </Button>
-          <Button
-            size="sm"
-            color="primary"
-            variant="flat"
-            onPress={handleBatchRedeploy}
-            isLoading={batchLoading}
-          >
-            下发
-          </Button>
+        <div className="fixed bottom-7 left-1/2 z-50 w-[calc(100vw-1rem)] max-w-max -translate-x-1/2 overflow-x-auto rounded-lg border border-divider bg-content1 p-2 shadow-lg">
+          <div className="flex min-w-max items-center gap-2">
+            <span className="text-sm text-default-600 shrink-0">已选择 {selectedIds.size} 项</span>
+            <Button size="sm" variant="flat" onPress={selectAll}>
+              全选
+            </Button>
+            <Button size="sm" variant="flat" onPress={deselectAll}>
+              清空
+            </Button>
+            <Button
+              size="sm"
+              color="danger"
+              variant="flat"
+              onPress={() => setBatchDeleteModalOpen(true)}
+            >
+              删除
+            </Button>
+            <Button
+              size="sm"
+              color="primary"
+              variant="flat"
+              onPress={handleBatchRedeploy}
+              isLoading={batchLoading}
+            >
+              下发
+            </Button>
+          </div>
         </div>
       )}
 

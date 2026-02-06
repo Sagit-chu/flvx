@@ -85,6 +85,10 @@ public interface ForwardService extends IService<Forward> {
     R updateForwardOrder(Map<String, Object> params);
     
     R batchDeleteForwards(BatchDeleteDto batchDeleteDto);
+
+    R batchPauseForwards(BatchDeleteDto batchDeleteDto);
+
+    R batchResumeForwards(BatchDeleteDto batchDeleteDto);
     
     R batchRedeployForwards(BatchRedeployDto batchRedeployDto);
     
