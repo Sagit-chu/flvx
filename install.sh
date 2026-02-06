@@ -295,6 +295,8 @@ After=network.target
 WorkingDirectory=$INSTALL_DIR
 ExecStart=$INSTALL_DIR/flux_agent
 Restart=on-failure
+StandardOutput=null
+StandardError=null
 
 [Install]
 WantedBy=multi-user.target
@@ -312,8 +314,8 @@ EOF
     echo "📁 配置目录: $INSTALL_DIR"
     echo "🔧 服务状态: $(systemctl is-active flux_agent)"
   else
-    echo "❌ flux_agent服务启动失败，请执行以下命令查看日志："
-    echo "journalctl -u flux_agent -f"
+    echo "❌ flux_agent服务启动失败，请执行以下命令查看状态："
+    echo "systemctl status flux_agent --no-pager"
   fi
 }
 
