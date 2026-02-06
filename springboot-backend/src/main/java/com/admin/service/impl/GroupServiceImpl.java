@@ -30,6 +30,7 @@ import com.admin.service.UserService;
 import com.admin.service.UserTunnelService;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import javax.annotation.Resource;
 import java.util.ArrayList;
@@ -158,6 +159,7 @@ public class GroupServiceImpl implements GroupService {
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public R assignTunnelsToGroup(TunnelGroupAssignTunnelsDto dto) {
         TunnelGroup group = tunnelGroupMapper.selectById(dto.getGroupId());
         if (group == null) {
@@ -274,6 +276,7 @@ public class GroupServiceImpl implements GroupService {
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public R assignUsersToGroup(UserGroupAssignUsersDto dto) {
         UserGroup group = userGroupMapper.selectById(dto.getGroupId());
         if (group == null) {
@@ -336,6 +339,7 @@ public class GroupServiceImpl implements GroupService {
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public R assignGroupPermission(GroupPermissionAssignDto dto) {
         UserGroup userGroup = userGroupMapper.selectById(dto.getUserGroupId());
         if (userGroup == null) {
@@ -448,11 +452,12 @@ public class GroupServiceImpl implements GroupService {
                     UserTunnel userTunnel = pairUserTunnelMap.get(pairKey);
                     if (userTunnel == null) {
                         userTunnel = createGroupManagedUserTunnel(userId, tunnelId, user);
+                        Long userTunnelId = resolveUserTunnelId(userTunnel, userId, tunnelId);
                         pairUserTunnelMap.put(pairKey, userTunnel);
-                        createGrant(userGroupId, tunnelGroupId, userTunnel.getId().longValue(), true, now);
-                        currentGrantUserTunnelIds.add(userTunnel.getId().longValue());
-                        totalGrantCountMap.put(userTunnel.getId().longValue(), 1L);
-                        groupManagedUserTunnelIds.add(userTunnel.getId().longValue());
+                        createGrant(userGroupId, tunnelGroupId, userTunnelId, true, now);
+                        currentGrantUserTunnelIds.add(userTunnelId);
+                        totalGrantCountMap.put(userTunnelId, 1L);
+                        groupManagedUserTunnelIds.add(userTunnelId);
                         continue;
                     }
 
@@ -497,8 +502,30 @@ public class GroupServiceImpl implements GroupService {
         userTunnel.setNum(user.getNum());
         userTunnel.setFlowResetTime(user.getFlowResetTime());
         userTunnel.setExpTime(user.getExpTime());
-        userTunnelService.save(userTunnel);
+        boolean saved = userTunnelService.save(userTunnel);
+        if (!saved) {
+            throw new IllegalStateException("创建用户隧道权限失败: userId=" + userId + ", tunnelId=" + tunnelId);
+        }
         return userTunnel;
+    }
+
+    private Long resolveUserTunnelId(UserTunnel userTunnel, Long userId, Long tunnelId) {
+        if (userTunnel.getId() != null) {
+            return userTunnel.getId().longValue();
+        }
+
+        UserTunnel persisted = userTunnelService.getOne(
+                new QueryWrapper<UserTunnel>()
+                        .eq("user_id", userId.intValue())
+                        .eq("tunnel_id", tunnelId.intValue())
+                        .orderByDesc("id")
+                        .last("LIMIT 1")
+        );
+        if (persisted == null || persisted.getId() == null) {
+            throw new IllegalStateException("获取用户隧道权限ID失败: userId=" + userId + ", tunnelId=" + tunnelId);
+        }
+        userTunnel.setId(persisted.getId());
+        return persisted.getId().longValue();
     }
 
     private void createGrant(Long userGroupId, Long tunnelGroupId, Long userTunnelId, boolean createdByGroup, long createdTime) {
