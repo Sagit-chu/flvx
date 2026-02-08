@@ -12,6 +12,7 @@ import GroupPage from "@/pages/group";
 import ProfilePage from "@/pages/profile";
 import LimitPage from "@/pages/limit";
 import ConfigPage from "@/pages/config";
+import PanelSharingPage from "@/pages/panel-sharing";
 import { SettingsPage } from "@/pages/settings";
 import AdminLayout from "@/layouts/admin";
 import H5Layout from "@/layouts/h5";
@@ -235,11 +236,19 @@ function App() {
       />
       <Route
         element={
-          <ProtectedRoute useSimpleLayout={true}>
+          <ProtectedRoute>
             <ConfigPage />
           </ProtectedRoute>
         }
         path="/config"
+      />
+      <Route
+        element={
+          <ProtectedRoute>
+            <PanelSharingPage />
+          </ProtectedRoute>
+        }
+        path="/panel-sharing"
       />
       <Route element={<SettingsPage />} path="/settings" />
     </Routes>

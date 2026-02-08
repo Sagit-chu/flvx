@@ -95,13 +95,32 @@ type StatisticsFlow struct {
 }
 
 type Node struct {
-	ID      int64
-	Secret  string
-	Version sql.NullString
-	HTTP    int
-	TLS     int
-	Socks   int
-	Status  int
+	ID           int64
+	Secret       string
+	Version      sql.NullString
+	HTTP         int
+	TLS          int
+	Socks        int
+	Status       int
+	IsRemote     int
+	RemoteURL    sql.NullString
+	RemoteToken  sql.NullString
+	RemoteConfig sql.NullString
+}
+
+type PeerShare struct {
+	ID             int64  `json:"id"`
+	Name           string `json:"name"`
+	NodeID         int64  `json:"nodeId"`
+	Token          string `json:"token"`
+	MaxBandwidth   int64  `json:"maxBandwidth"`
+	ExpiryTime     int64  `json:"expiryTime"`
+	PortRangeStart int    `json:"portRangeStart"`
+	PortRangeEnd   int    `json:"portRangeEnd"`
+	CurrentFlow    int64  `json:"currentFlow"`
+	IsActive       int    `json:"isActive"`
+	CreatedTime    int64  `json:"createdTime"`
+	UpdatedTime    int64  `json:"updatedTime"`
 }
 
 func Open(path string) (*Repository, error) {
@@ -120,6 +139,11 @@ func Open(path string) (*Repository, error) {
 	}
 
 	if err := bootstrapSchema(db); err != nil {
+		_ = db.Close()
+		return nil, err
+	}
+
+	if err := ensurePeerSchema(db); err != nil {
 		_ = db.Close()
 		return nil, err
 	}
@@ -389,9 +413,9 @@ func (r *Repository) GetNodeBySecret(secret string) (*Node, error) {
 		return nil, errors.New("repository not initialized")
 	}
 
-	row := r.db.QueryRow(`SELECT id, secret, version, http, tls, socks, status FROM node WHERE secret = ? LIMIT 1`, secret)
+	row := r.db.QueryRow(`SELECT id, secret, version, http, tls, socks, status, is_remote, remote_url, remote_token, remote_config FROM node WHERE secret = ? LIMIT 1`, secret)
 	var n Node
-	if err := row.Scan(&n.ID, &n.Secret, &n.Version, &n.HTTP, &n.TLS, &n.Socks, &n.Status); err != nil {
+	if err := row.Scan(&n.ID, &n.Secret, &n.Version, &n.HTTP, &n.TLS, &n.Socks, &n.Status, &n.IsRemote, &n.RemoteURL, &n.RemoteToken, &n.RemoteConfig); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, nil
 		}
@@ -454,7 +478,7 @@ func (r *Repository) ListNodes() ([]map[string]interface{}, error) {
 	}
 
 	rows, err := r.db.Query(`
-		SELECT id, inx, name, server_ip, server_ip_v4, server_ip_v6, port, tcp_listen_addr, udp_listen_addr, version, http, tls, socks, status
+		SELECT id, inx, name, server_ip, server_ip_v4, server_ip_v6, port, tcp_listen_addr, udp_listen_addr, version, http, tls, socks, status, is_remote, remote_url, remote_token, remote_config
 		FROM node
 		ORDER BY inx ASC, id ASC
 	`)
@@ -467,10 +491,10 @@ func (r *Repository) ListNodes() ([]map[string]interface{}, error) {
 	for rows.Next() {
 		var id, inx int64
 		var name, serverIP, port string
-		var serverIPV4, serverIPV6, tcpListen, udpListen, version sql.NullString
-		var httpVal, tlsVal, socksVal, status int
+		var serverIPV4, serverIPV6, tcpListen, udpListen, version, remoteURL, remoteToken, remoteConfig sql.NullString
+		var httpVal, tlsVal, socksVal, status, isRemote int
 
-		if err := rows.Scan(&id, &inx, &name, &serverIP, &serverIPV4, &serverIPV6, &port, &tcpListen, &udpListen, &version, &httpVal, &tlsVal, &socksVal, &status); err != nil {
+		if err := rows.Scan(&id, &inx, &name, &serverIP, &serverIPV4, &serverIPV6, &port, &tcpListen, &udpListen, &version, &httpVal, &tlsVal, &socksVal, &status, &isRemote, &remoteURL, &remoteToken, &remoteConfig); err != nil {
 			return nil, err
 		}
 
@@ -490,6 +514,10 @@ func (r *Repository) ListNodes() ([]map[string]interface{}, error) {
 			"tls":           tlsVal,
 			"socks":         socksVal,
 			"status":        status,
+			"isRemote":      isRemote,
+			"remoteUrl":     nullableString(remoteURL),
+			"remoteToken":   nullableString(remoteToken),
+			"remoteConfig":  nullableString(remoteConfig),
 		})
 	}
 
@@ -1184,6 +1212,132 @@ func bootstrapSchema(db *sql.DB) error {
 		return fmt.Errorf("apply data.sql: %w", err)
 	}
 	return nil
+}
+
+func ensurePeerSchema(db *sql.DB) error {
+	if db == nil {
+		return errors.New("nil db")
+	}
+
+	_, err := db.Exec(`CREATE TABLE IF NOT EXISTS peer_share (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		name TEXT NOT NULL,
+		node_id INTEGER NOT NULL,
+		token TEXT NOT NULL UNIQUE,
+		max_bandwidth INTEGER DEFAULT 0,
+		expiry_time INTEGER DEFAULT 0,
+		port_range_start INTEGER DEFAULT 0,
+		port_range_end INTEGER DEFAULT 0,
+		current_flow INTEGER DEFAULT 0,
+		is_active INTEGER DEFAULT 1,
+		created_time INTEGER NOT NULL,
+		updated_time INTEGER NOT NULL
+	)`)
+	if err != nil {
+		return fmt.Errorf("create peer_share: %w", err)
+	}
+
+	columns := map[string]string{
+		"is_remote":     "INTEGER DEFAULT 0",
+		"remote_url":    "TEXT",
+		"remote_token":  "TEXT",
+		"remote_config": "TEXT",
+	}
+
+	for col, typ := range columns {
+		var dummy interface{}
+		err := db.QueryRow(fmt.Sprintf("SELECT %s FROM node LIMIT 1", col)).Scan(&dummy)
+		if err != nil {
+			if strings.Contains(err.Error(), "no such column") {
+				_, err = db.Exec(fmt.Sprintf("ALTER TABLE node ADD COLUMN %s %s", col, typ))
+				if err != nil {
+					log.Printf("failed to add column %s: %v", col, err)
+				}
+			}
+		}
+	}
+	return nil
+}
+
+func (r *Repository) CreatePeerShare(share *PeerShare) error {
+	if r == nil || r.db == nil {
+		return errors.New("repository not initialized")
+	}
+	_, err := r.db.Exec(`
+		INSERT INTO peer_share(name, node_id, token, max_bandwidth, expiry_time, port_range_start, port_range_end, current_flow, is_active, created_time, updated_time)
+		VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+	`, share.Name, share.NodeID, share.Token, share.MaxBandwidth, share.ExpiryTime, share.PortRangeStart, share.PortRangeEnd, share.CurrentFlow, share.IsActive, share.CreatedTime, share.UpdatedTime)
+	return err
+}
+
+func (r *Repository) UpdatePeerShare(share *PeerShare) error {
+	if r == nil || r.db == nil {
+		return errors.New("repository not initialized")
+	}
+	_, err := r.db.Exec(`
+		UPDATE peer_share SET name=?, max_bandwidth=?, expiry_time=?, port_range_start=?, port_range_end=?, is_active=?, updated_time=?
+		WHERE id=?
+	`, share.Name, share.MaxBandwidth, share.ExpiryTime, share.PortRangeStart, share.PortRangeEnd, share.IsActive, share.UpdatedTime, share.ID)
+	return err
+}
+
+func (r *Repository) DeletePeerShare(id int64) error {
+	if r == nil || r.db == nil {
+		return errors.New("repository not initialized")
+	}
+	_, err := r.db.Exec(`DELETE FROM peer_share WHERE id=?`, id)
+	return err
+}
+
+func (r *Repository) GetPeerShare(id int64) (*PeerShare, error) {
+	if r == nil || r.db == nil {
+		return nil, errors.New("repository not initialized")
+	}
+	row := r.db.QueryRow(`SELECT id, name, node_id, token, max_bandwidth, expiry_time, port_range_start, port_range_end, current_flow, is_active, created_time, updated_time FROM peer_share WHERE id = ?`, id)
+	var s PeerShare
+	if err := row.Scan(&s.ID, &s.Name, &s.NodeID, &s.Token, &s.MaxBandwidth, &s.ExpiryTime, &s.PortRangeStart, &s.PortRangeEnd, &s.CurrentFlow, &s.IsActive, &s.CreatedTime, &s.UpdatedTime); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &s, nil
+}
+
+func (r *Repository) GetPeerShareByToken(token string) (*PeerShare, error) {
+	if r == nil || r.db == nil {
+		return nil, errors.New("repository not initialized")
+	}
+	row := r.db.QueryRow(`SELECT id, name, node_id, token, max_bandwidth, expiry_time, port_range_start, port_range_end, current_flow, is_active, created_time, updated_time FROM peer_share WHERE token = ?`, token)
+	var s PeerShare
+	if err := row.Scan(&s.ID, &s.Name, &s.NodeID, &s.Token, &s.MaxBandwidth, &s.ExpiryTime, &s.PortRangeStart, &s.PortRangeEnd, &s.CurrentFlow, &s.IsActive, &s.CreatedTime, &s.UpdatedTime); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &s, nil
+}
+
+func (r *Repository) ListPeerShares() ([]PeerShare, error) {
+	if r == nil || r.db == nil {
+		return nil, errors.New("repository not initialized")
+	}
+	rows, err := r.db.Query(`SELECT id, name, node_id, token, max_bandwidth, expiry_time, port_range_start, port_range_end, current_flow, is_active, created_time, updated_time FROM peer_share ORDER BY id DESC`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var shares []PeerShare
+	for rows.Next() {
+		var s PeerShare
+		if err := rows.Scan(&s.ID, &s.Name, &s.NodeID, &s.Token, &s.MaxBandwidth, &s.ExpiryTime, &s.PortRangeStart, &s.PortRangeEnd, &s.CurrentFlow, &s.IsActive, &s.CreatedTime, &s.UpdatedTime); err != nil {
+			return nil, err
+		}
+		shares = append(shares, s)
+	}
+	return shares, nil
 }
 
 var osMkdirAll = func(path string) error {

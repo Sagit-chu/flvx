@@ -15,6 +15,7 @@ import (
 	"strings"
 	"time"
 
+	"go-backend/internal/http/client"
 	"go-backend/internal/http/response"
 	"go-backend/internal/security"
 )
@@ -273,8 +274,8 @@ func (h *Handler) nodeCreate(w http.ResponseWriter, r *http.Request) {
 	now := time.Now().UnixMilli()
 	inx := nextIndex(db, "node")
 	_, err := db.Exec(`
-		INSERT INTO node(name, secret, server_ip, server_ip_v4, server_ip_v6, port, interface_name, version, http, tls, socks, created_time, updated_time, status, tcp_listen_addr, udp_listen_addr, inx)
-		VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		INSERT INTO node(name, secret, server_ip, server_ip_v4, server_ip_v6, port, interface_name, version, http, tls, socks, created_time, updated_time, status, tcp_listen_addr, udp_listen_addr, inx, is_remote, remote_url, remote_token, remote_config)
+		VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`,
 		name,
 		randomToken(16),
@@ -293,6 +294,10 @@ func (h *Handler) nodeCreate(w http.ResponseWriter, r *http.Request) {
 		defaultString(asString(req["tcpListenAddr"]), "[::]"),
 		defaultString(asString(req["udpListenAddr"]), "[::]"),
 		inx,
+		asInt(req["isRemote"], 0),
+		nullableText(asString(req["remoteUrl"])),
+		nullableText(asString(req["remoteToken"])),
+		nullableText(asString(req["remoteConfig"])),
 	)
 	if err != nil {
 		response.WriteJSON(w, response.Err(-2, err.Error()))
@@ -507,6 +512,45 @@ func (h *Handler) tunnelCreate(w http.ResponseWriter, r *http.Request) {
 	}
 	if strings.TrimSpace(inIP) == "" {
 		inIP = buildTunnelInIP(runtimeState.InNodes, runtimeState.Nodes)
+	}
+
+	if len(runtimeState.InNodes) > 0 {
+		firstNodeID := runtimeState.InNodes[0].NodeID
+		var isRemote int
+		var rUrl, rToken sql.NullString
+		if err := h.repo.DB().QueryRow("SELECT is_remote, remote_url, remote_token FROM node WHERE id = ?", firstNodeID).Scan(&isRemote, &rUrl, &rToken); err == nil && isRemote == 1 {
+			fc := client.NewFederationClient()
+
+			targetProto := "tcp"
+			targetPort := 0
+			targetAddr := ""
+
+			if typeVal == 1 {
+				if len(runtimeState.OutNodes) > 0 {
+					outNode := runtimeState.OutNodes[0]
+					outNodeRec := runtimeState.Nodes[outNode.NodeID]
+					targetAddr = processServerAddress(outNodeRec.ServerIP)
+					if outNode.Port > 0 {
+						targetAddr = fmt.Sprintf("%s:%d", targetAddr, outNode.Port)
+					}
+				}
+				if len(runtimeState.InNodes) > 0 {
+					inNodesRaw := asMapSlice(req["inNodeId"])
+					if len(inNodesRaw) > 0 {
+						targetPort = asInt(inNodesRaw[0]["port"], 0)
+						targetProto = defaultString(asString(inNodesRaw[0]["protocol"]), "tcp")
+					}
+				}
+
+				if targetPort > 0 && targetAddr != "" {
+					_, err := fc.CreateTunnel(rUrl.String, rToken.String, targetProto, targetPort, targetAddr)
+					if err != nil {
+						response.WriteJSON(w, response.ErrDefault("Remote tunnel creation failed: "+err.Error()))
+						return
+					}
+				}
+			}
+		}
 	}
 
 	res, err := tx.Exec(`INSERT INTO tunnel(name, traffic_ratio, type, protocol, flow, created_time, updated_time, status, in_ip, inx) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,

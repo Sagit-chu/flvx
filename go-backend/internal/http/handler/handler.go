@@ -143,6 +143,9 @@ func (h *Handler) Register(mux *http.ServeMux) {
 	mux.HandleFunc("/api/v1/group/permission/assign", h.groupPermissionAssign)
 	mux.HandleFunc("/api/v1/group/permission/remove", h.groupPermissionRemove)
 	mux.HandleFunc("/api/v1/open_api/sub_store", h.openAPISubStore)
+	mux.HandleFunc("/api/v1/federation/connect", h.authPeer(h.federationConnect))
+	mux.HandleFunc("/api/v1/federation/tunnel/create", h.authPeer(h.federationTunnelCreate))
+	mux.HandleFunc("/api/v1/federation/node/import", h.nodeImport)
 
 	mux.HandleFunc("/flow/test", h.flowTest)
 	mux.HandleFunc("/flow/config", h.flowConfig)

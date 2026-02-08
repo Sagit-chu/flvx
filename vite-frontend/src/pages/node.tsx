@@ -62,7 +62,9 @@ interface Node {
   http?: number; // 0 关 1 开
   tls?: number; // 0 关 1 开
   socks?: number; // 0 关 1 开
-  status: number; // 1: 在线, 0: 离线
+  status: number;
+  isRemote?: number;
+  remoteUrl?: string;
   connectionStatus: "online" | "offline";
   systemInfo?: {
     cpuUsage: number;
@@ -1133,6 +1135,16 @@ export default function NodePage() {
                             </h3>
                           </div>
                           <div className="flex items-center gap-1.5 ml-2">
+                            {node.isRemote === 1 && (
+                              <Chip
+                                className="text-xs"
+                                color="secondary"
+                                size="sm"
+                                variant="flat"
+                              >
+                                远程
+                              </Chip>
+                            )}
                             <div
                               className="cursor-grab active:cursor-grabbing p-2 text-default-400 hover:text-default-600 transition-colors touch-manipulation opacity-100 sm:opacity-0 sm:group-hover:opacity-100"
                               {...listeners}
@@ -1341,6 +1353,7 @@ export default function NodePage() {
                             <Button
                               className="flex-1 min-h-8"
                               color="success"
+                              isDisabled={node.isRemote === 1}
                               isLoading={node.copyLoading}
                               size="sm"
                               variant="flat"
@@ -1351,6 +1364,7 @@ export default function NodePage() {
                             <Button
                               className="flex-1 min-h-8"
                               color="primary"
+                              isDisabled={node.isRemote === 1}
                               size="sm"
                               variant="flat"
                               onPress={() => handleEdit(node)}

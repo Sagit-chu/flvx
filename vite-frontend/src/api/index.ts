@@ -187,3 +187,20 @@ export const assignGroupPermission = (data: {
 }) => Network.post("/group/permission/assign", data);
 export const removeGroupPermission = (id: number) =>
   Network.post("/group/permission/remove", { id });
+
+// 面板共享 (Federation) 接口
+export const getPeerShareList = () => Network.post("/federation/share/list");
+export const createPeerShare = (data: {
+  name: string;
+  nodeId: number;
+  maxBandwidth?: number;
+  expiryTime?: number;
+  portRangeStart?: number;
+  portRangeEnd?: number;
+}) => Network.post("/federation/share/create", data);
+export const deletePeerShare = (id: number) =>
+  Network.post("/federation/share/delete", { id });
+export const importRemoteNode = (data: {
+  remoteUrl: string;
+  token: string;
+}) => Network.post("/federation/node/import", data);
