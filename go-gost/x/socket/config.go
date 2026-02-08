@@ -10,7 +10,7 @@ import (
 // configMutex 保护配置文件的并发写入
 var configMutex sync.Mutex
 
-func saveConfig() {
+func saveConfig() error {
 	configMutex.Lock()
 	defer configMutex.Unlock()
 
@@ -18,14 +18,13 @@ func saveConfig() {
 
 	f, err := os.Create(file)
 	if err != nil {
-		return
+		return err
 	}
 	defer f.Close()
 
 	if err := config.Global().Write(f, "json"); err != nil {
-
-		return
+		return err
 	}
 
-	return
+	return nil
 }
