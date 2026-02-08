@@ -4,7 +4,7 @@ import { Card, CardBody, CardHeader } from "@heroui/card";
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
-import Turnstile from "react-turnstile";
+import { Turnstile } from "@marsidev/react-turnstile";
 
 import { isWebViewFunc } from "@/utils/panel";
 import { siteConfig } from "@/config/site";
@@ -243,8 +243,6 @@ export default function IndexPage() {
             {/* 背景遮罩层 - 模糊效果，暗黑模式下更深 */}
             <div 
               className="absolute inset-0 bg-black/60 dark:bg-black/80 backdrop-blur-sm captcha-backdrop-enter"
-              role="button"
-              tabIndex={0}
               onClick={() => {
                 setShowCaptcha(false);
                 setLoading(false);
@@ -255,14 +253,16 @@ export default function IndexPage() {
                   setLoading(false);
                 }
               }}
+              role="button"
+              tabIndex={0}
             />
             {/* 验证码容器 */}
             <div className="mb-4 relative z-50 bg-white dark:bg-zinc-900 p-6 rounded-lg shadow-xl">
               <div className="mb-4 text-center text-sm font-medium text-gray-700 dark:text-gray-200">请完成安全验证</div>
               <div className="flex justify-center">
                 <Turnstile
-                  sitekey={siteKey}
-                  onVerify={(token) => {
+                  siteKey={siteKey}
+                  onSuccess={(token) => {
                     setForm((prev) => ({ ...prev, captchaId: token }));
                     void performLogin(token);
                   }}
@@ -273,13 +273,13 @@ export default function IndexPage() {
                   onExpire={() => {
                      setForm((prev) => ({ ...prev, captchaId: "" }));
                   }}
-                  theme={
-                    document.documentElement.classList.contains("dark") ||
+                  options={{
+                    theme: (document.documentElement.classList.contains("dark") ||
                     document.documentElement.getAttribute("data-theme") === "dark" ||
                     window.matchMedia("(prefers-color-scheme: dark)").matches
                       ? "dark"
-                      : "light"
-                  }
+                      : "light") as "light" | "dark" | "auto"
+                  }}
                 />
               </div>
             </div>
