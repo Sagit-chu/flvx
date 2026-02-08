@@ -586,7 +586,16 @@ func (w *WebSocketReporter) routeCommand(cmd CommandMessage) {
 
 	// 只有状态变更命令才保存配置
 	if needSaveConfig {
-		saveConfig()
+		if saveErr := saveConfig(); saveErr != nil {
+			fmt.Printf("❌ 保存配置失败: %v\n", saveErr)
+			if err == nil {
+				err = fmt.Errorf("保存配置失败: %v", saveErr)
+			} else {
+				err = fmt.Errorf("%v; 保存配置失败: %v", err, saveErr)
+			}
+		} else {
+			fmt.Println("✅ 配置已保存到 gost.json")
+		}
 	}
 
 	// 发送响应

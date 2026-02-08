@@ -1,0 +1,40 @@
+site_name: FLVX 文档
+site_url: https://sagit-chu.github.io/flux-panel/
+site_description: FLVX官方文档
+site_author: Sagit-chu
+
+theme:
+  name: material
+  language: zh
+  palette:
+    - scheme: default
+      primary: indigo
+      accent: indigo
+    - scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Switch to dark mode
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.top
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+
+docs_dir: doc
+
+nav:
+  - 首页: index.md
+  - 安装部署: install.md
+  - 使用指南: usage.md
+  - 常见问题: faq.md
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true

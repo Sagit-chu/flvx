@@ -3,7 +3,7 @@
 **Generated:** Mon Feb 02 2026
 
 ## OVERVIEW
-Web management console for Flux Panel.
+Web management console for FLVX (formerly Flux Panel).
 **Stack:** React 18, Vite 5, TypeScript, TailwindCSS 4, HeroUI.
 
 ## STRUCTURE
