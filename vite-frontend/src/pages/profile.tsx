@@ -83,6 +83,18 @@ export default function ProfilePage() {
       description: "管理用户限速策略",
     },
     {
+      path: "/group",
+      label: "分组管理",
+      icon: (
+        <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+          <path d="M10 2a3 3 0 100 6 3 3 0 000-6zM4 9a3 3 0 100 6 3 3 0 000-6zm12 0a3 3 0 100 6 3 3 0 000-6M4 16a2 2 0 00-2 2h4a2 2 0 00-2-2zm12 0a2 2 0 00-2 2h4a2 2 0 00-2-2zm-6 0a2 2 0 00-2 2h4a2 2 0 00-2-2z" />
+        </svg>
+      ),
+      color:
+        "bg-green-100 dark:bg-green-500/20 text-green-600 dark:text-green-400",
+      description: "管理用户和隧道分组",
+    },
+    {
       path: "/user",
       label: "用户管理",
       icon: (
