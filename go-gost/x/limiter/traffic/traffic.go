@@ -136,6 +136,9 @@ func (l *trafficLimiter) In(ctx context.Context, key string, opts ...limiter.Opt
 		return nil
 
 	case limiter.ScopeClient:
+		if lim, ok := l.inLimits.Get(key); ok && lim != nil {
+			return lim.(traffic.Limiter)
+		}
 		return nil
 
 	case limiter.ScopeConn:
@@ -215,6 +218,9 @@ func (l *trafficLimiter) Out(ctx context.Context, key string, opts ...limiter.Op
 		return nil
 
 	case limiter.ScopeClient:
+		if lim, ok := l.outLimits.Get(key); ok && lim != nil {
+			return lim.(traffic.Limiter)
+		}
 		return nil
 
 	case limiter.ScopeConn:
