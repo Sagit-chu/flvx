@@ -12,6 +12,7 @@ services:
       JWT_SECRET: ${JWT_SECRET}
       LOG_DIR: /app/logs
       SERVER_ADDR: :6365
+      TZ: Asia/Shanghai
     ports:
       - "${BACKEND_PORT}:6365"
     volumes:

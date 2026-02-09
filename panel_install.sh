@@ -15,7 +15,7 @@ COUNTRY=$(curl -s https://ipinfo.io/country)
 maybe_proxy_url() {
   local url="$1"
   if [ "$COUNTRY" = "CN" ]; then
-    echo "https://ghfast.top/${url}"
+    echo "https://gcode.hostcentral.cc/${url}"
   else
     echo "$url"
   fi
