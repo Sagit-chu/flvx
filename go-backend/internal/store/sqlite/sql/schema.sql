@@ -42,7 +42,11 @@ CREATE TABLE IF NOT EXISTS node (
   status INTEGER NOT NULL,
   tcp_listen_addr VARCHAR(100) NOT NULL DEFAULT '[::]',
   udp_listen_addr VARCHAR(100) NOT NULL DEFAULT '[::]',
-  inx INTEGER NOT NULL DEFAULT 0
+  inx INTEGER NOT NULL DEFAULT 0,
+  is_remote INTEGER DEFAULT 0,
+  remote_url TEXT,
+  remote_token TEXT,
+  remote_config TEXT
 );
 
 CREATE TABLE IF NOT EXISTS speed_limit (
@@ -181,3 +185,20 @@ CREATE TABLE IF NOT EXISTS vite_config (
   value VARCHAR(200) NOT NULL,
   time INTEGER NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS peer_share (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    node_id INTEGER NOT NULL,
+    token TEXT NOT NULL UNIQUE,
+    max_bandwidth INTEGER DEFAULT 0,
+    expiry_time INTEGER DEFAULT 0,
+    port_range_start INTEGER DEFAULT 0,
+    port_range_end INTEGER DEFAULT 0,
+    current_flow INTEGER DEFAULT 0,
+    is_active INTEGER DEFAULT 1,
+    created_time INTEGER NOT NULL,
+    updated_time INTEGER NOT NULL,
+    allowed_domains TEXT DEFAULT ''
+);
+

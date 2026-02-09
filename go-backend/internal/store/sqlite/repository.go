@@ -144,7 +144,7 @@ func Open(path string) (*Repository, error) {
 		return nil, err
 	}
 
-	if err := ensurePeerSchema(db); err != nil {
+	if err := migrateSchema(db); err != nil {
 		_ = db.Close()
 		return nil, err
 	}
@@ -1222,33 +1222,14 @@ func bootstrapSchema(db *sql.DB) error {
 	return nil
 }
 
-func ensurePeerSchema(db *sql.DB) error {
+func migrateSchema(db *sql.DB) error {
 	if db == nil {
 		return errors.New("nil db")
 	}
 
-	_, err := db.Exec(`CREATE TABLE IF NOT EXISTS peer_share (
-		id INTEGER PRIMARY KEY AUTOINCREMENT,
-		name TEXT NOT NULL,
-		node_id INTEGER NOT NULL,
-		token TEXT NOT NULL UNIQUE,
-		max_bandwidth INTEGER DEFAULT 0,
-		expiry_time INTEGER DEFAULT 0,
-		port_range_start INTEGER DEFAULT 0,
-		port_range_end INTEGER DEFAULT 0,
-		current_flow INTEGER DEFAULT 0,
-		is_active INTEGER DEFAULT 1,
-		created_time INTEGER NOT NULL,
-		updated_time INTEGER NOT NULL,
-		allowed_domains TEXT DEFAULT ''
-	)`)
-	if err != nil {
-		return fmt.Errorf("create peer_share: %w", err)
-	}
-
 	// Add allowed_domains column if it doesn't exist (for existing tables)
 	var dummy interface{}
-	err = db.QueryRow("SELECT allowed_domains FROM peer_share LIMIT 1").Scan(&dummy)
+	err := db.QueryRow("SELECT allowed_domains FROM peer_share LIMIT 1").Scan(&dummy)
 	if err != nil {
 		if strings.Contains(err.Error(), "no such column") {
 			_, err = db.Exec("ALTER TABLE peer_share ADD COLUMN allowed_domains TEXT DEFAULT ''")
