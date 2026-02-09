@@ -71,6 +71,8 @@ type Server struct {
 	nodes   map[int64]*nodeSession
 	byConn  map[*websocket.Conn]*nodeSession
 	pending map[string]pendingRequest
+
+	OnNodeConnected func(nodeID int64)
 }
 
 func NewServer(repo *sqlite.Repository, jwtSecret string) *Server {
@@ -163,6 +165,10 @@ func (s *Server) handleNode(w http.ResponseWriter, r *http.Request, nodeID int64
 
 	_ = s.repo.UpdateNodeOnline(nodeID, 1, version, httpVal, tlsVal, socksVal)
 	s.broadcastStatus(nodeID, 1)
+
+	if s.OnNodeConnected != nil {
+		go s.OnNodeConnected(nodeID)
+	}
 
 	defer func() {
 		needOfflineBroadcast := false

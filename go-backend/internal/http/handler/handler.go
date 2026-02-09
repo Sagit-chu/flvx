@@ -62,11 +62,13 @@ type flowItem struct {
 }
 
 func New(repo *sqlite.Repository, jwtSecret string) *Handler {
-	return &Handler{
+	h := &Handler{
 		repo:      repo,
 		jwtSecret: jwtSecret,
 		wsServer:  ws.NewServer(repo, jwtSecret),
 	}
+	h.wsServer.OnNodeConnected = h.onNodeConnected
+	return h
 }
 
 func (h *Handler) WebSocketHandler() http.Handler {

@@ -1144,3 +1144,30 @@ func (h *Handler) sendDeleteLimiterConfig(limiterID int64, tunnelID int64) error
 	}
 	return nil
 }
+
+func (h *Handler) onNodeConnected(nodeID int64) {
+	// Sync limiters
+	rows, err := h.repo.DB().Query(`
+		SELECT DISTINCT sl.id, sl.speed 
+		FROM speed_limit sl
+		JOIN chain_tunnel ct ON ct.tunnel_id = sl.tunnel_id
+		WHERE ct.node_id = ? AND ct.chain_type = 1 AND sl.status = 1
+	`, nodeID)
+	
+	if err == nil {
+		defer rows.Close()
+		for rows.Next() {
+			var id int64
+			var speed int
+			if err := rows.Scan(&id, &speed); err == nil {
+				rate := float64(speed) / 8.0
+				limitStr := fmt.Sprintf("$ %.1fMB %.1fMB", rate, rate)
+				payload := map[string]interface{}{
+					"name":   strconv.FormatInt(id, 10),
+					"limits": []string{limitStr},
+				}
+				_, _ = h.sendNodeCommand(nodeID, "AddLimiters", payload, false, false)
+			}
+		}
+	}
+}
