@@ -423,6 +423,22 @@ func (r *Repository) GetNodeBySecret(secret string) (*Node, error) {
 	return &n, nil
 }
 
+func (r *Repository) GetNodeByID(id int64) (*Node, error) {
+	if r == nil || r.db == nil {
+		return nil, errors.New("repository not initialized")
+	}
+
+	row := r.db.QueryRow(`SELECT id, secret, version, http, tls, socks, status, is_remote, remote_url, remote_token, remote_config FROM node WHERE id = ? LIMIT 1`, id)
+	var n Node
+	if err := row.Scan(&n.ID, &n.Secret, &n.Version, &n.HTTP, &n.TLS, &n.Socks, &n.Status, &n.IsRemote, &n.RemoteURL, &n.RemoteToken, &n.RemoteConfig); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &n, nil
+}
+
 func (r *Repository) UpdateNodeOnline(nodeID int64, status int, version string, httpVal, tlsVal, socksVal int) error {
 	if r == nil || r.db == nil {
 		return errors.New("repository not initialized")

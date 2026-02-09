@@ -81,6 +81,10 @@ func shouldSkip(path string) bool {
 		return true
 	case path == "/api/v1/user/login":
 		return true
+	case path == "/api/v1/federation/connect":
+		return true
+	case path == "/api/v1/federation/tunnel/create":
+		return true
 	default:
 		return false
 	}
@@ -88,6 +92,10 @@ func shouldSkip(path string) bool {
 
 func requiresAdmin(path string) bool {
 	if strings.HasPrefix(path, "/api/v1/group/") {
+		return true
+	}
+
+	if strings.HasPrefix(path, "/api/v1/federation/share/") {
 		return true
 	}
 

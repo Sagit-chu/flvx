@@ -9,6 +9,7 @@ import (
 
 	"go-backend/internal/http/client"
 	"go-backend/internal/http/response"
+	"go-backend/internal/store/sqlite"
 )
 
 type federationTunnelRequest struct {
@@ -17,9 +18,127 @@ type federationTunnelRequest struct {
 	Target     string `json:"target"`
 }
 
+type createPeerShareRequest struct {
+	Name           string `json:"name"`
+	NodeID         int64  `json:"nodeId"`
+	MaxBandwidth   int64  `json:"maxBandwidth"`
+	ExpiryTime     int64  `json:"expiryTime"`
+	PortRangeStart int    `json:"portRangeStart"`
+	PortRangeEnd   int    `json:"portRangeEnd"`
+}
+
+type deletePeerShareRequest struct {
+	ID int64 `json:"id"`
+}
+
 type nodeImportRequest struct {
 	RemoteURL string `json:"remoteUrl"`
 	Token     string `json:"token"`
+}
+
+func (h *Handler) federationShareList(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		response.WriteJSON(w, response.ErrDefault("Invalid method"))
+		return
+	}
+
+	shares, err := h.repo.ListPeerShares()
+	if err != nil {
+		response.WriteJSON(w, response.Err(-2, err.Error()))
+		return
+	}
+	response.WriteJSON(w, response.OK(shares))
+}
+
+func (h *Handler) federationShareCreate(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		response.WriteJSON(w, response.ErrDefault("Invalid method"))
+		return
+	}
+
+	var req createPeerShareRequest
+	if err := decodeJSON(r.Body, &req); err != nil {
+		response.WriteJSON(w, response.ErrDefault("Invalid JSON"))
+		return
+	}
+
+	if req.Name == "" || req.NodeID == 0 {
+		response.WriteJSON(w, response.ErrDefault("Name and NodeID are required"))
+		return
+	}
+
+	if req.MaxBandwidth < 0 {
+		response.WriteJSON(w, response.ErrDefault("Max bandwidth cannot be negative"))
+		return
+	}
+
+	if req.ExpiryTime < 0 {
+		response.WriteJSON(w, response.ErrDefault("Expiry time cannot be negative"))
+		return
+	}
+
+	if req.PortRangeStart < 0 || req.PortRangeStart > 65535 || req.PortRangeEnd < 0 || req.PortRangeEnd > 65535 {
+		response.WriteJSON(w, response.ErrDefault("Invalid port range"))
+		return
+	}
+
+	if req.PortRangeStart > req.PortRangeEnd {
+		response.WriteJSON(w, response.ErrDefault("Port range start cannot be greater than end"))
+		return
+	}
+
+	node, err := h.repo.GetNodeByID(req.NodeID)
+	if err != nil {
+		response.WriteJSON(w, response.Err(-2, err.Error()))
+		return
+	}
+	if node == nil {
+		response.WriteJSON(w, response.ErrDefault("Node not found"))
+		return
+	}
+
+	now := time.Now().UnixMilli()
+	token := randomToken(32)
+
+	share := &sqlite.PeerShare{
+		Name:           req.Name,
+		NodeID:         req.NodeID,
+		Token:          token,
+		MaxBandwidth:   req.MaxBandwidth,
+		ExpiryTime:     req.ExpiryTime,
+		PortRangeStart: req.PortRangeStart,
+		PortRangeEnd:   req.PortRangeEnd,
+		IsActive:       1,
+		CreatedTime:    now,
+		UpdatedTime:    now,
+	}
+
+	if err := h.repo.CreatePeerShare(share); err != nil {
+		response.WriteJSON(w, response.Err(-2, err.Error()))
+		return
+	}
+
+	response.WriteJSON(w, response.OKEmpty())
+}
+
+func (h *Handler) federationShareDelete(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		response.WriteJSON(w, response.ErrDefault("Invalid method"))
+		return
+	}
+
+	var req deletePeerShareRequest
+	if err := decodeJSON(r.Body, &req); err != nil {
+		response.WriteJSON(w, response.ErrDefault("Invalid JSON"))
+		return
+	}
+
+	if err := h.repo.DeletePeerShare(req.ID); err != nil {
+		response.WriteJSON(w, response.Err(-2, err.Error()))
+		return
+	}
+
+	response.WriteJSON(w, response.OKEmpty())
 }
 
 func (h *Handler) nodeImport(w http.ResponseWriter, r *http.Request) {
