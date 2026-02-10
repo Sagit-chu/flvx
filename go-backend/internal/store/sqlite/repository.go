@@ -123,6 +123,11 @@ func Open(path string) (*Repository, error) {
 		return nil, err
 	}
 
+	if err := migrateSchema(db); err != nil {
+		_ = db.Close()
+		return nil, err
+	}
+
 	return &Repository{db: db}, nil
 }
 
@@ -1173,6 +1178,52 @@ func bootstrapSchema(db *sql.DB) error {
 	if _, err := db.Exec(embeddedSeedData); err != nil {
 		return fmt.Errorf("apply data.sql: %w", err)
 	}
+	return nil
+}
+
+func migrateSchema(db *sql.DB) error {
+	if db == nil {
+		return errors.New("nil db")
+	}
+
+	ensureColumn := func(table, col, typ string) error {
+		var dummy interface{}
+		err := db.QueryRow(fmt.Sprintf("SELECT %s FROM %s LIMIT 1", col, table)).Scan(&dummy)
+		if err == nil || errors.Is(err, sql.ErrNoRows) {
+			return nil
+		}
+		if !strings.Contains(err.Error(), "no such column") {
+			return nil
+		}
+		if _, err := db.Exec(fmt.Sprintf("ALTER TABLE %s ADD COLUMN %s %s", table, col, typ)); err != nil {
+			return fmt.Errorf("add %s.%s: %w", table, col, err)
+		}
+		return nil
+	}
+
+	columnsByTable := map[string]map[string]string{
+		"node": {
+			"inx": "INTEGER NOT NULL DEFAULT 0",
+		},
+		"tunnel": {
+			"inx": "INTEGER NOT NULL DEFAULT 0",
+		},
+		"forward": {
+			"inx": "INTEGER NOT NULL DEFAULT 0",
+		},
+		"chain_tunnel": {
+			"inx": "INTEGER",
+		},
+	}
+
+	for table, cols := range columnsByTable {
+		for col, typ := range cols {
+			if err := ensureColumn(table, col, typ); err != nil {
+				return err
+			}
+		}
+	}
+
 	return nil
 }
 
