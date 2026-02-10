@@ -2,21 +2,8 @@
 
 > 📞 **联系我们**: [Telegram群组](https://t.me/flvxpanel)
 
-本项目基于 [go-gost/gost](https://github.com/go-gost/gost) 和 [go-gost/x](https://github.com/go-gost/x) 两个开源库，实现了转发面板。
----
-## 特性
+## Project Modifications
 
-- 支持按 **隧道账号级别** 管理流量转发数量，可用于用户/隧道配额控制
-- 支持 **TCP** 和 **UDP** 协议的转发
-- 支持两种转发模式：**端口转发** 与 **隧道转发**
-- 可针对 **指定用户的指定隧道进行限速** 设置
-- 支持配置 **单向或双向流量计费方式**，灵活适配不同计费模型
-- 提供灵活的转发策略配置，适用于多种网络场景
-
-
-## Acknowledgments & Modifications
-
-This project is a fork of [flux-panel](https://github.com/bqlpfy/flux-panel).
 We have made significant changes:
 
 ### 1. Backend Architecture (Replaced)
@@ -38,6 +25,17 @@ We have made significant changes:
 - **Modified**: `docker-compose-v4.yml`, `docker-compose-v6.yml` (Updated for Go backend).
 - **Modified**: `install.sh`, `panel_install.sh` (Updated installation logic).
 - **Added**: `AGENTS.md` (Project documentation).
+
+
+---
+## 特性
+
+- 支持按 **隧道账号级别** 管理流量转发数量，可用于用户/隧道配额控制
+- 支持 **TCP** 和 **UDP** 协议的转发
+- 支持两种转发模式：**端口转发** 与 **隧道转发**
+- 可针对 **指定用户的指定隧道进行限速** 设置
+- 支持配置 **单向或双向流量计费方式**，灵活适配不同计费模型
+- 提供灵活的转发策略配置，适用于多种网络场景
 
 
 ## 部署流程
