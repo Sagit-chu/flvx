@@ -14,6 +14,32 @@
 - 提供灵活的转发策略配置，适用于多种网络场景
 
 
+## Acknowledgments & Modifications
+
+This project is a fork of [flux-panel](https://github.com/bqlpfy/flux-panel).
+We have made significant changes:
+
+### 1. Backend Architecture (Replaced)
+- **Removed**: The original `springboot-backend/` (Java/Spring Boot) has been entirely removed.
+- **Added**: A new `go-backend/` (Go/SQLite) implementation replaces the original backend.
+
+### 2. Forwarding Agent (Modified)
+- **Modified**: `go-gost/` - Modified forwarding agent wrapper.
+- **Modified**: `go-gost/x/` - Modified local fork of the `gost` extensions library.
+
+### 3. Frontend (Modified)
+- **Modified**: `vite-frontend/` - Significant updates to the React/Vite dashboard to compatible with the new Go backend, including UI/UX improvements (HeroUI + Tailwind).
+
+### 4. Mobile Applications (Removed)
+- **Removed**: `android-app/` - Source code for the Android client.
+- **Removed**: `ios-app/` - Source code for the iOS client.
+
+### 5. Infrastructure & Scripts
+- **Modified**: `docker-compose-v4.yml`, `docker-compose-v6.yml` (Updated for Go backend).
+- **Modified**: `install.sh`, `panel_install.sh` (Updated installation logic).
+- **Added**: `AGENTS.md` (Project documentation).
+
+
 ## 部署流程
 ---
 ### Docker Compose部署
