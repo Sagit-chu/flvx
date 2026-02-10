@@ -44,7 +44,7 @@ The following major changes and additions have been made in this fork (FLVX):
 ## 部署流程
 ---
 ### Docker Compose部署
-#### 快速部署
+#### 快速部署（安装最新版）
 面板端：
 ```bash
 curl -L https://raw.githubusercontent.com/Sagit-chu/flux-panel/main/panel_install.sh -o panel_install.sh && chmod +x panel_install.sh && ./panel_install.sh
@@ -52,6 +52,18 @@ curl -L https://raw.githubusercontent.com/Sagit-chu/flux-panel/main/panel_instal
 节点端：
 ```bash
 curl -L https://raw.githubusercontent.com/Sagit-chu/flux-panel/main/install.sh -o install.sh && chmod +x install.sh && ./install.sh
+```
+
+#### 安装特定版本
+从 [Releases](https://github.com/Sagit-chu/flux-panel/releases) 页面复制对应版本的安装命令，脚本会自动安装该版本而非最新版。
+
+面板端（以 2.1.0 为例）：
+```bash
+curl -L https://github.com/Sagit-chu/flux-panel/releases/download/2.1.0/panel_install.sh -o panel_install.sh && chmod +x panel_install.sh && ./panel_install.sh
+```
+节点端（以 2.1.0 为例）：
+```bash
+curl -L https://github.com/Sagit-chu/flux-panel/releases/download/2.1.0/install.sh -o install.sh && chmod +x install.sh && ./install.sh
 ```
 
 #### 默认管理员账号

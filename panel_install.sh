@@ -10,6 +10,9 @@ export LC_ALL=C
 # GitHub repo used for release downloads
 REPO="Sagit-chu/flux-panel"
 
+# 固定版本号（Release 构建时自动填充，留空则获取最新版）
+PINNED_VERSION=""
+
 COUNTRY=$(curl -s https://ipinfo.io/country)
 
 maybe_proxy_url() {
@@ -67,6 +70,10 @@ resolve_version() {
   fi
   if [[ -n "${FLUX_VERSION:-}" ]]; then
     echo "$FLUX_VERSION"
+    return 0
+  fi
+  if [[ -n "${PINNED_VERSION:-}" ]]; then
+    echo "$PINNED_VERSION"
     return 0
   fi
 

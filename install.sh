@@ -3,6 +3,9 @@
 # GitHub repo used for release downloads
 REPO="Sagit-chu/flux-panel"
 
+# 固定版本号（Release 构建时自动填充，留空则获取最新版）
+PINNED_VERSION=""
+
 # 获取系统架构
 get_architecture() {
     ARCH=$(uname -m)
@@ -83,6 +86,10 @@ resolve_version() {
   fi
   if [[ -n "${FLUX_VERSION:-}" ]]; then
     echo "$FLUX_VERSION"
+    return 0
+  fi
+  if [[ -n "${PINNED_VERSION:-}" ]]; then
+    echo "$PINNED_VERSION"
     return 0
   fi
 
