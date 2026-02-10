@@ -15,6 +15,7 @@ import (
 	"github.com/gorilla/websocket"
 
 	"go-backend/internal/auth"
+	"go-backend/internal/http/response"
 	"go-backend/internal/security"
 	"go-backend/internal/store/sqlite"
 )
@@ -150,6 +151,150 @@ func TestFederationDualPanelMiddleExitAutoPortContract(t *testing.T) {
 	assertCount(t, providerRepo, `SELECT COUNT(1) FROM peer_share_runtime WHERE share_id = ? AND status = 1 AND applied = 1`, middleShareID, 1)
 	assertCount(t, providerRepo, `SELECT COUNT(1) FROM peer_share_runtime WHERE share_id = ? AND status = 1 AND applied = 1`, exitShareID, 1)
 	assertCount(t, providerRepo, `SELECT COUNT(1) FROM peer_share_runtime WHERE share_id = ?`, entryShareID, 0)
+}
+
+func TestFederationDualPanelRemoteDiagnosisContract(t *testing.T) {
+	providerSecret := "provider-contract-jwt"
+	providerRouter, providerRepo := setupContractRouter(t, providerSecret)
+	providerServer := httptest.NewServer(providerRouter)
+	defer providerServer.Close()
+
+	consumerSecret := "consumer-contract-jwt"
+	consumerRouter, consumerRepo := setupContractRouter(t, consumerSecret)
+
+	consumerAdminToken, err := auth.GenerateToken(1, "consumer-admin", 0, consumerSecret)
+	if err != nil {
+		t.Fatalf("generate consumer admin token: %v", err)
+	}
+
+	now := time.Now().UnixMilli()
+	providerEntryNodeID := insertContractNode(t, providerRepo, "provider-entry-dx", "203.0.113.11", "53000-53010", "provider-entry-dx-secret", 1)
+	providerMiddleNodeID := insertContractNode(t, providerRepo, "provider-middle-dx", "203.0.113.12", "54000-54010", "provider-middle-dx-secret", 1)
+	providerExitNodeID := insertContractNode(t, providerRepo, "provider-exit-dx", "203.0.113.13", "55000-55010", "provider-exit-dx-secret", 1)
+
+	entryShareID := insertPeerShare(t, providerRepo, &sqlite.PeerShare{
+		Name:           "entry-share-dx",
+		NodeID:         providerEntryNodeID,
+		Token:          "share-entry-dx-token",
+		PortRangeStart: 53000,
+		PortRangeEnd:   53010,
+		IsActive:       1,
+		CreatedTime:    now,
+		UpdatedTime:    now,
+	})
+	middleShareID := insertPeerShare(t, providerRepo, &sqlite.PeerShare{
+		Name:           "middle-share-dx",
+		NodeID:         providerMiddleNodeID,
+		Token:          "share-middle-dx-token",
+		PortRangeStart: 54000,
+		PortRangeEnd:   54010,
+		IsActive:       1,
+		CreatedTime:    now,
+		UpdatedTime:    now,
+	})
+	exitShareID := insertPeerShare(t, providerRepo, &sqlite.PeerShare{
+		Name:           "exit-share-dx",
+		NodeID:         providerExitNodeID,
+		Token:          "share-exit-dx-token",
+		PortRangeStart: 55000,
+		PortRangeEnd:   55010,
+		IsActive:       1,
+		CreatedTime:    now,
+		UpdatedTime:    now,
+	})
+
+	importRemoteNodeForContract(t, consumerRouter, consumerAdminToken, providerServer.URL, "share-entry-dx-token")
+	importRemoteNodeForContract(t, consumerRouter, consumerAdminToken, providerServer.URL, "share-middle-dx-token")
+	importRemoteNodeForContract(t, consumerRouter, consumerAdminToken, providerServer.URL, "share-exit-dx-token")
+
+	entryRemoteNodeID := queryRemoteNodeIDByToken(t, consumerRepo, "share-entry-dx-token")
+	middleRemoteNodeID := queryRemoteNodeIDByToken(t, consumerRepo, "share-middle-dx-token")
+	exitRemoteNodeID := queryRemoteNodeIDByToken(t, consumerRepo, "share-exit-dx-token")
+
+	stopMiddle := startMockNodeSession(t, providerServer.URL, "provider-middle-dx-secret")
+	defer stopMiddle()
+	stopExit := startMockNodeSession(t, providerServer.URL, "provider-exit-dx-secret")
+	defer stopExit()
+
+	createPayload := map[string]interface{}{
+		"name":   "dual-panel-diagnose-remote",
+		"type":   2,
+		"flow":   99999,
+		"status": 1,
+		"inNodeId": []map[string]interface{}{
+			{"nodeId": entryRemoteNodeID, "protocol": "tls", "strategy": "round"},
+		},
+		"chainNodes": [][]map[string]interface{}{
+			{{"nodeId": middleRemoteNodeID, "protocol": "tls", "strategy": "round"}},
+		},
+		"outNodeId": []map[string]interface{}{
+			{"nodeId": exitRemoteNodeID, "protocol": "tls", "strategy": "round"},
+		},
+	}
+	body, err := json.Marshal(createPayload)
+	if err != nil {
+		t.Fatalf("marshal create payload: %v", err)
+	}
+	createReq := httptest.NewRequest(http.MethodPost, "/api/v1/tunnel/create", bytes.NewReader(body))
+	createReq.Header.Set("Authorization", consumerAdminToken)
+	createReq.Header.Set("Content-Type", "application/json")
+	createRes := httptest.NewRecorder()
+	consumerRouter.ServeHTTP(createRes, createReq)
+	assertCode(t, createRes, 0)
+
+	var tunnelID int64
+	if err := consumerRepo.DB().QueryRow(`SELECT id FROM tunnel WHERE name = ? ORDER BY id DESC LIMIT 1`, "dual-panel-diagnose-remote").Scan(&tunnelID); err != nil {
+		t.Fatalf("query tunnel id: %v", err)
+	}
+	if tunnelID <= 0 {
+		t.Fatalf("invalid tunnel id")
+	}
+
+	assertCount(t, providerRepo, `SELECT COUNT(1) FROM peer_share_runtime WHERE share_id = ? AND status = 1 AND applied = 1`, middleShareID, 1)
+	assertCount(t, providerRepo, `SELECT COUNT(1) FROM peer_share_runtime WHERE share_id = ? AND status = 1 AND applied = 1`, exitShareID, 1)
+	assertCount(t, providerRepo, `SELECT COUNT(1) FROM peer_share_runtime WHERE share_id = ?`, entryShareID, 0)
+
+	diagnoseReq := httptest.NewRequest(http.MethodPost, "/api/v1/tunnel/diagnose", bytes.NewBufferString(fmt.Sprintf(`{"tunnelId":%d}`, tunnelID)))
+	diagnoseReq.Header.Set("Authorization", consumerAdminToken)
+	diagnoseRes := httptest.NewRecorder()
+	consumerRouter.ServeHTTP(diagnoseRes, diagnoseReq)
+
+	var out response.R
+	if err := json.NewDecoder(diagnoseRes.Body).Decode(&out); err != nil {
+		t.Fatalf("decode diagnose response: %v", err)
+	}
+	if out.Code != 0 {
+		t.Fatalf("expected diagnose code 0, got %d (%s)", out.Code, out.Msg)
+	}
+
+	payload, ok := out.Data.(map[string]interface{})
+	if !ok {
+		t.Fatalf("expected map payload, got %T", out.Data)
+	}
+	results, ok := payload["results"].([]interface{})
+	if !ok || len(results) == 0 {
+		t.Fatalf("expected non-empty results, got %v", payload["results"])
+	}
+
+	chainToExitFound := false
+	for _, raw := range results {
+		item, ok := raw.(map[string]interface{})
+		if !ok {
+			continue
+		}
+		if valueAsInt(item["fromChainType"]) == 2 && valueAsInt(item["toChainType"]) == 3 {
+			chainToExitFound = true
+			if !valueAsBool(item["success"]) {
+				t.Fatalf("expected chain->exit diagnosis success, got item=%v", item)
+			}
+			if msg := strings.TrimSpace(valueAsString(item["message"])); msg != "mock tcp ok" {
+				t.Fatalf("expected remote diagnosis message 'mock tcp ok', got %q", msg)
+			}
+		}
+	}
+	if !chainToExitFound {
+		t.Fatalf("expected chain->exit diagnosis item in results")
+	}
 }
 
 func insertContractNode(t *testing.T, repo *sqlite.Repository, name, ip, portRange, secret string, status int) int64 {
@@ -306,12 +451,21 @@ func startMockNodeSession(t *testing.T, baseURL string, nodeSecret string) func(
 			}
 
 			respType := fmt.Sprintf("%sResponse", cmd.Type)
-			respBytes, err := json.Marshal(map[string]interface{}{
+			respPayload := map[string]interface{}{
 				"type":      respType,
 				"success":   true,
 				"message":   "OK",
 				"requestId": cmd.RequestID,
-			})
+			}
+			if strings.EqualFold(strings.TrimSpace(cmd.Type), "TcpPing") {
+				respPayload["data"] = map[string]interface{}{
+					"success":     true,
+					"averageTime": 8.5,
+					"packetLoss":  0,
+					"message":     "mock tcp ok",
+				}
+			}
+			respBytes, err := json.Marshal(respPayload)
 			if err != nil {
 				continue
 			}
@@ -322,5 +476,41 @@ func startMockNodeSession(t *testing.T, baseURL string, nodeSecret string) func(
 	return func() {
 		_ = conn.Close()
 		wg.Wait()
+	}
+}
+
+func valueAsInt(v interface{}) int {
+	switch n := v.(type) {
+	case float64:
+		return int(n)
+	case int:
+		return n
+	case int64:
+		return int(n)
+	default:
+		return 0
+	}
+}
+
+func valueAsString(v interface{}) string {
+	s, _ := v.(string)
+	return s
+}
+
+func valueAsBool(v interface{}) bool {
+	switch b := v.(type) {
+	case bool:
+		return b
+	case float64:
+		return b != 0
+	case int:
+		return b != 0
+	case int64:
+		return b != 0
+	case string:
+		s := strings.TrimSpace(strings.ToLower(b))
+		return s == "1" || s == "t" || s == "true" || s == "yes" || s == "y"
+	default:
+		return false
 	}
 }

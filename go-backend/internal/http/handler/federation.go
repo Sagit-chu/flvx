@@ -65,6 +65,13 @@ type federationRuntimeReleaseRoleRequest struct {
 	ResourceKey   string `json:"resourceKey"`
 }
 
+type federationRuntimeDiagnoseRequest struct {
+	IP      string `json:"ip"`
+	Port    int    `json:"port"`
+	Count   int    `json:"count"`
+	Timeout int    `json:"timeout"`
+}
+
 func (h *Handler) federationShareList(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		response.WriteJSON(w, response.ErrDefault("Invalid method"))
@@ -729,6 +736,55 @@ func (h *Handler) federationRuntimeReleaseRole(w http.ResponseWriter, r *http.Re
 	}
 
 	response.WriteJSON(w, response.OKEmpty())
+}
+
+func (h *Handler) federationRuntimeDiagnose(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		response.WriteJSON(w, response.ErrDefault("Invalid method"))
+		return
+	}
+
+	token := extractBearerToken(r)
+	share, err := h.repo.GetPeerShareByToken(token)
+	if err != nil || share == nil {
+		response.WriteJSON(w, response.Err(401, "Unauthorized"))
+		return
+	}
+
+	var req federationRuntimeDiagnoseRequest
+	if err := decodeJSON(r.Body, &req); err != nil {
+		response.WriteJSON(w, response.ErrDefault("Invalid JSON"))
+		return
+	}
+
+	req.IP = strings.TrimSpace(req.IP)
+	if req.IP == "" || req.Port <= 0 || req.Port > 65535 {
+		response.WriteJSON(w, response.ErrDefault("Invalid target"))
+		return
+	}
+	if req.Count <= 0 {
+		req.Count = 4
+	}
+	if req.Timeout <= 0 {
+		req.Timeout = 5000
+	}
+
+	res, err := h.sendNodeCommand(share.NodeID, "TcpPing", map[string]interface{}{
+		"ip":      req.IP,
+		"port":    req.Port,
+		"count":   req.Count,
+		"timeout": req.Timeout,
+	}, false, false)
+	if err != nil {
+		response.WriteJSON(w, response.ErrDefault(err.Error()))
+		return
+	}
+	if res.Data == nil {
+		response.WriteJSON(w, response.ErrDefault("Node did not return diagnosis data"))
+		return
+	}
+
+	response.WriteJSON(w, response.OK(res.Data))
 }
 
 func (h *Handler) pickPeerSharePort(share *sqlite.PeerShare, requestedPort int) (int, error) {

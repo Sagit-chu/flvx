@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"go-backend/internal/http/client"
 	"go-backend/internal/ws"
 )
 
@@ -791,7 +792,15 @@ func (h *Handler) appendPathDiagnosis(results *[]map[string]interface{}, nodeCac
 	}
 	item["nodeName"] = fromNode.Name
 
-	pingData, pingErr := h.tcpPingViaNode(fromNodeID, targetIP, targetPort)
+	var (
+		pingData map[string]interface{}
+		pingErr  error
+	)
+	if fromNode.IsRemote == 1 {
+		pingData, pingErr = h.tcpPingViaRemoteNode(fromNode, targetIP, targetPort)
+	} else {
+		pingData, pingErr = h.tcpPingViaNode(fromNodeID, targetIP, targetPort)
+	}
 	if pingErr != nil {
 		item["success"] = false
 		item["message"] = pingErr.Error()
@@ -929,6 +938,25 @@ func (h *Handler) tcpPingViaNode(nodeID int64, ip string, port int) (map[string]
 		return nil, errors.New("节点未返回诊断数据")
 	}
 	return res.Data, nil
+}
+
+func (h *Handler) tcpPingViaRemoteNode(node *nodeRecord, ip string, port int) (map[string]interface{}, error) {
+	if node == nil {
+		return nil, errors.New("节点不存在")
+	}
+	remoteURL := strings.TrimSpace(node.RemoteURL)
+	remoteToken := strings.TrimSpace(node.RemoteToken)
+	if remoteURL == "" || remoteToken == "" {
+		return nil, errors.New("远程节点缺少共享配置")
+	}
+
+	fc := client.NewFederationClient()
+	return fc.Diagnose(remoteURL, remoteToken, h.federationLocalDomain(), client.RuntimeDiagnoseRequest{
+		IP:      strings.TrimSpace(ip),
+		Port:    port,
+		Count:   4,
+		Timeout: 5000,
+	})
 }
 
 func splitRemoteTargets(remoteAddr string) []string {

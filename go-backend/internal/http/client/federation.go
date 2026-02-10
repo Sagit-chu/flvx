@@ -69,6 +69,13 @@ type RuntimeReleaseRoleRequest struct {
 	ResourceKey   string `json:"resourceKey"`
 }
 
+type RuntimeDiagnoseRequest struct {
+	IP      string `json:"ip"`
+	Port    int    `json:"port"`
+	Count   int    `json:"count"`
+	Timeout int    `json:"timeout"`
+}
+
 func NewFederationClient() *FederationClient {
 	return &FederationClient{
 		client: &http.Client{
@@ -273,4 +280,47 @@ func (c *FederationClient) ReleaseRole(url, token, localDomain string, reqData R
 	}
 
 	return nil
+}
+
+func (c *FederationClient) Diagnose(url, token, localDomain string, reqData RuntimeDiagnoseRequest) (map[string]interface{}, error) {
+	url = strings.TrimSuffix(url, "/")
+	bodyBytes, _ := json.Marshal(reqData)
+	req, err := http.NewRequest("POST", url+"/api/v1/federation/runtime/diagnose", strings.NewReader(string(bodyBytes)))
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Authorization", "Bearer "+token)
+	if localDomain != "" {
+		req.Header.Set("X-Panel-Domain", localDomain)
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := c.client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != 200 {
+		body, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("remote error %d: %s", resp.StatusCode, string(body))
+	}
+
+	var res struct {
+		Code int                    `json:"code"`
+		Msg  string                 `json:"msg"`
+		Data map[string]interface{} `json:"data"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&res); err != nil {
+		return nil, err
+	}
+	if res.Code != 0 {
+		return nil, fmt.Errorf("remote api error: %s", res.Msg)
+	}
+
+	if res.Data == nil {
+		return nil, fmt.Errorf("remote api error: empty diagnosis payload")
+	}
+
+	return res.Data, nil
 }

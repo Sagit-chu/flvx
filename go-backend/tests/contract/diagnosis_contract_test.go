@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -205,6 +206,173 @@ func TestDiagnosisChainCoverageContracts(t *testing.T) {
 	})
 }
 
+func TestDiagnosisUsesFederationRuntimeForRemoteNodes(t *testing.T) {
+	secret := "contract-jwt-secret"
+	router, repo := setupDiagnosisContractRouter(t, secret)
+	now := time.Now().UnixMilli()
+
+	remoteToken := "remote-diagnose-token"
+	var remoteDiagnoseCalls int32
+	remoteServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/v1/federation/runtime/diagnose" {
+			http.NotFound(w, r)
+			return
+		}
+		if got := strings.TrimSpace(r.Header.Get("Authorization")); got != "Bearer "+remoteToken {
+			w.WriteHeader(http.StatusUnauthorized)
+			_ = json.NewEncoder(w).Encode(map[string]interface{}{"code": -1, "msg": "unauthorized"})
+			return
+		}
+
+		var req map[string]interface{}
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			_ = json.NewEncoder(w).Encode(map[string]interface{}{"code": -1, "msg": "bad request"})
+			return
+		}
+		if strings.TrimSpace(valueAsString(req["ip"])) != "10.50.0.30" {
+			w.WriteHeader(http.StatusBadRequest)
+			_ = json.NewEncoder(w).Encode(map[string]interface{}{"code": -1, "msg": "unexpected target ip"})
+			return
+		}
+		if valueAsInt(req["port"]) != 30003 {
+			w.WriteHeader(http.StatusBadRequest)
+			_ = json.NewEncoder(w).Encode(map[string]interface{}{"code": -1, "msg": "unexpected target port"})
+			return
+		}
+
+		atomic.AddInt32(&remoteDiagnoseCalls, 1)
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{
+			"code": 0,
+			"msg":  "success",
+			"data": map[string]interface{}{
+				"success":     true,
+				"averageTime": 12.5,
+				"packetLoss":  0,
+				"message":     "remote tcp ok",
+			},
+		})
+	}))
+	defer remoteServer.Close()
+
+	insertLocalNode := func(name, ip string) int64 {
+		res, err := repo.DB().Exec(`
+			INSERT INTO node(name, secret, server_ip, server_ip_v4, server_ip_v6, port, interface_name, version, http, tls, socks, created_time, updated_time, status, tcp_listen_addr, udp_listen_addr, inx)
+			VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		`, name, name+"-secret", ip, ip, "", "30000-30010", "", "v1", 1, 1, 1, now, now, 1, "[::]", "[::]", 0)
+		if err != nil {
+			t.Fatalf("insert local node %s: %v", name, err)
+		}
+		id, err := res.LastInsertId()
+		if err != nil {
+			t.Fatalf("get local node id %s: %v", name, err)
+		}
+		return id
+	}
+
+	insertRemoteNode := func(name, ip string) int64 {
+		res, err := repo.DB().Exec(`
+			INSERT INTO node(name, secret, server_ip, server_ip_v4, server_ip_v6, port, interface_name, version, http, tls, socks, created_time, updated_time, status, tcp_listen_addr, udp_listen_addr, inx, is_remote, remote_url, remote_token, remote_config)
+			VALUES(?, ?, ?, ?, ?, ?, ?, ?, 0, 0, 0, ?, ?, 1, ?, ?, ?, 1, ?, ?, ?)
+		`, name, name+"-secret", ip, "", "", "31000-31010", "", "", now, now, "[::]", "[::]", 1, remoteServer.URL, remoteToken, `{"shareId": 123}`)
+		if err != nil {
+			t.Fatalf("insert remote node %s: %v", name, err)
+		}
+		id, err := res.LastInsertId()
+		if err != nil {
+			t.Fatalf("get remote node id %s: %v", name, err)
+		}
+		return id
+	}
+
+	entryNodeID := insertLocalNode("entry-local", "10.50.0.10")
+	remoteChainNodeID := insertRemoteNode("middle-remote", "10.50.0.20")
+	exitNodeID := insertLocalNode("exit-local", "10.50.0.30")
+
+	tunnelRes, err := repo.DB().Exec(`
+		INSERT INTO tunnel(name, traffic_ratio, type, protocol, flow, created_time, updated_time, status, in_ip, inx)
+		VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+	`, "diagnose-remote-tunnel", 1.0, 2, "tls", 99999, now, now, 1, nil, 0)
+	if err != nil {
+		t.Fatalf("insert tunnel: %v", err)
+	}
+	tunnelID, err := tunnelRes.LastInsertId()
+	if err != nil {
+		t.Fatalf("get tunnel id: %v", err)
+	}
+
+	if _, err := repo.DB().Exec(`
+		INSERT INTO chain_tunnel(tunnel_id, chain_type, node_id, port, strategy, inx, protocol)
+		VALUES(?, 1, ?, 30001, 'round', 1, 'tls')
+	`, tunnelID, entryNodeID); err != nil {
+		t.Fatalf("insert entry chain: %v", err)
+	}
+	if _, err := repo.DB().Exec(`
+		INSERT INTO chain_tunnel(tunnel_id, chain_type, node_id, port, strategy, inx, protocol)
+		VALUES(?, 2, ?, 30002, 'round', 1, 'tls')
+	`, tunnelID, remoteChainNodeID); err != nil {
+		t.Fatalf("insert middle chain: %v", err)
+	}
+	if _, err := repo.DB().Exec(`
+		INSERT INTO chain_tunnel(tunnel_id, chain_type, node_id, port, strategy, inx, protocol)
+		VALUES(?, 3, ?, 30003, 'round', 1, 'tls')
+	`, tunnelID, exitNodeID); err != nil {
+		t.Fatalf("insert exit chain: %v", err)
+	}
+
+	adminToken, err := auth.GenerateToken(1, "admin_user", 0, secret)
+	if err != nil {
+		t.Fatalf("generate admin token: %v", err)
+	}
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/tunnel/diagnose", bytes.NewBufferString(`{"tunnelId":`+strconv.FormatInt(tunnelID, 10)+`}`))
+	req.Header.Set("Authorization", adminToken)
+	res := httptest.NewRecorder()
+
+	router.ServeHTTP(res, req)
+
+	var out response.R
+	if err := json.NewDecoder(res.Body).Decode(&out); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if out.Code != 0 {
+		t.Fatalf("expected code 0, got %d (%s)", out.Code, out.Msg)
+	}
+
+	payload, ok := out.Data.(map[string]interface{})
+	if !ok {
+		t.Fatalf("expected object payload, got %T", out.Data)
+	}
+	results, ok := payload["results"].([]interface{})
+	if !ok || len(results) == 0 {
+		t.Fatalf("expected non-empty results, got %v", payload["results"])
+	}
+
+	remoteStepFound := false
+	for _, raw := range results {
+		item, ok := raw.(map[string]interface{})
+		if !ok {
+			continue
+		}
+		if valueAsInt(item["fromChainType"]) == 2 && valueAsInt(item["toChainType"]) == 3 {
+			remoteStepFound = true
+			if !valueAsBool(item["success"]) {
+				t.Fatalf("expected remote chain->exit diagnosis success, got item=%v", item)
+			}
+			if strings.TrimSpace(valueAsString(item["message"])) != "remote tcp ok" {
+				t.Fatalf("expected remote diagnosis message, got %q", valueAsString(item["message"]))
+			}
+		}
+	}
+
+	if !remoteStepFound {
+		t.Fatalf("expected chain->exit diagnosis item for remote node")
+	}
+	if atomic.LoadInt32(&remoteDiagnoseCalls) == 0 {
+		t.Fatalf("expected federation runtime diagnose endpoint to be called")
+	}
+}
+
 func valueAsInt(v interface{}) int {
 	switch n := v.(type) {
 	case float64:
@@ -221,6 +389,24 @@ func valueAsInt(v interface{}) int {
 func valueAsString(v interface{}) string {
 	s, _ := v.(string)
 	return s
+}
+
+func valueAsBool(v interface{}) bool {
+	switch b := v.(type) {
+	case bool:
+		return b
+	case float64:
+		return b != 0
+	case int:
+		return b != 0
+	case int64:
+		return b != 0
+	case string:
+		s := strings.TrimSpace(strings.ToLower(b))
+		return s == "1" || s == "t" || s == "true" || s == "yes" || s == "y"
+	default:
+		return false
+	}
 }
 
 func setupDiagnosisContractRouter(t *testing.T, jwtSecret string) (http.Handler, *sqlite.Repository) {
