@@ -2,6 +2,7 @@ package contract_test
 
 import (
 	"bytes"
+	"database/sql"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -17,6 +18,8 @@ import (
 	"go-backend/internal/http/handler"
 	"go-backend/internal/http/response"
 	"go-backend/internal/store/sqlite"
+
+	_ "modernc.org/sqlite"
 )
 
 func TestCaptchaVerifyLoginContract(t *testing.T) {
@@ -212,4 +215,118 @@ func setupContractRouter(t *testing.T, jwtSecret string) (http.Handler, *sqlite.
 
 	h := handler.New(repo, jwtSecret)
 	return httpserver.NewRouter(h, jwtSecret), repo
+}
+
+func TestOpenMigratesLegacyNodeDualStackColumns(t *testing.T) {
+	dbPath := filepath.Join(t.TempDir(), "legacy-2.0.7-beta.db")
+	legacyDB, err := sql.Open("sqlite", dbPath)
+	if err != nil {
+		t.Fatalf("open legacy sqlite: %v", err)
+	}
+
+	t.Cleanup(func() {
+		_ = legacyDB.Close()
+	})
+
+	if _, err := legacyDB.Exec(`
+		CREATE TABLE IF NOT EXISTS node (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			name VARCHAR(100) NOT NULL,
+			secret VARCHAR(100) NOT NULL,
+			server_ip VARCHAR(100) NOT NULL,
+			port TEXT NOT NULL,
+			interface_name VARCHAR(200),
+			version VARCHAR(100),
+			http INTEGER NOT NULL DEFAULT 0,
+			tls INTEGER NOT NULL DEFAULT 0,
+			socks INTEGER NOT NULL DEFAULT 0,
+			created_time INTEGER NOT NULL,
+			updated_time INTEGER,
+			status INTEGER NOT NULL,
+			tcp_listen_addr VARCHAR(100) NOT NULL DEFAULT '[::]',
+			udp_listen_addr VARCHAR(100) NOT NULL DEFAULT '[::]'
+		)
+	`); err != nil {
+		t.Fatalf("create legacy node table: %v", err)
+	}
+
+	if _, err := legacyDB.Exec(`
+		CREATE TABLE IF NOT EXISTS tunnel (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			name VARCHAR(100) NOT NULL,
+			traffic_ratio REAL NOT NULL DEFAULT 1.0,
+			type INTEGER NOT NULL,
+			protocol VARCHAR(10) NOT NULL DEFAULT 'tls',
+			flow INTEGER NOT NULL,
+			created_time INTEGER NOT NULL,
+			updated_time INTEGER NOT NULL,
+			status INTEGER NOT NULL,
+			in_ip TEXT
+		)
+	`); err != nil {
+		t.Fatalf("create legacy tunnel table: %v", err)
+	}
+
+	now := time.Now().UnixMilli()
+	if _, err := legacyDB.Exec(`
+		INSERT INTO node(name, secret, server_ip, port, interface_name, version, http, tls, socks, created_time, updated_time, status, tcp_listen_addr, udp_listen_addr)
+		VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+	`, "legacy-node", "legacy-secret", "10.10.0.1", "10000-10010", "eth0", "v-old", 1, 1, 1, now, now, 1, "[::]", "[::]"); err != nil {
+		t.Fatalf("seed legacy node row: %v", err)
+	}
+
+	repo, err := sqlite.Open(dbPath)
+	if err != nil {
+		t.Fatalf("open migrated sqlite: %v", err)
+	}
+	t.Cleanup(func() {
+		_ = repo.Close()
+	})
+
+	nodes, err := repo.ListNodes()
+	if err != nil {
+		t.Fatalf("list nodes after migration: %v", err)
+	}
+	if len(nodes) != 1 {
+		t.Fatalf("expected 1 node after migration, got %d", len(nodes))
+	}
+
+	columns := readTableColumns(t, repo.DB(), "node")
+
+	for _, required := range []string{"server_ip_v4", "server_ip_v6", "inx"} {
+		if !columns[required] {
+			t.Fatalf("expected node column %q to exist after migration", required)
+		}
+	}
+
+	tunnelColumns := readTableColumns(t, repo.DB(), "tunnel")
+	if !tunnelColumns["inx"] {
+		t.Fatalf("expected tunnel column %q to exist after migration", "inx")
+	}
+}
+
+func readTableColumns(t *testing.T, db *sql.DB, table string) map[string]bool {
+	t.Helper()
+
+	rows, err := db.Query("PRAGMA table_info(" + table + ")")
+	if err != nil {
+		t.Fatalf("inspect %s columns: %v", table, err)
+	}
+	defer rows.Close()
+
+	columns := map[string]bool{}
+	for rows.Next() {
+		var cid, notNull, pk int
+		var name, typ string
+		var defaultValue sql.NullString
+		if err := rows.Scan(&cid, &name, &typ, &notNull, &defaultValue, &pk); err != nil {
+			t.Fatalf("scan %s pragma row: %v", table, err)
+		}
+		columns[name] = true
+	}
+	if err := rows.Err(); err != nil {
+		t.Fatalf("iterate %s pragma rows: %v", table, err)
+	}
+
+	return columns
 }
