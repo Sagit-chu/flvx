@@ -1114,9 +1114,12 @@ export default function NodePage() {
             strategy={rectSortingStrategy}
           >
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4">
-              {sortedNodes.map((node) => (
-                <SortableItem key={node.id} id={node.id}>
-                  {(listeners) => (
+              {sortedNodes.map((node) => {
+                const isRemoteNode = node.isRemote === 1;
+
+                return (
+                  <SortableItem key={node.id} id={node.id}>
+                    {(listeners) => (
                     <Card
                       key={node.id}
                       className="group shadow-sm border border-divider hover:shadow-md transition-shadow duration-200"
@@ -1135,7 +1138,7 @@ export default function NodePage() {
                             </h3>
                           </div>
                           <div className="flex items-center gap-1.5 ml-2">
-                            {node.isRemote === 1 && (
+                            {isRemoteNode && (
                               <Chip
                                 className="text-xs"
                                 color="secondary"
@@ -1215,164 +1218,174 @@ export default function NodePage() {
                               )}
                             </div>
                           </div>
-                          <div className="flex justify-between text-sm">
-                            <span className="text-default-600">版本</span>
-                            <span className="text-xs">
-                              {node.version || "未知"}
-                            </span>
-                          </div>
-                          <div className="flex justify-between text-sm">
-                            <span className="text-default-600">开机时间</span>
-                            <span className="text-xs">
-                              {node.connectionStatus === "online" &&
-                              node.systemInfo
-                                ? formatUptime(node.systemInfo.uptime)
-                                : "-"}
-                            </span>
-                          </div>
-                        </div>
-
-                        {/* 系统监控 */}
-                        <div className="space-y-3 mb-4">
-                          <div className="grid grid-cols-2 gap-3">
-                            <div>
-                              <div className="flex justify-between text-xs mb-1">
-                                <span>CPU</span>
-                                <span className="font-mono">
+                          {!isRemoteNode && (
+                            <>
+                              <div className="flex justify-between text-sm">
+                                <span className="text-default-600">版本</span>
+                                <span className="text-xs">
+                                  {node.version || "未知"}
+                                </span>
+                              </div>
+                              <div className="flex justify-between text-sm">
+                                <span className="text-default-600">开机时间</span>
+                                <span className="text-xs">
                                   {node.connectionStatus === "online" &&
                                   node.systemInfo
-                                    ? `${node.systemInfo.cpuUsage.toFixed(1)}%`
+                                    ? formatUptime(node.systemInfo.uptime)
                                     : "-"}
                                 </span>
                               </div>
-                              <Progress
-                                aria-label="CPU使用率"
-                                color={getProgressColor(
-                                  node.connectionStatus === "online" &&
-                                    node.systemInfo
-                                    ? node.systemInfo.cpuUsage
-                                    : 0,
-                                  node.connectionStatus !== "online",
-                                )}
-                                size="sm"
-                                value={
-                                  node.connectionStatus === "online" &&
-                                  node.systemInfo
-                                    ? node.systemInfo.cpuUsage
-                                    : 0
-                                }
-                              />
-                            </div>
-                            <div>
-                              <div className="flex justify-between text-xs mb-1">
-                                <span>内存</span>
-                                <span className="font-mono">
-                                  {node.connectionStatus === "online" &&
-                                  node.systemInfo
-                                    ? `${node.systemInfo.memoryUsage.toFixed(1)}%`
-                                    : "-"}
-                                </span>
-                              </div>
-                              <Progress
-                                aria-label="内存使用率"
-                                color={getProgressColor(
-                                  node.connectionStatus === "online" &&
-                                    node.systemInfo
-                                    ? node.systemInfo.memoryUsage
-                                    : 0,
-                                  node.connectionStatus !== "online",
-                                )}
-                                size="sm"
-                                value={
-                                  node.connectionStatus === "online" &&
-                                  node.systemInfo
-                                    ? node.systemInfo.memoryUsage
-                                    : 0
-                                }
-                              />
-                            </div>
-                          </div>
-
-                          <div className="grid grid-cols-2 gap-2 text-xs">
-                            <div className="text-center p-2 bg-default-50 dark:bg-default-100 rounded">
-                              <div className="text-default-600 mb-0.5">
-                                上传
-                              </div>
-                              <div className="font-mono">
-                                {node.connectionStatus === "online" &&
-                                node.systemInfo
-                                  ? formatSpeed(node.systemInfo.uploadSpeed)
-                                  : "-"}
-                              </div>
-                            </div>
-                            <div className="text-center p-2 bg-default-50 dark:bg-default-100 rounded">
-                              <div className="text-default-600 mb-0.5">
-                                下载
-                              </div>
-                              <div className="font-mono">
-                                {node.connectionStatus === "online" &&
-                                node.systemInfo
-                                  ? formatSpeed(node.systemInfo.downloadSpeed)
-                                  : "-"}
-                              </div>
-                            </div>
-                          </div>
-
-                          {/* 流量统计 */}
-                          <div className="grid grid-cols-2 gap-2 text-xs">
-                            <div className="text-center p-2 bg-primary-50 dark:bg-primary-100/20 rounded border border-primary-200 dark:border-primary-300/20">
-                              <div className="text-primary-600 dark:text-primary-400 mb-0.5">
-                                ↑ 上行流量
-                              </div>
-                              <div className="font-mono text-primary-700 dark:text-primary-300">
-                                {node.connectionStatus === "online" &&
-                                node.systemInfo
-                                  ? formatTraffic(node.systemInfo.uploadTraffic)
-                                  : "-"}
-                              </div>
-                            </div>
-                            <div className="text-center p-2 bg-success-50 dark:bg-success-100/20 rounded border border-success-200 dark:border-success-300/20">
-                              <div className="text-success-600 dark:text-success-400 mb-0.5">
-                                ↓ 下行流量
-                              </div>
-                              <div className="font-mono text-success-700 dark:text-success-300">
-                                {node.connectionStatus === "online" &&
-                                node.systemInfo
-                                  ? formatTraffic(
-                                      node.systemInfo.downloadTraffic,
-                                    )
-                                  : "-"}
-                              </div>
-                            </div>
-                          </div>
+                            </>
+                          )}
                         </div>
+
+                        {!isRemoteNode && (
+                          <>
+                            {/* 系统监控 */}
+                            <div className="space-y-3 mb-4">
+                              <div className="grid grid-cols-2 gap-3">
+                                <div>
+                                  <div className="flex justify-between text-xs mb-1">
+                                    <span>CPU</span>
+                                    <span className="font-mono">
+                                      {node.connectionStatus === "online" &&
+                                      node.systemInfo
+                                        ? `${node.systemInfo.cpuUsage.toFixed(1)}%`
+                                        : "-"}
+                                    </span>
+                                  </div>
+                                  <Progress
+                                    aria-label="CPU使用率"
+                                    color={getProgressColor(
+                                      node.connectionStatus === "online" &&
+                                        node.systemInfo
+                                        ? node.systemInfo.cpuUsage
+                                        : 0,
+                                      node.connectionStatus !== "online",
+                                    )}
+                                    size="sm"
+                                    value={
+                                      node.connectionStatus === "online" &&
+                                      node.systemInfo
+                                        ? node.systemInfo.cpuUsage
+                                        : 0
+                                    }
+                                  />
+                                </div>
+                                <div>
+                                  <div className="flex justify-between text-xs mb-1">
+                                    <span>内存</span>
+                                    <span className="font-mono">
+                                      {node.connectionStatus === "online" &&
+                                      node.systemInfo
+                                        ? `${node.systemInfo.memoryUsage.toFixed(1)}%`
+                                        : "-"}
+                                    </span>
+                                  </div>
+                                  <Progress
+                                    aria-label="内存使用率"
+                                    color={getProgressColor(
+                                      node.connectionStatus === "online" &&
+                                        node.systemInfo
+                                        ? node.systemInfo.memoryUsage
+                                        : 0,
+                                      node.connectionStatus !== "online",
+                                    )}
+                                    size="sm"
+                                    value={
+                                      node.connectionStatus === "online" &&
+                                      node.systemInfo
+                                        ? node.systemInfo.memoryUsage
+                                        : 0
+                                    }
+                                  />
+                                </div>
+                              </div>
+
+                              <div className="grid grid-cols-2 gap-2 text-xs">
+                                <div className="text-center p-2 bg-default-50 dark:bg-default-100 rounded">
+                                  <div className="text-default-600 mb-0.5">
+                                    上传
+                                  </div>
+                                  <div className="font-mono">
+                                    {node.connectionStatus === "online" &&
+                                    node.systemInfo
+                                      ? formatSpeed(node.systemInfo.uploadSpeed)
+                                      : "-"}
+                                  </div>
+                                </div>
+                                <div className="text-center p-2 bg-default-50 dark:bg-default-100 rounded">
+                                  <div className="text-default-600 mb-0.5">
+                                    下载
+                                  </div>
+                                  <div className="font-mono">
+                                    {node.connectionStatus === "online" &&
+                                    node.systemInfo
+                                      ? formatSpeed(node.systemInfo.downloadSpeed)
+                                      : "-"}
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* 流量统计 */}
+                              <div className="grid grid-cols-2 gap-2 text-xs">
+                                <div className="text-center p-2 bg-primary-50 dark:bg-primary-100/20 rounded border border-primary-200 dark:border-primary-300/20">
+                                  <div className="text-primary-600 dark:text-primary-400 mb-0.5">
+                                    ↑ 上行流量
+                                  </div>
+                                  <div className="font-mono text-primary-700 dark:text-primary-300">
+                                    {node.connectionStatus === "online" &&
+                                    node.systemInfo
+                                      ? formatTraffic(node.systemInfo.uploadTraffic)
+                                      : "-"}
+                                  </div>
+                                </div>
+                                <div className="text-center p-2 bg-success-50 dark:bg-success-100/20 rounded border border-success-200 dark:border-success-300/20">
+                                  <div className="text-success-600 dark:text-success-400 mb-0.5">
+                                    ↓ 下行流量
+                                  </div>
+                                  <div className="font-mono text-success-700 dark:text-success-300">
+                                    {node.connectionStatus === "online" &&
+                                    node.systemInfo
+                                      ? formatTraffic(
+                                          node.systemInfo.downloadTraffic,
+                                        )
+                                      : "-"}
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          </>
+                        )}
 
                         {/* 操作按钮 */}
                         <div className="space-y-1.5">
                           <div className="flex gap-1.5">
+                            {!isRemoteNode && (
+                              <>
+                                <Button
+                                  className="flex-1 min-h-8"
+                                  color="success"
+                                  isLoading={node.copyLoading}
+                                  size="sm"
+                                  variant="flat"
+                                  onPress={() => handleCopyInstallCommand(node)}
+                                >
+                                  安装
+                                </Button>
+                                <Button
+                                  className="flex-1 min-h-8"
+                                  color="primary"
+                                  size="sm"
+                                  variant="flat"
+                                  onPress={() => handleEdit(node)}
+                                >
+                                  编辑
+                                </Button>
+                              </>
+                            )}
                             <Button
-                              className="flex-1 min-h-8"
-                              color="success"
-                              isDisabled={node.isRemote === 1}
-                              isLoading={node.copyLoading}
-                              size="sm"
-                              variant="flat"
-                              onPress={() => handleCopyInstallCommand(node)}
-                            >
-                              安装
-                            </Button>
-                            <Button
-                              className="flex-1 min-h-8"
-                              color="primary"
-                              isDisabled={node.isRemote === 1}
-                              size="sm"
-                              variant="flat"
-                              onPress={() => handleEdit(node)}
-                            >
-                              编辑
-                            </Button>
-                            <Button
-                              className="flex-1 min-h-8"
+                              className={`min-h-8 ${isRemoteNode ? "w-full" : "flex-1"}`}
                               color="danger"
                               size="sm"
                               variant="flat"
@@ -1386,7 +1399,8 @@ export default function NodePage() {
                     </Card>
                   )}
                 </SortableItem>
-              ))}
+                );
+              })}
             </div>
           </SortableContext>
         </DndContext>
