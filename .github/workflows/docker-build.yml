@@ -268,6 +268,10 @@ jobs:
           sed -i "s|2.0.7-beta|${VERSION}|g" ./artifacts/install.sh
           sed -i "s|2.0.7-beta|${VERSION}|g" ./artifacts/panel_install.sh
 
+          # 注入固定版本号，使从 Release 页下载的脚本只安装该版本
+          sed -i "s|^PINNED_VERSION=\"\"|PINNED_VERSION=\"${VERSION}\"|" ./artifacts/install.sh
+          sed -i "s|^PINNED_VERSION=\"\"|PINNED_VERSION=\"${VERSION}\"|" ./artifacts/panel_install.sh
+
       - name: Create Release
         env:
           GH_TOKEN: ${{ github.token }}
@@ -303,14 +307,22 @@ jobs:
 
           ## 🚀 Quick Install
 
-          **Panel:**
+          **Panel (安装此版本 ${VERSION}):**
           \`\`\`bash
           curl -L https://github.com/${{ github.repository }}/releases/download/${VERSION}/panel_install.sh -o panel_install.sh && chmod +x panel_install.sh && ./panel_install.sh
           \`\`\`
 
-          **Node:**
+          **Node (安装此版本 ${VERSION}):**
           \`\`\`bash
           curl -L https://github.com/${{ github.repository }}/releases/download/${VERSION}/install.sh -o install.sh && chmod +x install.sh && ./install.sh
+          \`\`\`
+
+          **安装最新版:**
+          \`\`\`bash
+          # 面板端
+          curl -L https://raw.githubusercontent.com/${{ github.repository }}/main/panel_install.sh -o panel_install.sh && chmod +x panel_install.sh && ./panel_install.sh
+          # 节点端
+          curl -L https://raw.githubusercontent.com/${{ github.repository }}/main/install.sh -o install.sh && chmod +x install.sh && ./install.sh
           \`\`\`" \
             --repo ${{ github.repository }}
 
