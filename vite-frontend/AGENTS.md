@@ -10,22 +10,36 @@ Web management console for FLVX (formerly Flux Panel).
 ```
 vite-frontend/
 ├── src/
-│   ├── pages/        # Route views (some very large single-file pages)
-│   ├── components/   # Reusable UI parts
-│   ├── layouts/      # Admin vs H5 layouts
-│   ├── api/          # API functions + axios wrapper
+│   ├── api/          # Axios wrapper + typed endpoint helpers
+│   ├── components/   # Shared UI components (HeroUI based)
 │   ├── config/       # Site config (title, repo, version)
-│   └── utils/        # Auth/JWT + WebView helpers
+│   ├── layouts/      # Admin vs H5 page chrome
+│   ├── pages/        # Route views (many large single-file pages)
+│   ├── utils/        # Auth/JWT + WebView helpers
+│   ├── App.tsx       # Routes + ProtectedRoute + H5 layout selection
+│   ├── main.tsx      # ReactDOM + Providers (HeroUI, Theme, Toast)
+│   └── provider.tsx  # Context provider wrapper
 ├── vite.config.ts    # base '/', host 0.0.0.0:3000; build minify/treeshake disabled
 ├── eslint.config.mjs  # ESLint 9 flat config
 └── package.json
 ```
 
+## WHERE TO LOOK
+| Task | Location | Notes |
+|------|----------|-------|
+| **Route definitions** | `src/App.tsx` | React Router v6; H5 detection logic |
+| **API Client** | `src/api/network.ts` | Sets `Authorization` header (raw token) |
+| **Endpoint Calls** | `src/api/index.ts` | Thin `Network.post` wrappers |
+| **Login Flow** | `src/pages/index.tsx` | Calls `login()`, stores `localStorage.token` |
+| **Auth Logic** | `src/utils/auth.ts` | `isAdmin()` checks `role_id == 0` |
+| **Token Decoding** | `src/utils/jwt.ts` | Checks `exp` vs current time |
+| **WebView Logic** | `src/utils/panel.ts` | Handles panel address selection in app mode |
+
 ## CONVENTIONS
-- **Routing**: React Router v6 routes in `vite-frontend/src/App.tsx`.
-- **Auth**: JWT stored as `localStorage.token`; sent as `Authorization` header (no prefix) in `vite-frontend/src/api/network.ts`.
-- **Base URL**: Defaults to `/api/v1/` (or `VITE_API_BASE`); WebView mode selects a panel address via `vite-frontend/src/utils/panel.ts`.
-- **UI**: HeroUI provider + theme + toast wired in `vite-frontend/src/provider.tsx`.
+- **Auth**: JWT stored as `localStorage.token`. Sent in `Authorization` header (no "Bearer" prefix).
+- **API**: Default base URL is `/api/v1/`.
+- **WebView**: In WebView mode, base URL is derived from selected panel address. If unset, API returns `code: -1`.
+- **Routing**: URL query param `h5=true` forces mobile layout.
 
 ## COMMANDS
 ```bash

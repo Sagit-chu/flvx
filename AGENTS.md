@@ -43,7 +43,7 @@ FLVX (formerly Flux Panel) is a traffic forwarding management system built on a 
 
 
 ## CONVENTIONS
-- `Authorization` header carries the raw JWT token (no `Bearer` prefix) between `vite-frontend/` and `springboot-backend/`.
+- `Authorization` header carries the raw JWT token (no `Bearer` prefix) between `vite-frontend/` and `go-backend/`.
 - `go-gost/` uses `replace github.com/go-gost/x => ./x` and `go-gost/x/` is also its own Go module.
 
 ## ANTI-PATTERNS (THIS PROJECT)
@@ -60,7 +60,7 @@ docker compose -f docker-compose-v6.yml up -d
 ./install.sh
 
 # Local dev (per subproject)
-(cd springboot-backend && mvn clean package)
+(cd go-backend && make build)
 (cd vite-frontend && npm run dev)
 (cd go-gost && go run .)
 ```
