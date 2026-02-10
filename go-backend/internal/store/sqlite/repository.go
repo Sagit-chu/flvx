@@ -1282,6 +1282,8 @@ func migrateSchema(db *sql.DB) error {
 			"allowed_ips":     "TEXT DEFAULT ''",
 		},
 		"node": {
+			"server_ip_v4":  "VARCHAR(100)",
+			"server_ip_v6":  "VARCHAR(100)",
 			"inx":           "INTEGER NOT NULL DEFAULT 0",
 			"is_remote":     "INTEGER DEFAULT 0",
 			"remote_url":    "TEXT",
