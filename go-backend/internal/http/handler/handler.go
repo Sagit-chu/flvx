@@ -155,6 +155,7 @@ func (h *Handler) Register(mux *http.ServeMux) {
 	mux.HandleFunc("/api/v1/open_api/sub_store", h.openAPISubStore)
 	mux.HandleFunc("/api/v1/federation/share/list", h.federationShareList)
 	mux.HandleFunc("/api/v1/federation/share/create", h.federationShareCreate)
+	mux.HandleFunc("/api/v1/federation/share/update", h.federationShareUpdate)
 	mux.HandleFunc("/api/v1/federation/share/delete", h.federationShareDelete)
 	mux.HandleFunc("/api/v1/federation/share/reset-flow", h.federationShareResetFlow)
 	mux.HandleFunc("/api/v1/federation/share/remote-usage/list", h.federationRemoteUsageList)
@@ -320,6 +321,9 @@ func (h *Handler) nodeList(w http.ResponseWriter, r *http.Request) {
 		response.WriteJSON(w, response.Err(-2, err.Error()))
 		return
 	}
+
+	h.syncRemoteNodeStatuses(items)
+
 	response.WriteJSON(w, response.OK(items))
 }
 

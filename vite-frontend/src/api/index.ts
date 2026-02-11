@@ -200,6 +200,16 @@ export const createPeerShare = (data: {
   allowedDomains?: string;
   allowedIps?: string;
 }) => Network.post("/federation/share/create", data);
+export const updatePeerShare = (data: {
+  id: number;
+  name: string;
+  maxBandwidth: number;
+  expiryTime: number;
+  portRangeStart: number;
+  portRangeEnd: number;
+  allowedDomains: string;
+  allowedIps: string;
+}) => Network.post("/federation/share/update", data);
 export const deletePeerShare = (id: number) =>
   Network.post("/federation/share/delete", { id });
 export const resetPeerShareFlow = (id: number) =>

@@ -65,6 +65,7 @@ interface Node {
   status: number;
   isRemote?: number;
   remoteUrl?: string;
+  syncError?: string;
   connectionStatus: "online" | "offline";
   systemInfo?: {
     cpuUsage: number;
@@ -219,7 +220,8 @@ export default function NodePage() {
         const nodesData: Node[] = (res.data || []).map((node: any) => ({
           ...node,
           inx: node.inx ?? 0,
-          connectionStatus: node.status === 1 ? "online" : "offline",
+          connectionStatus: node.syncError ? "offline" : node.status === 1 ? "online" : "offline",
+          syncError: node.syncError || undefined,
           systemInfo: null,
           copyLoading: false,
         }));
@@ -1181,6 +1183,17 @@ export default function NodePage() {
                       </CardHeader>
 
                       <CardBody className="pt-0 pb-3">
+                        {isRemoteNode && node.syncError && (
+                          <div className="mb-3 px-2 py-1.5 rounded-md bg-warning-50 dark:bg-warning-100/10 text-warning-700 dark:text-warning-400 text-xs">
+                            {node.syncError === "provider_share_deleted"
+                              ? "提供方已删除该分享"
+                              : node.syncError === "provider_share_disabled"
+                                ? "提供方已禁用该分享"
+                                : node.syncError === "provider_share_expired"
+                                  ? "提供方分享已过期"
+                                  : `远程同步失败: ${node.syncError}`}
+                          </div>
+                        )}
                         {/* 基础信息 */}
                         <div className="space-y-2 mb-4">
                           <div className="flex justify-between items-center text-sm min-w-0">
