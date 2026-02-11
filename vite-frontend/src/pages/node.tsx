@@ -125,7 +125,7 @@ const SortableItem = ({
   };
 
   return (
-    <div ref={setNodeRef} style={style} {...attributes}>
+    <div ref={setNodeRef} style={style} {...attributes} className="overflow-hidden">
       {children(listeners)}
     </div>
   );
@@ -1253,7 +1253,7 @@ export default function NodePage() {
                     {(listeners) => (
                     <Card
                       key={node.id}
-                      className="group shadow-sm border border-divider hover:shadow-md transition-shadow duration-200"
+                      className="group shadow-sm border border-divider hover:shadow-md transition-shadow duration-200 overflow-hidden"
                     >
                       <CardHeader className="pb-2">
                         <div className="flex justify-between items-start w-full">
@@ -1514,54 +1514,56 @@ export default function NodePage() {
 
                         {/* 操作按钮 */}
                         <div className="space-y-1.5">
-                          <div className="flex gap-1.5">
+                          {!isRemoteNode && (
+                            <div className="grid grid-cols-3 gap-1.5">
+                              <Button
+                                className="min-h-8"
+                                color="success"
+                                isLoading={node.copyLoading}
+                                size="sm"
+                                variant="flat"
+                                onPress={() => handleCopyInstallCommand(node)}
+                              >
+                                安装
+                              </Button>
+                              <Button
+                                className="min-h-8"
+                                color="warning"
+                                isDisabled={node.connectionStatus !== "online"}
+                                isLoading={node.upgradeLoading}
+                                size="sm"
+                                variant="flat"
+                                onPress={() => openUpgradeModal("single", node.id)}
+                              >
+                                升级
+                              </Button>
+                              <Button
+                                className="min-h-8"
+                                color="secondary"
+                                isDisabled={node.connectionStatus !== "online"}
+                                isLoading={node.rollbackLoading}
+                                size="sm"
+                                variant="flat"
+                                onPress={() => handleRollbackNode(node)}
+                              >
+                                回退
+                              </Button>
+                            </div>
+                          )}
+                          <div className={`grid gap-1.5 ${isRemoteNode ? "grid-cols-1" : "grid-cols-2"}`}>
                             {!isRemoteNode && (
-                              <>
-                                <Button
-                                  className="flex-1 min-h-8"
-                                  color="success"
-                                  isLoading={node.copyLoading}
-                                  size="sm"
-                                  variant="flat"
-                                  onPress={() => handleCopyInstallCommand(node)}
-                                >
-                                  安装
-                                </Button>
-                                <Button
-                                  className="flex-1 min-h-8"
-                                  color="warning"
-                                  isDisabled={node.connectionStatus !== "online"}
-                                  isLoading={node.upgradeLoading}
-                                  size="sm"
-                                  variant="flat"
-                                  onPress={() => openUpgradeModal("single", node.id)}
-                                >
-                                  升级
-                                </Button>
-                                <Button
-                                  className="flex-1 min-h-8"
-                                  color="secondary"
-                                  isDisabled={node.connectionStatus !== "online"}
-                                  isLoading={node.rollbackLoading}
-                                  size="sm"
-                                  variant="flat"
-                                  onPress={() => handleRollbackNode(node)}
-                                >
-                                  回退
-                                </Button>
-                                <Button
-                                  className="flex-1 min-h-8"
-                                  color="primary"
-                                  size="sm"
-                                  variant="flat"
-                                  onPress={() => handleEdit(node)}
-                                >
-                                  编辑
-                                </Button>
-                              </>
+                              <Button
+                                className="min-h-8"
+                                color="primary"
+                                size="sm"
+                                variant="flat"
+                                onPress={() => handleEdit(node)}
+                              >
+                                编辑
+                              </Button>
                             )}
                             <Button
-                              className={`min-h-8 ${isRemoteNode ? "w-full" : "flex-1"}`}
+                              className="min-h-8"
                               color="danger"
                               size="sm"
                               variant="flat"

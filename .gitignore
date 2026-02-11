@@ -177,6 +177,7 @@ build/
 *.dylib
 your_app.exe
 go-backend/paneld
+go-gost/gost
 
 # Go 测试二进制文件
 *.test
