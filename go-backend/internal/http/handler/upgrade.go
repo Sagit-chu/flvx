@@ -3,11 +3,19 @@ package handler
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"strings"
 	"time"
 
 	"go-backend/internal/http/response"
+)
+
+const (
+	githubRepo     = "Sagit-chu/flvx"
+	githubProxy    = "https://gcode.hostcentral.cc"
+	githubAPIBase  = "https://api.github.com"
+	githubHTMLBase = "https://github.com"
 )
 
 func (h *Handler) nodeUpgrade(w http.ResponseWriter, r *http.Request) {
@@ -40,12 +48,12 @@ func (h *Handler) nodeUpgrade(w http.ResponseWriter, r *http.Request) {
 	}
 
 	downloadURL := fmt.Sprintf(
-		"https://gcode.hostcentral.cc/https://github.com/Sagit-chu/flux-panel/releases/download/%s/gost-{ARCH}",
-		version,
+		githubProxy+"/%s/%s/releases/download/%s/gost-{ARCH}",
+		githubHTMLBase, githubRepo, version,
 	)
 	checksumURL := fmt.Sprintf(
-		"https://gcode.hostcentral.cc/https://github.com/Sagit-chu/flux-panel/releases/download/%s/gost-{ARCH}.sha256",
-		version,
+		githubProxy+"/%s/%s/releases/download/%s/gost-{ARCH}.sha256",
+		githubHTMLBase, githubRepo, version,
 	)
 
 	result, err := h.wsServer.SendCommand(req.ID, "UpgradeAgent", map[string]interface{}{
@@ -71,7 +79,7 @@ func resolveLatestRelease() (string, error) {
 		Timeout: 10 * time.Second,
 	}
 
-	resp, err := client.Get("https://gcode.hostcentral.cc/https://github.com/Sagit-chu/flux-panel/releases/latest")
+	resp, err := client.Get(githubProxy + "/" + githubHTMLBase + "/" + githubRepo + "/releases/latest")
 	if err != nil {
 		return "", fmt.Errorf("请求GitHub失败: %v", err)
 	}
@@ -97,11 +105,16 @@ func resolveLatestRelease() (string, error) {
 
 func resolveLatestReleaseAPI() (string, error) {
 	client := &http.Client{Timeout: 10 * time.Second}
-	resp, err := client.Get("https://gcode.hostcentral.cc/https://api.github.com/repos/Sagit-chu/flux-panel/releases/latest")
+	resp, err := client.Get(githubAPIBase + "/repos/" + githubRepo + "/releases/latest")
 	if err != nil {
 		return "", fmt.Errorf("请求GitHub API失败: %v", err)
 	}
 	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(io.LimitReader(resp.Body, 512))
+		return "", fmt.Errorf("GitHub API返回 %d: %s", resp.StatusCode, string(body))
+	}
 
 	var release struct {
 		TagName string `json:"tag_name"`
@@ -146,12 +159,12 @@ func (h *Handler) nodeBatchUpgrade(w http.ResponseWriter, r *http.Request) {
 	}
 
 	downloadURL := fmt.Sprintf(
-		"https://gcode.hostcentral.cc/https://github.com/Sagit-chu/flux-panel/releases/download/%s/gost-{ARCH}",
-		version,
+		githubProxy+"/%s/%s/releases/download/%s/gost-{ARCH}",
+		githubHTMLBase, githubRepo, version,
 	)
 	checksumURL := fmt.Sprintf(
-		"https://gcode.hostcentral.cc/https://github.com/Sagit-chu/flux-panel/releases/download/%s/gost-{ARCH}.sha256",
-		version,
+		githubProxy+"/%s/%s/releases/download/%s/gost-{ARCH}.sha256",
+		githubHTMLBase, githubRepo, version,
 	)
 
 	type upgradeResult struct {
@@ -186,12 +199,18 @@ func (h *Handler) listReleases(w http.ResponseWriter, r *http.Request) {
 	}
 
 	client := &http.Client{Timeout: 15 * time.Second}
-	resp, err := client.Get("https://gcode.hostcentral.cc/https://api.github.com/repos/Sagit-chu/flux-panel/releases?per_page=20")
+	resp, err := client.Get(githubAPIBase + "/repos/" + githubRepo + "/releases?per_page=20")
 	if err != nil {
 		response.WriteJSON(w, response.Err(-2, fmt.Sprintf("获取版本列表失败: %v", err)))
 		return
 	}
 	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(io.LimitReader(resp.Body, 512))
+		response.WriteJSON(w, response.Err(-2, fmt.Sprintf("获取版本列表失败: GitHub API返回 %d: %s", resp.StatusCode, string(body))))
+		return
+	}
 
 	var releases []struct {
 		TagName     string `json:"tag_name"`
