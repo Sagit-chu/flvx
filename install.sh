@@ -25,16 +25,10 @@ get_architecture() {
 # 安装目录
 INSTALL_DIR="/etc/flux_agent"
 
-# 识别国家（用于镜像加速）
-COUNTRY=$(curl -s https://ipinfo.io/country)
-
+# 镜像加速（所有下载均经过镜像源，以支持 IPv6）
 maybe_proxy_url() {
   local url="$1"
-  if [ "$COUNTRY" = "CN" ]; then
-    echo "https://gcode.hostcentral.cc/${url}"
-  else
-    echo "$url"
-  fi
+  echo "https://gcode.hostcentral.cc/${url}"
 }
 
 resolve_latest_release_tag() {
@@ -43,37 +37,17 @@ resolve_latest_release_tag() {
   latest_url="https://github.com/${REPO}/releases/latest"
   api_url="https://api.github.com/repos/${REPO}/releases/latest"
 
-  # 方式1：跟随重定向，取最终 URL 的最后一段作为 tag
-  effective_url=$(curl -fsSL -o /dev/null -w '%{url_effective}' -L "$latest_url" 2>/dev/null || true)
+  effective_url=$(curl -fsSL -o /dev/null -w '%{url_effective}' -L "$(maybe_proxy_url "$latest_url")" 2>/dev/null || true)
   tag="${effective_url##*/}"
   if [[ -n "$tag" && "$tag" != "latest" ]]; then
     echo "$tag"
     return 0
   fi
 
-  # CN 环境下可尝试通过镜像访问（不影响非 CN）
-  if [ "$COUNTRY" = "CN" ]; then
-    effective_url=$(curl -fsSL -o /dev/null -w '%{url_effective}' -L "$(maybe_proxy_url "$latest_url")" 2>/dev/null || true)
-    tag="${effective_url##*/}"
-    if [[ -n "$tag" && "$tag" != "latest" ]]; then
-      echo "$tag"
-      return 0
-    fi
-  fi
-
-  # 方式2：GitHub API（无需 jq）
-  api_tag=$(curl -fsSL "$api_url" 2>/dev/null | grep -m1 '"tag_name"' | sed -E 's/.*"tag_name"[[:space:]]*:[[:space:]]*"([^"]+)".*/\1/' || true)
+  api_tag=$(curl -fsSL "$(maybe_proxy_url "$api_url")" 2>/dev/null | grep -m1 '"tag_name"' | sed -E 's/.*"tag_name"[[:space:]]*:[[:space:]]*"([^"]+)".*/\1/' || true)
   if [[ -n "$api_tag" ]]; then
     echo "$api_tag"
     return 0
-  fi
-
-  if [ "$COUNTRY" = "CN" ]; then
-    api_tag=$(curl -fsSL "$(maybe_proxy_url "$api_url")" 2>/dev/null | grep -m1 '"tag_name"' | sed -E 's/.*"tag_name"[[:space:]]*:[[:space:]]*"([^"]+)".*/\1/' || true)
-    if [[ -n "$api_tag" ]]; then
-      echo "$api_tag"
-      return 0
-    fi
   fi
 
   return 1

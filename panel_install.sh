@@ -13,15 +13,10 @@ REPO="Sagit-chu/flux-panel"
 # 固定版本号（Release 构建时自动填充，留空则获取最新版）
 PINNED_VERSION=""
 
-COUNTRY=$(curl -s https://ipinfo.io/country)
-
+# 镜像加速（所有下载均经过镜像源，以支持 IPv6）
 maybe_proxy_url() {
   local url="$1"
-  if [ "$COUNTRY" = "CN" ]; then
-    echo "https://gcode.hostcentral.cc/${url}"
-  else
-    echo "$url"
-  fi
+  echo "https://gcode.hostcentral.cc/${url}"
 }
 
 resolve_latest_release_tag() {
@@ -30,34 +25,17 @@ resolve_latest_release_tag() {
   latest_url="https://github.com/${REPO}/releases/latest"
   api_url="https://api.github.com/repos/${REPO}/releases/latest"
 
-  effective_url=$(curl -fsSL -o /dev/null -w '%{url_effective}' -L "$latest_url" 2>/dev/null || true)
+  effective_url=$(curl -fsSL -o /dev/null -w '%{url_effective}' -L "$(maybe_proxy_url "$latest_url")" 2>/dev/null || true)
   tag="${effective_url##*/}"
   if [[ -n "$tag" && "$tag" != "latest" ]]; then
     echo "$tag"
     return 0
   fi
 
-  if [ "$COUNTRY" = "CN" ]; then
-    effective_url=$(curl -fsSL -o /dev/null -w '%{url_effective}' -L "$(maybe_proxy_url "$latest_url")" 2>/dev/null || true)
-    tag="${effective_url##*/}"
-    if [[ -n "$tag" && "$tag" != "latest" ]]; then
-      echo "$tag"
-      return 0
-    fi
-  fi
-
-  api_tag=$(curl -fsSL "$api_url" 2>/dev/null | grep -m1 '"tag_name"' | sed -E 's/.*"tag_name"[[:space:]]*:[[:space:]]*"([^"]+)".*/\1/' || true)
+  api_tag=$(curl -fsSL "$(maybe_proxy_url "$api_url")" 2>/dev/null | grep -m1 '"tag_name"' | sed -E 's/.*"tag_name"[[:space:]]*:[[:space:]]*"([^"]+)".*/\1/' || true)
   if [[ -n "$api_tag" ]]; then
     echo "$api_tag"
     return 0
-  fi
-
-  if [ "$COUNTRY" = "CN" ]; then
-    api_tag=$(curl -fsSL "$(maybe_proxy_url "$api_url")" 2>/dev/null | grep -m1 '"tag_name"' | sed -E 's/.*"tag_name"[[:space:]]*:[[:space:]]*"([^"]+)".*/\1/' || true)
-    if [[ -n "$api_tag" ]]; then
-      echo "$api_tag"
-      return 0
-    fi
   fi
 
   return 1
