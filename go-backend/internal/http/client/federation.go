@@ -85,6 +85,14 @@ func NewFederationClient() *FederationClient {
 	}
 }
 
+func NewFederationClientWithTimeout(timeout time.Duration) *FederationClient {
+	return &FederationClient{
+		client: &http.Client{
+			Timeout: timeout,
+		},
+	}
+}
+
 func (c *FederationClient) Connect(url, token, localDomain string) (*RemoteNodeInfo, error) {
 	url = strings.TrimSuffix(url, "/")
 	req, err := http.NewRequest("POST", url+"/api/v1/federation/connect", nil)

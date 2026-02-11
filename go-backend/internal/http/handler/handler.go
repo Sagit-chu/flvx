@@ -321,6 +321,9 @@ func (h *Handler) nodeList(w http.ResponseWriter, r *http.Request) {
 		response.WriteJSON(w, response.Err(-2, err.Error()))
 		return
 	}
+
+	h.syncRemoteNodeStatuses(items)
+
 	response.WriteJSON(w, response.OK(items))
 }
 

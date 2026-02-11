@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"go-backend/internal/http/client"
@@ -1400,6 +1401,74 @@ func isPeerIPAllowed(clientIP net.IP, whitelist string) bool {
 	}
 
 	return false
+}
+
+func (h *Handler) syncRemoteNodeStatuses(items []map[string]interface{}) {
+	type remoteEntry struct {
+		index       int
+		remoteURL   string
+		remoteToken string
+	}
+
+	var remotes []remoteEntry
+	for i, item := range items {
+		isRemote, _ := item["isRemote"].(int)
+		if isRemote != 1 {
+			continue
+		}
+		url, _ := item["remoteUrl"].(string)
+		token, _ := item["remoteToken"].(string)
+		url = strings.TrimSpace(url)
+		token = strings.TrimSpace(token)
+		if url == "" || token == "" {
+			continue
+		}
+		remotes = append(remotes, remoteEntry{index: i, remoteURL: url, remoteToken: token})
+	}
+	if len(remotes) == 0 {
+		return
+	}
+
+	localDomain := h.federationLocalDomain()
+	fc := client.NewFederationClientWithTimeout(5 * time.Second)
+
+	type syncResult struct {
+		index     int
+		status    int
+		syncError string
+	}
+
+	results := make([]syncResult, len(remotes))
+	var wg sync.WaitGroup
+	for i, entry := range remotes {
+		wg.Add(1)
+		go func(idx int, e remoteEntry) {
+			defer wg.Done()
+			info, err := fc.Connect(e.remoteURL, e.remoteToken, localDomain)
+			if err != nil {
+				errMsg := err.Error()
+				if strings.Contains(errMsg, "401") || strings.Contains(errMsg, "Invalid token") || strings.Contains(errMsg, "Unauthorized") {
+					results[idx] = syncResult{index: e.index, status: 0, syncError: "provider_share_deleted"}
+				} else if strings.Contains(errMsg, "403") || strings.Contains(errMsg, "Share is disabled") {
+					results[idx] = syncResult{index: e.index, status: 0, syncError: "provider_share_disabled"}
+				} else if strings.Contains(errMsg, "Share expired") {
+					results[idx] = syncResult{index: e.index, status: 0, syncError: "provider_share_expired"}
+				} else {
+					results[idx] = syncResult{index: e.index, status: 0, syncError: errMsg}
+				}
+			} else {
+				results[idx] = syncResult{index: e.index, status: info.Status, syncError: ""}
+			}
+		}(i, entry)
+	}
+	wg.Wait()
+
+	for _, r := range results {
+		items[r.index]["status"] = r.status
+		if r.syncError != "" {
+			items[r.index]["syncError"] = r.syncError
+		}
+	}
 }
 
 func (h *Handler) cleanupPeerShareRuntimes(shareID int64) {
