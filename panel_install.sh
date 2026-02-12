@@ -203,7 +203,8 @@ show_menu() {
   echo "1. 安装面板"
   echo "2. 更新面板"
   echo "3. 卸载面板"
-  echo "4. 退出"
+  echo "4. 迁移到 PostgreSQL"
+  echo "5. 退出"
   echo "==============================================="
 }
 
@@ -232,6 +233,90 @@ upsert_env_var() {
   mv "$tmp_file" "$file"
 }
 
+get_env_var() {
+  local key="$1"
+  local file="${2:-.env}"
+
+  if [[ ! -f "$file" ]]; then
+    return 0
+  fi
+
+  grep -m1 "^${key}=" "$file" | cut -d= -f2-
+}
+
+get_current_db_type() {
+  local db_type database_url
+
+  db_type=$(get_env_var "DB_TYPE")
+  database_url=$(get_env_var "DATABASE_URL")
+
+  if [[ "$db_type" == "postgres" || "$database_url" == postgres://* || "$database_url" == postgresql://* ]]; then
+    echo "postgres"
+  else
+    echo "sqlite"
+  fi
+}
+
+wait_for_postgres_healthy() {
+  local pg_health
+
+  echo "🔍 检查 PostgreSQL 服务状态..."
+  for i in {1..90}; do
+    if docker ps --format "{{.Names}}" | grep -q "^flux-panel-postgres$"; then
+      pg_health=$(docker inspect -f '{{.State.Health.Status}}' flux-panel-postgres 2>/dev/null || echo "unknown")
+      if [[ "$pg_health" == "healthy" ]]; then
+        echo "✅ PostgreSQL 服务健康检查通过"
+        return 0
+      elif [[ "$pg_health" == "unhealthy" ]]; then
+        echo "⚠️ PostgreSQL 健康状态：$pg_health"
+      fi
+    else
+      pg_health="not_running"
+    fi
+
+    if [ $i -eq 90 ]; then
+      echo "❌ PostgreSQL 启动超时（90秒）"
+      echo "🔍 当前状态：$(docker inspect -f '{{.State.Health.Status}}' flux-panel-postgres 2>/dev/null || echo '容器不存在')"
+      return 1
+    fi
+
+    if [ $((i % 15)) -eq 1 ]; then
+      echo "⏳ 等待 PostgreSQL 启动... ($i/90) 状态：${pg_health:-unknown}"
+    fi
+    sleep 1
+  done
+}
+
+wait_for_backend_healthy() {
+  local backend_health
+
+  echo "🔍 检查后端服务状态..."
+  for i in {1..90}; do
+    if docker ps --format "{{.Names}}" | grep -q "^flux-panel-backend$"; then
+      backend_health=$(docker inspect -f '{{.State.Health.Status}}' flux-panel-backend 2>/dev/null || echo "unknown")
+      if [[ "$backend_health" == "healthy" ]]; then
+        echo "✅ 后端服务健康检查通过"
+        return 0
+      elif [[ "$backend_health" == "unhealthy" ]]; then
+        echo "⚠️ 后端健康状态：$backend_health"
+      fi
+    else
+      backend_health="not_running"
+    fi
+
+    if [ $i -eq 90 ]; then
+      echo "❌ 后端服务启动超时（90秒）"
+      echo "🔍 当前状态：$(docker inspect -f '{{.State.Health.Status}}' flux-panel-backend 2>/dev/null || echo '容器不存在')"
+      return 1
+    fi
+
+    if [ $((i % 15)) -eq 1 ]; then
+      echo "⏳ 等待后端服务启动... ($i/90) 状态：${backend_health:-unknown}"
+    fi
+    sleep 1
+  done
+}
+
 # 删除脚本自身
 delete_self() {
   echo ""
@@ -252,6 +337,33 @@ get_config_params() {
 
   read -p "后端端口（默认 6365）: " BACKEND_PORT
   BACKEND_PORT=${BACKEND_PORT:-6365}
+
+  echo "请选择数据库类型："
+  echo "1. SQLite（默认）"
+  echo "2. PostgreSQL"
+  read -p "数据库类型（1/2，默认 1）: " DB_CHOICE
+  case "$DB_CHOICE" in
+    2)
+      DB_TYPE="postgres"
+      ;;
+    ""|1)
+      DB_TYPE="sqlite"
+      ;;
+    *)
+      echo "⚠️ 输入无效，默认使用 SQLite"
+      DB_TYPE="sqlite"
+      ;;
+  esac
+
+  POSTGRES_DB="flux_panel"
+  POSTGRES_USER="flux_panel"
+  POSTGRES_PASSWORD=$(generate_random)
+
+  if [[ "$DB_TYPE" == "postgres" ]]; then
+    DATABASE_URL="postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?sslmode=disable"
+  else
+    DATABASE_URL=""
+  fi
 
   # 生成JWT密钥
   JWT_SECRET=$(generate_random)
@@ -280,10 +392,23 @@ JWT_SECRET=$JWT_SECRET
 FRONTEND_PORT=$FRONTEND_PORT
 BACKEND_PORT=$BACKEND_PORT
 FLUX_VERSION=$RESOLVED_VERSION
+
+DB_TYPE=$DB_TYPE
+DATABASE_URL=$DATABASE_URL
+
+POSTGRES_DB=$POSTGRES_DB
+POSTGRES_USER=$POSTGRES_USER
+POSTGRES_PASSWORD=$POSTGRES_PASSWORD
 EOF
 
   echo "🚀 启动 docker 服务..."
-  $DOCKER_CMD up -d
+  if [[ "$DB_TYPE" == "postgres" ]]; then
+    $DOCKER_CMD up -d postgres
+    wait_for_postgres_healthy
+    $DOCKER_CMD up -d backend frontend
+  else
+    $DOCKER_CMD up -d backend frontend
+  fi
 
   echo "🎉 部署完成"
   echo "🌐 访问地址: http://服务器IP:$FRONTEND_PORT"
@@ -299,6 +424,12 @@ EOF
 update_panel() {
   echo "🔄 开始更新面板..."
   check_docker
+
+  if [[ ! -f ".env" ]]; then
+    echo "⚠️ 未找到 .env，默认按 SQLite 模式更新"
+  fi
+  CURRENT_DB_TYPE=$(get_current_db_type)
+  echo "🗄️ 当前数据库类型：$CURRENT_DB_TYPE"
 
   echo "🔍 获取最新版本号..."
   LATEST_VERSION=$(resolve_latest_release_tag) || {
@@ -333,46 +464,110 @@ update_panel() {
   $DOCKER_CMD down
 
   echo "⬇️ 拉取最新镜像..."
-  $DOCKER_CMD pull
+  if [[ "$CURRENT_DB_TYPE" == "postgres" ]]; then
+    $DOCKER_CMD pull backend frontend postgres
+  else
+    $DOCKER_CMD pull backend frontend
+  fi
 
   echo "🚀 启动更新后的服务..."
-  $DOCKER_CMD up -d
+  if [[ "$CURRENT_DB_TYPE" == "postgres" ]]; then
+    $DOCKER_CMD up -d postgres
+    wait_for_postgres_healthy
+    $DOCKER_CMD up -d backend frontend
+  else
+    $DOCKER_CMD up -d backend frontend
+  fi
 
   # 等待服务启动
   echo "⏳ 等待服务启动..."
 
-  # 检查后端容器健康状态
-  echo "🔍 检查后端服务状态..."
-  for i in {1..90}; do
-    if docker ps --format "{{.Names}}" | grep -q "^flux-panel-backend$"; then
-      BACKEND_HEALTH=$(docker inspect -f '{{.State.Health.Status}}' flux-panel-backend 2>/dev/null || echo "unknown")
-      if [[ "$BACKEND_HEALTH" == "healthy" ]]; then
-        echo "✅ 后端服务健康检查通过"
-        break
-      elif [[ "$BACKEND_HEALTH" == "starting" ]]; then
-        # 继续等待
-        :
-      elif [[ "$BACKEND_HEALTH" == "unhealthy" ]]; then
-        echo "⚠️ 后端健康状态：$BACKEND_HEALTH"
-      fi
-    else
-      echo "⚠️ 后端容器未找到或未运行"
-      BACKEND_HEALTH="not_running"
-    fi
-    if [ $i -eq 90 ]; then
-      echo "❌ 后端服务启动超时（90秒）"
-      echo "🔍 当前状态：$(docker inspect -f '{{.State.Health.Status}}' flux-panel-backend 2>/dev/null || echo '容器不存在')"
-      echo "🛑 更新终止"
-      return 1
-    fi
-    # 每15秒显示一次进度
-    if [ $((i % 15)) -eq 1 ]; then
-      echo "⏳ 等待后端服务启动... ($i/90) 状态：${BACKEND_HEALTH:-unknown}"
-    fi
-    sleep 1
-  done
+  if ! wait_for_backend_healthy; then
+    echo "🛑 更新终止"
+    return 1
+  fi
 
   echo "✅ 更新完成"
+}
+
+
+migrate_to_postgres() {
+  local current_db_type postgres_db postgres_user postgres_password database_url
+
+  echo "🔄 开始迁移 SQLite -> PostgreSQL..."
+  check_docker
+
+  if [[ ! -f ".env" ]]; then
+    echo "❌ 未找到 .env 文件，请先安装面板"
+    return 1
+  fi
+
+  if [[ ! -f "docker-compose.yml" ]]; then
+    echo "⚠️ 未找到 docker-compose.yml 文件，正在下载..."
+    DOCKER_COMPOSE_URL=$(get_docker_compose_url)
+    echo "📡 选择配置文件：$(basename "$DOCKER_COMPOSE_URL")"
+    curl -L -o docker-compose.yml "$DOCKER_COMPOSE_URL"
+    echo "✅ docker-compose.yml 下载完成"
+  fi
+
+  current_db_type=$(get_current_db_type)
+  if [[ "$current_db_type" == "postgres" ]]; then
+    echo "ℹ️ 当前已使用 PostgreSQL，无需迁移"
+    return 0
+  fi
+
+  postgres_db=$(get_env_var "POSTGRES_DB")
+  postgres_user=$(get_env_var "POSTGRES_USER")
+  postgres_password=$(get_env_var "POSTGRES_PASSWORD")
+
+  postgres_db=${postgres_db:-flux_panel}
+  postgres_user=${postgres_user:-flux_panel}
+  postgres_password=${postgres_password:-$(generate_random)}
+
+  upsert_env_var ".env" "POSTGRES_DB" "$postgres_db"
+  upsert_env_var ".env" "POSTGRES_USER" "$postgres_user"
+  upsert_env_var ".env" "POSTGRES_PASSWORD" "$postgres_password"
+
+  echo "🛑 停止当前服务..."
+  docker stop -t 30 flux-panel-backend 2>/dev/null || true
+  docker stop -t 10 vite-frontend 2>/dev/null || true
+  echo "⏳ 等待数据同步..."
+  sleep 5
+  $DOCKER_CMD down
+
+  echo "💾 备份 SQLite 数据到当前目录..."
+  if ! docker run --rm -v sqlite_data:/data -v "$(pwd)":/backup alpine sh -c "cp /data/gost.db /backup/gost.db.bak"; then
+    echo "❌ SQLite 备份失败，迁移终止"
+    return 1
+  fi
+
+  echo "🚀 启动 PostgreSQL..."
+  $DOCKER_CMD up -d postgres
+  if ! wait_for_postgres_healthy; then
+    echo "🛑 PostgreSQL 未就绪，迁移终止"
+    return 1
+  fi
+
+  echo "🔄 执行 pgloader 迁移..."
+  if ! docker run --rm --network gost-network -v sqlite_data:/sqlite dimitri/pgloader:latest pgloader /sqlite/gost.db "postgresql://${postgres_user}:${postgres_password}@postgres:5432/${postgres_db}"; then
+    echo "❌ pgloader 迁移失败，迁移终止（如报 28P01，可执行 docker volume rm postgres_data 后重试）"
+    return 1
+  fi
+
+  database_url="postgresql://${postgres_user}:${postgres_password}@postgres:5432/${postgres_db}?sslmode=disable"
+  upsert_env_var ".env" "DB_TYPE" "postgres"
+  upsert_env_var ".env" "DATABASE_URL" "$database_url"
+
+  echo "🚀 启动迁移后的服务..."
+  $DOCKER_CMD up -d postgres backend frontend
+
+  echo "⏳ 等待服务启动..."
+  if ! wait_for_backend_healthy; then
+    echo "🛑 迁移后服务启动失败"
+    return 1
+  fi
+
+  echo "✅ SQLite -> PostgreSQL 迁移完成"
 }
 
 
@@ -428,6 +623,11 @@ main() {
         exit 0
         ;;
       4)
+        migrate_to_postgres
+        delete_self
+        exit 0
+        ;;
+      5)
         echo "👋 退出脚本"
         delete_self
         exit 0

@@ -44,7 +44,7 @@ curl -L https://github.com/Sagit-chu/flux-panel/releases/download/2.1.0/install.
 
 #### PostgreSQL 部署（Docker Compose）
 
-`docker-compose-v4.yml` / `docker-compose-v6.yml` 已包含 PostgreSQL 服务。默认仍使用 SQLite，切换到 PostgreSQL 只需要配置环境变量。
+安装脚本会根据环境自动下载对应的 Compose 配置并保存为 `docker-compose.yml`。默认仍使用 SQLite，切换到 PostgreSQL 只需要配置环境变量。
 
 1) 在 `docker-compose` 同目录创建或修改 `.env`：
 
@@ -61,47 +61,56 @@ POSTGRES_USER=flux_panel
 POSTGRES_PASSWORD=replace_with_strong_password
 ```
 
-2) 启动（IPv4/IPv6 二选一）：
+> 📌 使用安装脚本部署时，`POSTGRES_PASSWORD` 会自动随机生成并写入 `.env`。
+
+2) 启动服务：
 
 ```bash
-docker compose -f docker-compose-v4.yml up -d
-```
-
-```bash
-docker compose -f docker-compose-v6.yml up -d
+docker compose up -d
 ```
 
 3) 如果你想继续使用 SQLite，保留 `DB_TYPE=sqlite`（或不设置 `DB_TYPE`）即可。
 
 #### 从 SQLite 迁移到 PostgreSQL
 
-以下示例基于 Docker Volume `sqlite_data`（项目默认配置）与 `pgloader`：
+如果你是通过 `panel_install.sh` 安装面板，推荐直接使用脚本菜单一键迁移：
+
+```bash
+./panel_install.sh
+# 选择 4. 迁移到 PostgreSQL
+```
+
+脚本会自动完成 SQLite 备份、PostgreSQL 启动、`pgloader` 导入、`.env` 中 `DB_TYPE`/`DATABASE_URL` 更新，并重启服务。
+
+如果你希望手动迁移，以下示例基于 Docker Volume `sqlite_data`（项目默认配置）与 `pgloader`：
 
 1) 停止服务并备份 SQLite 数据：
 
 ```bash
-docker compose -f docker-compose-v4.yml down
+docker compose down
 docker run --rm -v sqlite_data:/data -v "$(pwd)":/backup alpine sh -c "cp /data/gost.db /backup/gost.db.bak"
 ```
 
 2) 仅启动 PostgreSQL：
 
 ```bash
-docker compose -f docker-compose-v4.yml up -d postgres
+docker compose up -d postgres
 ```
 
 3) 使用 `pgloader` 迁移：
 
 ```bash
-docker run --rm --network gost-network -v sqlite_data:/sqlite dimitri/pgloader:latest pgloader /sqlite/gost.db postgresql://flux_panel:replace_with_strong_password@postgres:5432/flux_panel
+source .env
+docker run --rm --network gost-network -v sqlite_data:/sqlite dimitri/pgloader:latest pgloader /sqlite/gost.db "postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}"
 ```
 
 4) 切换后端到 PostgreSQL 并启动：
 
 ```bash
+source .env
 export DB_TYPE=postgres
-export DATABASE_URL="postgres://flux_panel:replace_with_strong_password@postgres:5432/flux_panel?sslmode=disable"
-docker compose -f docker-compose-v4.yml up -d
+export DATABASE_URL="postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?sslmode=disable"
+docker compose up -d
 ```
 
 5) 迁移完成后，登录面板检查用户、隧道、转发、节点数据是否正确。
@@ -138,7 +147,7 @@ The following major changes and additions have been made in this fork (FLVX):
 - **Removed**: `ios-app/` - Source code for the iOS client.
 
 ### 5. Infrastructure & Scripts
-- **Modified**: `docker-compose-v4.yml`, `docker-compose-v6.yml` (Updated for Go backend).
+- **Modified**: `docker-compose.yml` (installer output name, auto-selects IPv4/IPv6 template, updated for Go backend).
 - **Modified**: `install.sh`, `panel_install.sh` (Updated installation logic).
 - **Added**: `AGENTS.md` (Project documentation).
 

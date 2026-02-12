@@ -24,7 +24,7 @@
 **A**: 面板安装脚本会自动尝试配置 Docker 的 IPv6。如果失败，请手动检查 `/etc/docker/daemon.json` 配置，确保 `ipv6: true` 且分配了正确的 `fixed-cidr-v6` 子网。
 
 ### Q6: 如何切换到 PostgreSQL？
-**A**: 在 `.env` 文件中设置 `DB_TYPE=postgres` 并填写相关配置，然后重启服务即可。各变量默认值：`DATABASE_URL=postgres://flux_panel:replace_with_strong_password@postgres:5432/flux_panel?sslmode=disable`、`POSTGRES_DB=flux_panel`、`POSTGRES_USER=flux_panel`，`POSTGRES_PASSWORD` 需自行设置强密码。详见 [PostgreSQL 数据库指南](./postgresql.md)。
+**A**: 在 `.env` 文件中设置 `DB_TYPE=postgres`，并让 `DATABASE_URL` 与 `POSTGRES_*` 保持一致，然后执行 `docker compose up -d` 重启服务即可。使用安装脚本部署时，`POSTGRES_PASSWORD` 会自动随机生成并写入 `.env`。详见 [PostgreSQL 数据库指南](./postgresql.md)。
 
 ### Q7: 从 SQLite 迁移到 PostgreSQL 后数据丢失？
 **A**:

@@ -42,7 +42,7 @@ FLVX 默认使用 SQLite 作为数据库，同时也内置了对 PostgreSQL 的�
 
 ## 三、全新部署（Docker Compose + PostgreSQL）
 
-`docker-compose-v4.yml` / `docker-compose-v6.yml` 已包含 PostgreSQL 服务，默认使用 SQLite。只需配置环境变量即可切换到 PostgreSQL。
+安装脚本会根据环境自动下载对应的 Compose 配置并保存为 `docker-compose.yml`。默认使用 SQLite，只需配置环境变量即可切换到 PostgreSQL。
 
 ### 1. 创建 `.env` 文件
 
@@ -67,14 +67,8 @@ POSTGRES_PASSWORD=替换为强密码
 
 ### 2. 启动服务
 
-IPv4 环境：
 ```bash
-docker compose -f docker-compose-v4.yml up -d
-```
-
-IPv6 环境：
-```bash
-docker compose -f docker-compose-v6.yml up -d
+docker compose up -d
 ```
 
 ### 3. 验证
@@ -96,11 +90,29 @@ docker logs flux-panel-postgres
 
 如果你已经在使用 SQLite 并且希望迁移到 PostgreSQL，请按照以下步骤操作。
 
+### 快速方式：脚本菜单一键迁移（推荐）
+
+如果你是通过安装脚本部署面板，可直接执行：
+
+```bash
+./panel_install.sh
+# 选择 4. 迁移到 PostgreSQL
+```
+
+脚本会自动完成以下操作：
+- 备份 SQLite 数据到当前目录（`gost.db.bak`）
+- 启动并等待 PostgreSQL 健康检查通过
+- 使用 `pgloader` 导入 SQLite 数据
+- 自动写入 `.env` 的 `DB_TYPE=postgres` 与 `DATABASE_URL`
+- 重启服务并等待后端健康检查
+
+### 手动方式：按步骤迁移
+
 ### 1. 备份 SQLite 数据
 
 ```bash
 # 停止所有服务
-docker compose -f docker-compose-v4.yml down
+docker compose down
 
 # 备份 SQLite 数据文件到当前目录
 docker run --rm -v sqlite_data:/data -v "$(pwd)":/backup alpine sh -c "cp /data/gost.db /backup/gost.db.bak"
@@ -113,7 +125,7 @@ docker run --rm -v sqlite_data:/data -v "$(pwd)":/backup alpine sh -c "cp /data/
 ### 3. 仅启动 PostgreSQL
 
 ```bash
-docker compose -f docker-compose-v4.yml up -d postgres
+docker compose up -d postgres
 ```
 
 等待 PostgreSQL 完全就绪：
@@ -127,19 +139,23 @@ docker inspect --format='{{.State.Health.Status}}' flux-panel-postgres
 ### 4. 使用 pgloader 迁移数据
 
 ```bash
+source .env
 docker run --rm \
   --network gost-network \
   -v sqlite_data:/sqlite \
   dimitri/pgloader:latest \
-  pgloader /sqlite/gost.db postgresql://flux_panel:你的密码@postgres:5432/flux_panel
+  pgloader /sqlite/gost.db "postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}"
 ```
 
-> 📌 将 `你的密码` 替换为实际的 `POSTGRES_PASSWORD`。
+> 📌 建议直接从 `.env` 读取 `POSTGRES_USER`、`POSTGRES_PASSWORD`、`POSTGRES_DB`，避免手填密码导致认证失败。
 
 ### 5. 启动全部服务
 
 ```bash
-docker compose -f docker-compose-v4.yml up -d
+source .env
+export DB_TYPE=postgres
+export DATABASE_URL="postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?sslmode=disable"
+docker compose up -d
 ```
 
 ### 6. 验证迁移
@@ -182,7 +198,7 @@ DATABASE_URL=postgres://flux_panel:你的强密码@数据库地址:5432/flux_pan
 如果使用外部 PostgreSQL，可以在启动时不启动内置的 postgres 服务：
 
 ```bash
-docker compose -f docker-compose-v4.yml up -d backend frontend
+docker compose up -d backend frontend
 ```
 
 ---

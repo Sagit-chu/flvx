@@ -1345,7 +1345,163 @@ func migrateSchema(db *store.DB) error {
 			ensureColumn(table, col, typ)
 		}
 	}
+
+	if db.Dialect() == store.DialectPostgres {
+		if err := ensurePostgresIDDefaults(db); err != nil {
+			return err
+		}
+	}
 	return nil
+}
+
+func ensurePostgresIDDefaults(db *store.DB) error {
+	rows, err := db.Query(`
+		SELECT c.table_schema, c.table_name
+		FROM information_schema.table_constraints tc
+		JOIN information_schema.key_column_usage kcu
+		  ON tc.constraint_name = kcu.constraint_name
+		 AND tc.table_schema = kcu.table_schema
+		JOIN information_schema.columns c
+		  ON c.table_schema = kcu.table_schema
+		 AND c.table_name = kcu.table_name
+		 AND c.column_name = kcu.column_name
+		WHERE tc.constraint_type = 'PRIMARY KEY'
+		  AND kcu.column_name = 'id'
+		  AND c.data_type IN ('integer', 'bigint')
+		  AND c.is_identity = 'NO'
+		  AND c.table_schema = current_schema()
+		ORDER BY c.table_name ASC
+	`)
+	if err != nil {
+		return fmt.Errorf("discover postgres id columns: %w", err)
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var schemaName string
+		var tableName string
+		if err := rows.Scan(&schemaName, &tableName); err != nil {
+			return fmt.Errorf("scan postgres id table row: %w", err)
+		}
+		if err := ensurePostgresTableIDDefault(db, schemaName, tableName); err != nil {
+			return fmt.Errorf("repair %s.%s id default: %w", schemaName, tableName, err)
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return fmt.Errorf("iterate postgres id tables: %w", err)
+	}
+
+	return nil
+}
+
+func ensurePostgresTableIDDefault(db *store.DB, schemaName, tableName string) error {
+	var defaultExpr sql.NullString
+	if err := db.QueryRow(`
+		SELECT column_default
+		FROM information_schema.columns
+		WHERE table_schema = ?
+		  AND table_name = ?
+		  AND column_name = 'id'
+		LIMIT 1
+	`, schemaName, tableName).Scan(&defaultExpr); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil
+		}
+		return err
+	}
+
+	hasNextvalDefault := defaultExpr.Valid && strings.Contains(strings.ToLower(defaultExpr.String), "nextval(")
+
+	var serialSeq sql.NullString
+	if err := db.QueryRow(`
+		SELECT pg_get_serial_sequence(format('%I.%I', ?, ?), 'id')
+	`, schemaName, tableName).Scan(&serialSeq); err != nil {
+		return err
+	}
+
+	seqRef := strings.TrimSpace(serialSeq.String)
+	if seqRef == "" && hasNextvalDefault {
+		seqRef = extractNextvalRegclass(defaultExpr.String)
+	}
+
+	if !hasNextvalDefault || seqRef == "" {
+		seqName := tableName + "_id_seq"
+		if _, err := db.Exec(fmt.Sprintf("CREATE SEQUENCE IF NOT EXISTS %s.%s", quoteSQLIdentifier(schemaName), quoteSQLIdentifier(seqName))); err != nil {
+			return err
+		}
+
+		seqRef = schemaName + "." + seqName
+		if _, err := db.Exec(fmt.Sprintf(
+			"ALTER TABLE %s.%s ALTER COLUMN id SET DEFAULT nextval(%s::regclass)",
+			quoteSQLIdentifier(schemaName),
+			quoteSQLIdentifier(tableName),
+			quoteSQLLiteral(seqRef),
+		)); err != nil {
+			return err
+		}
+
+		if _, err := db.Exec(fmt.Sprintf(
+			"ALTER SEQUENCE %s.%s OWNED BY %s.%s.id",
+			quoteSQLIdentifier(schemaName),
+			quoteSQLIdentifier(seqName),
+			quoteSQLIdentifier(schemaName),
+			quoteSQLIdentifier(tableName),
+		)); err != nil {
+			return err
+		}
+	}
+
+	return syncPostgresTableIDSequence(db, schemaName, tableName, seqRef)
+}
+
+func syncPostgresTableIDSequence(db *store.DB, schemaName, tableName, seqRef string) error {
+	var maxID int64
+	if err := db.QueryRow(fmt.Sprintf(
+		"SELECT COALESCE(MAX(id), 0) FROM %s.%s",
+		quoteSQLIdentifier(schemaName),
+		quoteSQLIdentifier(tableName),
+	)).Scan(&maxID); err != nil {
+		return err
+	}
+
+	setVal := maxID
+	isCalled := true
+	if maxID <= 0 {
+		setVal = 1
+		isCalled = false
+	}
+
+	if _, err := db.Exec(`SELECT setval(?::regclass, ?, ?)`, seqRef, setVal, isCalled); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func extractNextvalRegclass(defaultExpr string) string {
+	nextvalIdx := strings.Index(strings.ToLower(defaultExpr), "nextval(")
+	if nextvalIdx < 0 {
+		return ""
+	}
+	expr := defaultExpr[nextvalIdx:]
+	firstQuote := strings.Index(expr, "'")
+	if firstQuote < 0 {
+		return ""
+	}
+	expr = expr[firstQuote+1:]
+	secondQuote := strings.Index(expr, "'")
+	if secondQuote < 0 {
+		return ""
+	}
+	return strings.TrimSpace(expr[:secondQuote])
+}
+
+func quoteSQLIdentifier(ident string) string {
+	return `"` + strings.ReplaceAll(ident, `"`, `""`) + `"`
+}
+
+func quoteSQLLiteral(value string) string {
+	return "'" + strings.ReplaceAll(value, "'", "''") + "'"
 }
 
 func isMissingColumnError(dialect store.Dialect, err error) bool {

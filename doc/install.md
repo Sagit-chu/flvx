@@ -41,6 +41,8 @@ curl -L https://raw.githubusercontent.com/Sagit-chu/flux-panel/main/panel_instal
 1. 安装面板
 2. 更新面板
 3. 卸载面板
+4. 迁移到 PostgreSQL
+5. 退出
 
 ---
 
