@@ -1414,7 +1414,7 @@ func ensurePostgresTableIDDefault(db *store.DB, schemaName, tableName string) er
 
 	var serialSeq sql.NullString
 	if err := db.QueryRow(`
-		SELECT pg_get_serial_sequence(format('%I.%I', ?, ?), 'id')
+		SELECT pg_get_serial_sequence(quote_ident(?) || '.' || quote_ident(?), 'id')
 	`, schemaName, tableName).Scan(&serialSeq); err != nil {
 		return err
 	}

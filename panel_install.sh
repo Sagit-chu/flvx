@@ -250,7 +250,9 @@ get_current_db_type() {
   db_type=$(get_env_var "DB_TYPE")
   database_url=$(get_env_var "DATABASE_URL")
 
-  if [[ "$db_type" == "postgres" || "$database_url" == postgres://* || "$database_url" == postgresql://* ]]; then
+  if [[ "$db_type" == "sqlite" ]]; then
+    echo "sqlite"
+  elif [[ "$db_type" == "postgres" || "$database_url" == postgres://* || "$database_url" == postgresql://* ]]; then
     echo "postgres"
   else
     echo "sqlite"
