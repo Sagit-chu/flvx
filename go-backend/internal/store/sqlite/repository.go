@@ -897,9 +897,9 @@ func (r *Repository) ListTunnels() ([]map[string]interface{}, error) {
 	}
 
 	chainRows, err := r.db.Query(`
-		SELECT tunnel_id, chain_type, node_id, protocol, strategy, COALESCE(inx, 0)
+		SELECT tunnel_id, CAST(chain_type AS INTEGER), node_id, protocol, strategy, COALESCE(inx, 0)
 		FROM chain_tunnel
-		ORDER BY tunnel_id ASC, chain_type ASC, inx ASC, id ASC
+		ORDER BY tunnel_id ASC, CAST(chain_type AS INTEGER) ASC, inx ASC, id ASC
 	`)
 	if err != nil {
 		return nil, err

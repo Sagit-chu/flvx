@@ -799,7 +799,7 @@ func (h *Handler) federationTunnelCreate(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	_, err = tx.Exec(`INSERT INTO chain_tunnel (tunnel_id, chain_type, node_id, port, strategy, inx, protocol) VALUES (?, 1, ?, ?, 'fifo', 0, ?)`,
+	_, err = tx.Exec(`INSERT INTO chain_tunnel (tunnel_id, chain_type, node_id, port, strategy, inx, protocol) VALUES (?, '1', ?, ?, 'fifo', 0, ?)`,
 		tunnelID,
 		share.NodeID,
 		req.RemotePort,

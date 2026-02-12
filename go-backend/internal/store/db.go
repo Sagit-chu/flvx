@@ -4,7 +4,7 @@ package store
 
 import (
 	"database/sql"
-	"fmt"
+	"strconv"
 	"strings"
 )
 
@@ -98,7 +98,7 @@ func (db *DB) Begin() (*Tx, error) {
 func (db *DB) ExecReturningID(query string, args ...any) (int64, error) {
 	q := db.rewrite(query)
 	if db.dialect == DialectPostgres {
-		q = strings.TrimRight(q, "; \t\n") + " RETURNING id"
+		q = ensureReturningID(q)
 		var id int64
 		if err := db.raw.QueryRow(q, args...).Scan(&id); err != nil {
 			return 0, err
@@ -143,7 +143,7 @@ func (tx *Tx) Rollback() error { return tx.raw.Rollback() }
 func (tx *Tx) ExecReturningID(query string, args ...any) (int64, error) {
 	q := rewriteQuery(tx.dialect, query)
 	if tx.dialect == DialectPostgres {
-		q = strings.TrimRight(q, "; \t\n") + " RETURNING id"
+		q = ensureReturningID(q)
 		var id int64
 		if err := tx.raw.QueryRow(q, args...).Scan(&id); err != nil {
 			return 0, err
@@ -174,35 +174,15 @@ func rewriteQuery(dialect Dialect, query string) string {
 func rewriteUserIdentifier(query string) string {
 	var buf strings.Builder
 	buf.Grow(len(query) + 16)
-	inSingle := false
-	inDouble := false
 	i := 0
 	for i < len(query) {
-		ch := query[i]
-		if ch == '\'' && !inDouble {
-			if inSingle && i+1 < len(query) && query[i+1] == '\'' {
-				buf.WriteByte(ch)
-				buf.WriteByte(query[i+1])
-				i += 2
-				continue
-			}
-			inSingle = !inSingle
-			buf.WriteByte(ch)
-			i++
-			continue
-		}
-		if ch == '"' && !inSingle {
-			inDouble = !inDouble
-			buf.WriteByte(ch)
-			i++
-			continue
-		}
-		if inSingle || inDouble {
-			buf.WriteByte(ch)
-			i++
+		if end, ok := skipSQLProtectedSegment(query, i); ok {
+			buf.WriteString(query[i:end])
+			i = end
 			continue
 		}
 
+		ch := query[i]
 		if isIdentifierChar(ch) {
 			j := i + 1
 			for j < len(query) && isIdentifierChar(query[j]) {
@@ -238,43 +218,249 @@ func isIdentifierChar(ch byte) bool {
 }
 
 func rewriteInsertOrIgnore(query string) string {
-	upper := strings.ToUpper(query)
-	idx := strings.Index(upper, "INSERT OR IGNORE INTO")
-	if idx < 0 {
+	start, end, ok := findKeywordSequenceOutside(query, []string{"INSERT", "OR", "IGNORE", "INTO"}, 0)
+	if !ok {
 		return query
 	}
-	prefix := query[:idx]
-	suffix := query[idx+len("INSERT OR IGNORE INTO"):]
-	result := prefix + "INSERT INTO" + suffix
 
-	trimmed := strings.TrimRight(result, "; \t\n")
-	return trimmed + " ON CONFLICT DO NOTHING"
+	rewritten := query[:start] + "INSERT INTO" + query[end:]
+	rewritten = strings.TrimRight(rewritten, "; \t\n")
+
+	insertIntoEnd := start + len("INSERT INTO")
+	if _, _, hasOnConflict := findKeywordSequenceOutside(rewritten, []string{"ON", "CONFLICT"}, insertIntoEnd); hasOnConflict {
+		return rewritten
+	}
+
+	if retStart, _, hasReturning := findKeywordSequenceOutside(rewritten, []string{"RETURNING"}, insertIntoEnd); hasReturning {
+		prefix := strings.TrimRight(rewritten[:retStart], " \t\n")
+		suffix := strings.TrimLeft(rewritten[retStart:], " \t\n")
+		return prefix + " ON CONFLICT DO NOTHING " + suffix
+	}
+
+	return rewritten + " ON CONFLICT DO NOTHING"
 }
 
 func rewritePlaceholders(query string) string {
 	var buf strings.Builder
 	buf.Grow(len(query) + 16)
 	n := 1
-	inString := false
 	for i := 0; i < len(query); i++ {
-		ch := query[i]
-		if ch == '\'' {
-			if inString && i+1 < len(query) && query[i+1] == '\'' {
-				buf.WriteByte(ch)
-				buf.WriteByte(query[i+1])
-				i++
-				continue
-			}
-			inString = !inString
-			buf.WriteByte(ch)
+		if end, ok := skipSQLProtectedSegment(query, i); ok {
+			buf.WriteString(query[i:end])
+			i = end - 1
 			continue
 		}
-		if ch == '?' && !inString {
-			buf.WriteString(fmt.Sprintf("$%d", n))
+
+		ch := query[i]
+		if ch == '?' {
+			buf.WriteByte('$')
+			buf.WriteString(strconv.Itoa(n))
 			n++
 			continue
 		}
 		buf.WriteByte(ch)
 	}
 	return buf.String()
+}
+
+func ensureReturningID(query string) string {
+	trimmed := strings.TrimRight(query, "; \t\n")
+	if _, _, ok := findKeywordSequenceOutside(trimmed, []string{"RETURNING"}, 0); ok {
+		return trimmed
+	}
+	return trimmed + " RETURNING id"
+}
+
+func findKeywordSequenceOutside(query string, keywords []string, from int) (int, int, bool) {
+	if len(keywords) == 0 {
+		return 0, 0, false
+	}
+	if from < 0 {
+		from = 0
+	}
+	if from >= len(query) {
+		return 0, 0, false
+	}
+
+	matched := 0
+	seqStart := -1
+
+	for i := from; i < len(query); {
+		if end, ok := skipSQLProtectedSegment(query, i); ok {
+			i = end
+			continue
+		}
+
+		ch := query[i]
+		if isIdentifierChar(ch) {
+			j := i + 1
+			for j < len(query) && isIdentifierChar(query[j]) {
+				j++
+			}
+			tok := query[i:j]
+
+			if strings.EqualFold(tok, keywords[matched]) {
+				if matched == 0 {
+					seqStart = i
+				}
+				matched++
+				if matched == len(keywords) {
+					return seqStart, j, true
+				}
+			} else if strings.EqualFold(tok, keywords[0]) {
+				seqStart = i
+				matched = 1
+			} else {
+				matched = 0
+				seqStart = -1
+			}
+
+			i = j
+			continue
+		}
+
+		if !isSQLSpace(ch) {
+			matched = 0
+			seqStart = -1
+		}
+		i++
+	}
+
+	return 0, 0, false
+}
+
+func skipSQLProtectedSegment(query string, i int) (int, bool) {
+	if i < 0 || i >= len(query) {
+		return 0, false
+	}
+
+	switch query[i] {
+	case '\'':
+		return skipSingleQuotedLiteral(query, i), true
+	case '"':
+		return skipDoubleQuotedIdentifier(query, i), true
+	case '-':
+		if i+1 < len(query) && query[i+1] == '-' {
+			return skipLineComment(query, i), true
+		}
+	case '/':
+		if i+1 < len(query) && query[i+1] == '*' {
+			return skipBlockComment(query, i), true
+		}
+	case '$':
+		if end, ok := skipDollarQuotedLiteral(query, i); ok {
+			return end, true
+		}
+	}
+
+	return 0, false
+}
+
+func skipSingleQuotedLiteral(query string, i int) int {
+	for j := i + 1; j < len(query); j++ {
+		if query[j] != '\'' {
+			continue
+		}
+		if j+1 < len(query) && query[j+1] == '\'' {
+			j++
+			continue
+		}
+		return j + 1
+	}
+	return len(query)
+}
+
+func skipDoubleQuotedIdentifier(query string, i int) int {
+	for j := i + 1; j < len(query); j++ {
+		if query[j] != '"' {
+			continue
+		}
+		if j+1 < len(query) && query[j+1] == '"' {
+			j++
+			continue
+		}
+		return j + 1
+	}
+	return len(query)
+}
+
+func skipLineComment(query string, i int) int {
+	for j := i + 2; j < len(query); j++ {
+		if query[j] == '\n' {
+			return j
+		}
+	}
+	return len(query)
+}
+
+func skipBlockComment(query string, i int) int {
+	depth := 1
+	for j := i + 2; j < len(query)-1; j++ {
+		if query[j] == '/' && query[j+1] == '*' {
+			depth++
+			j++
+			continue
+		}
+		if query[j] == '*' && query[j+1] == '/' {
+			depth--
+			j++
+			if depth == 0 {
+				return j + 1
+			}
+		}
+	}
+	return len(query)
+}
+
+func skipDollarQuotedLiteral(query string, i int) (int, bool) {
+	if i < 0 || i >= len(query) || query[i] != '$' {
+		return 0, false
+	}
+
+	if i+1 >= len(query) {
+		return 0, false
+	}
+
+	var endTag int
+	if query[i+1] == '$' {
+		endTag = i + 1
+	} else {
+		if !isDollarTagStart(query[i+1]) {
+			return 0, false
+		}
+		j := i + 2
+		for j < len(query) && isDollarTagChar(query[j]) {
+			j++
+		}
+		if j >= len(query) || query[j] != '$' {
+			return 0, false
+		}
+		endTag = j
+	}
+
+	tag := query[i : endTag+1]
+	if closeIdx := strings.Index(query[endTag+1:], tag); closeIdx >= 0 {
+		return endTag + 1 + closeIdx + len(tag), true
+	}
+	return len(query), true
+}
+
+func isDollarTagStart(ch byte) bool {
+	return ch == '_' || (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z')
+}
+
+func isDollarTagChar(ch byte) bool {
+	if isDollarTagStart(ch) {
+		return true
+	}
+	return ch >= '0' && ch <= '9'
+}
+
+func isSQLSpace(ch byte) bool {
+	switch ch {
+	case ' ', '\t', '\n', '\r', '\f':
+		return true
+	default:
+		return false
+	}
 }

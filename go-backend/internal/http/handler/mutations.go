@@ -2846,7 +2846,7 @@ func replaceTunnelChainsTx(tx *store.Tx, tunnelID int64, req map[string]interfac
 		if nodeID <= 0 {
 			continue
 		}
-		_, err := tx.Exec(`INSERT INTO chain_tunnel(tunnel_id, chain_type, node_id, port, strategy, inx, protocol) VALUES(?, 1, ?, NULL, NULL, 0, ?)`,
+		_, err := tx.Exec(`INSERT INTO chain_tunnel(tunnel_id, chain_type, node_id, port, strategy, inx, protocol) VALUES(?, '1', ?, NULL, NULL, 0, ?)`,
 			tunnelID, nodeID, defaultString(asString(n["protocol"]), "tls"))
 		if err != nil {
 			return err
@@ -2865,7 +2865,7 @@ func replaceTunnelChainsTx(tx *store.Tx, tunnelID int64, req map[string]interfac
 				return pickErr
 			}
 		}
-		_, err := tx.Exec(`INSERT INTO chain_tunnel(tunnel_id, chain_type, node_id, port, strategy, inx, protocol) VALUES(?, 3, ?, ?, ?, 0, ?)`,
+		_, err := tx.Exec(`INSERT INTO chain_tunnel(tunnel_id, chain_type, node_id, port, strategy, inx, protocol) VALUES(?, '3', ?, ?, ?, 0, ?)`,
 			tunnelID, nodeID, port, defaultString(asString(n["strategy"]), "round"), defaultString(asString(n["protocol"]), "tls"))
 		if err != nil {
 			return err
@@ -2886,7 +2886,7 @@ func replaceTunnelChainsTx(tx *store.Tx, tunnelID int64, req map[string]interfac
 					return pickErr
 				}
 			}
-			_, err := tx.Exec(`INSERT INTO chain_tunnel(tunnel_id, chain_type, node_id, port, strategy, inx, protocol) VALUES(?, 2, ?, ?, ?, ?, ?)`,
+			_, err := tx.Exec(`INSERT INTO chain_tunnel(tunnel_id, chain_type, node_id, port, strategy, inx, protocol) VALUES(?, '2', ?, ?, ?, ?, ?)`,
 				tunnelID, nodeID, port, defaultString(asString(n["strategy"]), "round"), i+1, defaultString(asString(n["protocol"]), "tls"))
 			if err != nil {
 				return err
@@ -2972,7 +2972,7 @@ func (h *Handler) batchForwardStatus(ids []int64, status int) (int, int) {
 }
 
 func (h *Handler) tunnelEntryNodeIDs(tunnelID int64) ([]int64, error) {
-	rows, err := h.repo.DB().Query(`SELECT node_id FROM chain_tunnel WHERE tunnel_id = ? AND chain_type = 1 ORDER BY inx ASC, id ASC`, tunnelID)
+	rows, err := h.repo.DB().Query(`SELECT node_id FROM chain_tunnel WHERE tunnel_id = ? AND chain_type = '1' ORDER BY inx ASC, id ASC`, tunnelID)
 	if err != nil {
 		return nil, err
 	}
