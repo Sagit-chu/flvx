@@ -22,3 +22,19 @@
 
 ### Q5: IPv6 无法使用？
 **A**: 面板安装脚本会自动尝试配置 Docker 的 IPv6。如果失败，请手动检查 `/etc/docker/daemon.json` 配置，确保 `ipv6: true` 且分配了正确的 `fixed-cidr-v6` 子网。
+
+### Q6: 如何切换到 PostgreSQL？
+**A**: 在 `.env` 文件中设置 `DB_TYPE=postgres` 并填写相关配置，然后重启服务即可。各变量默认值：`DATABASE_URL=postgres://flux_panel:replace_with_strong_password@postgres:5432/flux_panel?sslmode=disable`、`POSTGRES_DB=flux_panel`、`POSTGRES_USER=flux_panel`，`POSTGRES_PASSWORD` 需自行设置强密码。详见 [PostgreSQL 数据库指南](./postgresql.md)。
+
+### Q7: 从 SQLite 迁移到 PostgreSQL 后数据丢失？
+**A**:
+1. 确认迁移前已备份 SQLite 文件（`gost.db.bak`）。
+2. 确认 `pgloader` 命令执行成功，检查其输出是否有报错。
+3. 确认 `.env` 中 `DATABASE_URL` 的密码与 `POSTGRES_PASSWORD` 一致。
+4. 详细迁移步骤参考 [PostgreSQL 数据库指南 - 从 SQLite 迁移](./postgresql.md)。
+
+### Q8: PostgreSQL 容器启动失败？
+**A**:
+1. 检查 `POSTGRES_PASSWORD` 是否已设置（不能为空）。
+2. 查看容器日志：`docker logs flux-panel-postgres`。
+3. 如果是首次启动后修改了密码，需要删除旧的数据卷重新初始化：`docker volume rm postgres_data`。
