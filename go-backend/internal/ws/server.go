@@ -292,7 +292,9 @@ func (s *Server) SendCommand(nodeID int64, cmdType string, data interface{}, tim
 	}
 
 	ns.conn.mu.Lock()
+	_ = ns.conn.conn.SetWriteDeadline(time.Now().Add(wsWriteWait))
 	err = ns.conn.conn.WriteMessage(websocket.TextMessage, messageData)
+	_ = ns.conn.conn.SetWriteDeadline(time.Time{})
 	ns.conn.mu.Unlock()
 	if err != nil {
 		cleanup()
@@ -429,7 +431,9 @@ func (s *Server) broadcastToAdmins(message string) {
 
 	for _, c := range admins {
 		c.mu.Lock()
+		_ = c.conn.SetWriteDeadline(time.Now().Add(wsWriteWait))
 		err := c.conn.WriteMessage(websocket.TextMessage, []byte(message))
+		_ = c.conn.SetWriteDeadline(time.Time{})
 		c.mu.Unlock()
 		if err != nil {
 			log.Printf("websocket broadcast failed: %v", err)
@@ -478,6 +482,7 @@ func startKeepalive(cw *connWrap, done <-chan struct{}) {
 			cw.mu.Lock()
 			_ = cw.conn.SetWriteDeadline(time.Now().Add(wsWriteWait))
 			err := cw.conn.WriteMessage(websocket.PingMessage, nil)
+			_ = cw.conn.SetWriteDeadline(time.Time{})
 			cw.mu.Unlock()
 			if err != nil {
 				_ = cw.conn.Close()
