@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 
 	"go-backend/internal/http/response"
@@ -16,6 +17,8 @@ const (
 	githubProxy    = "https://gcode.hostcentral.cc"
 	githubAPIBase  = "https://api.github.com"
 	githubHTMLBase = "https://github.com"
+	upgradeTimeout = 5 * time.Minute
+	batchWorkers   = 5
 )
 
 func (h *Handler) nodeUpgrade(w http.ResponseWriter, r *http.Request) {
@@ -59,7 +62,7 @@ func (h *Handler) nodeUpgrade(w http.ResponseWriter, r *http.Request) {
 	result, err := h.wsServer.SendCommand(req.ID, "UpgradeAgent", map[string]interface{}{
 		"downloadUrl": downloadURL,
 		"checksumUrl": checksumURL,
-	}, 120*time.Second)
+	}, upgradeTimeout)
 	if err != nil {
 		response.WriteJSON(w, response.Err(-2, fmt.Sprintf("升级失败: %v", err)))
 		return
@@ -173,18 +176,29 @@ func (h *Handler) nodeBatchUpgrade(w http.ResponseWriter, r *http.Request) {
 		Message string `json:"message"`
 	}
 
-	results := make([]upgradeResult, 0, len(req.IDs))
-	for _, id := range req.IDs {
-		result, err := h.wsServer.SendCommand(id, "UpgradeAgent", map[string]interface{}{
-			"downloadUrl": downloadURL,
-			"checksumUrl": checksumURL,
-		}, 120*time.Second)
-		if err != nil {
-			results = append(results, upgradeResult{ID: id, Success: false, Message: err.Error()})
-		} else {
-			results = append(results, upgradeResult{ID: id, Success: true, Message: result.Message})
-		}
+	results := make([]upgradeResult, len(req.IDs))
+	sem := make(chan struct{}, batchWorkers)
+	var wg sync.WaitGroup
+
+	for i, id := range req.IDs {
+		wg.Add(1)
+		go func(index int, nodeID int64) {
+			defer wg.Done()
+			sem <- struct{}{}
+			defer func() { <-sem }()
+
+			result, err := h.wsServer.SendCommand(nodeID, "UpgradeAgent", map[string]interface{}{
+				"downloadUrl": downloadURL,
+				"checksumUrl": checksumURL,
+			}, upgradeTimeout)
+			if err != nil {
+				results[index] = upgradeResult{ID: nodeID, Success: false, Message: err.Error()}
+				return
+			}
+			results[index] = upgradeResult{ID: nodeID, Success: true, Message: result.Message}
+		}(i, id)
 	}
+	wg.Wait()
 
 	response.WriteJSON(w, response.OK(map[string]interface{}{
 		"version": version,

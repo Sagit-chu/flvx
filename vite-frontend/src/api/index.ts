@@ -42,9 +42,9 @@ export const checkNodeStatus = (nodeId?: number) => {
 };
 
 export const upgradeNode = (id: number, version?: string) =>
-  Network.post("/node/upgrade", { id, version: version || "" });
+  Network.post("/node/upgrade", { id, version: version || "" }, { timeout: 5 * 60 * 1000 });
 export const batchUpgradeNodes = (ids: number[], version?: string) =>
-  Network.post("/node/batch-upgrade", { ids, version: version || "" });
+  Network.post("/node/batch-upgrade", { ids, version: version || "" }, { timeout: 15 * 60 * 1000 });
 export const getNodeReleases = () => Network.post("/node/releases");
 export const rollbackNode = (id: number) =>
   Network.post("/node/rollback", { id });

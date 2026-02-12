@@ -485,9 +485,8 @@ func (w *WebSocketReporter) handleReceivedMessage(messageType int, message []byt
 			}
 
 			if cmdMsg.Type != "call" {
-				// TcpPing 诊断命令异步执行，避免阻塞其他命令
 				// 其他状态变更命令保持同步，确保顺序执行
-				if cmdMsg.Type == "TcpPing" {
+				if cmdMsg.Type == "TcpPing" || cmdMsg.Type == "UpgradeAgent" || cmdMsg.Type == "RollbackAgent" {
 					go w.routeCommand(cmdMsg)
 				} else {
 					w.routeCommand(cmdMsg)
@@ -502,9 +501,8 @@ func (w *WebSocketReporter) handleReceivedMessage(messageType int, message []byt
 				return
 			}
 			if cmdMsg.Type != "call" {
-				// TcpPing 诊断命令异步执行，避免阻塞其他命令
 				// 其他状态变更命令保持同步，确保顺序执行
-				if cmdMsg.Type == "TcpPing" {
+				if cmdMsg.Type == "TcpPing" || cmdMsg.Type == "UpgradeAgent" || cmdMsg.Type == "RollbackAgent" {
 					go w.routeCommand(cmdMsg)
 				} else {
 					w.routeCommand(cmdMsg)

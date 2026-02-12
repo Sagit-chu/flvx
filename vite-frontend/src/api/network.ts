@@ -43,6 +43,10 @@ interface ApiResponse<T = any> {
   data: T;
 }
 
+interface RequestOptions {
+  timeout?: number;
+}
+
 // 处理token失效的逻辑
 function handleTokenExpired() {
   // 清除localStorage中的token
@@ -71,6 +75,7 @@ const Network = {
   get: function <T = any>(
     path: string = "",
     data: any = {},
+    options: RequestOptions = {},
   ): Promise<ApiResponse<T>> {
     return new Promise(function (resolve) {
       // 如果baseURL是默认值且是WebView环境，说明没有设置面板地址
@@ -83,7 +88,7 @@ const Network = {
       axios
         .get(path, {
           params: data,
-          timeout: 30000,
+          timeout: options.timeout ?? 30000,
           headers: {
             Authorization: window.localStorage.getItem("token"),
           },
@@ -117,6 +122,7 @@ const Network = {
   post: function <T = any>(
     path: string = "",
     data: any = {},
+    options: RequestOptions = {},
   ): Promise<ApiResponse<T>> {
     return new Promise(function (resolve) {
       // 如果baseURL是默认值且是WebView环境，说明没有设置面板地址
@@ -128,7 +134,7 @@ const Network = {
 
       axios
         .post(path, data, {
-          timeout: 30000,
+          timeout: options.timeout ?? 30000,
           headers: {
             Authorization: window.localStorage.getItem("token"),
             "Content-Type": "application/json",
