@@ -1,0 +1,1150 @@
+
+<!doctype html>
+<html lang="zh" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="FLVX官方文档">
+      
+      
+        <meta name="author" content="Sagit-chu">
+      
+      
+        <link rel="canonical" href="https://sagit-chu.github.io/flux-panel/postgresql/">
+      
+      
+      
+      
+        
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.1">
+    
+    
+      
+        <title>PostgreSQL 数据库指南 - FLVX 文档</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#postgresql" class="md-skip">
+          跳转至
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="页眉">
+    <a href=".." title="FLVX 文档" class="md-header__button md-logo" aria-label="FLVX 文档" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            FLVX 文档
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              PostgreSQL 数据库指南
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-hidden="true"  type="radio" name="__palette" id="__palette_0">
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="搜索" placeholder="搜索" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="查找">
+        
+        <button type="reset" class="md-search__icon md-icon" title="清空当前内容" aria-label="清空当前内容" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            正在初始化搜索引擎
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="标签" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href=".." class="md-tabs__link">
+        
+  
+  
+    
+  
+  首页
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../install/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  安装部署
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../usage/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  使用指南
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../faq/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  常见问题
+
+      </a>
+    </li>
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="导航栏" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="FLVX 文档" class="md-nav__button md-logo" aria-label="FLVX 文档" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    FLVX 文档
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    首页
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../install/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    安装部署
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../usage/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    使用指南
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../faq/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    常见问题
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="目录">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      目录
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#sqlite-postgresql" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        一、SQLite 与 PostgreSQL 对比
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        二、环境变量说明
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="二、环境变量说明">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#backend" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        后端服务 (backend) 使用
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#postgresql_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        PostgreSQL 容器使用
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#docker-compose-postgresql" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        三、全新部署（Docker Compose + PostgreSQL）
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="三、全新部署（Docker Compose + PostgreSQL）">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-env" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. 创建 .env 文件
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. 启动服务
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. 验证
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sqlite-postgresql_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        四、从 SQLite 迁移到 PostgreSQL
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="四、从 SQLite 迁移到 PostgreSQL">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        快速方式：脚本菜单一键迁移（推荐）
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        手动方式：按步骤迁移
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#1-sqlite" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. 备份 SQLite 数据
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-postgresql" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. 配置 PostgreSQL 环境变量
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-postgresql" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. 仅启动 PostgreSQL
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#4-pgloader" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. 使用 pgloader 迁移数据
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#5" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. 启动全部服务
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#6" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. 验证迁移
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#postgresql-docker" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        五、独立 PostgreSQL（非 Docker）
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="五、独立 PostgreSQL（非 Docker）">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-postgresql" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. 准备 PostgreSQL
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. 配置连接
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-postgresql_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. 停用内置 PostgreSQL 容器（可选）
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_4" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        六、数据备份与恢复
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="六、数据备份与恢复">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#pg_dump" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        逻辑备份（pg_dump）
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cron" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        定时备份（cron）
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_5" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        七、常见问题
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="七、常见问题">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#q-postgresql" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Q: 切换到 PostgreSQL 后启动失败，提示连接被拒绝？
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#q-pgloader" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Q: pgloader 迁移时报错？
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#q" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Q: 如何查看当前使用的数据库类型？
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#q-sqlite-postgresql" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Q: 可以同时使用 SQLite 和 PostgreSQL 吗？
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#q-postgresql_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Q: PostgreSQL 数据存储在哪里？
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+
+<h1 id="postgresql">PostgreSQL 数据库指南</h1>
+<p>FLVX 默认使用 SQLite 作为数据库，同时也内置了对 PostgreSQL 的完整支持。本文档介绍如何使用 PostgreSQL 部署面板、从 SQLite 迁移以及日常维护。</p>
+<h2 id="sqlite-postgresql">一、SQLite 与 PostgreSQL 对比</h2>
+<table>
+<thead>
+<tr>
+<th>特性</th>
+<th>SQLite</th>
+<th>PostgreSQL</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>部署复杂度</strong></td>
+<td>零配置，开箱即用</td>
+<td>需要额外的数据库服务</td>
+</tr>
+<tr>
+<td><strong>并发性能</strong></td>
+<td>适合小规模单机使用</td>
+<td>支持高并发读写</td>
+</tr>
+<tr>
+<td><strong>数据规模</strong></td>
+<td>适合中小规模数据</td>
+<td>适合大规模数据</td>
+</tr>
+<tr>
+<td><strong>备份与恢复</strong></td>
+<td>直接复制文件</td>
+<td>支持逻辑备份与物理备份</td>
+</tr>
+<tr>
+<td><strong>高可用</strong></td>
+<td>不支持</td>
+<td>支持主从复制、流复制</td>
+</tr>
+</tbody>
+</table>
+<p><strong>建议</strong>：如果你只是个人使用或小团队使用，SQLite 完全够用。如果节点多，推荐使用 PostgreSQL。</p>
+<hr />
+<h2 id="_1">二、环境变量说明</h2>
+<p>以下环境变量用于配置数据库连接，在 <code>.env</code> 文件或 Docker Compose <code>environment</code> 中设置。</p>
+<h3 id="backend">后端服务 (backend) 使用</h3>
+<table>
+<thead>
+<tr>
+<th>变量名</th>
+<th>说明</th>
+<th>默认值</th>
+<th>示例</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>DB_TYPE</code></td>
+<td>数据库类型，<code>sqlite</code> 或 <code>postgres</code></td>
+<td><code>sqlite</code></td>
+<td><code>postgres</code></td>
+</tr>
+<tr>
+<td><code>DATABASE_URL</code></td>
+<td>PostgreSQL 连接字符串（仅 <code>DB_TYPE=postgres</code> 时必填）</td>
+<td>空</td>
+<td><code>postgres://flux_panel:密码@postgres:5432/flux_panel?sslmode=disable</code></td>
+</tr>
+<tr>
+<td><code>DB_PATH</code></td>
+<td>SQLite 数据库文件路径（仅 <code>DB_TYPE=sqlite</code> 时使用）</td>
+<td><code>/app/data/gost.db</code></td>
+<td><code>/app/data/gost.db</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="postgresql_1">PostgreSQL 容器使用</h3>
+<table>
+<thead>
+<tr>
+<th>变量名</th>
+<th>说明</th>
+<th>默认值</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>POSTGRES_DB</code></td>
+<td>数据库名称</td>
+<td><code>flux_panel</code></td>
+</tr>
+<tr>
+<td><code>POSTGRES_USER</code></td>
+<td>数据库用户名</td>
+<td><code>flux_panel</code></td>
+</tr>
+<tr>
+<td><code>POSTGRES_PASSWORD</code></td>
+<td>数据库密码</td>
+<td><code>flux_panel_change_me</code></td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>⚠️ <strong>安全提示</strong>：生产环境中请务必修改 <code>POSTGRES_PASSWORD</code> 为强密码，不要使用默认值！</p>
+</blockquote>
+<hr />
+<h2 id="docker-compose-postgresql">三、全新部署（Docker Compose + PostgreSQL）</h2>
+<p>安装脚本会根据环境自动下载对应的 Compose 配置并保存为 <code>docker-compose.yml</code>。默认使用 SQLite，只需配置环境变量即可切换到 PostgreSQL。</p>
+<h3 id="1-env">1. 创建 <code>.env</code> 文件</h3>
+<p>在 <code>docker-compose</code> 同目录创建 <code>.env</code> 文件：</p>
+<div class="highlight"><pre><span></span><code><span class="c1"># 基础配置</span>
+<span class="nv">JWT_SECRET</span><span class="o">=</span>替换为你的密钥
+<span class="nv">BACKEND_PORT</span><span class="o">=</span><span class="m">6365</span>
+<span class="nv">FRONTEND_PORT</span><span class="o">=</span><span class="m">6366</span>
+
+<span class="c1"># PostgreSQL 配置</span>
+<span class="nv">DB_TYPE</span><span class="o">=</span>postgres
+<span class="nv">DATABASE_URL</span><span class="o">=</span>postgres://flux_panel:替换为强密码@postgres:5432/flux_panel?sslmode<span class="o">=</span>disable
+
+<span class="nv">POSTGRES_DB</span><span class="o">=</span>flux_panel
+<span class="nv">POSTGRES_USER</span><span class="o">=</span>flux_panel
+<span class="nv">POSTGRES_PASSWORD</span><span class="o">=</span>替换为强密码
+</code></pre></div>
+<blockquote>
+<p>⚠️ <code>DATABASE_URL</code> 中的密码必须与 <code>POSTGRES_PASSWORD</code> 保持一致。</p>
+</blockquote>
+<h3 id="2">2. 启动服务</h3>
+<div class="highlight"><pre><span></span><code>docker<span class="w"> </span>compose<span class="w"> </span>up<span class="w"> </span>-d
+</code></pre></div>
+<h3 id="3">3. 验证</h3>
+<div class="highlight"><pre><span></span><code><span class="c1"># 检查所有容器是否正常运行</span>
+docker<span class="w"> </span>ps
+
+<span class="c1"># 查看后端日志，确认连接 PostgreSQL 成功</span>
+docker<span class="w"> </span>logs<span class="w"> </span>flux-panel-backend
+
+<span class="c1"># 查看 PostgreSQL 容器状态</span>
+docker<span class="w"> </span>logs<span class="w"> </span>flux-panel-postgres
+</code></pre></div>
+<hr />
+<h2 id="sqlite-postgresql_1">四、从 SQLite 迁移到 PostgreSQL</h2>
+<p>如果你已经在使用 SQLite 并且希望迁移到 PostgreSQL，请按照以下步骤操作。</p>
+<h3 id="_2">快速方式：脚本菜单一键迁移（推荐）</h3>
+<p>如果你是通过安装脚本部署面板，可直接执行：</p>
+<div class="highlight"><pre><span></span><code>./panel_install.sh
+<span class="c1"># 选择 4. 迁移到 PostgreSQL</span>
+</code></pre></div>
+<p>脚本会自动完成以下操作：
+- 备份 SQLite 数据到当前目录（<code>gost.db.bak</code>）
+- 启动并等待 PostgreSQL 健康检查通过
+- 使用 <code>pgloader</code> 导入 SQLite 数据
+- 自动写入 <code>.env</code> 的 <code>DB_TYPE=postgres</code> 与 <code>DATABASE_URL</code>
+- 重启服务并等待后端健康检查</p>
+<h3 id="_3">手动方式：按步骤迁移</h3>
+<h3 id="1-sqlite">1. 备份 SQLite 数据</h3>
+<div class="highlight"><pre><span></span><code><span class="c1"># 停止所有服务</span>
+docker<span class="w"> </span>compose<span class="w"> </span>down
+
+<span class="c1"># 备份 SQLite 数据文件到当前目录</span>
+docker<span class="w"> </span>run<span class="w"> </span>--rm<span class="w"> </span>-v<span class="w"> </span>sqlite_data:/data<span class="w"> </span>-v<span class="w"> </span><span class="s2">&quot;</span><span class="k">$(</span><span class="nb">pwd</span><span class="k">)</span><span class="s2">&quot;</span>:/backup<span class="w"> </span>alpine<span class="w"> </span>sh<span class="w"> </span>-c<span class="w"> </span><span class="s2">&quot;cp /data/gost.db /backup/gost.db.bak&quot;</span>
+</code></pre></div>
+<h3 id="2-postgresql">2. 配置 PostgreSQL 环境变量</h3>
+<p>在 <code>.env</code> 文件中添加 PostgreSQL 配置（参考上方"环境变量说明"）。</p>
+<h3 id="3-postgresql">3. 仅启动 PostgreSQL</h3>
+<div class="highlight"><pre><span></span><code>docker<span class="w"> </span>compose<span class="w"> </span>up<span class="w"> </span>-d<span class="w"> </span>postgres
+</code></pre></div>
+<p>等待 PostgreSQL 完全就绪：</p>
+<div class="highlight"><pre><span></span><code><span class="c1"># 检查 PostgreSQL 健康状态</span>
+docker<span class="w"> </span>inspect<span class="w"> </span>--format<span class="o">=</span><span class="s1">&#39;{{.State.Health.Status}}&#39;</span><span class="w"> </span>flux-panel-postgres
+<span class="c1"># 输出 &quot;healthy&quot; 表示就绪</span>
+</code></pre></div>
+<h3 id="4-pgloader">4. 使用 pgloader 迁移数据</h3>
+<div class="highlight"><pre><span></span><code><span class="nb">source</span><span class="w"> </span>.env
+docker<span class="w"> </span>run<span class="w"> </span>--rm<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--network<span class="w"> </span>gost-network<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>-v<span class="w"> </span>sqlite_data:/sqlite<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>dimitri/pgloader:latest<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>pgloader<span class="w"> </span>/sqlite/gost.db<span class="w"> </span><span class="s2">&quot;postgresql://</span><span class="si">${</span><span class="nv">POSTGRES_USER</span><span class="si">}</span><span class="s2">:</span><span class="si">${</span><span class="nv">POSTGRES_PASSWORD</span><span class="si">}</span><span class="s2">@postgres:5432/</span><span class="si">${</span><span class="nv">POSTGRES_DB</span><span class="si">}</span><span class="s2">&quot;</span>
+</code></pre></div>
+<blockquote>
+<p>📌 建议直接从 <code>.env</code> 读取 <code>POSTGRES_USER</code>、<code>POSTGRES_PASSWORD</code>、<code>POSTGRES_DB</code>，避免手填密码导致认证失败。</p>
+</blockquote>
+<h3 id="5">5. 启动全部服务</h3>
+<div class="highlight"><pre><span></span><code><span class="nb">source</span><span class="w"> </span>.env
+<span class="nb">export</span><span class="w"> </span><span class="nv">DB_TYPE</span><span class="o">=</span>postgres
+<span class="nb">export</span><span class="w"> </span><span class="nv">DATABASE_URL</span><span class="o">=</span><span class="s2">&quot;postgresql://</span><span class="si">${</span><span class="nv">POSTGRES_USER</span><span class="si">}</span><span class="s2">:</span><span class="si">${</span><span class="nv">POSTGRES_PASSWORD</span><span class="si">}</span><span class="s2">@postgres:5432/</span><span class="si">${</span><span class="nv">POSTGRES_DB</span><span class="si">}</span><span class="s2">?sslmode=disable&quot;</span>
+docker<span class="w"> </span>compose<span class="w"> </span>up<span class="w"> </span>-d
+</code></pre></div>
+<h3 id="6">6. 验证迁移</h3>
+<p>登录面板后，检查以下数据是否完整：
+- 用户列表和权限
+- 节点信息和状态
+- 隧道配置
+- 转发规则
+- 流量统计数据</p>
+<hr />
+<h2 id="postgresql-docker">五、独立 PostgreSQL（非 Docker）</h2>
+<p>如果你不想使用 Docker Compose 中自带的 PostgreSQL 容器，也可以连接外部的 PostgreSQL 实例。</p>
+<h3 id="1-postgresql">1. 准备 PostgreSQL</h3>
+<p>在目标 PostgreSQL 服务器上创建数据库和用户：</p>
+<div class="highlight"><pre><span></span><code><span class="k">CREATE</span><span class="w"> </span><span class="k">USER</span><span class="w"> </span><span class="n">flux_panel</span><span class="w"> </span><span class="k">WITH</span><span class="w"> </span><span class="n">PASSWORD</span><span class="w"> </span><span class="s1">&#39;你的强密码&#39;</span><span class="p">;</span>
+<span class="k">CREATE</span><span class="w"> </span><span class="k">DATABASE</span><span class="w"> </span><span class="n">flux_panel</span><span class="w"> </span><span class="k">OWNER</span><span class="w"> </span><span class="n">flux_panel</span><span class="p">;</span>
+</code></pre></div>
+<h3 id="2_1">2. 配置连接</h3>
+<p>修改 <code>.env</code> 文件，将 <code>DATABASE_URL</code> 指向外部 PostgreSQL：</p>
+<div class="highlight"><pre><span></span><code><span class="nv">DB_TYPE</span><span class="o">=</span>postgres
+<span class="nv">DATABASE_URL</span><span class="o">=</span>postgres://flux_panel:你的强密码@数据库地址:5432/flux_panel?sslmode<span class="o">=</span>disable
+</code></pre></div>
+<blockquote>
+<p>📌 如果 PostgreSQL 在远程服务器且启用了 SSL，请将 <code>sslmode=disable</code> 改为 <code>sslmode=require</code> 或 <code>sslmode=verify-full</code>。</p>
+</blockquote>
+<h3 id="3-postgresql_1">3. 停用内置 PostgreSQL 容器（可选）</h3>
+<p>如果使用外部 PostgreSQL，可以在启动时不启动内置的 postgres 服务：</p>
+<div class="highlight"><pre><span></span><code>docker<span class="w"> </span>compose<span class="w"> </span>up<span class="w"> </span>-d<span class="w"> </span>backend<span class="w"> </span>frontend
+</code></pre></div>
+<hr />
+<h2 id="_4">六、数据备份与恢复</h2>
+<h3 id="pg_dump">逻辑备份（pg_dump）</h3>
+<div class="highlight"><pre><span></span><code><span class="c1"># 备份（在 Docker 环境下）</span>
+docker<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>flux-panel-postgres<span class="w"> </span>pg_dump<span class="w"> </span>-U<span class="w"> </span>flux_panel<span class="w"> </span>flux_panel<span class="w"> </span>&gt;<span class="w"> </span>backup_<span class="k">$(</span>date<span class="w"> </span>+%Y%m%d_%H%M%S<span class="k">)</span>.sql
+
+<span class="c1"># 恢复</span>
+docker<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>-i<span class="w"> </span>flux-panel-postgres<span class="w"> </span>psql<span class="w"> </span>-U<span class="w"> </span>flux_panel<span class="w"> </span>flux_panel<span class="w"> </span>&lt;<span class="w"> </span>backup_20260101_120000.sql
+</code></pre></div>
+<h3 id="cron">定时备份（cron）</h3>
+<p>创建备份脚本 <code>/opt/flvx/backup.sh</code>：</p>
+<div class="highlight"><pre><span></span><code><span class="ch">#!/bin/bash</span>
+<span class="nv">BACKUP_DIR</span><span class="o">=</span><span class="s2">&quot;/opt/flvx/backups&quot;</span>
+mkdir<span class="w"> </span>-p<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$BACKUP_DIR</span><span class="s2">&quot;</span>
+docker<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>flux-panel-postgres<span class="w"> </span>pg_dump<span class="w"> </span>-U<span class="w"> </span>flux_panel<span class="w"> </span>flux_panel<span class="w"> </span><span class="p">|</span><span class="w"> </span>gzip<span class="w"> </span>&gt;<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$BACKUP_DIR</span><span class="s2">/flvx_</span><span class="k">$(</span>date<span class="w"> </span>+%Y%m%d_%H%M%S<span class="k">)</span><span class="s2">.sql.gz&quot;</span>
+<span class="c1"># 清理 30 天前的备份</span>
+find<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$BACKUP_DIR</span><span class="s2">&quot;</span><span class="w"> </span>-name<span class="w"> </span><span class="s2">&quot;flvx_*.sql.gz&quot;</span><span class="w"> </span>-mtime<span class="w"> </span>+30<span class="w"> </span>-delete
+</code></pre></div>
+<p>添加 cron 任务（每天凌晨 3 点执行）：</p>
+<div class="highlight"><pre><span></span><code>chmod<span class="w"> </span>+x<span class="w"> </span>/opt/flvx/backup.sh
+<span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;0 3 * * * /opt/flvx/backup.sh&quot;</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>crontab<span class="w"> </span>-
+</code></pre></div>
+<hr />
+<h2 id="_5">七、常见问题</h2>
+<h3 id="q-postgresql">Q: 切换到 PostgreSQL 后启动失败，提示连接被拒绝？</h3>
+<p><strong>A</strong>: 
+1. 确认 PostgreSQL 容器已启动并处于 <code>healthy</code> 状态：<code>docker ps</code>。
+2. 确认 <code>DATABASE_URL</code> 中的主机名、端口、用户名、密码正确。
+3. 在 Docker Compose 环境下，主机名应为 <code>postgres</code>（服务名），而非 <code>localhost</code>。</p>
+<h3 id="q-pgloader">Q: pgloader 迁移时报错？</h3>
+<p><strong>A</strong>: 
+1. 确认 PostgreSQL 容器已完全就绪（状态为 <code>healthy</code>）。
+2. 确认 <code>--network gost-network</code> 参数正确，使 pgloader 容器与 PostgreSQL 在同一网络中。
+3. 如果数据库已有表结构，pgloader 可能会报冲突。可以先清空目标数据库后重试。</p>
+<h3 id="q">Q: 如何查看当前使用的数据库类型？</h3>
+<p><strong>A</strong>: 查看后端容器的 <code>DB_TYPE</code> 环境变量：</p>
+<div class="highlight"><pre><span></span><code>docker<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>flux-panel-backend<span class="w"> </span>printenv<span class="w"> </span>DB_TYPE
+</code></pre></div>
+<h3 id="q-sqlite-postgresql">Q: 可以同时使用 SQLite 和 PostgreSQL 吗？</h3>
+<p><strong>A</strong>: 不可以。<code>DB_TYPE</code> 只能设置为 <code>sqlite</code> 或 <code>postgres</code> 之一。后端启动时根据此配置连接对应的数据库。</p>
+<h3 id="q-postgresql_1">Q: PostgreSQL 数据存储在哪里？</h3>
+<p><strong>A</strong>: 在 Docker Compose 部署中，PostgreSQL 数据存储在名为 <code>postgres_data</code> 的 Docker Volume 中。可以通过以下命令查看：</p>
+<div class="highlight"><pre><span></span><code>docker<span class="w"> </span>volume<span class="w"> </span>inspect<span class="w"> </span>postgres_data
+</code></pre></div>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  回到页面顶部
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.tabs", "navigation.sections", "navigation.top", "search.suggest", "search.highlight", "content.code.copy"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "\u5df2\u590d\u5236", "clipboard.copy": "\u590d\u5236", "search.result.more.one": "\u5728\u8be5\u9875\u4e0a\u8fd8\u6709 1 \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.more.other": "\u5728\u8be5\u9875\u4e0a\u8fd8\u6709 # \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.none": "\u6ca1\u6709\u627e\u5230\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.one": "\u627e\u5230 1 \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.other": "# \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.placeholder": "\u952e\u5165\u4ee5\u5f00\u59cb\u641c\u7d22", "search.result.term.missing": "\u7f3a\u5c11", "select.version": "\u9009\u62e9\u5f53\u524d\u7248\u672c"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>
