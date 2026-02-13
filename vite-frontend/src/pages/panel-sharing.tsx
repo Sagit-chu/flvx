@@ -12,6 +12,7 @@ import {
 } from "@heroui/modal";
 import { Select, SelectItem } from "@heroui/select";
 import { toast } from "react-hot-toast";
+
 import {
   getNodeList,
   createPeerShare,
@@ -128,6 +129,7 @@ export default function PanelSharingPage() {
     setLoading(true);
     try {
       const res = await getPeerShareList();
+
       if (res.code === 0) {
         setShares(res.data || []);
       } else {
@@ -141,10 +143,12 @@ export default function PanelSharingPage() {
   const loadNodes = useCallback(async () => {
     try {
       const res = await getNodeList();
+
       if (res.code === 0) {
         const localNodes: Node[] = (res.data || []).filter(
           (node: Node) => (node?.isRemote ?? 0) !== 1,
         );
+
         setNodes(localNodes);
         setShareForm((prev) => {
           if (!prev.nodeId) {
@@ -153,6 +157,7 @@ export default function PanelSharingPage() {
           const hasSelectedNode = localNodes.some(
             (node: Node) => String(node.id) === prev.nodeId,
           );
+
           return hasSelectedNode ? prev : { ...prev, nodeId: "" };
         });
       }
@@ -165,6 +170,7 @@ export default function PanelSharingPage() {
     setRemoteUsageLoading(true);
     try {
       const res = await getPeerRemoteUsageList();
+
       if (res.code === 0) {
         setRemoteUsageNodes(res.data || []);
       } else {
@@ -179,6 +185,7 @@ export default function PanelSharingPage() {
     if (selectedTab === "my-shares") {
       loadShares();
       loadNodes();
+
       return;
     }
     if (selectedTab === "remote-nodes") {
@@ -189,15 +196,19 @@ export default function PanelSharingPage() {
   const handleCreateShare = async () => {
     if (!shareForm.name || !shareForm.nodeId) {
       toast.error("请填写必要信息");
+
       return;
     }
     const nodeId = parseInt(shareForm.nodeId, 10);
+
     if (Number.isNaN(nodeId) || !nodes.some((node) => node.id === nodeId)) {
       toast.error("仅可选择本地节点");
+
       return;
     }
     if (shareForm.maxBandwidth < 0) {
       toast.error("流量上限不能为负数");
+
       return;
     }
     try {
@@ -213,6 +224,7 @@ export default function PanelSharingPage() {
         allowedDomains: shareForm.allowedDomains,
         allowedIps: shareForm.allowedIps,
       });
+
       if (res.code === 0) {
         toast.success("创建成功");
         setCreateShareOpen(false);
@@ -228,6 +240,7 @@ export default function PanelSharingPage() {
   const handleDeleteShare = async (id: number) => {
     try {
       const res = await deletePeerShare(id);
+
       if (res.code === 0) {
         toast.success("删除成功");
         loadShares();
@@ -242,6 +255,7 @@ export default function PanelSharingPage() {
   const handleResetShareFlow = async (id: number) => {
     try {
       const res = await resetPeerShareFlow(id);
+
       if (res.code === 0) {
         toast.success("共享流量已重置");
         loadShares();
@@ -257,7 +271,10 @@ export default function PanelSharingPage() {
     setEditForm({
       id: share.id,
       name: share.name,
-      maxBandwidth: share.maxBandwidth > 0 ? Math.round(share.maxBandwidth / (1024 * 1024 * 1024)) : 0,
+      maxBandwidth:
+        share.maxBandwidth > 0
+          ? Math.round(share.maxBandwidth / (1024 * 1024 * 1024))
+          : 0,
       expiryTime: share.expiryTime,
       portRangeStart: share.portRangeStart,
       portRangeEnd: share.portRangeEnd,
@@ -270,10 +287,12 @@ export default function PanelSharingPage() {
   const handleEditShare = async () => {
     if (!editForm.name) {
       toast.error("名称不能为空");
+
       return;
     }
     if (editForm.maxBandwidth < 0) {
       toast.error("流量上限不能为负数");
+
       return;
     }
     try {
@@ -287,6 +306,7 @@ export default function PanelSharingPage() {
         allowedDomains: editForm.allowedDomains,
         allowedIps: editForm.allowedIps,
       });
+
       if (res.code === 0) {
         toast.success("编辑成功");
         setEditShareOpen(false);
@@ -302,19 +322,22 @@ export default function PanelSharingPage() {
   const handleImportNode = async () => {
     if (!importForm.remoteUrl || !importForm.token) {
       toast.error("请填写完整信息");
+
       return;
     }
     try {
       // Automatically add http/https if missing
       let url = importForm.remoteUrl.trim();
+
       if (!url.startsWith("http")) {
         url = "http://" + url;
       }
-      
+
       const res = await importRemoteNode({
         remoteUrl: url,
         token: importForm.token.trim(),
       });
+
       if (res.code === 0) {
         toast.success("导入成功，请前往节点列表查看");
         setImportNodeOpen(false);
@@ -341,6 +364,7 @@ export default function PanelSharingPage() {
     if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(2) + " KB";
     if (bytes < 1024 * 1024 * 1024)
       return (bytes / (1024 * 1024)).toFixed(2) + " MB";
+
     return (bytes / (1024 * 1024 * 1024)).toFixed(2) + " GB";
   };
 
@@ -351,6 +375,7 @@ export default function PanelSharingPage() {
     if (chainType === 3) {
       return "出口节点";
     }
+
     return "未知链路";
   };
 
@@ -370,11 +395,14 @@ export default function PanelSharingPage() {
           <Card>
             <CardBody>
               <div className="mb-4">
-                <Button color="primary" onPress={() => setCreateShareOpen(true)}>
+                <Button
+                  color="primary"
+                  onPress={() => setCreateShareOpen(true)}
+                >
                   创建分享
                 </Button>
               </div>
-              
+
               {loading ? (
                 <div className="text-center py-10 text-gray-500">加载中...</div>
               ) : shares.length === 0 ? (
@@ -382,7 +410,10 @@ export default function PanelSharingPage() {
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {shares.map((share) => (
-                    <Card key={share.id} className="border border-divider shadow-sm">
+                    <Card
+                      key={share.id}
+                      className="border border-divider shadow-sm"
+                    >
                       <CardHeader className="flex justify-between">
                         <h3 className="font-bold">{share.name}</h3>
                         <div className="flex gap-2">
@@ -400,29 +431,67 @@ export default function PanelSharingPage() {
                           >
                             重置流量
                           </Button>
-                          <Button size="sm" color="danger" variant="flat" onPress={() => handleDeleteShare(share.id)}>删除</Button>
+                          <Button
+                            color="danger"
+                            size="sm"
+                            variant="flat"
+                            onPress={() => handleDeleteShare(share.id)}
+                          >
+                            删除
+                          </Button>
                         </div>
                       </CardHeader>
                       <CardBody className="text-sm space-y-2">
-                        <p>端口范围: {share.portRangeStart} - {share.portRangeEnd}</p>
-                        <p>流量上限: {share.maxBandwidth > 0 ? formatFlowGB(share.maxBandwidth) : "不限制"}</p>
+                        <p>
+                          端口范围: {share.portRangeStart} -{" "}
+                          {share.portRangeEnd}
+                        </p>
+                        <p>
+                          流量上限:{" "}
+                          {share.maxBandwidth > 0
+                            ? formatFlowGB(share.maxBandwidth)
+                            : "不限制"}
+                        </p>
                         <p>当前流量: {formatFlowGB(share.currentFlow || 0)}</p>
-                        <p>远程占用端口: {share.usedPorts && share.usedPorts.length > 0 ? share.usedPorts.join(", ") : "暂无"}</p>
-                        {share.usedPortDetails && share.usedPortDetails.length > 0 && (
-                          <div className="flex flex-wrap gap-2">
-                            {share.usedPortDetails.map((item) => (
-                              <span key={item.runtimeId} className="text-xs rounded-full px-2 py-1 bg-default-100">
-                                {item.port} / {item.role || "reserved"}
-                              </span>
-                            ))}
-                          </div>
+                        <p>
+                          远程占用端口:{" "}
+                          {share.usedPorts && share.usedPorts.length > 0
+                            ? share.usedPorts.join(", ")
+                            : "暂无"}
+                        </p>
+                        {share.usedPortDetails &&
+                          share.usedPortDetails.length > 0 && (
+                            <div className="flex flex-wrap gap-2">
+                              {share.usedPortDetails.map((item) => (
+                                <span
+                                  key={item.runtimeId}
+                                  className="text-xs rounded-full px-2 py-1 bg-default-100"
+                                >
+                                  {item.port} / {item.role || "reserved"}
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                        {share.allowedDomains && (
+                          <p>允许域名: {share.allowedDomains}</p>
                         )}
-                        {share.allowedDomains && <p>允许域名: {share.allowedDomains}</p>}
-                        {share.allowedIps && <p>允许API IP: {share.allowedIps}</p>}
-                        <p>过期时间: {share.expiryTime === 0 ? "永久" : new Date(share.expiryTime).toLocaleDateString()}</p>
+                        {share.allowedIps && (
+                          <p>允许API IP: {share.allowedIps}</p>
+                        )}
+                        <p>
+                          过期时间:{" "}
+                          {share.expiryTime === 0
+                            ? "永久"
+                            : new Date(share.expiryTime).toLocaleDateString()}
+                        </p>
                         <div className="flex gap-2">
                           <Input readOnly size="sm" value={share.token} />
-                          <Button size="sm" onPress={() => copyToken(share.token)}>复制</Button>
+                          <Button
+                            size="sm"
+                            onPress={() => copyToken(share.token)}
+                          >
+                            复制
+                          </Button>
                         </div>
                       </CardBody>
                     </Card>
@@ -436,7 +505,10 @@ export default function PanelSharingPage() {
           <Card>
             <CardBody>
               <div className="mb-4">
-                <Button color="secondary" onPress={() => setImportNodeOpen(true)}>
+                <Button
+                  color="secondary"
+                  onPress={() => setImportNodeOpen(true)}
+                >
                   导入远程节点
                 </Button>
               </div>
@@ -446,15 +518,22 @@ export default function PanelSharingPage() {
               ) : remoteUsageNodes.length === 0 ? (
                 <div className="text-center py-10 text-gray-500">
                   <p>暂无远程节点占用记录。</p>
-                  <p className="mt-2">导入远程节点并创建隧道后，这里会显示远端端口占用情况。</p>
+                  <p className="mt-2">
+                    导入远程节点并创建隧道后，这里会显示远端端口占用情况。
+                  </p>
                 </div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {remoteUsageNodes.map((node) => (
-                    <Card key={node.nodeId} className="border border-divider shadow-sm">
+                    <Card
+                      key={node.nodeId}
+                      className="border border-divider shadow-sm"
+                    >
                       <CardHeader className="flex justify-between">
                         <h3 className="font-bold">{node.nodeName}</h3>
-                        <span className="text-xs text-default-500">绑定 {node.activeBindingNum || 0}</span>
+                        <span className="text-xs text-default-500">
+                          绑定 {node.activeBindingNum || 0}
+                        </span>
                       </CardHeader>
                       <CardBody className="text-sm space-y-2">
                         {node.syncError && (
@@ -470,18 +549,40 @@ export default function PanelSharingPage() {
                         )}
                         {node.remoteUrl && <p>远程地址: {node.remoteUrl}</p>}
                         <p>共享ID: {node.shareId || "-"}</p>
-                        <p>端口范围: {node.portRangeStart > 0 && node.portRangeEnd > 0 ? `${node.portRangeStart} - ${node.portRangeEnd}` : "-"}</p>
-                        <p>共享流量: {node.maxBandwidth > 0 ? `${formatFlowGB(node.currentFlow || 0)} / ${formatFlowGB(node.maxBandwidth)}` : `${formatFlowGB(node.currentFlow || 0)} / 不限制`}</p>
-                        <p>远端占用端口: {node.usedPorts && node.usedPorts.length > 0 ? node.usedPorts.join(", ") : "暂无"}</p>
+                        <p>
+                          端口范围:{" "}
+                          {node.portRangeStart > 0 && node.portRangeEnd > 0
+                            ? `${node.portRangeStart} - ${node.portRangeEnd}`
+                            : "-"}
+                        </p>
+                        <p>
+                          共享流量:{" "}
+                          {node.maxBandwidth > 0
+                            ? `${formatFlowGB(node.currentFlow || 0)} / ${formatFlowGB(node.maxBandwidth)}`
+                            : `${formatFlowGB(node.currentFlow || 0)} / 不限制`}
+                        </p>
+                        <p>
+                          远端占用端口:{" "}
+                          {node.usedPorts && node.usedPorts.length > 0
+                            ? node.usedPorts.join(", ")
+                            : "暂无"}
+                        </p>
                         {node.bindings && node.bindings.length > 0 && (
                           <div className="space-y-1 pt-1">
                             {node.bindings.map((binding) => (
-                              <p key={binding.bindingId} className="text-xs text-default-600">
-                                隧道 {binding.tunnelName || `#${binding.tunnelId}`}
+                              <p
+                                key={binding.bindingId}
+                                className="text-xs text-default-600"
+                              >
+                                隧道{" "}
+                                {binding.tunnelName || `#${binding.tunnelId}`}
                                 {" · "}
                                 端口 {binding.allocatedPort}
                                 {" · "}
-                                {formatChainType(binding.chainType, binding.hopInx)}
+                                {formatChainType(
+                                  binding.chainType,
+                                  binding.hopInx,
+                                )}
                               </p>
                             ))}
                           </div>
@@ -505,13 +606,17 @@ export default function PanelSharingPage() {
               label="名称"
               placeholder="备注名称"
               value={shareForm.name}
-              onChange={(e) => setShareForm({ ...shareForm, name: e.target.value })}
+              onChange={(e) =>
+                setShareForm({ ...shareForm, name: e.target.value })
+              }
             />
             <Select
               label="选择节点"
               placeholder="选择要分享的本地节点"
               selectedKeys={shareForm.nodeId ? [shareForm.nodeId] : []}
-              onChange={(e) => setShareForm({ ...shareForm, nodeId: e.target.value })}
+              onChange={(e) =>
+                setShareForm({ ...shareForm, nodeId: e.target.value })
+              }
             >
               {nodes.map((node) => (
                 <SelectItem key={node.id} textValue={node.name}>
@@ -524,47 +629,73 @@ export default function PanelSharingPage() {
                 label="起始端口"
                 type="number"
                 value={shareForm.portRangeStart.toString()}
-                onChange={(e) => setShareForm({ ...shareForm, portRangeStart: parseInt(e.target.value) })}
+                onChange={(e) =>
+                  setShareForm({
+                    ...shareForm,
+                    portRangeStart: parseInt(e.target.value),
+                  })
+                }
               />
               <Input
                 label="结束端口"
                 type="number"
                 value={shareForm.portRangeEnd.toString()}
-                onChange={(e) => setShareForm({ ...shareForm, portRangeEnd: parseInt(e.target.value) })}
+                onChange={(e) =>
+                  setShareForm({
+                    ...shareForm,
+                    portRangeEnd: parseInt(e.target.value),
+                  })
+                }
               />
             </div>
             <Input
+              description="0 表示永久"
               label="有效期 (天)"
               type="number"
-              description="0 表示永久"
               value={shareForm.expiryDays.toString()}
-              onChange={(e) => setShareForm({ ...shareForm, expiryDays: parseInt(e.target.value) })}
+              onChange={(e) =>
+                setShareForm({
+                  ...shareForm,
+                  expiryDays: parseInt(e.target.value),
+                })
+              }
             />
             <Input
+              description="0 表示不限流量"
               label="流量上限 (GB)"
               type="number"
-              description="0 表示不限流量"
               value={shareForm.maxBandwidth.toString()}
-              onChange={(e) => setShareForm({ ...shareForm, maxBandwidth: parseInt(e.target.value, 10) || 0 })}
+              onChange={(e) =>
+                setShareForm({
+                  ...shareForm,
+                  maxBandwidth: parseInt(e.target.value, 10) || 0,
+                })
+              }
             />
             <Input
+              description="限制使用此Token的来源面板域名，多个域名用逗号分隔，留空不限制"
               label="允许的域名 (可选)"
               placeholder="example.com, panel.test.com"
-              description="限制使用此Token的来源面板域名，多个域名用逗号分隔，留空不限制"
               value={shareForm.allowedDomains}
-              onChange={(e) => setShareForm({ ...shareForm, allowedDomains: e.target.value })}
+              onChange={(e) =>
+                setShareForm({ ...shareForm, allowedDomains: e.target.value })
+              }
             />
             <Input
+              description="仅白名单IP可导入此分享，支持IPv4/IPv6/CIDR，多个用逗号分隔"
               label="允许的API IP (可选)"
               placeholder="203.0.113.10, 2001:db8::10, 198.51.100.0/24"
-              description="仅白名单IP可导入此分享，支持IPv4/IPv6/CIDR，多个用逗号分隔"
               value={shareForm.allowedIps}
-              onChange={(e) => setShareForm({ ...shareForm, allowedIps: e.target.value })}
+              onChange={(e) =>
+                setShareForm({ ...shareForm, allowedIps: e.target.value })
+              }
             />
           </ModalBody>
           <ModalFooter>
             <Button onPress={() => setCreateShareOpen(false)}>取消</Button>
-            <Button color="primary" onPress={handleCreateShare}>创建</Button>
+            <Button color="primary" onPress={handleCreateShare}>
+              创建
+            </Button>
           </ModalFooter>
         </ModalContent>
       </Modal>
@@ -578,54 +709,88 @@ export default function PanelSharingPage() {
               label="名称"
               placeholder="备注名称"
               value={editForm.name}
-              onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+              onChange={(e) =>
+                setEditForm({ ...editForm, name: e.target.value })
+              }
             />
             <div className="flex gap-4">
               <Input
                 label="起始端口"
                 type="number"
                 value={editForm.portRangeStart.toString()}
-                onChange={(e) => setEditForm({ ...editForm, portRangeStart: parseInt(e.target.value) || 0 })}
+                onChange={(e) =>
+                  setEditForm({
+                    ...editForm,
+                    portRangeStart: parseInt(e.target.value) || 0,
+                  })
+                }
               />
               <Input
                 label="结束端口"
                 type="number"
                 value={editForm.portRangeEnd.toString()}
-                onChange={(e) => setEditForm({ ...editForm, portRangeEnd: parseInt(e.target.value) || 0 })}
+                onChange={(e) =>
+                  setEditForm({
+                    ...editForm,
+                    portRangeEnd: parseInt(e.target.value) || 0,
+                  })
+                }
               />
             </div>
             <Input
+              description="0 表示不限流量"
               label="流量上限 (GB)"
               type="number"
-              description="0 表示不限流量"
               value={editForm.maxBandwidth.toString()}
-              onChange={(e) => setEditForm({ ...editForm, maxBandwidth: parseInt(e.target.value, 10) || 0 })}
+              onChange={(e) =>
+                setEditForm({
+                  ...editForm,
+                  maxBandwidth: parseInt(e.target.value, 10) || 0,
+                })
+              }
             />
             <Input
+              description="留空或清除表示永久有效"
               label="过期时间"
               type="datetime-local"
-              description="留空或清除表示永久有效"
-              value={editForm.expiryTime > 0 ? new Date(editForm.expiryTime).toISOString().slice(0, 16) : ""}
-              onChange={(e) => setEditForm({ ...editForm, expiryTime: e.target.value ? new Date(e.target.value).getTime() : 0 })}
+              value={
+                editForm.expiryTime > 0
+                  ? new Date(editForm.expiryTime).toISOString().slice(0, 16)
+                  : ""
+              }
+              onChange={(e) =>
+                setEditForm({
+                  ...editForm,
+                  expiryTime: e.target.value
+                    ? new Date(e.target.value).getTime()
+                    : 0,
+                })
+              }
             />
             <Input
+              description="限制使用此Token的来源面板域名，多个域名用逗号分隔，留空不限制"
               label="允许的域名 (可选)"
               placeholder="example.com, panel.test.com"
-              description="限制使用此Token的来源面板域名，多个域名用逗号分隔，留空不限制"
               value={editForm.allowedDomains}
-              onChange={(e) => setEditForm({ ...editForm, allowedDomains: e.target.value })}
+              onChange={(e) =>
+                setEditForm({ ...editForm, allowedDomains: e.target.value })
+              }
             />
             <Input
+              description="仅白名单IP可导入此分享，支持IPv4/IPv6/CIDR，多个用逗号分隔"
               label="允许的API IP (可选)"
               placeholder="203.0.113.10, 2001:db8::10, 198.51.100.0/24"
-              description="仅白名单IP可导入此分享，支持IPv4/IPv6/CIDR，多个用逗号分隔"
               value={editForm.allowedIps}
-              onChange={(e) => setEditForm({ ...editForm, allowedIps: e.target.value })}
+              onChange={(e) =>
+                setEditForm({ ...editForm, allowedIps: e.target.value })
+              }
             />
           </ModalBody>
           <ModalFooter>
             <Button onPress={() => setEditShareOpen(false)}>取消</Button>
-            <Button color="primary" onPress={handleEditShare}>保存</Button>
+            <Button color="primary" onPress={handleEditShare}>
+              保存
+            </Button>
           </ModalFooter>
         </ModalContent>
       </Modal>
@@ -639,18 +804,24 @@ export default function PanelSharingPage() {
               label="远程面板地址"
               placeholder="http://panel.example.com:8088"
               value={importForm.remoteUrl}
-              onChange={(e) => setImportForm({ ...importForm, remoteUrl: e.target.value })}
+              onChange={(e) =>
+                setImportForm({ ...importForm, remoteUrl: e.target.value })
+              }
             />
             <Input
               label="Token"
               placeholder="Bearer Token"
               value={importForm.token}
-              onChange={(e) => setImportForm({ ...importForm, token: e.target.value })}
+              onChange={(e) =>
+                setImportForm({ ...importForm, token: e.target.value })
+              }
             />
           </ModalBody>
           <ModalFooter>
             <Button onPress={() => setImportNodeOpen(false)}>取消</Button>
-            <Button color="secondary" onPress={handleImportNode}>导入</Button>
+            <Button color="secondary" onPress={handleImportNode}>
+              导入
+            </Button>
           </ModalFooter>
         </ModalContent>
       </Modal>

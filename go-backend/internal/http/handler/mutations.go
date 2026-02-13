@@ -1713,9 +1713,18 @@ func (h *Handler) groupUserAssign(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer func() { _ = tx.Rollback() }()
+	previousUserIDs, err := queryInt64ListTx(tx, `SELECT user_id FROM user_group_user WHERE user_group_id = ?`, req.GroupID)
+	if err != nil {
+		response.WriteJSON(w, response.Err(-2, err.Error()))
+		return
+	}
 	_, _ = tx.Exec(`DELETE FROM user_group_user WHERE user_group_id = ?`, req.GroupID)
 	for _, uid := range req.UserIDs {
 		_, _ = tx.Exec(`INSERT INTO user_group_user(user_group_id, user_id, created_time) VALUES(?, ?, ?) ON CONFLICT DO NOTHING`, req.GroupID, uid, time.Now().UnixMilli())
+	}
+	if err := revokeGroupGrantsForRemovedUsersTx(tx, req.GroupID, previousUserIDs, req.UserIDs); err != nil {
+		response.WriteJSON(w, response.Err(-2, err.Error()))
+		return
 	}
 	if err := tx.Commit(); err != nil {
 		response.WriteJSON(w, response.Err(-2, err.Error()))
@@ -1748,10 +1757,35 @@ func (h *Handler) groupPermissionRemove(w http.ResponseWriter, r *http.Request) 
 	if id <= 0 {
 		return
 	}
+	tx, err := h.repo.DB().Begin()
+	if err != nil {
+		response.WriteJSON(w, response.Err(-2, err.Error()))
+		return
+	}
+	defer func() { _ = tx.Rollback() }()
+
 	var ug, tg int64
-	_ = h.repo.DB().QueryRow(`SELECT user_group_id, tunnel_group_id FROM group_permission WHERE id = ?`, id).Scan(&ug, &tg)
-	_, _ = h.repo.DB().Exec(`DELETE FROM group_permission WHERE id = ?`, id)
-	_, _ = h.repo.DB().Exec(`DELETE FROM group_permission_grant WHERE user_group_id = ? AND tunnel_group_id = ?`, ug, tg)
+	err = tx.QueryRow(`SELECT user_group_id, tunnel_group_id FROM group_permission WHERE id = ?`, id).Scan(&ug, &tg)
+	if err != nil && err != sql.ErrNoRows {
+		response.WriteJSON(w, response.Err(-2, err.Error()))
+		return
+	}
+
+	if _, err := tx.Exec(`DELETE FROM group_permission WHERE id = ?`, id); err != nil {
+		response.WriteJSON(w, response.Err(-2, err.Error()))
+		return
+	}
+	if err == nil {
+		if err := revokeGroupPermissionPairTx(tx, ug, tg); err != nil {
+			response.WriteJSON(w, response.Err(-2, err.Error()))
+			return
+		}
+	}
+
+	if err := tx.Commit(); err != nil {
+		response.WriteJSON(w, response.Err(-2, err.Error()))
+		return
+	}
 	response.WriteJSON(w, response.OKEmpty())
 }
 
@@ -1908,6 +1942,144 @@ func queryInt64List(db *store.DB, q string, args ...interface{}) ([]int64, error
 	return out, rows.Err()
 }
 
+func queryInt64ListTx(tx *store.Tx, q string, args ...interface{}) ([]int64, error) {
+	rows, err := tx.Query(q, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := make([]int64, 0)
+	for rows.Next() {
+		var v int64
+		if err := rows.Scan(&v); err != nil {
+			return nil, err
+		}
+		out = append(out, v)
+	}
+	return out, rows.Err()
+}
+
+func revokeGroupGrantsForRemovedUsersTx(tx *store.Tx, userGroupID int64, previousUserIDs, currentUserIDs []int64) error {
+	currentSet := make(map[int64]struct{}, len(currentUserIDs))
+	for _, uid := range currentUserIDs {
+		if uid > 0 {
+			currentSet[uid] = struct{}{}
+		}
+	}
+
+	removedUserIDs := make([]int64, 0)
+	for _, uid := range previousUserIDs {
+		if uid <= 0 {
+			continue
+		}
+		if _, ok := currentSet[uid]; !ok {
+			removedUserIDs = append(removedUserIDs, uid)
+		}
+	}
+	if len(removedUserIDs) == 0 {
+		return nil
+	}
+
+	for _, userID := range removedUserIDs {
+		rows, err := tx.Query(`
+			SELECT g.user_tunnel_id, g.created_by_group
+			FROM group_permission_grant g
+			JOIN user_tunnel ut ON ut.id = g.user_tunnel_id
+			WHERE g.user_group_id = ? AND ut.user_id = ?
+		`, userGroupID, userID)
+		if err != nil {
+			return err
+		}
+
+		groupCreatedTunnelIDs := make(map[int64]struct{})
+		for rows.Next() {
+			var userTunnelID int64
+			var createdByGroup int
+			if err := rows.Scan(&userTunnelID, &createdByGroup); err != nil {
+				rows.Close()
+				return err
+			}
+			if createdByGroup == 1 && userTunnelID > 0 {
+				groupCreatedTunnelIDs[userTunnelID] = struct{}{}
+			}
+		}
+		if err := rows.Err(); err != nil {
+			rows.Close()
+			return err
+		}
+		rows.Close()
+
+		if _, err := tx.Exec(`
+			DELETE FROM group_permission_grant
+			WHERE user_group_id = ?
+			  AND user_tunnel_id IN (SELECT id FROM user_tunnel WHERE user_id = ?)
+		`, userGroupID, userID); err != nil {
+			return err
+		}
+
+		for userTunnelID := range groupCreatedTunnelIDs {
+			var remaining int
+			if err := tx.QueryRow(`SELECT COUNT(1) FROM group_permission_grant WHERE user_tunnel_id = ?`, userTunnelID).Scan(&remaining); err != nil {
+				return err
+			}
+			if remaining == 0 {
+				if _, err := tx.Exec(`DELETE FROM user_tunnel WHERE id = ?`, userTunnelID); err != nil {
+					return err
+				}
+			}
+		}
+	}
+
+	return nil
+}
+
+func revokeGroupPermissionPairTx(tx *store.Tx, userGroupID, tunnelGroupID int64) error {
+	rows, err := tx.Query(`
+		SELECT user_tunnel_id, created_by_group
+		FROM group_permission_grant
+		WHERE user_group_id = ? AND tunnel_group_id = ?
+	`, userGroupID, tunnelGroupID)
+	if err != nil {
+		return err
+	}
+
+	groupCreatedTunnelIDs := make(map[int64]struct{})
+	for rows.Next() {
+		var userTunnelID int64
+		var createdByGroup int
+		if err := rows.Scan(&userTunnelID, &createdByGroup); err != nil {
+			rows.Close()
+			return err
+		}
+		if createdByGroup == 1 && userTunnelID > 0 {
+			groupCreatedTunnelIDs[userTunnelID] = struct{}{}
+		}
+	}
+	if err := rows.Err(); err != nil {
+		rows.Close()
+		return err
+	}
+	rows.Close()
+
+	if _, err := tx.Exec(`DELETE FROM group_permission_grant WHERE user_group_id = ? AND tunnel_group_id = ?`, userGroupID, tunnelGroupID); err != nil {
+		return err
+	}
+
+	for userTunnelID := range groupCreatedTunnelIDs {
+		var remaining int
+		if err := tx.QueryRow(`SELECT COUNT(1) FROM group_permission_grant WHERE user_tunnel_id = ?`, userTunnelID).Scan(&remaining); err != nil {
+			return err
+		}
+		if remaining == 0 {
+			if _, err := tx.Exec(`DELETE FROM user_tunnel WHERE id = ?`, userTunnelID); err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
 func queryPairs(db *store.DB, q string, args ...interface{}) ([][2]int64, error) {
 	rows, err := db.Query(q, args...)
 	if err != nil {
@@ -2061,7 +2233,7 @@ func (h *Handler) prepareTunnelCreateState(tx *store.Tx, req map[string]interfac
 			}
 			return nil, err
 		}
-		if node.Status != 1 {
+		if node.IsRemote != 1 && node.Status != 1 {
 			return nil, errors.New("部分节点不在线")
 		}
 		state.Nodes[nodeID] = node

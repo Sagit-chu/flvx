@@ -125,7 +125,12 @@ const SortableItem = ({
   };
 
   return (
-    <div ref={setNodeRef} style={style} {...attributes} className="overflow-hidden">
+    <div
+      ref={setNodeRef}
+      style={style}
+      {...attributes}
+      className="overflow-hidden"
+    >
       {children(listeners)}
     </div>
   );
@@ -174,13 +179,26 @@ export default function NodePage() {
 
   // 升级相关状态
   const [upgradeModalOpen, setUpgradeModalOpen] = useState(false);
-  const [upgradeTarget, setUpgradeTarget] = useState<"single" | "batch">("single");
-  const [upgradeTargetNodeId, setUpgradeTargetNodeId] = useState<number | null>(null);
-  const [releases, setReleases] = useState<Array<{ version: string; name: string; publishedAt: string; prerelease: boolean }>>([]);
+  const [upgradeTarget, setUpgradeTarget] = useState<"single" | "batch">(
+    "single",
+  );
+  const [upgradeTargetNodeId, setUpgradeTargetNodeId] = useState<number | null>(
+    null,
+  );
+  const [releases, setReleases] = useState<
+    Array<{
+      version: string;
+      name: string;
+      publishedAt: string;
+      prerelease: boolean;
+    }>
+  >([]);
   const [releasesLoading, setReleasesLoading] = useState(false);
   const [selectedVersion, setSelectedVersion] = useState("");
   const [batchUpgradeLoading, setBatchUpgradeLoading] = useState(false);
-  const [upgradeProgress, setUpgradeProgress] = useState<Record<number, { stage: string; percent: number; message: string }>>({});
+  const [upgradeProgress, setUpgradeProgress] = useState<
+    Record<number, { stage: string; percent: number; message: string }>
+  >({});
 
   const websocketRef = useRef<WebSocket | null>(null);
   const reconnectTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -237,7 +255,11 @@ export default function NodePage() {
         const nodesData: Node[] = (res.data || []).map((node: any) => ({
           ...node,
           inx: node.inx ?? 0,
-          connectionStatus: node.syncError ? "offline" : node.status === 1 ? "online" : "offline",
+          connectionStatus: node.syncError
+            ? "offline"
+            : node.status === 1
+              ? "online"
+              : "offline",
           syncError: node.syncError || undefined,
           systemInfo: null,
           copyLoading: false,
@@ -444,7 +466,11 @@ export default function NodePage() {
       );
     } else if (type === "upgrade_progress") {
       try {
-        const progressData = typeof messageData === "string" ? JSON.parse(messageData) : messageData;
+        const progressData =
+          typeof messageData === "string"
+            ? JSON.parse(messageData)
+            : messageData;
+
         if (progressData?.data) {
           setUpgradeProgress((prev) => ({
             ...prev,
@@ -803,10 +829,11 @@ export default function NodePage() {
     }
   };
 
-
-
   // 打开版本选择弹窗
-  const openUpgradeModal = async (target: "single" | "batch", nodeId?: number) => {
+  const openUpgradeModal = async (
+    target: "single" | "batch",
+    nodeId?: number,
+  ) => {
     setUpgradeTarget(target);
     setUpgradeTargetNodeId(nodeId || null);
     setSelectedVersion("");
@@ -814,6 +841,7 @@ export default function NodePage() {
     setReleasesLoading(true);
     try {
       const res = await getNodeReleases();
+
       if (res.code === 0 && Array.isArray(res.data)) {
         setReleases(res.data);
       } else {
@@ -829,16 +857,21 @@ export default function NodePage() {
   // 确认升级（从版本弹窗）
   const handleConfirmUpgrade = async () => {
     const version = selectedVersion || undefined;
+
     if (upgradeTarget === "single" && upgradeTargetNodeId) {
       setUpgradeModalOpen(false);
       // Find the node
       const node = nodeList.find((n) => n.id === upgradeTargetNodeId);
+
       if (!node) return;
       setNodeList((prev) =>
-        prev.map((n) => (n.id === upgradeTargetNodeId ? { ...n, upgradeLoading: true } : n)),
+        prev.map((n) =>
+          n.id === upgradeTargetNodeId ? { ...n, upgradeLoading: true } : n,
+        ),
       );
       try {
         const res = await upgradeNode(upgradeTargetNodeId, version);
+
         if (res.code === 0) {
           toast.success(`节点升级命令已发送，节点将自动重启`);
         } else {
@@ -848,7 +881,9 @@ export default function NodePage() {
         toast.error("网络错误，请重试");
       } finally {
         setNodeList((prev) =>
-          prev.map((n) => (n.id === upgradeTargetNodeId ? { ...n, upgradeLoading: false } : n)),
+          prev.map((n) =>
+            n.id === upgradeTargetNodeId ? { ...n, upgradeLoading: false } : n,
+          ),
         );
       }
     } else if (upgradeTarget === "batch") {
@@ -856,6 +891,7 @@ export default function NodePage() {
       setUpgradeModalOpen(false);
       try {
         const res = await batchUpgradeNodes(Array.from(selectedIds), version);
+
         if (res.code === 0) {
           toast.success(`批量升级命令已发送到 ${selectedIds.size} 个节点`);
         } else {
@@ -876,6 +912,7 @@ export default function NodePage() {
     );
     try {
       const res = await rollbackNode(node.id);
+
       if (res.code === 0) {
         toast.success(`节点 ${node.name} 回退命令已发送，节点将自动重启`);
       } else {
@@ -885,7 +922,9 @@ export default function NodePage() {
       toast.error("网络错误，请重试");
     } finally {
       setNodeList((prev) =>
-        prev.map((n) => (n.id === node.id ? { ...n, rollbackLoading: false } : n)),
+        prev.map((n) =>
+          n.id === node.id ? { ...n, rollbackLoading: false } : n,
+        ),
       );
     }
   };
@@ -1251,332 +1290,349 @@ export default function NodePage() {
                 return (
                   <SortableItem key={node.id} id={node.id}>
                     {(listeners) => (
-                    <Card
-                      key={node.id}
-                      className="group shadow-sm border border-divider hover:shadow-md transition-shadow duration-200 overflow-hidden"
-                    >
-                      <CardHeader className="pb-2">
-                        <div className="flex justify-between items-start w-full">
-                          <div className="flex items-center gap-2 flex-1 min-w-0">
-                            {selectMode && (
-                              <Checkbox
-                                isSelected={selectedIds.has(node.id)}
-                                onValueChange={() => toggleSelect(node.id)}
-                              />
-                            )}
-                            <h3 className="font-semibold text-foreground truncate text-sm">
-                              {node.name}
-                            </h3>
-                          </div>
-                          <div className="flex items-center gap-1.5 ml-2">
-                            <div
-                              className="cursor-grab active:cursor-grabbing p-2 text-default-400 hover:text-default-600 transition-colors touch-manipulation opacity-100 sm:opacity-0 sm:group-hover:opacity-100"
-                              {...listeners}
-                              style={{ touchAction: "none" }}
-                              title="拖拽排序"
-                            >
-                              <svg
-                                className="w-4 h-4"
-                                fill="currentColor"
-                                viewBox="0 0 20 20"
-                              >
-                                <path d="M7 2a2 2 0 1 1 .001 4.001A2 2 0 0 1 7 2zm0 6a2 2 0 1 1 .001 4.001A2 2 0 0 1 7 8zm0 6a2 2 0 1 1 .001 4.001A2 2 0 0 1 7 14zm6-8a2 2 0 1 1-.001-4.001A2 2 0 0 1 13 6zm0 2a2 2 0 1 1 .001 4.001A2 2 0 0 1 13 8zm0 6a2 2 0 1 1 .001 4.001A2 2 0 0 1 13 14z" />
-                              </svg>
+                      <Card
+                        key={node.id}
+                        className="group shadow-sm border border-divider hover:shadow-md transition-shadow duration-200 overflow-hidden"
+                      >
+                        <CardHeader className="pb-2">
+                          <div className="flex justify-between items-start w-full">
+                            <div className="flex items-center gap-2 flex-1 min-w-0">
+                              {selectMode && (
+                                <Checkbox
+                                  isSelected={selectedIds.has(node.id)}
+                                  onValueChange={() => toggleSelect(node.id)}
+                                />
+                              )}
+                              <h3 className="font-semibold text-foreground truncate text-sm">
+                                {node.name}
+                              </h3>
                             </div>
-                            {isRemoteNode && (
+                            <div className="flex items-center gap-1.5 ml-2">
+                              <div
+                                className="cursor-grab active:cursor-grabbing p-2 text-default-400 hover:text-default-600 transition-colors touch-manipulation opacity-100 sm:opacity-0 sm:group-hover:opacity-100"
+                                {...listeners}
+                                style={{ touchAction: "none" }}
+                                title="拖拽排序"
+                              >
+                                <svg
+                                  className="w-4 h-4"
+                                  fill="currentColor"
+                                  viewBox="0 0 20 20"
+                                >
+                                  <path d="M7 2a2 2 0 1 1 .001 4.001A2 2 0 0 1 7 2zm0 6a2 2 0 1 1 .001 4.001A2 2 0 0 1 7 8zm0 6a2 2 0 1 1 .001 4.001A2 2 0 0 1 7 14zm6-8a2 2 0 1 1-.001-4.001A2 2 0 0 1 13 6zm0 2a2 2 0 1 1 .001 4.001A2 2 0 0 1 13 8zm0 6a2 2 0 1 1 .001 4.001A2 2 0 0 1 13 14z" />
+                                </svg>
+                              </div>
+                              {isRemoteNode && (
+                                <Chip
+                                  className="text-xs"
+                                  color="secondary"
+                                  size="sm"
+                                  variant="flat"
+                                >
+                                  远程
+                                </Chip>
+                              )}
                               <Chip
                                 className="text-xs"
-                                color="secondary"
+                                color={
+                                  node.connectionStatus === "online"
+                                    ? "success"
+                                    : "danger"
+                                }
                                 size="sm"
                                 variant="flat"
                               >
-                                远程
+                                {node.connectionStatus === "online"
+                                  ? "在线"
+                                  : "离线"}
                               </Chip>
-                            )}
-                            <Chip
-                              className="text-xs"
-                              color={
-                                node.connectionStatus === "online"
-                                  ? "success"
-                                  : "danger"
-                              }
-                              size="sm"
-                              variant="flat"
-                            >
-                              {node.connectionStatus === "online"
-                                ? "在线"
-                                : "离线"}
-                            </Chip>
-                          </div>
-                        </div>
-                      </CardHeader>
-
-                      <CardBody className="pt-0 pb-3">
-                        {isRemoteNode && node.syncError && (
-                          <div className="mb-3 px-2 py-1.5 rounded-md bg-warning-50 dark:bg-warning-100/10 text-warning-700 dark:text-warning-400 text-xs">
-                            {node.syncError === "provider_share_deleted"
-                              ? "提供方已删除该分享"
-                              : node.syncError === "provider_share_disabled"
-                                ? "提供方已禁用该分享"
-                                : node.syncError === "provider_share_expired"
-                                  ? "提供方分享已过期"
-                                  : `远程同步失败: ${node.syncError}`}
-                          </div>
-                        )}
-                        {/* 基础信息 */}
-                        <div className="space-y-2 mb-4">
-                          <div className="flex justify-between items-center text-sm min-w-0">
-                            <span className="text-default-600 flex-shrink-0">
-                              IP
-                            </span>
-                            <div className="text-right text-xs min-w-0 flex-1 ml-2">
-                              {node.serverIpV4?.trim() ||
-                              node.serverIpV6?.trim() ? (
-                                <div className="space-y-0.5">
-                                  {node.serverIpV4?.trim() && (
-                                    <span
-                                      className="font-mono truncate block"
-                                      title={node.serverIpV4.trim()}
-                                    >
-                                      {node.serverIpV4.trim()}
-                                    </span>
-                                  )}
-                                  {node.serverIpV6?.trim() && (
-                                    <span
-                                      className="font-mono truncate block"
-                                      title={node.serverIpV6.trim()}
-                                    >
-                                      {node.serverIpV6.trim()}
-                                    </span>
-                                  )}
-                                </div>
-                              ) : (
-                                <span
-                                  className="font-mono truncate block"
-                                  title={node.serverIp.trim()}
-                                >
-                                  {node.serverIp.trim()}
-                                </span>
-                              )}
                             </div>
                           </div>
+                        </CardHeader>
+
+                        <CardBody className="pt-0 pb-3">
+                          {isRemoteNode && node.syncError && (
+                            <div className="mb-3 px-2 py-1.5 rounded-md bg-warning-50 dark:bg-warning-100/10 text-warning-700 dark:text-warning-400 text-xs">
+                              {node.syncError === "provider_share_deleted"
+                                ? "提供方已删除该分享"
+                                : node.syncError === "provider_share_disabled"
+                                  ? "提供方已禁用该分享"
+                                  : node.syncError === "provider_share_expired"
+                                    ? "提供方分享已过期"
+                                    : `远程同步失败: ${node.syncError}`}
+                            </div>
+                          )}
+                          {/* 基础信息 */}
+                          <div className="space-y-2 mb-4">
+                            <div className="flex justify-between items-center text-sm min-w-0">
+                              <span className="text-default-600 flex-shrink-0">
+                                IP
+                              </span>
+                              <div className="text-right text-xs min-w-0 flex-1 ml-2">
+                                {node.serverIpV4?.trim() ||
+                                node.serverIpV6?.trim() ? (
+                                  <div className="space-y-0.5">
+                                    {node.serverIpV4?.trim() && (
+                                      <span
+                                        className="font-mono truncate block"
+                                        title={node.serverIpV4.trim()}
+                                      >
+                                        {node.serverIpV4.trim()}
+                                      </span>
+                                    )}
+                                    {node.serverIpV6?.trim() && (
+                                      <span
+                                        className="font-mono truncate block"
+                                        title={node.serverIpV6.trim()}
+                                      >
+                                        {node.serverIpV6.trim()}
+                                      </span>
+                                    )}
+                                  </div>
+                                ) : (
+                                  <span
+                                    className="font-mono truncate block"
+                                    title={node.serverIp.trim()}
+                                  >
+                                    {node.serverIp.trim()}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                            {!isRemoteNode && (
+                              <>
+                                <div className="flex justify-between text-sm">
+                                  <span className="text-default-600">版本</span>
+                                  <span className="text-xs">
+                                    {node.version || "未知"}
+                                  </span>
+                                </div>
+                                {upgradeProgress[node.id] &&
+                                  upgradeProgress[node.id].percent < 100 && (
+                                    <div className="mt-1">
+                                      <Progress
+                                        showValueLabel
+                                        aria-label="升级进度"
+                                        color="warning"
+                                        label={upgradeProgress[node.id].message}
+                                        size="sm"
+                                        value={upgradeProgress[node.id].percent}
+                                      />
+                                    </div>
+                                  )}
+                                <div className="flex justify-between text-sm">
+                                  <span className="text-default-600">
+                                    开机时间
+                                  </span>
+                                  <span className="text-xs">
+                                    {node.connectionStatus === "online" &&
+                                    node.systemInfo
+                                      ? formatUptime(node.systemInfo.uptime)
+                                      : "-"}
+                                  </span>
+                                </div>
+                              </>
+                            )}
+                          </div>
+
                           {!isRemoteNode && (
                             <>
-                              <div className="flex justify-between text-sm">
-                                <span className="text-default-600">版本</span>
-                                <span className="text-xs">
-                                  {node.version || "未知"}
-                                </span>
-                              </div>
-                              {upgradeProgress[node.id] && upgradeProgress[node.id].percent < 100 && (
-                                <div className="mt-1">
-                                  <Progress
-                                    aria-label="升级进度"
-                                    color="warning"
-                                    label={upgradeProgress[node.id].message}
-                                    showValueLabel
-                                    size="sm"
-                                    value={upgradeProgress[node.id].percent}
-                                  />
+                              {/* 系统监控 */}
+                              <div className="space-y-3 mb-4">
+                                <div className="grid grid-cols-2 gap-3">
+                                  <div>
+                                    <div className="flex justify-between text-xs mb-1">
+                                      <span>CPU</span>
+                                      <span className="font-mono">
+                                        {node.connectionStatus === "online" &&
+                                        node.systemInfo
+                                          ? `${node.systemInfo.cpuUsage.toFixed(1)}%`
+                                          : "-"}
+                                      </span>
+                                    </div>
+                                    <Progress
+                                      aria-label="CPU使用率"
+                                      color={getProgressColor(
+                                        node.connectionStatus === "online" &&
+                                          node.systemInfo
+                                          ? node.systemInfo.cpuUsage
+                                          : 0,
+                                        node.connectionStatus !== "online",
+                                      )}
+                                      size="sm"
+                                      value={
+                                        node.connectionStatus === "online" &&
+                                        node.systemInfo
+                                          ? node.systemInfo.cpuUsage
+                                          : 0
+                                      }
+                                    />
+                                  </div>
+                                  <div>
+                                    <div className="flex justify-between text-xs mb-1">
+                                      <span>内存</span>
+                                      <span className="font-mono">
+                                        {node.connectionStatus === "online" &&
+                                        node.systemInfo
+                                          ? `${node.systemInfo.memoryUsage.toFixed(1)}%`
+                                          : "-"}
+                                      </span>
+                                    </div>
+                                    <Progress
+                                      aria-label="内存使用率"
+                                      color={getProgressColor(
+                                        node.connectionStatus === "online" &&
+                                          node.systemInfo
+                                          ? node.systemInfo.memoryUsage
+                                          : 0,
+                                        node.connectionStatus !== "online",
+                                      )}
+                                      size="sm"
+                                      value={
+                                        node.connectionStatus === "online" &&
+                                        node.systemInfo
+                                          ? node.systemInfo.memoryUsage
+                                          : 0
+                                      }
+                                    />
+                                  </div>
                                 </div>
-                              )}
-                              <div className="flex justify-between text-sm">
-                                <span className="text-default-600">开机时间</span>
-                                <span className="text-xs">
-                                  {node.connectionStatus === "online" &&
-                                  node.systemInfo
-                                    ? formatUptime(node.systemInfo.uptime)
-                                    : "-"}
-                                </span>
+
+                                <div className="grid grid-cols-2 gap-2 text-xs">
+                                  <div className="text-center p-2 bg-default-50 dark:bg-default-100 rounded">
+                                    <div className="text-default-600 mb-0.5">
+                                      上传
+                                    </div>
+                                    <div className="font-mono">
+                                      {node.connectionStatus === "online" &&
+                                      node.systemInfo
+                                        ? formatSpeed(
+                                            node.systemInfo.uploadSpeed,
+                                          )
+                                        : "-"}
+                                    </div>
+                                  </div>
+                                  <div className="text-center p-2 bg-default-50 dark:bg-default-100 rounded">
+                                    <div className="text-default-600 mb-0.5">
+                                      下载
+                                    </div>
+                                    <div className="font-mono">
+                                      {node.connectionStatus === "online" &&
+                                      node.systemInfo
+                                        ? formatSpeed(
+                                            node.systemInfo.downloadSpeed,
+                                          )
+                                        : "-"}
+                                    </div>
+                                  </div>
+                                </div>
+
+                                {/* 流量统计 */}
+                                <div className="grid grid-cols-2 gap-2 text-xs">
+                                  <div className="text-center p-2 bg-primary-50 dark:bg-primary-100/20 rounded border border-primary-200 dark:border-primary-300/20">
+                                    <div className="text-primary-600 dark:text-primary-400 mb-0.5">
+                                      ↑ 上行流量
+                                    </div>
+                                    <div className="font-mono text-primary-700 dark:text-primary-300">
+                                      {node.connectionStatus === "online" &&
+                                      node.systemInfo
+                                        ? formatTraffic(
+                                            node.systemInfo.uploadTraffic,
+                                          )
+                                        : "-"}
+                                    </div>
+                                  </div>
+                                  <div className="text-center p-2 bg-success-50 dark:bg-success-100/20 rounded border border-success-200 dark:border-success-300/20">
+                                    <div className="text-success-600 dark:text-success-400 mb-0.5">
+                                      ↓ 下行流量
+                                    </div>
+                                    <div className="font-mono text-success-700 dark:text-success-300">
+                                      {node.connectionStatus === "online" &&
+                                      node.systemInfo
+                                        ? formatTraffic(
+                                            node.systemInfo.downloadTraffic,
+                                          )
+                                        : "-"}
+                                    </div>
+                                  </div>
+                                </div>
                               </div>
                             </>
                           )}
-                        </div>
 
-                        {!isRemoteNode && (
-                          <>
-                            {/* 系统监控 */}
-                            <div className="space-y-3 mb-4">
-                              <div className="grid grid-cols-2 gap-3">
-                                <div>
-                                  <div className="flex justify-between text-xs mb-1">
-                                    <span>CPU</span>
-                                    <span className="font-mono">
-                                      {node.connectionStatus === "online" &&
-                                      node.systemInfo
-                                        ? `${node.systemInfo.cpuUsage.toFixed(1)}%`
-                                        : "-"}
-                                    </span>
-                                  </div>
-                                  <Progress
-                                    aria-label="CPU使用率"
-                                    color={getProgressColor(
-                                      node.connectionStatus === "online" &&
-                                        node.systemInfo
-                                        ? node.systemInfo.cpuUsage
-                                        : 0,
-                                      node.connectionStatus !== "online",
-                                    )}
-                                    size="sm"
-                                    value={
-                                      node.connectionStatus === "online" &&
-                                      node.systemInfo
-                                        ? node.systemInfo.cpuUsage
-                                        : 0
-                                    }
-                                  />
-                                </div>
-                                <div>
-                                  <div className="flex justify-between text-xs mb-1">
-                                    <span>内存</span>
-                                    <span className="font-mono">
-                                      {node.connectionStatus === "online" &&
-                                      node.systemInfo
-                                        ? `${node.systemInfo.memoryUsage.toFixed(1)}%`
-                                        : "-"}
-                                    </span>
-                                  </div>
-                                  <Progress
-                                    aria-label="内存使用率"
-                                    color={getProgressColor(
-                                      node.connectionStatus === "online" &&
-                                        node.systemInfo
-                                        ? node.systemInfo.memoryUsage
-                                        : 0,
-                                      node.connectionStatus !== "online",
-                                    )}
-                                    size="sm"
-                                    value={
-                                      node.connectionStatus === "online" &&
-                                      node.systemInfo
-                                        ? node.systemInfo.memoryUsage
-                                        : 0
-                                    }
-                                  />
-                                </div>
-                              </div>
-
-                              <div className="grid grid-cols-2 gap-2 text-xs">
-                                <div className="text-center p-2 bg-default-50 dark:bg-default-100 rounded">
-                                  <div className="text-default-600 mb-0.5">
-                                    上传
-                                  </div>
-                                  <div className="font-mono">
-                                    {node.connectionStatus === "online" &&
-                                    node.systemInfo
-                                      ? formatSpeed(node.systemInfo.uploadSpeed)
-                                      : "-"}
-                                  </div>
-                                </div>
-                                <div className="text-center p-2 bg-default-50 dark:bg-default-100 rounded">
-                                  <div className="text-default-600 mb-0.5">
-                                    下载
-                                  </div>
-                                  <div className="font-mono">
-                                    {node.connectionStatus === "online" &&
-                                    node.systemInfo
-                                      ? formatSpeed(node.systemInfo.downloadSpeed)
-                                      : "-"}
-                                  </div>
-                                </div>
-                              </div>
-
-                              {/* 流量统计 */}
-                              <div className="grid grid-cols-2 gap-2 text-xs">
-                                <div className="text-center p-2 bg-primary-50 dark:bg-primary-100/20 rounded border border-primary-200 dark:border-primary-300/20">
-                                  <div className="text-primary-600 dark:text-primary-400 mb-0.5">
-                                    ↑ 上行流量
-                                  </div>
-                                  <div className="font-mono text-primary-700 dark:text-primary-300">
-                                    {node.connectionStatus === "online" &&
-                                    node.systemInfo
-                                      ? formatTraffic(node.systemInfo.uploadTraffic)
-                                      : "-"}
-                                  </div>
-                                </div>
-                                <div className="text-center p-2 bg-success-50 dark:bg-success-100/20 rounded border border-success-200 dark:border-success-300/20">
-                                  <div className="text-success-600 dark:text-success-400 mb-0.5">
-                                    ↓ 下行流量
-                                  </div>
-                                  <div className="font-mono text-success-700 dark:text-success-300">
-                                    {node.connectionStatus === "online" &&
-                                    node.systemInfo
-                                      ? formatTraffic(
-                                          node.systemInfo.downloadTraffic,
-                                        )
-                                      : "-"}
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                          </>
-                        )}
-
-                        {/* 操作按钮 */}
-                        <div className="space-y-1.5">
-                          {!isRemoteNode && (
-                            <div className="grid grid-cols-3 gap-1.5">
-                              <Button
-                                className="min-h-8"
-                                color="success"
-                                isLoading={node.copyLoading}
-                                size="sm"
-                                variant="flat"
-                                onPress={() => handleCopyInstallCommand(node)}
-                              >
-                                安装
-                              </Button>
-                              <Button
-                                className="min-h-8"
-                                color="warning"
-                                isDisabled={node.connectionStatus !== "online"}
-                                isLoading={node.upgradeLoading}
-                                size="sm"
-                                variant="flat"
-                                onPress={() => openUpgradeModal("single", node.id)}
-                              >
-                                升级
-                              </Button>
-                              <Button
-                                className="min-h-8"
-                                color="secondary"
-                                isDisabled={node.connectionStatus !== "online"}
-                                isLoading={node.rollbackLoading}
-                                size="sm"
-                                variant="flat"
-                                onPress={() => handleRollbackNode(node)}
-                              >
-                                回退
-                              </Button>
-                            </div>
-                          )}
-                          <div className={`grid gap-1.5 ${isRemoteNode ? "grid-cols-1" : "grid-cols-2"}`}>
+                          {/* 操作按钮 */}
+                          <div className="space-y-1.5">
                             {!isRemoteNode && (
+                              <div className="grid grid-cols-3 gap-1.5">
+                                <Button
+                                  className="min-h-8"
+                                  color="success"
+                                  isLoading={node.copyLoading}
+                                  size="sm"
+                                  variant="flat"
+                                  onPress={() => handleCopyInstallCommand(node)}
+                                >
+                                  安装
+                                </Button>
+                                <Button
+                                  className="min-h-8"
+                                  color="warning"
+                                  isDisabled={
+                                    node.connectionStatus !== "online"
+                                  }
+                                  isLoading={node.upgradeLoading}
+                                  size="sm"
+                                  variant="flat"
+                                  onPress={() =>
+                                    openUpgradeModal("single", node.id)
+                                  }
+                                >
+                                  升级
+                                </Button>
+                                <Button
+                                  className="min-h-8"
+                                  color="secondary"
+                                  isDisabled={
+                                    node.connectionStatus !== "online"
+                                  }
+                                  isLoading={node.rollbackLoading}
+                                  size="sm"
+                                  variant="flat"
+                                  onPress={() => handleRollbackNode(node)}
+                                >
+                                  回退
+                                </Button>
+                              </div>
+                            )}
+                            <div
+                              className={`grid gap-1.5 ${isRemoteNode ? "grid-cols-1" : "grid-cols-2"}`}
+                            >
+                              {!isRemoteNode && (
+                                <Button
+                                  className="min-h-8"
+                                  color="primary"
+                                  size="sm"
+                                  variant="flat"
+                                  onPress={() => handleEdit(node)}
+                                >
+                                  编辑
+                                </Button>
+                              )}
                               <Button
                                 className="min-h-8"
-                                color="primary"
+                                color="danger"
                                 size="sm"
                                 variant="flat"
-                                onPress={() => handleEdit(node)}
+                                onPress={() => handleDelete(node)}
                               >
-                                编辑
+                                删除
                               </Button>
-                            )}
-                            <Button
-                              className="min-h-8"
-                              color="danger"
-                              size="sm"
-                              variant="flat"
-                              onPress={() => handleDelete(node)}
-                            >
-                              删除
-                            </Button>
+                            </div>
                           </div>
-                        </div>
-                      </CardBody>
-                    </Card>
-                  )}
-                </SortableItem>
+                        </CardBody>
+                      </Card>
+                    )}
+                  </SortableItem>
                 );
               })}
             </div>
@@ -2041,6 +2097,7 @@ export default function NodePage() {
                       selectedKeys={selectedVersion ? [selectedVersion] : []}
                       onSelectionChange={(keys) => {
                         const selected = Array.from(keys)[0] as string;
+
                         setSelectedVersion(selected || "");
                       }}
                     >
@@ -2053,7 +2110,12 @@ export default function NodePage() {
                                 ? new Date(r.publishedAt).toLocaleDateString()
                                 : ""}
                               {r.prerelease && (
-                                <Chip className="ml-1" color="warning" size="sm" variant="flat">
+                                <Chip
+                                  className="ml-1"
+                                  color="warning"
+                                  size="sm"
+                                  variant="flat"
+                                >
                                   预览
                                 </Chip>
                               )}

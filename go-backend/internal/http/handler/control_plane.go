@@ -457,7 +457,17 @@ func (h *Handler) applyNodeProtocolChange(nodeID int64, httpVal, tlsVal, socksVa
 }
 
 func (h *Handler) sendNodeCommand(nodeID int64, commandType string, data interface{}, tolerateExists bool, tolerateNotFound bool) (ws.CommandResult, error) {
-	result, err := h.wsServer.SendCommand(nodeID, commandType, data, 12*time.Second)
+	var (
+		result ws.CommandResult
+		err    error
+	)
+
+	node, nodeErr := h.getNodeRecord(nodeID)
+	if nodeErr == nil && node != nil && node.IsRemote == 1 {
+		result, err = h.sendRemoteNodeCommand(node, commandType, data)
+	} else {
+		result, err = h.wsServer.SendCommand(nodeID, commandType, data, 12*time.Second)
+	}
 	if err == nil {
 		return result, nil
 	}
@@ -473,6 +483,44 @@ func (h *Handler) sendNodeCommand(nodeID int64, commandType string, data interfa
 		}
 	}
 	return result, err
+}
+
+func (h *Handler) sendRemoteNodeCommand(node *nodeRecord, commandType string, data interface{}) (ws.CommandResult, error) {
+	if node == nil {
+		return ws.CommandResult{}, errors.New("节点不存在")
+	}
+	remoteURL := strings.TrimSpace(node.RemoteURL)
+	remoteToken := strings.TrimSpace(node.RemoteToken)
+	if remoteURL == "" || remoteToken == "" {
+		return ws.CommandResult{}, errors.New("远程节点缺少共享配置")
+	}
+
+	fc := client.NewFederationClient()
+	res, err := fc.Command(remoteURL, remoteToken, h.federationLocalDomain(), client.RuntimeNodeCommandRequest{
+		CommandType: commandType,
+		Data:        data,
+	})
+	if err != nil {
+		return ws.CommandResult{}, err
+	}
+	if res == nil {
+		return ws.CommandResult{}, errors.New("远程节点未返回命令结果")
+	}
+
+	result := ws.CommandResult{
+		Type:    res.Type,
+		Success: res.Success,
+		Message: res.Message,
+		Data:    res.Data,
+	}
+	if !result.Success {
+		msg := strings.TrimSpace(result.Message)
+		if msg == "" {
+			msg = "命令执行失败"
+		}
+		return result, errors.New(msg)
+	}
+	return result, nil
 }
 
 func (h *Handler) diagnoseForwardRuntime(forward *forwardRecord) (map[string]interface{}, error) {

@@ -169,7 +169,11 @@ func (h *Handler) Register(mux *http.ServeMux) {
 	mux.HandleFunc("/api/v1/federation/runtime/apply-role", h.authPeer(h.federationRuntimeApplyRole))
 	mux.HandleFunc("/api/v1/federation/runtime/release-role", h.authPeer(h.federationRuntimeReleaseRole))
 	mux.HandleFunc("/api/v1/federation/runtime/diagnose", h.authPeer(h.federationRuntimeDiagnose))
+	mux.HandleFunc("/api/v1/federation/runtime/command", h.authPeer(h.federationRuntimeCommand))
 	mux.HandleFunc("/api/v1/federation/node/import", h.nodeImport)
+
+	mux.HandleFunc("/api/v1/backup/export", h.backupExport)
+	mux.HandleFunc("/api/v1/backup/import", h.backupImport)
 
 	mux.HandleFunc("/flow/test", h.flowTest)
 	mux.HandleFunc("/flow/config", h.flowConfig)
@@ -1139,4 +1143,85 @@ func (h *Handler) verifyCloudflareTurnstile(token, secretKey string) bool {
 		return false
 	}
 	return body.Success
+}
+
+type backupExportRequest struct {
+	Types []string `json:"types"`
+}
+
+func (h *Handler) backupExport(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		response.WriteJSON(w, response.ErrDefault("请求失败"))
+		return
+	}
+
+	var req backupExportRequest
+	if err := decodeJSON(r.Body, &req); err != nil {
+		response.WriteJSON(w, response.Err(500, "请求参数错误"))
+		return
+	}
+
+	var backup interface{}
+	var err error
+
+	if len(req.Types) == 0 {
+		backup, err = h.repo.ExportAll()
+	} else {
+		backup, err = h.repo.ExportPartial(req.Types)
+	}
+
+	if err != nil {
+		response.WriteJSON(w, response.Err(-2, err.Error()))
+		return
+	}
+
+	w.Header().Set("Content-Disposition", "attachment; filename=backup.json")
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(backup); err != nil {
+		response.WriteJSON(w, response.Err(-2, err.Error()))
+		return
+	}
+}
+
+type backupImportRequest struct {
+	Types []string `json:"types"`
+	sqlite.BackupData
+}
+
+func (h *Handler) backupImport(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		response.WriteJSON(w, response.ErrDefault("请求失败"))
+		return
+	}
+
+	var req backupImportRequest
+	if err := decodeJSON(r.Body, &req); err != nil {
+		response.WriteJSON(w, response.Err(500, "请求参数错误"))
+		return
+	}
+
+	if len(req.Types) == 0 {
+		response.WriteJSON(w, response.Err(500, "请选择要导入的数据类型"))
+		return
+	}
+
+	autoBackup, err := h.repo.ExportAll()
+	if err != nil {
+		response.WriteJSON(w, response.Err(-2, fmt.Sprintf("导入前自动备份失败: %v", err)))
+		return
+	}
+
+	if req.BackupData.Version == "" {
+		response.WriteJSON(w, response.Err(500, "备份数据格式错误"))
+		return
+	}
+
+	result, err := h.repo.Import(&req.BackupData, req.Types)
+	if err != nil {
+		response.WriteJSON(w, response.Err(-2, fmt.Sprintf("导入失败: %v", err)))
+		return
+	}
+
+	result.AutoBackup = autoBackup
+	response.WriteJSON(w, response.OK(result))
 }

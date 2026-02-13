@@ -83,8 +83,9 @@ export default function IndexPage() {
       if (response.code !== 0) {
         toast.error(response.msg || "登录失败");
         if (showCaptcha) {
-           setForm((prev) => ({ ...prev, captchaId: "" }));
+          setForm((prev) => ({ ...prev, captchaId: "" }));
         }
+
         return;
       }
 
@@ -138,11 +139,7 @@ export default function IndexPage() {
       } else {
         const configResp = await getConfigByName("cloudflare_site_key");
 
-        if (
-          configResp.code === 0 &&
-          configResp.data &&
-          configResp.data.value
-        ) {
+        if (configResp.code === 0 && configResp.data && configResp.data.value) {
           setSiteKey(configResp.data.value);
           setShowCaptcha(true);
         } else {
@@ -241,8 +238,10 @@ export default function IndexPage() {
         {showCaptcha && siteKey && (
           <div className="fixed inset-0 z-50 flex items-center justify-center">
             {/* 背景遮罩层 - 模糊效果，暗黑模式下更深 */}
-            <div 
+            <div
               className="absolute inset-0 bg-black/60 dark:bg-black/80 backdrop-blur-sm captcha-backdrop-enter"
+              role="button"
+              tabIndex={0}
               onClick={() => {
                 setShowCaptcha(false);
                 setLoading(false);
@@ -253,32 +252,35 @@ export default function IndexPage() {
                   setLoading(false);
                 }
               }}
-              role="button"
-              tabIndex={0}
             />
             {/* 验证码容器 */}
             <div className="mb-4 relative z-50 bg-white dark:bg-zinc-900 p-6 rounded-lg shadow-xl">
-              <div className="mb-4 text-center text-sm font-medium text-gray-700 dark:text-gray-200">请完成安全验证</div>
+              <div className="mb-4 text-center text-sm font-medium text-gray-700 dark:text-gray-200">
+                请完成安全验证
+              </div>
               <div className="flex justify-center">
                 <Turnstile
-                  siteKey={siteKey}
-                  onSuccess={(token) => {
-                    setForm((prev) => ({ ...prev, captchaId: token }));
-                    void performLogin(token);
+                  options={{
+                    theme: (document.documentElement.classList.contains(
+                      "dark",
+                    ) ||
+                    document.documentElement.getAttribute("data-theme") ===
+                      "dark" ||
+                    window.matchMedia("(prefers-color-scheme: dark)").matches
+                      ? "dark"
+                      : "light") as "light" | "dark" | "auto",
                   }}
+                  siteKey={siteKey}
                   onError={() => {
                     toast.error("验证失败，请刷新重试");
                     setLoading(false);
                   }}
                   onExpire={() => {
-                     setForm((prev) => ({ ...prev, captchaId: "" }));
+                    setForm((prev) => ({ ...prev, captchaId: "" }));
                   }}
-                  options={{
-                    theme: (document.documentElement.classList.contains("dark") ||
-                    document.documentElement.getAttribute("data-theme") === "dark" ||
-                    window.matchMedia("(prefers-color-scheme: dark)").matches
-                      ? "dark"
-                      : "light") as "light" | "dark" | "auto"
+                  onSuccess={(token) => {
+                    setForm((prev) => ({ ...prev, captchaId: token }));
+                    void performLogin(token);
                   }}
                 />
               </div>

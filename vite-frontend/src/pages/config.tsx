@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@heroui/button";
 import { Card, CardBody, CardHeader } from "@heroui/card";
@@ -7,9 +7,10 @@ import { Spinner } from "@heroui/spinner";
 import { Divider } from "@heroui/divider";
 import { Switch } from "@heroui/switch";
 import { Select, SelectItem } from "@heroui/select";
+import { Checkbox, CheckboxGroup } from "@heroui/checkbox";
 import toast from "react-hot-toast";
 
-import { updateConfigs } from "@/api";
+import { updateConfigs, exportBackup, importBackup } from "@/api";
 import { SettingsIcon } from "@/components/icons";
 import { isAdmin } from "@/utils/auth";
 import {
@@ -130,11 +131,18 @@ export default function ConfigPage() {
     useState<Record<string, string>>(initialConfigs);
   const [loading, setLoading] = useState(
     Object.keys(initialConfigs).length === 0,
-  ); // 如果有缓存数据，不显示loading
+  );
   const [saving, setSaving] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
   const [originalConfigs, setOriginalConfigs] =
     useState<Record<string, string>>(initialConfigs);
+
+  const [exportTypes, setExportTypes] = useState<string[]>([]);
+  const [importTypes, setImportTypes] = useState<string[]>([]);
+  const [exporting, setExporting] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const [importFileName, setImportFileName] = useState("");
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // 权限检查
   useEffect(() => {
@@ -331,6 +339,63 @@ export default function ConfigPage() {
     }
   };
 
+  const handleExport = async () => {
+    if (exportTypes.length === 0) {
+      toast.error("请至少选择一种数据类型");
+
+      return;
+    }
+    setExporting(true);
+    try {
+      await exportBackup(exportTypes);
+      toast.success("导出成功");
+    } catch {
+      toast.error("导出失败，请重试");
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+
+    if (!file) return;
+
+    if (importTypes.length === 0) {
+      toast.error("请先选择要导入的数据类型");
+
+      return;
+    }
+
+    setImportFileName(file.name);
+    setImporting(true);
+
+    try {
+      const text = await file.text();
+      const data = JSON.parse(text);
+
+      const response = await importBackup({
+        types: importTypes,
+        ...data,
+      });
+
+      if (response.code === 0) {
+        toast.success(`导入成功: ${JSON.stringify(response.data)}`);
+        setImportTypes([]);
+        setImportFileName("");
+      } else {
+        toast.error("导入失败: " + response.msg);
+      }
+    } catch {
+      toast.error("导入失败，请检查文件格式");
+    } finally {
+      setImporting(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
@@ -427,6 +492,140 @@ export default function ConfigPage() {
           </CardBody>
         </Card>
       )}
+
+      {/* 备份与恢复 */}
+      <Card className="mt-6 shadow-md">
+        <CardHeader className="pb-4">
+          <div className="flex justify-between items-center w-full">
+            <div>
+              <h2 className="text-xl font-semibold">数据备份与恢复</h2>
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                导出或导入系统数据，支持选择特定数据类型
+              </p>
+            </div>
+          </div>
+        </CardHeader>
+
+        <Divider />
+
+        <CardBody className="space-y-6 pt-6">
+          {/* 导出部分 */}
+          <div className="space-y-4">
+            <h3 className="text-lg font-medium">导出数据</h3>
+            <p className="text-sm text-gray-600 dark:text-gray-400">
+              选择要导出的数据类型，导出为 JSON 格式文件
+            </p>
+
+            <CheckboxGroup
+              classNames={{
+                wrapper: "gap-4",
+              }}
+              label="选择导出内容"
+              orientation="horizontal"
+              value={exportTypes}
+              onValueChange={(values) => setExportTypes(values as string[])}
+            >
+              <Checkbox value="users">用户</Checkbox>
+              <Checkbox value="nodes">节点</Checkbox>
+              <Checkbox value="tunnels">隧道</Checkbox>
+              <Checkbox value="forwards">转发</Checkbox>
+              <Checkbox value="userTunnels">用户隧道权限</Checkbox>
+              <Checkbox value="speedLimits">限速规则</Checkbox>
+              <Checkbox value="tunnelGroups">隧道分组</Checkbox>
+              <Checkbox value="userGroups">用户分组</Checkbox>
+              <Checkbox value="permissions">分组权限</Checkbox>
+              <Checkbox value="configs">系统配置</Checkbox>
+            </CheckboxGroup>
+
+            <div className="flex gap-3">
+              <Button
+                color="primary"
+                isLoading={exporting}
+                onPress={handleExport}
+              >
+                {exporting ? "导出中..." : "导出数据"}
+              </Button>
+              <Button
+                variant="bordered"
+                onPress={() => {
+                  setExportTypes([
+                    "users",
+                    "nodes",
+                    "tunnels",
+                    "forwards",
+                    "userTunnels",
+                    "speedLimits",
+                    "tunnelGroups",
+                    "userGroups",
+                    "permissions",
+                    "configs",
+                  ]);
+                }}
+              >
+                全选
+              </Button>
+              <Button variant="flat" onPress={() => setExportTypes([])}>
+                清空
+              </Button>
+            </div>
+          </div>
+
+          <Divider />
+
+          {/* 导入部分 */}
+          <div className="space-y-4">
+            <h3 className="text-lg font-medium">导入数据</h3>
+            <p className="text-sm text-gray-600 dark:text-gray-400">
+              选择要导入的数据类型，支持从备份文件恢复数据
+            </p>
+
+            <CheckboxGroup
+              classNames={{
+                wrapper: "gap-4",
+              }}
+              label="选择导入内容"
+              orientation="horizontal"
+              value={importTypes}
+              onValueChange={(values) => setImportTypes(values as string[])}
+            >
+              <Checkbox value="users">用户</Checkbox>
+              <Checkbox value="nodes">节点</Checkbox>
+              <Checkbox value="tunnels">隧道</Checkbox>
+              <Checkbox value="forwards">转发</Checkbox>
+              <Checkbox value="userTunnels">用户隧道权限</Checkbox>
+              <Checkbox value="speedLimits">限速规则</Checkbox>
+              <Checkbox value="tunnelGroups">隧道分组</Checkbox>
+              <Checkbox value="userGroups">用户分组</Checkbox>
+              <Checkbox value="permissions">分组权限</Checkbox>
+              <Checkbox value="configs">系统配置</Checkbox>
+            </CheckboxGroup>
+
+            <input
+              ref={fileInputRef}
+              accept=".json"
+              className="hidden"
+              type="file"
+              onChange={handleFileChange}
+            />
+
+            <div className="flex gap-3">
+              <Button
+                color="primary"
+                isLoading={importing}
+                variant="flat"
+                onPress={() => fileInputRef.current?.click()}
+              >
+                {importing ? "导入中..." : "选择文件导入"}
+              </Button>
+              {importFileName && (
+                <span className="self-center text-sm text-gray-600 dark:text-gray-400">
+                  已选择: {importFileName}
+                </span>
+              )}
+            </div>
+          </div>
+        </CardBody>
+      </Card>
     </div>
   );
 }

@@ -1,3 +1,5 @@
+import axios from "axios";
+
 import Network from "./network";
 
 // 登陆相关接口
@@ -42,9 +44,17 @@ export const checkNodeStatus = (nodeId?: number) => {
 };
 
 export const upgradeNode = (id: number, version?: string) =>
-  Network.post("/node/upgrade", { id, version: version || "" }, { timeout: 5 * 60 * 1000 });
+  Network.post(
+    "/node/upgrade",
+    { id, version: version || "" },
+    { timeout: 5 * 60 * 1000 },
+  );
 export const batchUpgradeNodes = (ids: number[], version?: string) =>
-  Network.post("/node/batch-upgrade", { ids, version: version || "" }, { timeout: 15 * 60 * 1000 });
+  Network.post(
+    "/node/batch-upgrade",
+    { ids, version: version || "" },
+    { timeout: 15 * 60 * 1000 },
+  );
 export const getNodeReleases = () => Network.post("/node/releases");
 export const rollbackNode = (id: number) =>
   Network.post("/node/rollback", { id });
@@ -224,7 +234,50 @@ export const resetPeerShareFlow = (id: number) =>
   Network.post("/federation/share/reset-flow", { id });
 export const getPeerRemoteUsageList = () =>
   Network.post("/federation/share/remote-usage/list");
-export const importRemoteNode = (data: {
-  remoteUrl: string;
-  token: string;
-}) => Network.post("/federation/node/import", data);
+export const importRemoteNode = (data: { remoteUrl: string; token: string }) =>
+  Network.post("/federation/node/import", data);
+
+export interface BackupTypes {
+  users?: boolean;
+  nodes?: boolean;
+  tunnels?: boolean;
+  forwards?: boolean;
+  userTunnels?: boolean;
+  speedLimits?: boolean;
+  tunnelGroups?: boolean;
+  userGroups?: boolean;
+  permissions?: boolean;
+  configs?: boolean;
+}
+
+export const exportBackup = async (types: string[] = []) => {
+  const token = window.localStorage.getItem("token");
+  const baseURL = axios.defaults.baseURL || "/api/v1/";
+
+  const response = await axios.post(
+    `${baseURL}/backup/export`,
+    { types },
+    {
+      headers: {
+        Authorization: token,
+        "Content-Type": "application/json",
+      },
+      responseType: "blob",
+    },
+  );
+
+  const url = window.URL.createObjectURL(new Blob([response.data]));
+  const link = document.createElement("a");
+
+  link.href = url;
+  const timestamp = new Date().toISOString().slice(0, 19).replace(/[:-]/g, "");
+
+  link.setAttribute("download", `backup_${timestamp}.json`);
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  window.URL.revokeObjectURL(url);
+};
+
+export const importBackup = (data: { types: string[]; [key: string]: any }) =>
+  Network.post("/backup/import", data);
