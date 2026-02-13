@@ -2061,7 +2061,7 @@ func (h *Handler) prepareTunnelCreateState(tx *store.Tx, req map[string]interfac
 			}
 			return nil, err
 		}
-		if node.Status != 1 {
+		if node.IsRemote != 1 && node.Status != 1 {
 			return nil, errors.New("部分节点不在线")
 		}
 		state.Nodes[nodeID] = node

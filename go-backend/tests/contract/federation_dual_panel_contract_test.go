@@ -78,6 +78,8 @@ func TestFederationDualPanelMiddleExitAutoPortContract(t *testing.T) {
 	middleRemoteNodeID := queryRemoteNodeIDByToken(t, consumerRepo, "share-middle-token")
 	exitRemoteNodeID := queryRemoteNodeIDByToken(t, consumerRepo, "share-exit-token")
 
+	stopEntry := startMockNodeSession(t, providerServer.URL, "provider-entry-secret")
+	defer stopEntry()
 	stopMiddle := startMockNodeSession(t, providerServer.URL, "provider-middle-secret")
 	defer stopMiddle()
 	stopExit := startMockNodeSession(t, providerServer.URL, "provider-exit-secret")
@@ -147,6 +149,23 @@ func TestFederationDualPanelMiddleExitAutoPortContract(t *testing.T) {
 	secondTunnelID := createTunnel("dual-panel-middle-exit-2")
 	assertTunnelPortInRange(t, consumerRepo, secondTunnelID, 2, middleRemoteNodeID, 44000, 44010)
 	assertTunnelPortInRange(t, consumerRepo, secondTunnelID, 3, exitRemoteNodeID, 45000, 45010)
+
+	forwardPayload := map[string]interface{}{
+		"name":       "dual-panel-remote-entry-forward",
+		"tunnelId":   secondTunnelID,
+		"remoteAddr": "1.1.1.1:443",
+		"strategy":   "fifo",
+	}
+	forwardBody, err := json.Marshal(forwardPayload)
+	if err != nil {
+		t.Fatalf("marshal forward payload: %v", err)
+	}
+	forwardReq := httptest.NewRequest(http.MethodPost, "/api/v1/forward/create", bytes.NewReader(forwardBody))
+	forwardReq.Header.Set("Authorization", consumerAdminToken)
+	forwardReq.Header.Set("Content-Type", "application/json")
+	forwardRes := httptest.NewRecorder()
+	consumerRouter.ServeHTTP(forwardRes, forwardReq)
+	assertCode(t, forwardRes, 0)
 
 	assertCount(t, providerRepo, `SELECT COUNT(1) FROM peer_share_runtime WHERE share_id = ? AND status = 1 AND applied = 1`, middleShareID, 1)
 	assertCount(t, providerRepo, `SELECT COUNT(1) FROM peer_share_runtime WHERE share_id = ? AND status = 1 AND applied = 1`, exitShareID, 1)

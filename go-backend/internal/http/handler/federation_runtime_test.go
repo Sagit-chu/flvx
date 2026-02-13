@@ -152,6 +152,71 @@ func TestPrepareTunnelCreateStateRemoteAutoPortDefersToFederation(t *testing.T) 
 	}
 }
 
+func TestPrepareTunnelCreateStateAllowsOfflineRemoteMiddleNode(t *testing.T) {
+	repo, err := sqlite.Open(filepath.Join(t.TempDir(), "panel.db"))
+	if err != nil {
+		t.Fatalf("open repo: %v", err)
+	}
+	defer repo.Close()
+
+	h := &Handler{repo: repo}
+	now := time.Now().UnixMilli()
+
+	insertNode := func(name string, status int, portRange string, isRemote int) int64 {
+		res, execErr := repo.DB().Exec(`
+			INSERT INTO node(name, secret, server_ip, server_ip_v4, server_ip_v6, port, interface_name, version, http, tls, socks, created_time, updated_time, status, tcp_listen_addr, udp_listen_addr, inx, is_remote, remote_url, remote_token, remote_config)
+			VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		`, name, name+"-secret", "10.0.0.1", "10.0.0.1", "", portRange, "", "v1", 1, 1, 1, now, now, status, "[::]", "[::]", 0, isRemote, "http://peer", "peer-token", `{"shareId":2}`)
+		if execErr != nil {
+			t.Fatalf("insert node %s: %v", name, execErr)
+		}
+		id, idErr := res.LastInsertId()
+		if idErr != nil {
+			t.Fatalf("node id %s: %v", name, idErr)
+		}
+		return id
+	}
+
+	entryID := insertNode("entry-local", 1, "32000-32010", 0)
+	remoteMiddleID := insertNode("middle-remote", 0, "33000-33010", 1)
+	outID := insertNode("out-local", 1, "34000-34010", 0)
+
+	tx, err := repo.DB().Begin()
+	if err != nil {
+		t.Fatalf("begin tx: %v", err)
+	}
+	defer tx.Rollback()
+
+	req := map[string]interface{}{
+		"name": "remote-middle-offline-status",
+		"inNodeId": []interface{}{
+			map[string]interface{}{"nodeId": float64(entryID), "protocol": "tls", "strategy": "round"},
+		},
+		"chainNodes": []interface{}{
+			[]interface{}{
+				map[string]interface{}{"nodeId": float64(remoteMiddleID), "protocol": "tls", "strategy": "round", "port": float64(0)},
+			},
+		},
+		"outNodeId": []interface{}{
+			map[string]interface{}{"nodeId": float64(outID), "protocol": "tls", "strategy": "round", "port": float64(0)},
+		},
+	}
+
+	state, err := h.prepareTunnelCreateState(tx, req, 2, 0)
+	if err != nil {
+		t.Fatalf("prepare state should allow offline remote middle node: %v", err)
+	}
+	if len(state.ChainHops) != 1 || len(state.ChainHops[0]) != 1 {
+		t.Fatalf("expected one middle hop node, got %+v", state.ChainHops)
+	}
+	if state.ChainHops[0][0].NodeID != remoteMiddleID {
+		t.Fatalf("expected remote middle node id %d, got %d", remoteMiddleID, state.ChainHops[0][0].NodeID)
+	}
+	if state.Nodes[remoteMiddleID] == nil || state.Nodes[remoteMiddleID].IsRemote != 1 {
+		t.Fatalf("expected remote middle node metadata in state")
+	}
+}
+
 func TestFederationRuntimeReservePortRejectsWhenShareFlowExceeded(t *testing.T) {
 	repo, err := sqlite.Open(filepath.Join(t.TempDir(), "panel.db"))
 	if err != nil {
