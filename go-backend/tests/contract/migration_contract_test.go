@@ -236,23 +236,23 @@ func TestBackupExportImportRestoreContracts(t *testing.T) {
 
 	t.Run("standard and duplicate export routes both work", func(t *testing.T) {
 		payloadA := exportBackupPayload(t, router, "/api/v1/backup/export", adminToken)
-		if len(payloadA.Tables) == 0 {
-			t.Fatalf("expected exported tables, got none")
+		if len(payloadA.Configs) == 0 {
+			t.Fatalf("expected exported configs, got none")
 		}
-		if _, ok := payloadA.Tables["vite_config"]; !ok {
-			t.Fatalf("expected vite_config in exported tables")
+		if _, ok := payloadA.Configs[key]; !ok {
+			t.Fatalf("expected %q in exported configs", key)
 		}
 
 		payloadB := exportBackupPayload(t, router, "/api/v1/api/v1/backup/export", adminToken)
-		if len(payloadB.Tables) == 0 {
-			t.Fatalf("expected exported tables from duplicate-prefix route, got none")
+		if len(payloadB.Configs) == 0 {
+			t.Fatalf("expected exported configs from duplicate-prefix route, got none")
 		}
 	})
 
 	t.Run("backup import applies exported data", func(t *testing.T) {
 		payload := exportBackupPayload(t, router, "/api/v1/backup/export", adminToken)
-		setBackupConfigValue(t, payload.Tables["vite_config"], key, "v2")
-		raw, err := json.Marshal(payload)
+		payload.Configs[key] = "v2"
+		raw, err := json.Marshal(backupImportPayload{Types: []string{"configs"}, backupExportPayload: payload})
 		if err != nil {
 			t.Fatalf("marshal import payload: %v", err)
 		}
@@ -263,7 +263,13 @@ func TestBackupExportImportRestoreContracts(t *testing.T) {
 		resp := httptest.NewRecorder()
 
 		router.ServeHTTP(resp, req)
-		assertCode(t, resp, 0)
+		var out response.R
+		if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
+			t.Fatalf("decode import response: %v", err)
+		}
+		if out.Code != 0 {
+			t.Fatalf("expected import code 0, got %d (%s)", out.Code, out.Msg)
+		}
 
 		cfg, err := repo.GetConfigByName(key)
 		if err != nil {
@@ -276,8 +282,8 @@ func TestBackupExportImportRestoreContracts(t *testing.T) {
 
 	t.Run("backup restore alias applies exported data", func(t *testing.T) {
 		payload := exportBackupPayload(t, router, "/api/v1/backup/export", adminToken)
-		setBackupConfigValue(t, payload.Tables["vite_config"], key, "v3")
-		raw, err := json.Marshal(payload)
+		payload.Configs[key] = "v3"
+		raw, err := json.Marshal(backupImportPayload{Types: []string{"configs"}, backupExportPayload: payload})
 		if err != nil {
 			t.Fatalf("marshal restore payload: %v", err)
 		}
@@ -288,7 +294,13 @@ func TestBackupExportImportRestoreContracts(t *testing.T) {
 		resp := httptest.NewRecorder()
 
 		router.ServeHTTP(resp, req)
-		assertCode(t, resp, 0)
+		var out response.R
+		if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
+			t.Fatalf("decode restore response: %v", err)
+		}
+		if out.Code != 0 {
+			t.Fatalf("expected restore code 0, got %d (%s)", out.Code, out.Msg)
+		}
 
 		cfg, err := repo.GetConfigByName(key)
 		if err != nil {
@@ -301,16 +313,21 @@ func TestBackupExportImportRestoreContracts(t *testing.T) {
 }
 
 type backupExportPayload struct {
-	Version    int                         `json:"version"`
-	ExportedAt int64                       `json:"exportedAt"`
-	Dialect    string                      `json:"dialect"`
-	Tables     map[string][]map[string]any `json:"tables"`
+	Version    string            `json:"version"`
+	ExportedAt int64             `json:"exportedAt"`
+	Configs    map[string]string `json:"configs"`
+}
+
+type backupImportPayload struct {
+	Types []string `json:"types"`
+	backupExportPayload
 }
 
 func exportBackupPayload(t *testing.T, router http.Handler, path, token string) backupExportPayload {
 	t.Helper()
-	req := httptest.NewRequest(http.MethodPost, path, nil)
+	req := httptest.NewRequest(http.MethodPost, path, bytes.NewBufferString(`{"types":["configs"]}`))
 	req.Header.Set("Authorization", token)
+	req.Header.Set("Content-Type", "application/json")
 	resp := httptest.NewRecorder()
 
 	router.ServeHTTP(resp, req)
@@ -318,25 +335,26 @@ func exportBackupPayload(t *testing.T, router http.Handler, path, token string) 
 		t.Fatalf("expected status 200 on %s, got %d", path, resp.Code)
 	}
 
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatalf("read backup payload from %s: %v", path, err)
+	}
+
 	var payload backupExportPayload
-	if err := json.NewDecoder(resp.Body).Decode(&payload); err != nil {
+	if err := json.Unmarshal(body, &payload); err != nil {
 		t.Fatalf("decode backup payload from %s: %v", path, err)
 	}
-	if payload.Version != 1 {
-		t.Fatalf("expected backup payload version 1, got %d", payload.Version)
+	if strings.TrimSpace(payload.Version) == "" {
+		var out response.R
+		if err := json.Unmarshal(body, &out); err == nil {
+			t.Fatalf("expected backup payload on %s, got envelope code=%d msg=%q", path, out.Code, out.Msg)
+		}
+		t.Fatalf("expected non-empty backup payload version on %s, body=%s", path, string(body))
+	}
+	if payload.Configs == nil {
+		t.Fatalf("expected configs map in backup payload on %s", path)
 	}
 	return payload
-}
-
-func setBackupConfigValue(t *testing.T, rows []map[string]any, key, value string) {
-	t.Helper()
-	for _, row := range rows {
-		if strings.TrimSpace(valueAsString(row["name"])) == key {
-			row["value"] = value
-			return
-		}
-	}
-	t.Fatalf("did not find config row %q in backup payload", key)
 }
 
 func setupContractRouter(t *testing.T, jwtSecret string) (http.Handler, *sqlite.Repository) {

@@ -178,9 +178,6 @@ func (h *Handler) Register(mux *http.ServeMux) {
 	mux.HandleFunc("/api/v1/federation/runtime/command", h.authPeer(h.federationRuntimeCommand))
 	mux.HandleFunc("/api/v1/federation/node/import", h.nodeImport)
 
-	mux.HandleFunc("/api/v1/backup/export", h.backupExport)
-	mux.HandleFunc("/api/v1/backup/import", h.backupImport)
-
 	mux.HandleFunc("/flow/test", h.flowTest)
 	mux.HandleFunc("/flow/config", h.flowConfig)
 	mux.HandleFunc("/flow/upload", h.flowUpload)

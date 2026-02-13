@@ -2484,7 +2484,7 @@ func (r *Repository) exportUserGroups() ([]UserGroupBackup, error) {
 
 func (r *Repository) exportPermissions() ([]PermissionBackup, error) {
 	rows, err := r.db.Query(`
-		SELECT id, user_group_id, tunnel_group_id, created_time, created_by_group
+		SELECT id, user_group_id, tunnel_group_id, created_time
 		FROM group_permission ORDER BY id ASC
 	`)
 	if err != nil {
@@ -2495,9 +2495,10 @@ func (r *Repository) exportPermissions() ([]PermissionBackup, error) {
 	var permissions []PermissionBackup
 	for rows.Next() {
 		var p PermissionBackup
-		if err := rows.Scan(&p.ID, &p.UserGroupID, &p.TunnelGroupID, &p.CreatedTime, &p.CreatedByGroup); err != nil {
+		if err := rows.Scan(&p.ID, &p.UserGroupID, &p.TunnelGroupID, &p.CreatedTime); err != nil {
 			return nil, err
 		}
+		p.CreatedByGroup = 0
 		// Get grants for this permission
 		grantRows, err := r.db.Query(`SELECT id, user_group_id, tunnel_group_id, user_tunnel_id, created_time, created_by_group FROM group_permission_grant WHERE user_group_id = ? AND tunnel_group_id = ?`, p.UserGroupID, p.TunnelGroupID)
 		if err != nil {
