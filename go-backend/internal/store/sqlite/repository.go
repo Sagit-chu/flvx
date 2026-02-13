@@ -2330,12 +2330,24 @@ func (r *Repository) exportTunnels() ([]TunnelBackup, error) {
 	var tunnels []TunnelBackup
 	for rows.Next() {
 		var t TunnelBackup
+		var protocol sql.NullString
+		var updatedTime sql.NullInt64
 		var inIP sql.NullString
-		if err := rows.Scan(&t.ID, &t.Name, &t.TrafficRatio, &t.Type, &t.Protocol, &t.Flow, &t.CreatedTime, &t.UpdatedTime, &t.Status, &inIP, &t.Inx); err != nil {
+		var inx sql.NullInt64
+		if err := rows.Scan(&t.ID, &t.Name, &t.TrafficRatio, &t.Type, &protocol, &t.Flow, &t.CreatedTime, &updatedTime, &t.Status, &inIP, &inx); err != nil {
 			return nil, err
+		}
+		if protocol.Valid {
+			t.Protocol = protocol.String
+		}
+		if updatedTime.Valid {
+			t.UpdatedTime = updatedTime.Int64
 		}
 		if inIP.Valid {
 			t.InIP = inIP.String
+		}
+		if inx.Valid {
+			t.Inx = int(inx.Int64)
 		}
 		// Export chain tunnels
 		chainTunnels, err := r.exportChainTunnels(t.ID)
@@ -2362,11 +2374,22 @@ func (r *Repository) exportChainTunnels(tunnelID int64) ([]ChainTunnelBackup, er
 	for rows.Next() {
 		var ct ChainTunnelBackup
 		var port sql.NullInt64
-		if err := rows.Scan(&ct.ID, &ct.TunnelID, &ct.ChainType, &ct.NodeID, &port, &ct.Strategy, &ct.Inx, &ct.Protocol); err != nil {
+		var strategy, protocol sql.NullString
+		var inx sql.NullInt64
+		if err := rows.Scan(&ct.ID, &ct.TunnelID, &ct.ChainType, &ct.NodeID, &port, &strategy, &inx, &protocol); err != nil {
 			return nil, err
 		}
 		if port.Valid {
 			ct.Port = int(port.Int64)
+		}
+		if strategy.Valid {
+			ct.Strategy = strategy.String
+		}
+		if inx.Valid {
+			ct.Inx = int(inx.Int64)
+		}
+		if protocol.Valid {
+			ct.Protocol = protocol.String
 		}
 		chainTunnels = append(chainTunnels, ct)
 	}
@@ -2386,8 +2409,20 @@ func (r *Repository) exportForwards() ([]ForwardBackup, error) {
 	var forwards []ForwardBackup
 	for rows.Next() {
 		var f ForwardBackup
-		if err := rows.Scan(&f.ID, &f.UserID, &f.UserName, &f.Name, &f.TunnelID, &f.RemoteAddr, &f.Strategy, &f.InFlow, &f.OutFlow, &f.CreatedTime, &f.UpdatedTime, &f.Status, &f.Inx); err != nil {
+		var strategy sql.NullString
+		var updatedTime sql.NullInt64
+		var inx sql.NullInt64
+		if err := rows.Scan(&f.ID, &f.UserID, &f.UserName, &f.Name, &f.TunnelID, &f.RemoteAddr, &strategy, &f.InFlow, &f.OutFlow, &f.CreatedTime, &updatedTime, &f.Status, &inx); err != nil {
 			return nil, err
+		}
+		if strategy.Valid {
+			f.Strategy = strategy.String
+		}
+		if updatedTime.Valid {
+			f.UpdatedTime = updatedTime.Int64
+		}
+		if inx.Valid {
+			f.Inx = int(inx.Int64)
 		}
 		forwards = append(forwards, f)
 	}
