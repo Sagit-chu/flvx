@@ -1655,3 +1655,1054 @@ func (r *Repository) DeleteFederationTunnelBindingsByTunnel(tunnelID int64) erro
 var osMkdirAll = func(path string) error {
 	return os.MkdirAll(path, 0o755)
 }
+
+// ============ Backup/Export Data Structures ============
+
+// BackupData represents the full backup structure
+type BackupData struct {
+	Version      string              `json:"version"`
+	ExportedAt   int64               `json:"exportedAt"`
+	Users        []UserBackup        `json:"users,omitempty"`
+	Nodes        []NodeBackup        `json:"nodes,omitempty"`
+	Tunnels      []TunnelBackup      `json:"tunnels,omitempty"`
+	Forwards     []ForwardBackup     `json:"forwards,omitempty"`
+	UserTunnels  []UserTunnelBackup  `json:"userTunnels,omitempty"`
+	SpeedLimits  []SpeedLimitBackup  `json:"speedLimits,omitempty"`
+	TunnelGroups []TunnelGroupBackup `json:"tunnelGroups,omitempty"`
+	UserGroups   []UserGroupBackup   `json:"userGroups,omitempty"`
+	Permissions  []PermissionBackup  `json:"permissions,omitempty"`
+	Configs      map[string]string   `json:"configs,omitempty"`
+}
+
+type UserBackup struct {
+	ID            int64  `json:"id"`
+	User          string `json:"user"`
+	Pwd           string `json:"pwd"`
+	RoleID        int    `json:"roleId"`
+	ExpTime       int64  `json:"expTime"`
+	Flow          int64  `json:"flow"`
+	InFlow        int64  `json:"inFlow"`
+	OutFlow       int64  `json:"outFlow"`
+	FlowResetTime int64  `json:"flowResetTime"`
+	Num           int    `json:"num"`
+	CreatedTime   int64  `json:"createdTime"`
+	UpdatedTime   int64  `json:"updatedTime,omitempty"`
+	Status        int    `json:"status"`
+}
+
+type NodeBackup struct {
+	ID            int64  `json:"id"`
+	Name          string `json:"name"`
+	Secret        string `json:"secret"`
+	ServerIP      string `json:"serverIp"`
+	ServerIPv4    string `json:"serverIpV4,omitempty"`
+	ServerIPv6    string `json:"serverIpV6,omitempty"`
+	Port          string `json:"port"`
+	InterfaceName string `json:"interfaceName,omitempty"`
+	Version       string `json:"version,omitempty"`
+	HTTP          int    `json:"http"`
+	TLS           int    `json:"tls"`
+	Socks         int    `json:"socks"`
+	CreatedTime   int64  `json:"createdTime"`
+	UpdatedTime   int64  `json:"updatedTime,omitempty"`
+	Status        int    `json:"status"`
+	TCPListenAddr string `json:"tcpListenAddr"`
+	UDPListenAddr string `json:"udpListenAddr"`
+	Inx           int    `json:"inx"`
+	IsRemote      int    `json:"isRemote"`
+	RemoteURL     string `json:"remoteUrl,omitempty"`
+	RemoteToken   string `json:"remoteToken,omitempty"`
+	RemoteConfig  string `json:"remoteConfig,omitempty"`
+}
+
+type TunnelBackup struct {
+	ID           int64               `json:"id"`
+	Name         string              `json:"name"`
+	TrafficRatio float64             `json:"trafficRatio"`
+	Type         int                 `json:"type"`
+	Protocol     string              `json:"protocol"`
+	Flow         int64               `json:"flow"`
+	CreatedTime  int64               `json:"createdTime"`
+	UpdatedTime  int64               `json:"updatedTime"`
+	Status       int                 `json:"status"`
+	InIP         string              `json:"inIp,omitempty"`
+	Inx          int                 `json:"inx"`
+	ChainTunnels []ChainTunnelBackup `json:"chainTunnels,omitempty"`
+}
+
+type ChainTunnelBackup struct {
+	ID        int64  `json:"id"`
+	TunnelID  int64  `json:"tunnelId"`
+	ChainType string `json:"chainType"`
+	NodeID    int64  `json:"nodeId"`
+	Port      int    `json:"port,omitempty"`
+	Strategy  string `json:"strategy,omitempty"`
+	Inx       int    `json:"inx,omitempty"`
+	Protocol  string `json:"protocol,omitempty"`
+}
+
+type ForwardBackup struct {
+	ID          int64  `json:"id"`
+	UserID      int64  `json:"userId"`
+	UserName    string `json:"userName"`
+	Name        string `json:"name"`
+	TunnelID    int64  `json:"tunnelId"`
+	RemoteAddr  string `json:"remoteAddr"`
+	Strategy    string `json:"strategy"`
+	InFlow      int64  `json:"inFlow"`
+	OutFlow     int64  `json:"outFlow"`
+	CreatedTime int64  `json:"createdTime"`
+	UpdatedTime int64  `json:"updatedTime"`
+	Status      int    `json:"status"`
+	Inx         int    `json:"inx"`
+}
+
+type UserTunnelBackup struct {
+	ID            int64 `json:"id"`
+	UserID        int64 `json:"userId"`
+	TunnelID      int64 `json:"tunnelId"`
+	SpeedID       int64 `json:"speedId,omitempty"`
+	Num           int   `json:"num"`
+	Flow          int64 `json:"flow"`
+	InFlow        int64 `json:"inFlow"`
+	OutFlow       int64 `json:"outFlow"`
+	FlowResetTime int64 `json:"flowResetTime"`
+	ExpTime       int64 `json:"expTime"`
+	Status        int   `json:"status"`
+}
+
+type SpeedLimitBackup struct {
+	ID          int64  `json:"id"`
+	Name        string `json:"name"`
+	Speed       int64  `json:"speed"`
+	TunnelID    int64  `json:"tunnelId"`
+	TunnelName  string `json:"tunnelName"`
+	CreatedTime int64  `json:"createdTime"`
+	UpdatedTime int64  `json:"updatedTime,omitempty"`
+	Status      int    `json:"status"`
+}
+
+type TunnelGroupBackup struct {
+	ID          int64   `json:"id"`
+	Name        string  `json:"name"`
+	CreatedTime int64   `json:"createdTime"`
+	UpdatedTime int64   `json:"updatedTime"`
+	Status      int     `json:"status"`
+	Tunnels     []int64 `json:"tunnels,omitempty"`
+}
+
+type UserGroupBackup struct {
+	ID          int64   `json:"id"`
+	Name        string  `json:"name"`
+	CreatedTime int64   `json:"createdTime"`
+	UpdatedTime int64   `json:"updatedTime"`
+	Status      int     `json:"status"`
+	Users       []int64 `json:"users,omitempty"`
+}
+
+type PermissionBackup struct {
+	ID             int64                   `json:"id"`
+	UserGroupID    int64                   `json:"userGroupId"`
+	TunnelGroupID  int64                   `json:"tunnelGroupId"`
+	CreatedTime    int64                   `json:"createdTime"`
+	CreatedByGroup int                     `json:"createdByGroup"`
+	Grants         []PermissionGrantBackup `json:"grants,omitempty"`
+}
+
+type PermissionGrantBackup struct {
+	ID             int64 `json:"id"`
+	UserGroupID    int64 `json:"userGroupId"`
+	TunnelGroupID  int64 `json:"tunnelGroupId"`
+	UserTunnelID   int64 `json:"userTunnelId"`
+	CreatedTime    int64 `json:"createdTime"`
+	CreatedByGroup int   `json:"createdByGroup"`
+}
+
+// ============ Export Methods ============
+
+// ExportAll exports all data as BackupData
+func (r *Repository) ExportAll() (*BackupData, error) {
+	backup := &BackupData{
+		Version:    "1.0",
+		ExportedAt: unixMilliNow(),
+	}
+
+	// Export all data types
+	users, err := r.exportUsers()
+	if err != nil {
+		return nil, fmt.Errorf("export users failed: %w", err)
+	}
+	backup.Users = users
+
+	nodes, err := r.exportNodes()
+	if err != nil {
+		return nil, fmt.Errorf("export nodes failed: %w", err)
+	}
+	backup.Nodes = nodes
+
+	tunnels, err := r.exportTunnels()
+	if err != nil {
+		return nil, fmt.Errorf("export tunnels failed: %w", err)
+	}
+	backup.Tunnels = tunnels
+
+	forwards, err := r.exportForwards()
+	if err != nil {
+		return nil, fmt.Errorf("export forwards failed: %w", err)
+	}
+	backup.Forwards = forwards
+
+	userTunnels, err := r.exportUserTunnels()
+	if err != nil {
+		return nil, fmt.Errorf("export user tunnels failed: %w", err)
+	}
+	backup.UserTunnels = userTunnels
+
+	speedLimits, err := r.exportSpeedLimits()
+	if err != nil {
+		return nil, fmt.Errorf("export speed limits failed: %w", err)
+	}
+	backup.SpeedLimits = speedLimits
+
+	tunnelGroups, err := r.exportTunnelGroups()
+	if err != nil {
+		return nil, fmt.Errorf("export tunnel groups failed: %w", err)
+	}
+	backup.TunnelGroups = tunnelGroups
+
+	userGroups, err := r.exportUserGroups()
+	if err != nil {
+		return nil, fmt.Errorf("export user groups failed: %w", err)
+	}
+	backup.UserGroups = userGroups
+
+	permissions, err := r.exportPermissions()
+	if err != nil {
+		return nil, fmt.Errorf("export permissions failed: %w", err)
+	}
+	backup.Permissions = permissions
+
+	configs, err := r.ListConfigs()
+	if err != nil {
+		return nil, fmt.Errorf("export configs failed: %w", err)
+	}
+	backup.Configs = configs
+
+	return backup, nil
+}
+
+// ExportPartial exports selected data types
+func (r *Repository) ExportPartial(types []string) (*BackupData, error) {
+	backup := &BackupData{
+		Version:    "1.0",
+		ExportedAt: unixMilliNow(),
+	}
+
+	typeSet := make(map[string]bool)
+	for _, t := range types {
+		typeSet[t] = true
+	}
+
+	if typeSet["users"] {
+		users, err := r.exportUsers()
+		if err != nil {
+			return nil, fmt.Errorf("export users failed: %w", err)
+		}
+		backup.Users = users
+	}
+	if typeSet["nodes"] {
+		nodes, err := r.exportNodes()
+		if err != nil {
+			return nil, fmt.Errorf("export nodes failed: %w", err)
+		}
+		backup.Nodes = nodes
+	}
+	if typeSet["tunnels"] {
+		tunnels, err := r.exportTunnels()
+		if err != nil {
+			return nil, fmt.Errorf("export tunnels failed: %w", err)
+		}
+		backup.Tunnels = tunnels
+	}
+	if typeSet["forwards"] {
+		forwards, err := r.exportForwards()
+		if err != nil {
+			return nil, fmt.Errorf("export forwards failed: %w", err)
+		}
+		backup.Forwards = forwards
+	}
+	if typeSet["userTunnels"] {
+		userTunnels, err := r.exportUserTunnels()
+		if err != nil {
+			return nil, fmt.Errorf("export user tunnels failed: %w", err)
+		}
+		backup.UserTunnels = userTunnels
+	}
+	if typeSet["speedLimits"] {
+		speedLimits, err := r.exportSpeedLimits()
+		if err != nil {
+			return nil, fmt.Errorf("export speed limits failed: %w", err)
+		}
+		backup.SpeedLimits = speedLimits
+	}
+	if typeSet["tunnelGroups"] {
+		tunnelGroups, err := r.exportTunnelGroups()
+		if err != nil {
+			return nil, fmt.Errorf("export tunnel groups failed: %w", err)
+		}
+		backup.TunnelGroups = tunnelGroups
+	}
+	if typeSet["userGroups"] {
+		userGroups, err := r.exportUserGroups()
+		if err != nil {
+			return nil, fmt.Errorf("export user groups failed: %w", err)
+		}
+		backup.UserGroups = userGroups
+	}
+	if typeSet["permissions"] {
+		permissions, err := r.exportPermissions()
+		if err != nil {
+			return nil, fmt.Errorf("export permissions failed: %w", err)
+		}
+		backup.Permissions = permissions
+	}
+	if typeSet["configs"] {
+		configs, err := r.ListConfigs()
+		if err != nil {
+			return nil, fmt.Errorf("export configs failed: %w", err)
+		}
+		backup.Configs = configs
+	}
+
+	return backup, nil
+}
+
+func (r *Repository) exportUsers() ([]UserBackup, error) {
+	rows, err := r.db.Query(`
+		SELECT id, user, pwd, role_id, exp_time, flow, in_flow, out_flow, flow_reset_time, num, created_time, updated_time, status
+		FROM user ORDER BY id ASC
+	`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var users []UserBackup
+	for rows.Next() {
+		var u UserBackup
+		var updatedTime sql.NullInt64
+		if err := rows.Scan(&u.ID, &u.User, &u.Pwd, &u.RoleID, &u.ExpTime, &u.Flow, &u.InFlow, &u.OutFlow, &u.FlowResetTime, &u.Num, &u.CreatedTime, &updatedTime, &u.Status); err != nil {
+			return nil, err
+		}
+		if updatedTime.Valid {
+			u.UpdatedTime = updatedTime.Int64
+		}
+		users = append(users, u)
+	}
+	return users, rows.Err()
+}
+
+func (r *Repository) exportNodes() ([]NodeBackup, error) {
+	rows, err := r.db.Query(`
+		SELECT id, name, secret, server_ip, server_ip_v4, server_ip_v6, port, interface_name, version, http, tls, socks, created_time, updated_time, status, tcp_listen_addr, udp_listen_addr, inx, is_remote, remote_url, remote_token, remote_config
+		FROM node ORDER BY inx ASC, id ASC
+	`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var nodes []NodeBackup
+	for rows.Next() {
+		var n NodeBackup
+		var updatedTime sql.NullInt64
+		var serverIPv4, serverIPv6, interfaceName, version, remoteURL, remoteToken, remoteConfig sql.NullString
+		if err := rows.Scan(&n.ID, &n.Name, &n.Secret, &n.ServerIP, &serverIPv4, &serverIPv6, &n.Port, &interfaceName, &version, &n.HTTP, &n.TLS, &n.Socks, &n.CreatedTime, &updatedTime, &n.Status, &n.TCPListenAddr, &n.UDPListenAddr, &n.Inx, &n.IsRemote, &remoteURL, &remoteToken, &remoteConfig); err != nil {
+			return nil, err
+		}
+		if updatedTime.Valid {
+			n.UpdatedTime = updatedTime.Int64
+		}
+		if serverIPv4.Valid {
+			n.ServerIPv4 = serverIPv4.String
+		}
+		if serverIPv6.Valid {
+			n.ServerIPv6 = serverIPv6.String
+		}
+		if interfaceName.Valid {
+			n.InterfaceName = interfaceName.String
+		}
+		if version.Valid {
+			n.Version = version.String
+		}
+		if remoteURL.Valid {
+			n.RemoteURL = remoteURL.String
+		}
+		if remoteToken.Valid {
+			n.RemoteToken = remoteToken.String
+		}
+		if remoteConfig.Valid {
+			n.RemoteConfig = remoteConfig.String
+		}
+		nodes = append(nodes, n)
+	}
+	return nodes, rows.Err()
+}
+
+func (r *Repository) exportTunnels() ([]TunnelBackup, error) {
+	rows, err := r.db.Query(`
+		SELECT id, name, traffic_ratio, type, protocol, flow, created_time, updated_time, status, in_ip, inx
+		FROM tunnel ORDER BY inx ASC, id ASC
+	`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var tunnels []TunnelBackup
+	for rows.Next() {
+		var t TunnelBackup
+		var inIP sql.NullString
+		if err := rows.Scan(&t.ID, &t.Name, &t.TrafficRatio, &t.Type, &t.Protocol, &t.Flow, &t.CreatedTime, &t.UpdatedTime, &t.Status, &inIP, &t.Inx); err != nil {
+			return nil, err
+		}
+		if inIP.Valid {
+			t.InIP = inIP.String
+		}
+		// Export chain tunnels
+		chainTunnels, err := r.exportChainTunnels(t.ID)
+		if err != nil {
+			return nil, err
+		}
+		t.ChainTunnels = chainTunnels
+		tunnels = append(tunnels, t)
+	}
+	return tunnels, rows.Err()
+}
+
+func (r *Repository) exportChainTunnels(tunnelID int64) ([]ChainTunnelBackup, error) {
+	rows, err := r.db.Query(`
+		SELECT id, tunnel_id, chain_type, node_id, port, strategy, inx, protocol
+		FROM chain_tunnel WHERE tunnel_id = ? ORDER BY inx ASC, id ASC
+	`, tunnelID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var chainTunnels []ChainTunnelBackup
+	for rows.Next() {
+		var ct ChainTunnelBackup
+		var port sql.NullInt64
+		if err := rows.Scan(&ct.ID, &ct.TunnelID, &ct.ChainType, &ct.NodeID, &port, &ct.Strategy, &ct.Inx, &ct.Protocol); err != nil {
+			return nil, err
+		}
+		if port.Valid {
+			ct.Port = int(port.Int64)
+		}
+		chainTunnels = append(chainTunnels, ct)
+	}
+	return chainTunnels, rows.Err()
+}
+
+func (r *Repository) exportForwards() ([]ForwardBackup, error) {
+	rows, err := r.db.Query(`
+		SELECT id, user_id, user_name, name, tunnel_id, remote_addr, strategy, in_flow, out_flow, created_time, updated_time, status, inx
+		FROM forward ORDER BY id ASC
+	`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var forwards []ForwardBackup
+	for rows.Next() {
+		var f ForwardBackup
+		if err := rows.Scan(&f.ID, &f.UserID, &f.UserName, &f.Name, &f.TunnelID, &f.RemoteAddr, &f.Strategy, &f.InFlow, &f.OutFlow, &f.CreatedTime, &f.UpdatedTime, &f.Status, &f.Inx); err != nil {
+			return nil, err
+		}
+		forwards = append(forwards, f)
+	}
+	return forwards, rows.Err()
+}
+
+func (r *Repository) exportUserTunnels() ([]UserTunnelBackup, error) {
+	rows, err := r.db.Query(`
+		SELECT id, user_id, tunnel_id, speed_id, num, flow, in_flow, out_flow, flow_reset_time, exp_time, status
+		FROM user_tunnel ORDER BY id ASC
+	`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var userTunnels []UserTunnelBackup
+	for rows.Next() {
+		var ut UserTunnelBackup
+		var speedID sql.NullInt64
+		if err := rows.Scan(&ut.ID, &ut.UserID, &ut.TunnelID, &speedID, &ut.Num, &ut.Flow, &ut.InFlow, &ut.OutFlow, &ut.FlowResetTime, &ut.ExpTime, &ut.Status); err != nil {
+			return nil, err
+		}
+		if speedID.Valid {
+			ut.SpeedID = speedID.Int64
+		}
+		userTunnels = append(userTunnels, ut)
+	}
+	return userTunnels, rows.Err()
+}
+
+func (r *Repository) exportSpeedLimits() ([]SpeedLimitBackup, error) {
+	rows, err := r.db.Query(`
+		SELECT id, name, speed, tunnel_id, tunnel_name, created_time, updated_time, status
+		FROM speed_limit ORDER BY id ASC
+	`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var speedLimits []SpeedLimitBackup
+	for rows.Next() {
+		var sl SpeedLimitBackup
+		var updatedTime sql.NullInt64
+		if err := rows.Scan(&sl.ID, &sl.Name, &sl.Speed, &sl.TunnelID, &sl.TunnelName, &sl.CreatedTime, &updatedTime, &sl.Status); err != nil {
+			return nil, err
+		}
+		if updatedTime.Valid {
+			sl.UpdatedTime = updatedTime.Int64
+		}
+		speedLimits = append(speedLimits, sl)
+	}
+	return speedLimits, rows.Err()
+}
+
+func (r *Repository) exportTunnelGroups() ([]TunnelGroupBackup, error) {
+	rows, err := r.db.Query(`
+		SELECT id, name, created_time, updated_time, status
+		FROM tunnel_group ORDER BY id ASC
+	`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var groups []TunnelGroupBackup
+	for rows.Next() {
+		var tg TunnelGroupBackup
+		if err := rows.Scan(&tg.ID, &tg.Name, &tg.CreatedTime, &tg.UpdatedTime, &tg.Status); err != nil {
+			return nil, err
+		}
+		// Get tunnel IDs for this group
+		tunnelRows, err := r.db.Query(`SELECT tunnel_id FROM tunnel_group_tunnel WHERE tunnel_group_id = ?`, tg.ID)
+		if err != nil {
+			return nil, err
+		}
+		for tunnelRows.Next() {
+			var tunnelID int64
+			if err := tunnelRows.Scan(&tunnelID); err != nil {
+				tunnelRows.Close()
+				return nil, err
+			}
+			tg.Tunnels = append(tg.Tunnels, tunnelID)
+		}
+		tunnelRows.Close()
+		groups = append(groups, tg)
+	}
+	return groups, rows.Err()
+}
+
+func (r *Repository) exportUserGroups() ([]UserGroupBackup, error) {
+	rows, err := r.db.Query(`
+		SELECT id, name, created_time, updated_time, status
+		FROM user_group ORDER BY id ASC
+	`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var groups []UserGroupBackup
+	for rows.Next() {
+		var ug UserGroupBackup
+		if err := rows.Scan(&ug.ID, &ug.Name, &ug.CreatedTime, &ug.UpdatedTime, &ug.Status); err != nil {
+			return nil, err
+		}
+		// Get user IDs for this group
+		userRows, err := r.db.Query(`SELECT user_id FROM user_group_user WHERE user_group_id = ?`, ug.ID)
+		if err != nil {
+			return nil, err
+		}
+		for userRows.Next() {
+			var userID int64
+			if err := userRows.Scan(&userID); err != nil {
+				userRows.Close()
+				return nil, err
+			}
+			ug.Users = append(ug.Users, userID)
+		}
+		userRows.Close()
+		groups = append(groups, ug)
+	}
+	return groups, rows.Err()
+}
+
+func (r *Repository) exportPermissions() ([]PermissionBackup, error) {
+	rows, err := r.db.Query(`
+		SELECT id, user_group_id, tunnel_group_id, created_time, created_by_group
+		FROM group_permission ORDER BY id ASC
+	`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var permissions []PermissionBackup
+	for rows.Next() {
+		var p PermissionBackup
+		if err := rows.Scan(&p.ID, &p.UserGroupID, &p.TunnelGroupID, &p.CreatedTime, &p.CreatedByGroup); err != nil {
+			return nil, err
+		}
+		// Get grants for this permission
+		grantRows, err := r.db.Query(`SELECT id, user_group_id, tunnel_group_id, user_tunnel_id, created_time, created_by_group FROM group_permission_grant WHERE user_group_id = ? AND tunnel_group_id = ?`, p.UserGroupID, p.TunnelGroupID)
+		if err != nil {
+			return nil, err
+		}
+		for grantRows.Next() {
+			var g PermissionGrantBackup
+			if err := grantRows.Scan(&g.ID, &g.UserGroupID, &g.TunnelGroupID, &g.UserTunnelID, &g.CreatedTime, &g.CreatedByGroup); err != nil {
+				grantRows.Close()
+				return nil, err
+			}
+			p.Grants = append(p.Grants, g)
+		}
+		grantRows.Close()
+		permissions = append(permissions, p)
+	}
+	return permissions, rows.Err()
+}
+
+// ============ Import Methods ============
+
+// ImportResult contains the result of an import operation
+type ImportResult struct {
+	UsersImported        int `json:"usersImported"`
+	NodesImported        int `json:"nodesImported"`
+	TunnelsImported      int `json:"tunnelsImported"`
+	ForwardsImported     int `json:"forwardsImported"`
+	UserTunnelsImported  int `json:"userTunnelsImported"`
+	SpeedLimitsImported  int `json:"speedLimitsImported"`
+	TunnelGroupsImported int `json:"tunnelGroupsImported"`
+	UserGroupsImported   int `json:"userGroupsImported"`
+	PermissionsImported  int `json:"permissionsImported"`
+	ConfigsImported      int `json:"configsImported"`
+}
+
+// Import imports data from BackupData
+func (r *Repository) Import(backup *BackupData, types []string) (*ImportResult, error) {
+	result := &ImportResult{}
+
+	typeSet := make(map[string]bool)
+	for _, t := range types {
+		typeSet[t] = true
+	}
+
+	now := unixMilliNow()
+
+	if typeSet["users"] && len(backup.Users) > 0 {
+		count, err := r.importUsers(backup.Users, now)
+		if err != nil {
+			return nil, fmt.Errorf("import users failed: %w", err)
+		}
+		result.UsersImported = count
+	}
+
+	if typeSet["nodes"] && len(backup.Nodes) > 0 {
+		count, err := r.importNodes(backup.Nodes, now)
+		if err != nil {
+			return nil, fmt.Errorf("import nodes failed: %w", err)
+		}
+		result.NodesImported = count
+	}
+
+	if typeSet["tunnels"] && len(backup.Tunnels) > 0 {
+		count, err := r.importTunnels(backup.Tunnels, now)
+		if err != nil {
+			return nil, fmt.Errorf("import tunnels failed: %w", err)
+		}
+		result.TunnelsImported = count
+	}
+
+	if typeSet["forwards"] && len(backup.Forwards) > 0 {
+		count, err := r.importForwards(backup.Forwards, now)
+		if err != nil {
+			return nil, fmt.Errorf("import forwards failed: %w", err)
+		}
+		result.ForwardsImported = count
+	}
+
+	if typeSet["userTunnels"] && len(backup.UserTunnels) > 0 {
+		count, err := r.importUserTunnels(backup.UserTunnels, now)
+		if err != nil {
+			return nil, fmt.Errorf("import user tunnels failed: %w", err)
+		}
+		result.UserTunnelsImported = count
+	}
+
+	if typeSet["speedLimits"] && len(backup.SpeedLimits) > 0 {
+		count, err := r.importSpeedLimits(backup.SpeedLimits, now)
+		if err != nil {
+			return nil, fmt.Errorf("import speed limits failed: %w", err)
+		}
+		result.SpeedLimitsImported = count
+	}
+
+	if typeSet["tunnelGroups"] && len(backup.TunnelGroups) > 0 {
+		count, err := r.importTunnelGroups(backup.TunnelGroups, now)
+		if err != nil {
+			return nil, fmt.Errorf("import tunnel groups failed: %w", err)
+		}
+		result.TunnelGroupsImported = count
+	}
+
+	if typeSet["userGroups"] && len(backup.UserGroups) > 0 {
+		count, err := r.importUserGroups(backup.UserGroups, now)
+		if err != nil {
+			return nil, fmt.Errorf("import user groups failed: %w", err)
+		}
+		result.UserGroupsImported = count
+	}
+
+	if typeSet["permissions"] && len(backup.Permissions) > 0 {
+		count, err := r.importPermissions(backup.Permissions, now)
+		if err != nil {
+			return nil, fmt.Errorf("import permissions failed: %w", err)
+		}
+		result.PermissionsImported = count
+	}
+
+	if typeSet["configs"] && len(backup.Configs) > 0 {
+		count, err := r.importConfigs(backup.Configs, now)
+		if err != nil {
+			return nil, fmt.Errorf("import configs failed: %w", err)
+		}
+		result.ConfigsImported = count
+	}
+
+	return result, nil
+}
+
+func (r *Repository) importUsers(users []UserBackup, now int64) (int, error) {
+	count := 0
+	for _, u := range users {
+		// Check if user exists
+		exists, err := r.UsernameExists(u.User)
+		if err != nil {
+			return count, err
+		}
+		if exists {
+			// Update existing
+			_, err = r.db.Exec(`
+				UPDATE user SET pwd = ?, role_id = ?, exp_time = ?, flow = ?, in_flow = ?, out_flow = ?, flow_reset_time = ?, num = ?, updated_time = ?, status = ?
+				WHERE id = ?
+			`, u.Pwd, u.RoleID, u.ExpTime, u.Flow, u.InFlow, u.OutFlow, u.FlowResetTime, u.Num, now, u.Status, u.ID)
+			if err != nil {
+				return count, err
+			}
+		} else {
+			// Insert new
+			_, err = r.db.Exec(`
+				INSERT INTO user(id, user, pwd, role_id, exp_time, flow, in_flow, out_flow, flow_reset_time, num, created_time, updated_time, status)
+				VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			`, u.ID, u.User, u.Pwd, u.RoleID, u.ExpTime, u.Flow, u.InFlow, u.OutFlow, u.FlowResetTime, u.Num, u.CreatedTime, now, u.Status)
+			if err != nil {
+				return count, err
+			}
+		}
+		count++
+	}
+	return count, nil
+}
+
+func (r *Repository) UsernameExists(username string) (bool, error) {
+	var count int
+	err := r.db.QueryRow(`SELECT COUNT(1) FROM user WHERE user = ?`, username).Scan(&count)
+	if err != nil {
+		return false, err
+	}
+	return count > 0, nil
+}
+
+func (r *Repository) importNodes(nodes []NodeBackup, now int64) (int, error) {
+	count := 0
+	for _, n := range nodes {
+		// Check if node exists
+		_, err := r.GetNodeByID(n.ID)
+		if err != nil {
+			return count, err
+		}
+		// Use upsert pattern
+		_, err = r.db.Exec(`
+			INSERT INTO node(id, name, secret, server_ip, server_ip_v4, server_ip_v6, port, interface_name, version, http, tls, socks, created_time, updated_time, status, tcp_listen_addr, udp_listen_addr, inx, is_remote, remote_url, remote_token, remote_config)
+			VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			ON CONFLICT(id) DO UPDATE SET
+				name = excluded.name,
+				secret = excluded.secret,
+				server_ip = excluded.server_ip,
+				server_ip_v4 = excluded.server_ip_v4,
+				server_ip_v6 = excluded.server_ip_v6,
+				port = excluded.port,
+				interface_name = excluded.interface_name,
+				version = excluded.version,
+				http = excluded.http,
+				tls = excluded.tls,
+				socks = excluded.socks,
+				updated_time = excluded.updated_time,
+				status = excluded.status,
+				tcp_listen_addr = excluded.tcp_listen_addr,
+				udp_listen_addr = excluded.udp_listen_addr,
+				inx = excluded.inx,
+				is_remote = excluded.is_remote,
+				remote_url = excluded.remote_url,
+				remote_token = excluded.remote_token,
+				remote_config = excluded.remote_config
+		`, n.ID, n.Name, n.Secret, n.ServerIP, n.ServerIPv4, n.ServerIPv6, n.Port, n.InterfaceName, n.Version, n.HTTP, n.TLS, n.Socks, n.CreatedTime, now, n.Status, n.TCPListenAddr, n.UDPListenAddr, n.Inx, n.IsRemote, n.RemoteURL, n.RemoteToken, n.RemoteConfig)
+		if err != nil {
+			return count, err
+		}
+		count++
+	}
+	return count, nil
+}
+
+func (r *Repository) importTunnels(tunnels []TunnelBackup, now int64) (int, error) {
+	count := 0
+	for _, t := range tunnels {
+		_, err := r.db.Exec(`
+			INSERT INTO tunnel(id, name, traffic_ratio, type, protocol, flow, created_time, updated_time, status, in_ip, inx)
+			VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			ON CONFLICT(id) DO UPDATE SET
+				name = excluded.name,
+				traffic_ratio = excluded.traffic_ratio,
+				type = excluded.type,
+				protocol = excluded.protocol,
+				flow = excluded.flow,
+				updated_time = excluded.updated_time,
+				status = excluded.status,
+				in_ip = excluded.in_ip,
+				inx = excluded.inx
+		`, t.ID, t.Name, t.TrafficRatio, t.Type, t.Protocol, t.Flow, t.CreatedTime, now, t.Status, t.InIP, t.Inx)
+		if err != nil {
+			return count, err
+		}
+		// Import chain tunnels
+		if len(t.ChainTunnels) > 0 {
+			for _, ct := range t.ChainTunnels {
+				_, err = r.db.Exec(`
+					INSERT INTO chain_tunnel(id, tunnel_id, chain_type, node_id, port, strategy, inx, protocol)
+					VALUES(?, ?, ?, ?, ?, ?, ?, ?)
+					ON CONFLICT(id) DO UPDATE SET
+						chain_type = excluded.chain_type,
+						node_id = excluded.node_id,
+						port = excluded.port,
+						strategy = excluded.strategy,
+						inx = excluded.inx,
+						protocol = excluded.protocol
+				`, ct.ID, ct.TunnelID, ct.ChainType, ct.NodeID, ct.Port, ct.Strategy, ct.Inx, ct.Protocol)
+				if err != nil {
+					return count, err
+				}
+			}
+		}
+		count++
+	}
+	return count, nil
+}
+
+func (r *Repository) importForwards(forwards []ForwardBackup, now int64) (int, error) {
+	count := 0
+	for _, f := range forwards {
+		_, err := r.db.Exec(`
+			INSERT INTO forward(id, user_id, user_name, name, tunnel_id, remote_addr, strategy, in_flow, out_flow, created_time, updated_time, status, inx)
+			VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			ON CONFLICT(id) DO UPDATE SET
+				user_id = excluded.user_id,
+				user_name = excluded.user_name,
+				name = excluded.name,
+				tunnel_id = excluded.tunnel_id,
+				remote_addr = excluded.remote_addr,
+				strategy = excluded.strategy,
+				in_flow = excluded.in_flow,
+				out_flow = excluded.out_flow,
+				updated_time = excluded.updated_time,
+				status = excluded.status,
+				inx = excluded.inx
+		`, f.ID, f.UserID, f.UserName, f.Name, f.TunnelID, f.RemoteAddr, f.Strategy, f.InFlow, f.OutFlow, f.CreatedTime, now, f.Status, f.Inx)
+		if err != nil {
+			return count, err
+		}
+		count++
+	}
+	return count, nil
+}
+
+func (r *Repository) importUserTunnels(userTunnels []UserTunnelBackup, now int64) (int, error) {
+	count := 0
+	for _, ut := range userTunnels {
+		var speedID interface{}
+		if ut.SpeedID > 0 {
+			speedID = ut.SpeedID
+		}
+		_, err := r.db.Exec(`
+			INSERT INTO user_tunnel(id, user_id, tunnel_id, speed_id, num, flow, in_flow, out_flow, flow_reset_time, exp_time, status)
+			VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			ON CONFLICT(id) DO UPDATE SET
+				user_id = excluded.user_id,
+				tunnel_id = excluded.tunnel_id,
+				speed_id = excluded.speed_id,
+				num = excluded.num,
+				flow = excluded.flow,
+				in_flow = excluded.in_flow,
+				out_flow = excluded.out_flow,
+				flow_reset_time = excluded.flow_reset_time,
+				exp_time = excluded.exp_time,
+				status = excluded.status
+		`, ut.ID, ut.UserID, ut.TunnelID, speedID, ut.Num, ut.Flow, ut.InFlow, ut.OutFlow, ut.FlowResetTime, ut.ExpTime, ut.Status)
+		if err != nil {
+			return count, err
+		}
+		count++
+	}
+	return count, nil
+}
+
+func (r *Repository) importSpeedLimits(speedLimits []SpeedLimitBackup, now int64) (int, error) {
+	count := 0
+	for _, sl := range speedLimits {
+		_, err := r.db.Exec(`
+			INSERT INTO speed_limit(id, name, speed, tunnel_id, tunnel_name, created_time, updated_time, status)
+			VALUES(?, ?, ?, ?, ?, ?, ?, ?)
+			ON CONFLICT(id) DO UPDATE SET
+				name = excluded.name,
+				speed = excluded.speed,
+				tunnel_id = excluded.tunnel_id,
+				tunnel_name = excluded.tunnel_name,
+				updated_time = excluded.updated_time,
+				status = excluded.status
+		`, sl.ID, sl.Name, sl.Speed, sl.TunnelID, sl.TunnelName, sl.CreatedTime, now, sl.Status)
+		if err != nil {
+			return count, err
+		}
+		count++
+	}
+	return count, nil
+}
+
+func (r *Repository) importTunnelGroups(tunnelGroups []TunnelGroupBackup, now int64) (int, error) {
+	count := 0
+	for _, tg := range tunnelGroups {
+		_, err := r.db.Exec(`
+			INSERT INTO tunnel_group(id, name, created_time, updated_time, status)
+			VALUES(?, ?, ?, ?, ?)
+			ON CONFLICT(id) DO UPDATE SET
+				name = excluded.name,
+				updated_time = excluded.updated_time,
+				status = excluded.status
+		`, tg.ID, tg.Name, tg.CreatedTime, now, tg.Status)
+		if err != nil {
+			return count, err
+		}
+		// Update tunnel group memberships
+		_, err = r.db.Exec(`DELETE FROM tunnel_group_tunnel WHERE tunnel_group_id = ?`, tg.ID)
+		if err != nil {
+			return count, err
+		}
+		for _, tunnelID := range tg.Tunnels {
+			_, err = r.db.Exec(`
+				INSERT INTO tunnel_group_tunnel(tunnel_group_id, tunnel_id, created_time)
+				VALUES(?, ?, ?)
+			`, tg.ID, tunnelID, now)
+			if err != nil {
+				return count, err
+			}
+		}
+		count++
+	}
+	return count, nil
+}
+
+func (r *Repository) importUserGroups(userGroups []UserGroupBackup, now int64) (int, error) {
+	count := 0
+	for _, ug := range userGroups {
+		_, err := r.db.Exec(`
+			INSERT INTO user_group(id, name, created_time, updated_time, status)
+			VALUES(?, ?, ?, ?, ?)
+			ON CONFLICT(id) DO UPDATE SET
+				name = excluded.name,
+				updated_time = excluded.updated_time,
+				status = excluded.status
+		`, ug.ID, ug.Name, ug.CreatedTime, now, ug.Status)
+		if err != nil {
+			return count, err
+		}
+		// Update user group memberships
+		_, err = r.db.Exec(`DELETE FROM user_group_user WHERE user_group_id = ?`, ug.ID)
+		if err != nil {
+			return count, err
+		}
+		for _, userID := range ug.Users {
+			_, err = r.db.Exec(`
+				INSERT INTO user_group_user(user_group_id, user_id, created_time)
+				VALUES(?, ?, ?)
+			`, ug.ID, userID, now)
+			if err != nil {
+				return count, err
+			}
+		}
+		count++
+	}
+	return count, nil
+}
+
+func (r *Repository) importPermissions(permissions []PermissionBackup, now int64) (int, error) {
+	count := 0
+	for _, p := range permissions {
+		_, err := r.db.Exec(`
+			INSERT INTO group_permission(id, user_group_id, tunnel_group_id, created_time, created_by_group)
+			VALUES(?, ?, ?, ?, ?)
+			ON CONFLICT(id) DO UPDATE SET
+				user_group_id = excluded.user_group_id,
+				tunnel_group_id = excluded.tunnel_group_id,
+				created_by_group = excluded.created_by_group
+		`, p.ID, p.UserGroupID, p.TunnelGroupID, p.CreatedTime, p.CreatedByGroup)
+		if err != nil {
+			return count, err
+		}
+		// Import grants
+		for _, g := range p.Grants {
+			_, err = r.db.Exec(`
+				INSERT INTO group_permission_grant(id, user_group_id, tunnel_group_id, user_tunnel_id, created_time, created_by_group)
+				VALUES(?, ?, ?, ?, ?, ?)
+				ON CONFLICT(id) DO UPDATE SET
+					user_tunnel_id = excluded.user_tunnel_id,
+					created_by_group = excluded.created_by_group
+			`, g.ID, g.UserGroupID, g.TunnelGroupID, g.UserTunnelID, g.CreatedTime, g.CreatedByGroup)
+			if err != nil {
+				return count, err
+			}
+		}
+		count++
+	}
+	return count, nil
+}
+
+func (r *Repository) importConfigs(configs map[string]string, now int64) (int, error) {
+	count := 0
+	for name, value := range configs {
+		err := r.UpsertConfig(name, value, now)
+		if err != nil {
+			return count, err
+		}
+		count++
+	}
+	return count, nil
+}
