@@ -316,6 +316,136 @@ func TestFederationDualPanelRemoteDiagnosisContract(t *testing.T) {
 	}
 }
 
+func TestFederationDualPanelRemoteEntryRuntimeContract(t *testing.T) {
+	providerSecret := "provider-contract-jwt"
+	providerRouter, providerRepo := setupContractRouter(t, providerSecret)
+	providerServer := httptest.NewServer(providerRouter)
+	defer providerServer.Close()
+
+	consumerSecret := "consumer-contract-jwt"
+	consumerRouter, consumerRepo := setupContractRouter(t, consumerSecret)
+
+	consumerAdminToken, err := auth.GenerateToken(1, "consumer-admin", 0, consumerSecret)
+	if err != nil {
+		t.Fatalf("generate consumer admin token: %v", err)
+	}
+
+	now := time.Now().UnixMilli()
+	providerEntryNodeID := insertContractNode(t, providerRepo, "provider-entry-rt", "198.51.100.21", "43020-43030", "provider-entry-rt-secret", 1)
+	providerMiddleNodeID := insertContractNode(t, providerRepo, "provider-middle-rt", "198.51.100.22", "44020-44030", "provider-middle-rt-secret", 1)
+	providerExitNodeID := insertContractNode(t, providerRepo, "provider-exit-rt", "198.51.100.23", "45020-45030", "provider-exit-rt-secret", 1)
+
+	insertPeerShare(t, providerRepo, &sqlite.PeerShare{
+		Name:           "entry-share-rt",
+		NodeID:         providerEntryNodeID,
+		Token:          "share-entry-rt-token",
+		PortRangeStart: 43020,
+		PortRangeEnd:   43030,
+		IsActive:       1,
+		CreatedTime:    now,
+		UpdatedTime:    now,
+	})
+	insertPeerShare(t, providerRepo, &sqlite.PeerShare{
+		Name:           "middle-share-rt",
+		NodeID:         providerMiddleNodeID,
+		Token:          "share-middle-rt-token",
+		PortRangeStart: 44020,
+		PortRangeEnd:   44030,
+		IsActive:       1,
+		CreatedTime:    now,
+		UpdatedTime:    now,
+	})
+	insertPeerShare(t, providerRepo, &sqlite.PeerShare{
+		Name:           "exit-share-rt",
+		NodeID:         providerExitNodeID,
+		Token:          "share-exit-rt-token",
+		PortRangeStart: 45020,
+		PortRangeEnd:   45030,
+		IsActive:       1,
+		CreatedTime:    now,
+		UpdatedTime:    now,
+	})
+
+	importRemoteNodeForContract(t, consumerRouter, consumerAdminToken, providerServer.URL, "share-entry-rt-token")
+	importRemoteNodeForContract(t, consumerRouter, consumerAdminToken, providerServer.URL, "share-middle-rt-token")
+	importRemoteNodeForContract(t, consumerRouter, consumerAdminToken, providerServer.URL, "share-exit-rt-token")
+
+	entryRemoteNodeID := queryRemoteNodeIDByToken(t, consumerRepo, "share-entry-rt-token")
+	middleRemoteNodeID := queryRemoteNodeIDByToken(t, consumerRepo, "share-middle-rt-token")
+	exitRemoteNodeID := queryRemoteNodeIDByToken(t, consumerRepo, "share-exit-rt-token")
+
+	var commandMu sync.Mutex
+	entryCommands := make([]string, 0, 8)
+	stopEntry := startMockNodeSessionWithHook(t, providerServer.URL, "provider-entry-rt-secret", func(cmdType string) {
+		commandMu.Lock()
+		entryCommands = append(entryCommands, cmdType)
+		commandMu.Unlock()
+	})
+	defer stopEntry()
+	stopMiddle := startMockNodeSession(t, providerServer.URL, "provider-middle-rt-secret")
+	defer stopMiddle()
+	stopExit := startMockNodeSession(t, providerServer.URL, "provider-exit-rt-secret")
+	defer stopExit()
+
+	createTunnel := func(name string) int64 {
+		payload := map[string]interface{}{
+			"name":   name,
+			"type":   2,
+			"flow":   99999,
+			"status": 1,
+			"inNodeId": []map[string]interface{}{
+				{"nodeId": entryRemoteNodeID, "protocol": "tls", "strategy": "round"},
+			},
+			"chainNodes": [][]map[string]interface{}{
+				{{"nodeId": middleRemoteNodeID, "protocol": "tls", "strategy": "round"}},
+			},
+			"outNodeId": []map[string]interface{}{
+				{"nodeId": exitRemoteNodeID, "protocol": "tls", "strategy": "round"},
+			},
+		}
+		body, err := json.Marshal(payload)
+		if err != nil {
+			t.Fatalf("marshal create payload: %v", err)
+		}
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/tunnel/create", bytes.NewReader(body))
+		req.Header.Set("Authorization", consumerAdminToken)
+		req.Header.Set("Content-Type", "application/json")
+		res := httptest.NewRecorder()
+		consumerRouter.ServeHTTP(res, req)
+		assertCode(t, res, 0)
+
+		var tunnelID int64
+		if err := consumerRepo.DB().QueryRow(`SELECT id FROM tunnel WHERE name = ? ORDER BY id DESC LIMIT 1`, name).Scan(&tunnelID); err != nil {
+			t.Fatalf("query tunnel id (%s): %v", name, err)
+		}
+		if tunnelID <= 0 {
+			t.Fatalf("invalid tunnel id for %s", name)
+		}
+		return tunnelID
+	}
+
+	createTunnel("dual-panel-remote-entry-online")
+
+	commandMu.Lock()
+	seenAddChains := false
+	seenCommands := append([]string(nil), entryCommands...)
+	for _, cmdType := range entryCommands {
+		if strings.EqualFold(strings.TrimSpace(cmdType), "AddChains") {
+			seenAddChains = true
+			break
+		}
+	}
+	commandMu.Unlock()
+	if !seenAddChains {
+		t.Fatalf("expected entry remote node to receive AddChains, commands=%v", seenCommands)
+	}
+
+	stopEntry()
+	waitNodeStatus(t, providerRepo, providerEntryNodeID, 0)
+
+	createTunnel("dual-panel-remote-entry-offline")
+}
+
 func insertContractNode(t *testing.T, repo *sqlite.Repository, name, ip, portRange, secret string, status int) int64 {
 	t.Helper()
 	now := time.Now().UnixMilli()
@@ -409,6 +539,10 @@ func assertCount(t *testing.T, repo *sqlite.Repository, query string, arg interf
 }
 
 func startMockNodeSession(t *testing.T, baseURL string, nodeSecret string) func() {
+	return startMockNodeSessionWithHook(t, baseURL, nodeSecret, nil)
+}
+
+func startMockNodeSessionWithHook(t *testing.T, baseURL string, nodeSecret string, onCommand func(cmdType string)) func() {
 	t.Helper()
 	u, err := url.Parse(baseURL)
 	if err != nil {
@@ -468,6 +602,9 @@ func startMockNodeSession(t *testing.T, baseURL string, nodeSecret string) func(
 			if strings.TrimSpace(cmd.RequestID) == "" {
 				continue
 			}
+			if onCommand != nil {
+				onCommand(strings.TrimSpace(cmd.Type))
+			}
 
 			respType := fmt.Sprintf("%sResponse", cmd.Type)
 			respPayload := map[string]interface{}{
@@ -492,9 +629,27 @@ func startMockNodeSession(t *testing.T, baseURL string, nodeSecret string) func(
 		}
 	}()
 
+	var stopOnce sync.Once
 	return func() {
-		_ = conn.Close()
-		wg.Wait()
+		stopOnce.Do(func() {
+			_ = conn.Close()
+			wg.Wait()
+		})
+	}
+}
+
+func waitNodeStatus(t *testing.T, repo *sqlite.Repository, nodeID int64, expectedStatus int) {
+	t.Helper()
+	deadline := time.Now().Add(2 * time.Second)
+	for {
+		var status int
+		if err := repo.DB().QueryRow(`SELECT status FROM node WHERE id = ?`, nodeID).Scan(&status); err == nil && status == expectedStatus {
+			return
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("node %d status did not reach %d before timeout", nodeID, expectedStatus)
+		}
+		time.Sleep(20 * time.Millisecond)
 	}
 }
 

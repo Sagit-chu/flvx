@@ -2613,9 +2613,7 @@ func (h *Handler) applyTunnelRuntime(state *tunnelCreateState) ([]int64, []int64
 	}
 
 	for _, inNode := range state.InNodes {
-		if node := state.Nodes[inNode.NodeID]; node != nil && node.IsRemote == 1 {
-			continue
-		}
+		node := state.Nodes[inNode.NodeID]
 		targets := state.OutNodes
 		if len(state.ChainHops) > 0 {
 			targets = state.ChainHops[0]
@@ -2625,6 +2623,9 @@ func (h *Handler) applyTunnelRuntime(state *tunnelCreateState) ([]int64, []int64
 			return createdChains, createdServices, err
 		}
 		if _, err := h.sendNodeCommand(inNode.NodeID, "AddChains", chainData, true, false); err != nil {
+			if node != nil && node.IsRemote == 1 && shouldDeferTunnelRuntimeApplyError(err) {
+				continue
+			}
 			return createdChains, createdServices, fmt.Errorf("入口节点 %s 下发转发链失败: %w", nodeDisplayName(state.Nodes[inNode.NodeID]), err)
 		}
 		createdChains = append(createdChains, inNode.NodeID)
