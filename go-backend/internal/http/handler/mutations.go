@@ -688,6 +688,9 @@ func (h *Handler) tunnelUpdate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	runtimeState.TunnelID = id
+
+	inIp := buildTunnelInIP(runtimeState.InNodes, runtimeState.Nodes)
+
 	var federationBindings []sqlite.FederationTunnelBinding
 	var federationReleaseRefs []federationRuntimeReleaseRef
 	if typeVal == 2 {
@@ -700,7 +703,7 @@ func (h *Handler) tunnelUpdate(w http.ResponseWriter, r *http.Request) {
 	applyTunnelPortsToRequest(req, runtimeState)
 
 	_, err = tx.Exec(`UPDATE tunnel SET name=?, type=?, flow=?, traffic_ratio=?, status=?, in_ip=?, updated_time=? WHERE id=?`,
-		asString(req["name"]), typeVal, asInt64(req["flow"], 1), asFloat(req["trafficRatio"], 1.0), asInt(req["status"], 1), nullableText(asString(req["inIp"])), now, id)
+		asString(req["name"]), typeVal, asInt64(req["flow"], 1), asFloat(req["trafficRatio"], 1.0), asInt(req["status"], 1), nullableText(inIp), now, id)
 	if err != nil {
 		response.WriteJSON(w, response.Err(-2, err.Error()))
 		return

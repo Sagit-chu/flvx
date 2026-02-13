@@ -7,18 +7,17 @@ services:
       driver: json-file
       options:
         max-size: "20m"
+        max-file: "3"
     environment:
       DB_TYPE: ${DB_TYPE:-sqlite}
       DB_PATH: /app/data/gost.db
       DATABASE_URL: ${DATABASE_URL:-}
       JWT_SECRET: ${JWT_SECRET}
-      LOG_DIR: /app/logs
       SERVER_ADDR: :6365
       TZ: Asia/Shanghai
     ports:
       - "${BACKEND_PORT}:6365"
     volumes:
-      - backend_logs:/app/logs
       - sqlite_data:/app/data
     networks:
       - gost-network
@@ -63,6 +62,7 @@ services:
       driver: json-file
       options:
         max-size: "20m"
+        max-file: "3"
     ports:
       - "${FRONTEND_PORT}:80"
     depends_on:
@@ -78,9 +78,6 @@ volumes:
     driver: local
   postgres_data:
     name: postgres_data
-    driver: local
-  backend_logs:
-    name: backend_logs
     driver: local
 
 

@@ -400,7 +400,7 @@ func (r *Repository) GetUserPackageForwards(userID int64) ([]UserForwardDetail, 
 	}
 
 	rows, err := r.db.Query(`
-		SELECT f.id, f.name, f.tunnel_id, t.name, f.remote_addr, f.in_flow, f.out_flow, f.status, f.created_time
+		SELECT f.id, f.name, f.tunnel_id, COALESCE(t.name, ''), f.remote_addr, f.in_flow, f.out_flow, f.status, f.created_time
 		FROM forward f
 		LEFT JOIN tunnel t ON t.id = f.tunnel_id
 		WHERE f.user_id = ?
@@ -719,7 +719,7 @@ func (r *Repository) ListForwards() ([]map[string]interface{}, error) {
 	}
 
 	rows, err := r.db.Query(`
-		SELECT f.id, f.user_id, f.user_name, f.name, f.tunnel_id, t.name, f.remote_addr, f.strategy,
+		SELECT f.id, f.user_id, f.user_name, f.name, f.tunnel_id, COALESCE(t.name, ''), f.remote_addr, f.strategy,
 		       f.in_flow, f.out_flow, f.created_time, f.status, f.inx
 		FROM forward f
 		LEFT JOIN tunnel t ON t.id = f.tunnel_id
@@ -1297,9 +1297,30 @@ func bootstrapSchema(db *store.DB, schemaSQL, seedSQL string) error {
 	return nil
 }
 
+const currentSchemaVersion = 1
+
+func getSchemaVersion(db *store.DB) int {
+	_, _ = db.Exec(`CREATE TABLE IF NOT EXISTS schema_version (version INTEGER NOT NULL DEFAULT 0)`)
+	var v int
+	if err := db.QueryRow(`SELECT version FROM schema_version LIMIT 1`).Scan(&v); err != nil {
+		_, _ = db.Exec(`INSERT INTO schema_version(version) VALUES(0)`)
+		return 0
+	}
+	return v
+}
+
+func setSchemaVersion(db *store.DB, v int) {
+	_, _ = db.Exec(`UPDATE schema_version SET version = ?`, v)
+}
+
 func migrateSchema(db *store.DB) error {
 	if db == nil {
 		return errors.New("nil db")
+	}
+
+	ver := getSchemaVersion(db)
+	if ver >= currentSchemaVersion {
+		return nil
 	}
 
 	ensureColumn := func(table, col, typ string) {
@@ -1351,6 +1372,7 @@ func migrateSchema(db *store.DB) error {
 			return err
 		}
 	}
+	setSchemaVersion(db, currentSchemaVersion)
 	return nil
 }
 
