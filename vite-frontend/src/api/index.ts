@@ -41,6 +41,14 @@ export const checkNodeStatus = (nodeId?: number) => {
   return Network.post("/node/check-status", params);
 };
 
+export const upgradeNode = (id: number, version?: string) =>
+  Network.post("/node/upgrade", { id, version: version || "" }, { timeout: 5 * 60 * 1000 });
+export const batchUpgradeNodes = (ids: number[], version?: string) =>
+  Network.post("/node/batch-upgrade", { ids, version: version || "" }, { timeout: 15 * 60 * 1000 });
+export const getNodeReleases = () => Network.post("/node/releases");
+export const rollbackNode = (id: number) =>
+  Network.post("/node/rollback", { id });
+
 // 隧道CRUD操作 - 全部使用POST请求
 export const createTunnel = (data: any) => Network.post("/tunnel/create", data);
 export const getTunnelList = () => Network.post("/tunnel/list");
@@ -200,6 +208,16 @@ export const createPeerShare = (data: {
   allowedDomains?: string;
   allowedIps?: string;
 }) => Network.post("/federation/share/create", data);
+export const updatePeerShare = (data: {
+  id: number;
+  name: string;
+  maxBandwidth: number;
+  expiryTime: number;
+  portRangeStart: number;
+  portRangeEnd: number;
+  allowedDomains: string;
+  allowedIps: string;
+}) => Network.post("/federation/share/update", data);
 export const deletePeerShare = (id: number) =>
   Network.post("/federation/share/delete", { id });
 export const resetPeerShareFlow = (id: number) =>

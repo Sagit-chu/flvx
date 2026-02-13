@@ -17,6 +17,7 @@ import (
 	httpserver "go-backend/internal/http"
 	"go-backend/internal/http/handler"
 	"go-backend/internal/http/response"
+	"go-backend/internal/store"
 	"go-backend/internal/store/sqlite"
 
 	_ "modernc.org/sqlite"
@@ -305,7 +306,7 @@ func TestOpenMigratesLegacyNodeDualStackColumns(t *testing.T) {
 	}
 }
 
-func readTableColumns(t *testing.T, db *sql.DB, table string) map[string]bool {
+func readTableColumns(t *testing.T, db *store.DB, table string) map[string]bool {
 	t.Helper()
 
 	rows, err := db.Query("PRAGMA table_info(" + table + ")")

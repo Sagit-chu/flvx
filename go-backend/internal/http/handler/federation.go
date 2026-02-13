@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"go-backend/internal/http/client"
@@ -38,6 +39,17 @@ type deletePeerShareRequest struct {
 
 type resetPeerShareFlowRequest struct {
 	ID int64 `json:"id"`
+}
+
+type updatePeerShareRequest struct {
+	ID             int64  `json:"id"`
+	Name           string `json:"name"`
+	MaxBandwidth   int64  `json:"maxBandwidth"`
+	ExpiryTime     int64  `json:"expiryTime"`
+	PortRangeStart int    `json:"portRangeStart"`
+	PortRangeEnd   int    `json:"portRangeEnd"`
+	AllowedDomains string `json:"allowedDomains"`
+	AllowedIPs     string `json:"allowedIps"`
 }
 
 type nodeImportRequest struct {
@@ -318,6 +330,80 @@ func (h *Handler) federationShareResetFlow(w http.ResponseWriter, r *http.Reques
 	}
 
 	if err := h.repo.ResetPeerShareCurrentFlow(req.ID, time.Now().UnixMilli()); err != nil {
+		response.WriteJSON(w, response.Err(-2, err.Error()))
+		return
+	}
+
+	response.WriteJSON(w, response.OKEmpty())
+}
+
+func (h *Handler) federationShareUpdate(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		response.WriteJSON(w, response.ErrDefault("Invalid method"))
+		return
+	}
+
+	var req updatePeerShareRequest
+	if err := decodeJSON(r.Body, &req); err != nil {
+		response.WriteJSON(w, response.ErrDefault("Invalid JSON"))
+		return
+	}
+	if req.ID <= 0 {
+		response.WriteJSON(w, response.ErrDefault("Share ID is required"))
+		return
+	}
+
+	share, err := h.repo.GetPeerShare(req.ID)
+	if err != nil {
+		response.WriteJSON(w, response.Err(-2, err.Error()))
+		return
+	}
+	if share == nil {
+		response.WriteJSON(w, response.ErrDefault("Share not found"))
+		return
+	}
+
+	if req.Name == "" {
+		response.WriteJSON(w, response.ErrDefault("Name is required"))
+		return
+	}
+
+	if req.MaxBandwidth < 0 {
+		response.WriteJSON(w, response.ErrDefault("Max bandwidth cannot be negative"))
+		return
+	}
+
+	if req.ExpiryTime < 0 {
+		response.WriteJSON(w, response.ErrDefault("Expiry time cannot be negative"))
+		return
+	}
+
+	if req.PortRangeStart < 0 || req.PortRangeStart > 65535 || req.PortRangeEnd < 0 || req.PortRangeEnd > 65535 {
+		response.WriteJSON(w, response.ErrDefault("Invalid port range"))
+		return
+	}
+
+	if req.PortRangeStart > req.PortRangeEnd {
+		response.WriteJSON(w, response.ErrDefault("Port range start cannot be greater than end"))
+		return
+	}
+
+	allowedIPs, err := normalizePeerShareAllowedIPs(req.AllowedIPs)
+	if err != nil {
+		response.WriteJSON(w, response.ErrDefault(err.Error()))
+		return
+	}
+
+	share.Name = req.Name
+	share.MaxBandwidth = req.MaxBandwidth
+	share.ExpiryTime = req.ExpiryTime
+	share.PortRangeStart = req.PortRangeStart
+	share.PortRangeEnd = req.PortRangeEnd
+	share.AllowedDomains = req.AllowedDomains
+	share.AllowedIPs = allowedIPs
+	share.UpdatedTime = time.Now().UnixMilli()
+
+	if err := h.repo.UpdatePeerShare(share); err != nil {
 		response.WriteJSON(w, response.Err(-2, err.Error()))
 		return
 	}
@@ -700,7 +786,7 @@ func (h *Handler) federationTunnelCreate(w http.ResponseWriter, r *http.Request)
 	defer tx.Rollback()
 
 	now := time.Now().UnixMilli()
-	res, err := tx.Exec(`INSERT INTO tunnel (name, type, protocol, flow, created_time, updated_time, status, in_ip) VALUES (?, ?, ?, 0, ?, ?, 1, ?)`,
+	tunnelID, err := tx.ExecReturningID(`INSERT INTO tunnel (name, type, protocol, flow, created_time, updated_time, status, in_ip) VALUES (?, ?, ?, 0, ?, ?, 1, ?)`,
 		fmt.Sprintf("Share-%d-Port-%d", share.ID, req.RemotePort),
 		tunnelType,
 		req.Protocol,
@@ -713,9 +799,7 @@ func (h *Handler) federationTunnelCreate(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	tunnelID, _ := res.LastInsertId()
-
-	_, err = tx.Exec(`INSERT INTO chain_tunnel (tunnel_id, chain_type, node_id, port, strategy, inx, protocol) VALUES (?, 1, ?, ?, 'fifo', 0, ?)`,
+	_, err = tx.Exec(`INSERT INTO chain_tunnel (tunnel_id, chain_type, node_id, port, strategy, inx, protocol) VALUES (?, '1', ?, ?, 'fifo', 0, ?)`,
 		tunnelID,
 		share.NodeID,
 		req.RemotePort,
@@ -1323,6 +1407,74 @@ func isPeerIPAllowed(clientIP net.IP, whitelist string) bool {
 	}
 
 	return false
+}
+
+func (h *Handler) syncRemoteNodeStatuses(items []map[string]interface{}) {
+	type remoteEntry struct {
+		index       int
+		remoteURL   string
+		remoteToken string
+	}
+
+	var remotes []remoteEntry
+	for i, item := range items {
+		isRemote, _ := item["isRemote"].(int)
+		if isRemote != 1 {
+			continue
+		}
+		url, _ := item["remoteUrl"].(string)
+		token, _ := item["remoteToken"].(string)
+		url = strings.TrimSpace(url)
+		token = strings.TrimSpace(token)
+		if url == "" || token == "" {
+			continue
+		}
+		remotes = append(remotes, remoteEntry{index: i, remoteURL: url, remoteToken: token})
+	}
+	if len(remotes) == 0 {
+		return
+	}
+
+	localDomain := h.federationLocalDomain()
+	fc := client.NewFederationClientWithTimeout(5 * time.Second)
+
+	type syncResult struct {
+		index     int
+		status    int
+		syncError string
+	}
+
+	results := make([]syncResult, len(remotes))
+	var wg sync.WaitGroup
+	for i, entry := range remotes {
+		wg.Add(1)
+		go func(idx int, e remoteEntry) {
+			defer wg.Done()
+			info, err := fc.Connect(e.remoteURL, e.remoteToken, localDomain)
+			if err != nil {
+				errMsg := err.Error()
+				if strings.Contains(errMsg, "401") || strings.Contains(errMsg, "Invalid token") || strings.Contains(errMsg, "Unauthorized") {
+					results[idx] = syncResult{index: e.index, status: 0, syncError: "provider_share_deleted"}
+				} else if strings.Contains(errMsg, "403") || strings.Contains(errMsg, "Share is disabled") {
+					results[idx] = syncResult{index: e.index, status: 0, syncError: "provider_share_disabled"}
+				} else if strings.Contains(errMsg, "Share expired") {
+					results[idx] = syncResult{index: e.index, status: 0, syncError: "provider_share_expired"}
+				} else {
+					results[idx] = syncResult{index: e.index, status: 0, syncError: errMsg}
+				}
+			} else {
+				results[idx] = syncResult{index: e.index, status: info.Status, syncError: ""}
+			}
+		}(i, entry)
+	}
+	wg.Wait()
+
+	for _, r := range results {
+		items[r.index]["status"] = r.status
+		if r.syncError != "" {
+			items[r.index]["syncError"] = r.syncError
+		}
+	}
 }
 
 func (h *Handler) cleanupPeerShareRuntimes(shareID int64) {

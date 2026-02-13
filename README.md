@@ -2,35 +2,7 @@
 
 > **联系我们**: [Telegram群组](https://t.me/flvxpanel)
 
-## Original Project
-- **Name**: flux-panel
-- **Source**: https://github.com/bqlpfy/flux-panel
-- **License**: Apache License 2.0
 
-## Modifications
-The following major changes and additions have been made in this fork (FLVX):
-
-### 1. Backend Architecture (Replaced)
-- **Removed**: The original `springboot-backend/` (Java/Spring Boot) has been entirely removed.
-- **Added**: A new `go-backend/` (Go/SQLite) implementation replaces the original backend.
-
-### 2. Forwarding Agent (Modified)
-- **Modified**: `go-gost/` - Modified forwarding agent wrapper.
-- **Modified**: `go-gost/x/` - Modified local fork of the `gost` extensions library.
-
-### 3. Frontend (Modified)
-- **Modified**: `vite-frontend/` - Significant updates to the React/Vite dashboard to compatible with the new Go backend, including UI/UX improvements (HeroUI + Tailwind).
-
-### 4. Mobile Applications (Removed)
-- **Removed**: `android-app/` - Source code for the Android client.
-- **Removed**: `ios-app/` - Source code for the iOS client.
-
-### 5. Infrastructure & Scripts
-- **Modified**: `docker-compose-v4.yml`, `docker-compose-v6.yml` (Updated for Go backend).
-- **Modified**: `install.sh`, `panel_install.sh` (Updated installation logic).
-- **Added**: `AGENTS.md` (Project documentation).
-
----
 ## 特性
 
 - 支持按 **隧道账号级别** 管理流量转发数量，可用于用户/隧道配额控制
@@ -39,6 +11,10 @@ The following major changes and additions have been made in this fork (FLVX):
 - 可针对 **指定用户的指定隧道进行限速** 设置
 - 支持配置 **单向或双向流量计费方式**，灵活适配不同计费模型
 - 提供灵活的转发策略配置，适用于多种网络场景
+- 面板分享，支持将节点分享给其他人，面板对接面板
+- 支持分组权限管理，隧道分组、用户分组
+- 支持批量功能，可以批量下发配置，启停等
+- 支持隧道修改配置、转发修改隧道
 
 
 ## 部署流程
@@ -66,12 +42,116 @@ curl -L https://github.com/Sagit-chu/flux-panel/releases/download/2.1.0/panel_in
 curl -L https://github.com/Sagit-chu/flux-panel/releases/download/2.1.0/install.sh -o install.sh && chmod +x install.sh && ./install.sh
 ```
 
+#### PostgreSQL 部署（Docker Compose）
+
+安装脚本会根据环境自动下载对应的 Compose 配置并保存为 `docker-compose.yml`。默认仍使用 SQLite，切换到 PostgreSQL 只需要配置环境变量。
+
+1) 在 `docker-compose` 同目录创建或修改 `.env`：
+
+```bash
+JWT_SECRET=replace_with_your_secret
+BACKEND_PORT=6365
+FRONTEND_PORT=6366
+
+DB_TYPE=postgres
+DATABASE_URL=postgres://flux_panel:replace_with_strong_password@postgres:5432/flux_panel?sslmode=disable
+
+POSTGRES_DB=flux_panel
+POSTGRES_USER=flux_panel
+POSTGRES_PASSWORD=replace_with_strong_password
+```
+
+> 📌 使用安装脚本部署时，`POSTGRES_PASSWORD` 会自动随机生成并写入 `.env`。
+
+2) 启动服务：
+
+```bash
+docker compose up -d
+```
+
+3) 如果你想继续使用 SQLite，保留 `DB_TYPE=sqlite`（或不设置 `DB_TYPE`）即可。
+
+#### 从 SQLite 迁移到 PostgreSQL
+
+如果你是通过 `panel_install.sh` 安装面板，推荐直接使用脚本菜单一键迁移：
+
+```bash
+./panel_install.sh
+# 选择 4. 迁移到 PostgreSQL
+```
+
+脚本会自动完成 SQLite 备份、PostgreSQL 启动、`pgloader` 导入、`.env` 中 `DB_TYPE`/`DATABASE_URL` 更新，并重启服务。
+
+如果你希望手动迁移，以下示例基于 Docker Volume `sqlite_data`（项目默认配置）与 `pgloader`：
+
+1) 停止服务并备份 SQLite 数据：
+
+```bash
+docker compose down
+docker run --rm -v sqlite_data:/data -v "$(pwd)":/backup alpine sh -c "cp /data/gost.db /backup/gost.db.bak"
+```
+
+2) 仅启动 PostgreSQL：
+
+```bash
+docker compose up -d postgres
+```
+
+3) 使用 `pgloader` 迁移：
+
+```bash
+source .env
+docker run --rm --network gost-network -v sqlite_data:/sqlite dimitri/pgloader:latest pgloader /sqlite/gost.db "postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}"
+```
+
+4) 切换后端到 PostgreSQL 并启动：
+
+```bash
+source .env
+export DB_TYPE=postgres
+export DATABASE_URL="postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?sslmode=disable"
+docker compose up -d
+```
+
+5) 迁移完成后，登录面板检查用户、隧道、转发、节点数据是否正确。
+
 #### 默认管理员账号
 
 - **账号**: admin_user
 - **密码**: admin_user
 
 > ⚠️ 首次登录后请立即修改默认密码！
+
+---
+## Original Project
+- **Name**: flux-panel
+- **Source**: https://github.com/bqlpfy/flux-panel
+- **License**: Apache License 2.0
+
+## Modifications
+The following major changes and additions have been made in this fork (FLVX):
+
+### 1. Backend Architecture (Replaced)
+- **Removed**: The original `springboot-backend/` (Java/Spring Boot) has been entirely removed.
+- **Added**: A new `go-backend/` (Go/SQLite) implementation replaces the original backend.
+
+### 2. Forwarding Agent (Modified)
+- **Modified**: `go-gost/` - Modified forwarding agent wrapper.
+- **Modified**: `go-gost/x/` - Modified local fork of the `gost` extensions library.
+
+### 3. Frontend (Modified)
+- **Modified**: `vite-frontend/` - Significant updates to the React/Vite dashboard to compatible with the new Go backend, including UI/UX improvements (HeroUI + Tailwind).
+
+### 4. Mobile Applications (Removed)
+- **Removed**: `android-app/` - Source code for the Android client.
+- **Removed**: `ios-app/` - Source code for the iOS client.
+
+### 5. Infrastructure & Scripts
+- **Modified**: `docker-compose.yml` (installer output name, auto-selects IPv4/IPv6 template, updated for Go backend).
+- **Modified**: `install.sh`, `panel_install.sh` (Updated installation logic).
+- **Added**: `AGENTS.md` (Project documentation).
+
+---
 
 
 ## 免责声明

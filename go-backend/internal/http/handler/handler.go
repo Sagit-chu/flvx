@@ -105,6 +105,10 @@ func (h *Handler) Register(mux *http.ServeMux) {
 	mux.HandleFunc("/api/v1/node/update-order", h.nodeUpdateOrder)
 	mux.HandleFunc("/api/v1/node/batch-delete", h.nodeBatchDelete)
 	mux.HandleFunc("/api/v1/node/check-status", h.nodeCheckStatus)
+	mux.HandleFunc("/api/v1/node/upgrade", h.nodeUpgrade)
+	mux.HandleFunc("/api/v1/node/batch-upgrade", h.nodeBatchUpgrade)
+	mux.HandleFunc("/api/v1/node/rollback", h.nodeRollback)
+	mux.HandleFunc("/api/v1/node/releases", h.listReleases)
 	mux.HandleFunc("/api/v1/tunnel/list", h.tunnelList)
 	mux.HandleFunc("/api/v1/tunnel/create", h.tunnelCreate)
 	mux.HandleFunc("/api/v1/tunnel/get", h.tunnelGet)
@@ -155,6 +159,7 @@ func (h *Handler) Register(mux *http.ServeMux) {
 	mux.HandleFunc("/api/v1/open_api/sub_store", h.openAPISubStore)
 	mux.HandleFunc("/api/v1/federation/share/list", h.federationShareList)
 	mux.HandleFunc("/api/v1/federation/share/create", h.federationShareCreate)
+	mux.HandleFunc("/api/v1/federation/share/update", h.federationShareUpdate)
 	mux.HandleFunc("/api/v1/federation/share/delete", h.federationShareDelete)
 	mux.HandleFunc("/api/v1/federation/share/reset-flow", h.federationShareResetFlow)
 	mux.HandleFunc("/api/v1/federation/share/remote-usage/list", h.federationRemoteUsageList)
@@ -301,11 +306,35 @@ func (h *Handler) userList(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	var req struct {
+		Current int    `json:"current"`
+		Size    int    `json:"size"`
+		Keyword string `json:"keyword"`
+	}
+	if err := decodeJSON(r.Body, &req); err != nil && err != io.EOF {
+		response.WriteJSON(w, response.ErrDefault("请求参数错误"))
+		return
+	}
+
 	users, err := h.repo.ListUsers()
 	if err != nil {
 		response.WriteJSON(w, response.Err(-2, err.Error()))
 		return
 	}
+
+	keyword := strings.ToLower(strings.TrimSpace(req.Keyword))
+	if keyword != "" {
+		filtered := make([]map[string]interface{}, 0, len(users))
+		for _, item := range users {
+			username := strings.ToLower(strings.TrimSpace(fmt.Sprint(item["user"])))
+			displayName := strings.ToLower(strings.TrimSpace(fmt.Sprint(item["name"])))
+			if strings.Contains(username, keyword) || strings.Contains(displayName, keyword) {
+				filtered = append(filtered, item)
+			}
+		}
+		users = filtered
+	}
+
 	response.WriteJSON(w, response.OK(users))
 }
 
@@ -320,6 +349,9 @@ func (h *Handler) nodeList(w http.ResponseWriter, r *http.Request) {
 		response.WriteJSON(w, response.Err(-2, err.Error()))
 		return
 	}
+
+	h.syncRemoteNodeStatuses(items)
+
 	response.WriteJSON(w, response.OK(items))
 }
 

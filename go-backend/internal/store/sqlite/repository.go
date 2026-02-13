@@ -12,6 +12,9 @@ import (
 	"strings"
 	"time"
 
+	_ "github.com/jackc/pgx/v5/stdlib"
+	"go-backend/internal/store"
+	pgstore "go-backend/internal/store/postgres"
 	_ "modernc.org/sqlite"
 )
 
@@ -22,10 +25,10 @@ var embeddedSchema string
 var embeddedSeedData string
 
 type Repository struct {
-	db *sql.DB
+	db *store.DB
 }
 
-func (r *Repository) DB() *sql.DB {
+func (r *Repository) DB() *store.DB {
 	if r == nil {
 		return nil
 	}
@@ -165,17 +168,53 @@ func Open(path string) (*Repository, error) {
 		return nil, err
 	}
 
-	db, err := sql.Open("sqlite", path)
+	// Use _pragma DSN parameters so every connection from the pool gets
+	// the same settings (busy_timeout and synchronous are per-connection).
+	dsn := "file:" + path +
+		"?_pragma=busy_timeout(5000)" +
+		"&_pragma=journal_mode(WAL)" +
+		"&_pragma=synchronous(NORMAL)"
+	raw, err := sql.Open("sqlite", dsn)
 	if err != nil {
 		return nil, err
 	}
+	db := store.Wrap(raw, store.DialectSQLite)
 
 	if err := db.Ping(); err != nil {
 		_ = db.Close()
 		return nil, err
 	}
 
-	if err := bootstrapSchema(db); err != nil {
+	if err := bootstrapSchema(db, embeddedSchema, embeddedSeedData); err != nil {
+		_ = db.Close()
+		return nil, err
+	}
+
+	if err := migrateSchema(db); err != nil {
+		_ = db.Close()
+		return nil, err
+	}
+
+	return &Repository{db: db}, nil
+}
+
+func OpenPostgres(dsn string) (*Repository, error) {
+	if strings.TrimSpace(dsn) == "" {
+		return nil, fmt.Errorf("empty postgres dsn")
+	}
+
+	raw, err := sql.Open("pgx", dsn)
+	if err != nil {
+		return nil, err
+	}
+	db := store.Wrap(raw, store.DialectPostgres)
+
+	if err := db.Ping(); err != nil {
+		_ = db.Close()
+		return nil, err
+	}
+
+	if err := bootstrapSchema(db, pgstore.EmbeddedSchema, pgstore.EmbeddedSeedData); err != nil {
 		_ = db.Close()
 		return nil, err
 	}
@@ -361,7 +400,7 @@ func (r *Repository) GetUserPackageForwards(userID int64) ([]UserForwardDetail, 
 	}
 
 	rows, err := r.db.Query(`
-		SELECT f.id, f.name, f.tunnel_id, t.name, f.remote_addr, f.in_flow, f.out_flow, f.status, f.created_time
+		SELECT f.id, f.name, f.tunnel_id, COALESCE(t.name, ''), f.remote_addr, f.in_flow, f.out_flow, f.status, f.created_time
 		FROM forward f
 		LEFT JOIN tunnel t ON t.id = f.tunnel_id
 		WHERE f.user_id = ?
@@ -680,7 +719,7 @@ func (r *Repository) ListForwards() ([]map[string]interface{}, error) {
 	}
 
 	rows, err := r.db.Query(`
-		SELECT f.id, f.user_id, f.user_name, f.name, f.tunnel_id, t.name, f.remote_addr, f.strategy,
+		SELECT f.id, f.user_id, f.user_name, f.name, f.tunnel_id, COALESCE(t.name, ''), f.remote_addr, f.strategy,
 		       f.in_flow, f.out_flow, f.created_time, f.status, f.inx
 		FROM forward f
 		LEFT JOIN tunnel t ON t.id = f.tunnel_id
@@ -858,9 +897,9 @@ func (r *Repository) ListTunnels() ([]map[string]interface{}, error) {
 	}
 
 	chainRows, err := r.db.Query(`
-		SELECT tunnel_id, chain_type, node_id, protocol, strategy, COALESCE(inx, 0)
+		SELECT tunnel_id, CAST(chain_type AS INTEGER), node_id, protocol, strategy, COALESCE(inx, 0)
 		FROM chain_tunnel
-		ORDER BY tunnel_id ASC, chain_type ASC, inx ASC, id ASC
+		ORDER BY tunnel_id ASC, CAST(chain_type AS INTEGER) ASC, inx ASC, id ASC
 	`)
 	if err != nil {
 		return nil, err
@@ -1141,7 +1180,7 @@ func nullableForwardIngress(v string) interface{} {
 	return v
 }
 
-func resolveForwardIngress(db *sql.DB, forwardID int64, tunnelID int64) (string, sql.NullInt64, error) {
+func resolveForwardIngress(db *store.DB, forwardID int64, tunnelID int64) (string, sql.NullInt64, error) {
 	var tunnelInIP sql.NullString
 	if err := db.QueryRow(`SELECT in_ip FROM tunnel WHERE id = ? LIMIT 1`, tunnelID).Scan(&tunnelInIP); err != nil {
 		if !errors.Is(err, sql.ErrNoRows) {
@@ -1243,24 +1282,45 @@ func ensureParentDir(dbPath string) error {
 	return osMkdirAll(dir)
 }
 
-func bootstrapSchema(db *sql.DB) error {
+func bootstrapSchema(db *store.DB, schemaSQL, seedSQL string) error {
 	if db == nil {
 		return errors.New("nil db")
 	}
 
-	if _, err := db.Exec(embeddedSchema); err != nil {
+	if _, err := db.Exec(schemaSQL); err != nil {
 		return fmt.Errorf("apply schema.sql: %w", err)
 	}
 
-	if _, err := db.Exec(embeddedSeedData); err != nil {
+	if _, err := db.Exec(seedSQL); err != nil {
 		return fmt.Errorf("apply data.sql: %w", err)
 	}
 	return nil
 }
 
-func migrateSchema(db *sql.DB) error {
+const currentSchemaVersion = 1
+
+func getSchemaVersion(db *store.DB) int {
+	_, _ = db.Exec(`CREATE TABLE IF NOT EXISTS schema_version (version INTEGER NOT NULL DEFAULT 0)`)
+	var v int
+	if err := db.QueryRow(`SELECT version FROM schema_version LIMIT 1`).Scan(&v); err != nil {
+		_, _ = db.Exec(`INSERT INTO schema_version(version) VALUES(0)`)
+		return 0
+	}
+	return v
+}
+
+func setSchemaVersion(db *store.DB, v int) {
+	_, _ = db.Exec(`UPDATE schema_version SET version = ?`, v)
+}
+
+func migrateSchema(db *store.DB) error {
 	if db == nil {
 		return errors.New("nil db")
+	}
+
+	ver := getSchemaVersion(db)
+	if ver >= currentSchemaVersion {
+		return nil
 	}
 
 	ensureColumn := func(table, col, typ string) {
@@ -1269,7 +1329,7 @@ func migrateSchema(db *sql.DB) error {
 		if err == nil || errors.Is(err, sql.ErrNoRows) {
 			return
 		}
-		if strings.Contains(err.Error(), "no such column") {
+		if isMissingColumnError(db.Dialect(), err) {
 			if _, alterErr := db.Exec(fmt.Sprintf("ALTER TABLE %s ADD COLUMN %s %s", table, col, typ)); alterErr != nil {
 				log.Printf("failed to add column %s to %s: %v", col, table, alterErr)
 			}
@@ -1306,7 +1366,175 @@ func migrateSchema(db *sql.DB) error {
 			ensureColumn(table, col, typ)
 		}
 	}
+
+	if db.Dialect() == store.DialectPostgres {
+		if err := ensurePostgresIDDefaults(db); err != nil {
+			return err
+		}
+	}
+	setSchemaVersion(db, currentSchemaVersion)
 	return nil
+}
+
+func ensurePostgresIDDefaults(db *store.DB) error {
+	rows, err := db.Query(`
+		SELECT c.table_schema, c.table_name
+		FROM information_schema.table_constraints tc
+		JOIN information_schema.key_column_usage kcu
+		  ON tc.constraint_name = kcu.constraint_name
+		 AND tc.table_schema = kcu.table_schema
+		JOIN information_schema.columns c
+		  ON c.table_schema = kcu.table_schema
+		 AND c.table_name = kcu.table_name
+		 AND c.column_name = kcu.column_name
+		WHERE tc.constraint_type = 'PRIMARY KEY'
+		  AND kcu.column_name = 'id'
+		  AND c.data_type IN ('integer', 'bigint')
+		  AND c.is_identity = 'NO'
+		  AND c.table_schema = current_schema()
+		ORDER BY c.table_name ASC
+	`)
+	if err != nil {
+		return fmt.Errorf("discover postgres id columns: %w", err)
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var schemaName string
+		var tableName string
+		if err := rows.Scan(&schemaName, &tableName); err != nil {
+			return fmt.Errorf("scan postgres id table row: %w", err)
+		}
+		if err := ensurePostgresTableIDDefault(db, schemaName, tableName); err != nil {
+			return fmt.Errorf("repair %s.%s id default: %w", schemaName, tableName, err)
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return fmt.Errorf("iterate postgres id tables: %w", err)
+	}
+
+	return nil
+}
+
+func ensurePostgresTableIDDefault(db *store.DB, schemaName, tableName string) error {
+	var defaultExpr sql.NullString
+	if err := db.QueryRow(`
+		SELECT column_default
+		FROM information_schema.columns
+		WHERE table_schema = ?
+		  AND table_name = ?
+		  AND column_name = 'id'
+		LIMIT 1
+	`, schemaName, tableName).Scan(&defaultExpr); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil
+		}
+		return err
+	}
+
+	hasNextvalDefault := defaultExpr.Valid && strings.Contains(strings.ToLower(defaultExpr.String), "nextval(")
+
+	var serialSeq sql.NullString
+	if err := db.QueryRow(`
+		SELECT pg_get_serial_sequence(quote_ident(?) || '.' || quote_ident(?), 'id')
+	`, schemaName, tableName).Scan(&serialSeq); err != nil {
+		return err
+	}
+
+	seqRef := strings.TrimSpace(serialSeq.String)
+	if seqRef == "" && hasNextvalDefault {
+		seqRef = extractNextvalRegclass(defaultExpr.String)
+	}
+
+	if !hasNextvalDefault || seqRef == "" {
+		seqName := tableName + "_id_seq"
+		if _, err := db.Exec(fmt.Sprintf("CREATE SEQUENCE IF NOT EXISTS %s.%s", quoteSQLIdentifier(schemaName), quoteSQLIdentifier(seqName))); err != nil {
+			return err
+		}
+
+		seqRef = schemaName + "." + seqName
+		if _, err := db.Exec(fmt.Sprintf(
+			"ALTER TABLE %s.%s ALTER COLUMN id SET DEFAULT nextval(%s::regclass)",
+			quoteSQLIdentifier(schemaName),
+			quoteSQLIdentifier(tableName),
+			quoteSQLLiteral(seqRef),
+		)); err != nil {
+			return err
+		}
+
+		if _, err := db.Exec(fmt.Sprintf(
+			"ALTER SEQUENCE %s.%s OWNED BY %s.%s.id",
+			quoteSQLIdentifier(schemaName),
+			quoteSQLIdentifier(seqName),
+			quoteSQLIdentifier(schemaName),
+			quoteSQLIdentifier(tableName),
+		)); err != nil {
+			return err
+		}
+	}
+
+	return syncPostgresTableIDSequence(db, schemaName, tableName, seqRef)
+}
+
+func syncPostgresTableIDSequence(db *store.DB, schemaName, tableName, seqRef string) error {
+	var maxID int64
+	if err := db.QueryRow(fmt.Sprintf(
+		"SELECT COALESCE(MAX(id), 0) FROM %s.%s",
+		quoteSQLIdentifier(schemaName),
+		quoteSQLIdentifier(tableName),
+	)).Scan(&maxID); err != nil {
+		return err
+	}
+
+	setVal := maxID
+	isCalled := true
+	if maxID <= 0 {
+		setVal = 1
+		isCalled = false
+	}
+
+	if _, err := db.Exec(`SELECT setval(?::regclass, ?, ?)`, seqRef, setVal, isCalled); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func extractNextvalRegclass(defaultExpr string) string {
+	nextvalIdx := strings.Index(strings.ToLower(defaultExpr), "nextval(")
+	if nextvalIdx < 0 {
+		return ""
+	}
+	expr := defaultExpr[nextvalIdx:]
+	firstQuote := strings.Index(expr, "'")
+	if firstQuote < 0 {
+		return ""
+	}
+	expr = expr[firstQuote+1:]
+	secondQuote := strings.Index(expr, "'")
+	if secondQuote < 0 {
+		return ""
+	}
+	return strings.TrimSpace(expr[:secondQuote])
+}
+
+func quoteSQLIdentifier(ident string) string {
+	return `"` + strings.ReplaceAll(ident, `"`, `""`) + `"`
+}
+
+func quoteSQLLiteral(value string) string {
+	return "'" + strings.ReplaceAll(value, "'", "''") + "'"
+}
+
+func isMissingColumnError(dialect store.Dialect, err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := strings.ToLower(err.Error())
+	if dialect == store.DialectPostgres {
+		return strings.Contains(msg, "column") && strings.Contains(msg, "does not exist")
+	}
+	return strings.Contains(msg, "no such column")
 }
 
 func (r *Repository) CreatePeerShare(share *PeerShare) error {

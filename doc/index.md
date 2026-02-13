@@ -17,6 +17,7 @@
 
 - [安装部署](./install.md)
 - [使用指南](./usage.md)
+- [PostgreSQL 数据库指南](./postgresql.md)
 - [常见问题](./faq.md)
 
 ## 免责声明

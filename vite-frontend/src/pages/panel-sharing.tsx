@@ -20,6 +20,7 @@ import {
   resetPeerShareFlow,
   getPeerRemoteUsageList,
   importRemoteNode,
+  updatePeerShare,
 } from "@/api";
 
 interface Node {
@@ -77,6 +78,7 @@ interface RemoteUsageNode {
   usedPorts: number[];
   bindings: RemoteUsageBinding[];
   activeBindingNum: number;
+  syncError?: string;
 }
 
 export default function PanelSharingPage() {
@@ -91,6 +93,7 @@ export default function PanelSharingPage() {
 
   // Modals
   const [createShareOpen, setCreateShareOpen] = useState(false);
+  const [editShareOpen, setEditShareOpen] = useState(false);
   const [importNodeOpen, setImportNodeOpen] = useState(false);
 
   // Forms
@@ -108,6 +111,17 @@ export default function PanelSharingPage() {
   const [importForm, setImportForm] = useState({
     remoteUrl: "",
     token: "",
+  });
+
+  const [editForm, setEditForm] = useState({
+    id: 0,
+    name: "",
+    maxBandwidth: 0,
+    expiryTime: 0,
+    portRangeStart: 10000,
+    portRangeEnd: 20000,
+    allowedDomains: "",
+    allowedIps: "",
   });
 
   const loadShares = useCallback(async () => {
@@ -239,6 +253,52 @@ export default function PanelSharingPage() {
     }
   };
 
+  const openEditShare = (share: PeerShare) => {
+    setEditForm({
+      id: share.id,
+      name: share.name,
+      maxBandwidth: share.maxBandwidth > 0 ? Math.round(share.maxBandwidth / (1024 * 1024 * 1024)) : 0,
+      expiryTime: share.expiryTime,
+      portRangeStart: share.portRangeStart,
+      portRangeEnd: share.portRangeEnd,
+      allowedDomains: share.allowedDomains || "",
+      allowedIps: share.allowedIps || "",
+    });
+    setEditShareOpen(true);
+  };
+
+  const handleEditShare = async () => {
+    if (!editForm.name) {
+      toast.error("名称不能为空");
+      return;
+    }
+    if (editForm.maxBandwidth < 0) {
+      toast.error("流量上限不能为负数");
+      return;
+    }
+    try {
+      const res = await updatePeerShare({
+        id: editForm.id,
+        name: editForm.name,
+        maxBandwidth: Math.max(0, editForm.maxBandwidth) * 1024 * 1024 * 1024,
+        expiryTime: editForm.expiryTime,
+        portRangeStart: editForm.portRangeStart,
+        portRangeEnd: editForm.portRangeEnd,
+        allowedDomains: editForm.allowedDomains,
+        allowedIps: editForm.allowedIps,
+      });
+      if (res.code === 0) {
+        toast.success("编辑成功");
+        setEditShareOpen(false);
+        loadShares();
+      } else {
+        toast.error(res.msg || "编辑失败");
+      }
+    } catch {
+      toast.error("网络错误");
+    }
+  };
+
   const handleImportNode = async () => {
     if (!importForm.remoteUrl || !importForm.token) {
       toast.error("请填写完整信息");
@@ -329,6 +389,13 @@ export default function PanelSharingPage() {
                           <Button
                             size="sm"
                             variant="flat"
+                            onPress={() => openEditShare(share)}
+                          >
+                            编辑
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="flat"
                             onPress={() => handleResetShareFlow(share.id)}
                           >
                             重置流量
@@ -390,6 +457,17 @@ export default function PanelSharingPage() {
                         <span className="text-xs text-default-500">绑定 {node.activeBindingNum || 0}</span>
                       </CardHeader>
                       <CardBody className="text-sm space-y-2">
+                        {node.syncError && (
+                          <div className="px-2 py-1.5 rounded-md bg-warning-50 dark:bg-warning-100/10 text-warning-700 dark:text-warning-400 text-xs">
+                            {node.syncError === "provider_share_deleted"
+                              ? "提供方已删除该分享"
+                              : node.syncError === "provider_share_disabled"
+                                ? "提供方已禁用该分享"
+                                : node.syncError === "provider_share_expired"
+                                  ? "提供方分享已过期"
+                                  : `远程同步失败: ${node.syncError}`}
+                          </div>
+                        )}
                         {node.remoteUrl && <p>远程地址: {node.remoteUrl}</p>}
                         <p>共享ID: {node.shareId || "-"}</p>
                         <p>端口范围: {node.portRangeStart > 0 && node.portRangeEnd > 0 ? `${node.portRangeStart} - ${node.portRangeEnd}` : "-"}</p>
@@ -487,6 +565,67 @@ export default function PanelSharingPage() {
           <ModalFooter>
             <Button onPress={() => setCreateShareOpen(false)}>取消</Button>
             <Button color="primary" onPress={handleCreateShare}>创建</Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
+
+      {/* Edit Share Modal */}
+      <Modal isOpen={editShareOpen} onClose={() => setEditShareOpen(false)}>
+        <ModalContent>
+          <ModalHeader>编辑分享</ModalHeader>
+          <ModalBody>
+            <Input
+              label="名称"
+              placeholder="备注名称"
+              value={editForm.name}
+              onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+            />
+            <div className="flex gap-4">
+              <Input
+                label="起始端口"
+                type="number"
+                value={editForm.portRangeStart.toString()}
+                onChange={(e) => setEditForm({ ...editForm, portRangeStart: parseInt(e.target.value) || 0 })}
+              />
+              <Input
+                label="结束端口"
+                type="number"
+                value={editForm.portRangeEnd.toString()}
+                onChange={(e) => setEditForm({ ...editForm, portRangeEnd: parseInt(e.target.value) || 0 })}
+              />
+            </div>
+            <Input
+              label="流量上限 (GB)"
+              type="number"
+              description="0 表示不限流量"
+              value={editForm.maxBandwidth.toString()}
+              onChange={(e) => setEditForm({ ...editForm, maxBandwidth: parseInt(e.target.value, 10) || 0 })}
+            />
+            <Input
+              label="过期时间"
+              type="datetime-local"
+              description="留空或清除表示永久有效"
+              value={editForm.expiryTime > 0 ? new Date(editForm.expiryTime).toISOString().slice(0, 16) : ""}
+              onChange={(e) => setEditForm({ ...editForm, expiryTime: e.target.value ? new Date(e.target.value).getTime() : 0 })}
+            />
+            <Input
+              label="允许的域名 (可选)"
+              placeholder="example.com, panel.test.com"
+              description="限制使用此Token的来源面板域名，多个域名用逗号分隔，留空不限制"
+              value={editForm.allowedDomains}
+              onChange={(e) => setEditForm({ ...editForm, allowedDomains: e.target.value })}
+            />
+            <Input
+              label="允许的API IP (可选)"
+              placeholder="203.0.113.10, 2001:db8::10, 198.51.100.0/24"
+              description="仅白名单IP可导入此分享，支持IPv4/IPv6/CIDR，多个用逗号分隔"
+              value={editForm.allowedIps}
+              onChange={(e) => setEditForm({ ...editForm, allowedIps: e.target.value })}
+            />
+          </ModalBody>
+          <ModalFooter>
+            <Button onPress={() => setEditShareOpen(false)}>取消</Button>
+            <Button color="primary" onPress={handleEditShare}>保存</Button>
           </ModalFooter>
         </ModalContent>
       </Modal>

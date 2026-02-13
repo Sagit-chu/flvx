@@ -112,6 +112,12 @@ jobs:
           upx --best --lzma gost-amd64
           upx --best --lzma gost-arm64
 
+      - name: Generate SHA256 checksums
+        working-directory: ./go-gost
+        run: |
+          sha256sum gost-amd64 > gost-amd64.sha256
+          sha256sum gost-arm64 > gost-arm64.sha256
+
       - name: Upload GOST AMD64 artifact
         uses: actions/upload-artifact@v4
         with:
@@ -123,6 +129,18 @@ jobs:
         with:
           name: gost-binary-arm64
           path: ./go-gost/gost-arm64
+
+      - name: Upload GOST AMD64 checksum artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: gost-checksum-amd64
+          path: ./go-gost/gost-amd64.sha256
+
+      - name: Upload GOST ARM64 checksum artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: gost-checksum-arm64
+          path: ./go-gost/gost-arm64.sha256
 
   build-vite:
     name: Build & Push Vite Frontend
@@ -238,7 +256,20 @@ jobs:
           name: gost-binary-arm64
           path: ./artifacts/arm64
 
+      - name: Download GOST AMD64 checksum
+        uses: actions/download-artifact@v4
+        with:
+          name: gost-checksum-amd64
+          path: ./artifacts/
+
+      - name: Download GOST ARM64 checksum
+        uses: actions/download-artifact@v4
+        with:
+          name: gost-checksum-arm64
+          path: ./artifacts/
+
       - name: Prepare release files
+
         run: |
           VERSION="${{ needs.check-version.outputs.version }}"
           OWNER="${{ needs.check-version.outputs.image_owner }}"
@@ -331,6 +362,10 @@ jobs:
           gh release upload "${VERSION}" ./artifacts/gost-amd64 --clobber
           gh release upload "${VERSION}" ./artifacts/gost-arm64 --clobber
 
+          echo "📤 上传 GOST 校验文件..."
+          gh release upload "${VERSION}" ./artifacts/gost-amd64.sha256 --clobber
+          gh release upload "${VERSION}" ./artifacts/gost-arm64.sha256 --clobber
+
           echo "📤 上传安装脚本..."
           gh release upload "${VERSION}" ./artifacts/install.sh --clobber
           gh release upload "${VERSION}" ./artifacts/panel_install.sh --clobber
@@ -363,6 +398,18 @@ jobs:
           name: gost-binary-arm64
           path: ./artifacts/arm64
 
+      - name: Download GOST AMD64 checksum
+        uses: actions/download-artifact@v4
+        with:
+          name: gost-checksum-amd64
+          path: ./artifacts/
+
+      - name: Download GOST ARM64 checksum
+        uses: actions/download-artifact@v4
+        with:
+          name: gost-checksum-arm64
+          path: ./artifacts/
+
       - name: Rename binaries
         run: |
           mv ./artifacts/amd64/gost-amd64 ./artifacts/gost-amd64
@@ -379,4 +426,9 @@ jobs:
           gh release upload "${VERSION}" ./artifacts/gost-amd64 --clobber
           gh release upload "${VERSION}" ./artifacts/gost-arm64 --clobber
 
+          echo "📤 上传 GOST 校验文件..."
+          gh release upload "${VERSION}" ./artifacts/gost-amd64.sha256 --clobber
+          gh release upload "${VERSION}" ./artifacts/gost-arm64.sha256 --clobber
+
           echo "✅ GOST 二进制文件更新完成"
+

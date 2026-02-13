@@ -54,6 +54,12 @@ type pendingRequest struct {
 	ch     chan CommandResult
 }
 
+const (
+	wsPingPeriod = 15 * time.Second
+	wsPongWait   = 45 * time.Second
+	wsWriteWait  = 5 * time.Second
+)
+
 type CommandResult struct {
 	Type    string                 `json:"type"`
 	Success bool                   `json:"success"`
@@ -120,12 +126,19 @@ func (s *Server) handleAdmin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	cw := &connWrap{conn: conn}
+	_ = conn.SetReadDeadline(time.Now().Add(wsPongWait))
+	conn.SetPongHandler(func(string) error {
+		return conn.SetReadDeadline(time.Now().Add(wsPongWait))
+	})
+	done := make(chan struct{})
+	go startKeepalive(cw, done)
 
 	s.mu.Lock()
 	s.admins[cw] = struct{}{}
 	s.mu.Unlock()
 
 	defer func() {
+		close(done)
 		s.mu.Lock()
 		delete(s.admins, cw)
 		s.mu.Unlock()
@@ -145,6 +158,12 @@ func (s *Server) handleNode(w http.ResponseWriter, r *http.Request, nodeID int64
 		return
 	}
 	cw := &connWrap{conn: conn}
+	_ = conn.SetReadDeadline(time.Now().Add(wsPongWait))
+	conn.SetPongHandler(func(string) error {
+		return conn.SetReadDeadline(time.Now().Add(wsPongWait))
+	})
+	done := make(chan struct{})
+	go startKeepalive(cw, done)
 
 	version := r.URL.Query().Get("version")
 	httpVal := parseIntDefault(r.URL.Query().Get("http"), 0)
@@ -165,6 +184,7 @@ func (s *Server) handleNode(w http.ResponseWriter, r *http.Request, nodeID int64
 	s.broadcastStatus(nodeID, 1)
 
 	defer func() {
+		close(done)
 		needOfflineBroadcast := false
 		s.mu.Lock()
 		current, ok := s.nodes[nodeID]
@@ -190,7 +210,15 @@ func (s *Server) handleNode(w http.ResponseWriter, r *http.Request, nodeID int64
 
 		msg := decryptIfNeeded(payload, secret)
 		s.tryResolvePending(nodeID, msg)
-		s.broadcastInfo(nodeID, msg)
+
+		var parsed struct {
+			Type string `json:"type"`
+		}
+		if json.Unmarshal([]byte(msg), &parsed) == nil && parsed.Type == "UpgradeProgress" {
+			s.broadcastTyped(nodeID, "upgrade_progress", msg)
+		} else {
+			s.broadcastInfo(nodeID, msg)
+		}
 	}
 }
 
@@ -264,7 +292,9 @@ func (s *Server) SendCommand(nodeID int64, cmdType string, data interface{}, tim
 	}
 
 	ns.conn.mu.Lock()
+	_ = ns.conn.conn.SetWriteDeadline(time.Now().Add(wsWriteWait))
 	err = ns.conn.conn.WriteMessage(websocket.TextMessage, messageData)
+	_ = ns.conn.conn.SetWriteDeadline(time.Time{})
 	ns.conn.mu.Unlock()
 	if err != nil {
 		cleanup()
@@ -385,6 +415,12 @@ func (s *Server) broadcastInfo(nodeID int64, data string) {
 	s.broadcastToAdmins(string(raw))
 }
 
+func (s *Server) broadcastTyped(nodeID int64, msgType string, data string) {
+	payload := broadcastMessage{ID: nodeID, Type: msgType, Data: data}
+	raw, _ := json.Marshal(payload)
+	s.broadcastToAdmins(string(raw))
+}
+
 func (s *Server) broadcastToAdmins(message string) {
 	s.mu.RLock()
 	admins := make([]*connWrap, 0, len(s.admins))
@@ -395,7 +431,9 @@ func (s *Server) broadcastToAdmins(message string) {
 
 	for _, c := range admins {
 		c.mu.Lock()
+		_ = c.conn.SetWriteDeadline(time.Now().Add(wsWriteWait))
 		err := c.conn.WriteMessage(websocket.TextMessage, []byte(message))
+		_ = c.conn.SetWriteDeadline(time.Time{})
 		c.mu.Unlock()
 		if err != nil {
 			log.Printf("websocket broadcast failed: %v", err)
@@ -427,4 +465,29 @@ func parseIntDefault(v string, fallback int) int {
 		return fallback
 	}
 	return x
+}
+
+func startKeepalive(cw *connWrap, done <-chan struct{}) {
+	if cw == nil || cw.conn == nil {
+		return
+	}
+	ticker := time.NewTicker(wsPingPeriod)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-done:
+			return
+		case <-ticker.C:
+			cw.mu.Lock()
+			_ = cw.conn.SetWriteDeadline(time.Now().Add(wsWriteWait))
+			err := cw.conn.WriteMessage(websocket.PingMessage, nil)
+			_ = cw.conn.SetWriteDeadline(time.Time{})
+			cw.mu.Unlock()
+			if err != nil {
+				_ = cw.conn.Close()
+				return
+			}
+		}
+	}
 }

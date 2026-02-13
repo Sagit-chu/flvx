@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"go-backend/internal/config"
@@ -20,9 +21,24 @@ type App struct {
 }
 
 func New(cfg config.Config) (*App, error) {
-	repo, err := sqlite.Open(cfg.DBPath)
-	if err != nil {
-		return nil, fmt.Errorf("open sqlite: %w", err)
+	var (
+		repo *sqlite.Repository
+		err  error
+	)
+
+	switch strings.ToLower(strings.TrimSpace(cfg.DBType)) {
+	case "", "sqlite":
+		repo, err = sqlite.Open(cfg.DBPath)
+		if err != nil {
+			return nil, fmt.Errorf("open sqlite: %w", err)
+		}
+	case "postgres", "postgresql":
+		repo, err = sqlite.OpenPostgres(cfg.DatabaseURL)
+		if err != nil {
+			return nil, fmt.Errorf("open postgres: %w", err)
+		}
+	default:
+		return nil, fmt.Errorf("unsupported DB_TYPE %q", cfg.DBType)
 	}
 
 	h := handler.New(repo, cfg.JWTSecret)

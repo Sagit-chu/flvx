@@ -4,10 +4,17 @@ import (
 	"bytes"
 	"compress/gzip"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net"
+	"net/http"
 	"net/url"
+	"os"
+	"os/exec"
+	"runtime"
 	"strconv"
 	"strings"
 	"sync" // 新增：用于管理连接状态的互斥锁
@@ -21,7 +28,6 @@ import (
 	"github.com/shirou/gopsutil/v3/host"
 	"github.com/shirou/gopsutil/v3/mem"
 	psnet "github.com/shirou/gopsutil/v3/net"
-	"os"
 )
 
 // SystemInfo 系统信息结构体
@@ -84,6 +90,11 @@ type TcpPingResponse struct {
 	ErrorMessage string  `json:"errorMessage,omitempty"`
 	RequestId    string  `json:"requestId,omitempty"`
 }
+
+const (
+	reporterReadWait  = 60 * time.Second
+	reporterWriteWait = 5 * time.Second
+)
 
 type WebSocketReporter struct {
 	url            string
@@ -237,6 +248,14 @@ func (w *WebSocketReporter) connect() error {
 
 	w.conn = conn
 	w.connected = true
+	_ = conn.SetReadDeadline(time.Now().Add(reporterReadWait))
+	conn.SetPingHandler(func(appData string) error {
+		_ = conn.SetReadDeadline(time.Now().Add(reporterReadWait))
+		return conn.WriteControl(websocket.PongMessage, []byte(appData), time.Now().Add(reporterWriteWait))
+	})
+	conn.SetPongHandler(func(string) error {
+		return conn.SetReadDeadline(time.Now().Add(reporterReadWait))
+	})
 
 	// 设置关闭处理器来检测连接状态
 	w.conn.SetCloseHandler(func(code int, text string) error {
@@ -377,7 +396,7 @@ func (w *WebSocketReporter) receiveMessages() {
 			}
 
 			// 设置读取超时
-			conn.SetReadDeadline(time.Now().Add(30 * time.Second))
+			conn.SetReadDeadline(time.Now().Add(reporterReadWait))
 
 			messageType, message, err := conn.ReadMessage()
 			if err != nil {
@@ -466,9 +485,8 @@ func (w *WebSocketReporter) handleReceivedMessage(messageType int, message []byt
 			}
 
 			if cmdMsg.Type != "call" {
-				// TcpPing 诊断命令异步执行，避免阻塞其他命令
 				// 其他状态变更命令保持同步，确保顺序执行
-				if cmdMsg.Type == "TcpPing" {
+				if cmdMsg.Type == "TcpPing" || cmdMsg.Type == "UpgradeAgent" || cmdMsg.Type == "RollbackAgent" {
 					go w.routeCommand(cmdMsg)
 				} else {
 					w.routeCommand(cmdMsg)
@@ -483,9 +501,8 @@ func (w *WebSocketReporter) handleReceivedMessage(messageType int, message []byt
 				return
 			}
 			if cmdMsg.Type != "call" {
-				// TcpPing 诊断命令异步执行，避免阻塞其他命令
 				// 其他状态变更命令保持同步，确保顺序执行
-				if cmdMsg.Type == "TcpPing" {
+				if cmdMsg.Type == "TcpPing" || cmdMsg.Type == "UpgradeAgent" || cmdMsg.Type == "RollbackAgent" {
 					go w.routeCommand(cmdMsg)
 				} else {
 					w.routeCommand(cmdMsg)
@@ -578,6 +595,18 @@ func (w *WebSocketReporter) routeCommand(cmd CommandMessage) {
 		err = w.handleSetProtocol(cmd.Data)
 		response.Type = "SetProtocolResponse"
 		needSaveConfig = true
+
+	// 升级 Agent 命令（异步执行，不需要保存配置）
+	case "UpgradeAgent":
+		err = w.handleUpgradeAgent(cmd.Data)
+		response.Type = "UpgradeAgentResponse"
+		// needSaveConfig = false (默认值)
+
+	// 回退 Agent 到旧版本
+	case "RollbackAgent":
+		err = w.handleRollbackAgent(cmd.Data)
+		response.Type = "RollbackAgentResponse"
+		// needSaveConfig = false (默认值)
 
 	default:
 		err = fmt.Errorf("未知命令类型: %s", cmd.Type)
@@ -878,6 +907,186 @@ func (w *WebSocketReporter) handleSetProtocol(data interface{}) error {
 	if err := updateLocalConfigJSON(httpVal, tlsVal, socksVal); err != nil {
 		return fmt.Errorf("写入config.json失败: %v", err)
 	}
+	return nil
+}
+
+// sendUpgradeProgress 通过 WS 发送升级进度消息
+func (w *WebSocketReporter) sendUpgradeProgress(stage string, percent int, message string) {
+	response := CommandResponse{
+		Type:    "UpgradeProgress",
+		Success: true,
+		Message: message,
+		Data: map[string]interface{}{
+			"stage":   stage,
+			"percent": percent,
+		},
+	}
+	w.sendResponse(response)
+}
+
+func (w *WebSocketReporter) handleUpgradeAgent(data interface{}) error {
+	jsonData, err := json.Marshal(data)
+	if err != nil {
+		return fmt.Errorf("序列化数据失败: %v", err)
+	}
+
+	var req struct {
+		DownloadURL string `json:"downloadUrl"`
+		ChecksumURL string `json:"checksumUrl"`
+	}
+	if err := json.Unmarshal(jsonData, &req); err != nil {
+		return fmt.Errorf("解析升级参数失败: %v", err)
+	}
+	if strings.TrimSpace(req.DownloadURL) == "" {
+		return fmt.Errorf("下载地址不能为空")
+	}
+
+	// 替换架构占位符
+	downloadURL := strings.ReplaceAll(req.DownloadURL, "{ARCH}", runtime.GOARCH)
+	checksumURL := strings.ReplaceAll(req.ChecksumURL, "{ARCH}", runtime.GOARCH)
+
+	w.sendUpgradeProgress("downloading", 0, "开始下载升级包...")
+	fmt.Printf("📦 开始下载升级包: %s\n", downloadURL)
+
+	// 下载新版本二进制
+	const binaryPath = "/etc/flux_agent/flux_agent"
+	tmpPath := binaryPath + ".new"
+	backupPath := binaryPath + ".old"
+
+	resp, err := http.Get(downloadURL)
+	if err != nil {
+		return fmt.Errorf("下载升级包失败: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("下载升级包失败, HTTP状态码: %d", resp.StatusCode)
+	}
+
+	outFile, err := os.Create(tmpPath)
+	if err != nil {
+		return fmt.Errorf("创建临时文件失败: %v", err)
+	}
+
+	// 带进度的下载
+	totalSize := resp.ContentLength
+	var downloaded int64
+	buf := make([]byte, 32*1024)
+	lastPercent := 0
+	hasher := sha256.New()
+
+	for {
+		n, readErr := resp.Body.Read(buf)
+		if n > 0 {
+			if _, wErr := outFile.Write(buf[:n]); wErr != nil {
+				outFile.Close()
+				os.Remove(tmpPath)
+				return fmt.Errorf("写入升级包失败: %v", wErr)
+			}
+			hasher.Write(buf[:n])
+			downloaded += int64(n)
+			if totalSize > 0 {
+				percent := int(downloaded * 100 / totalSize)
+				if percent-lastPercent >= 10 {
+					lastPercent = percent
+					w.sendUpgradeProgress("downloading", percent, fmt.Sprintf("下载中... %d%%", percent))
+				}
+			}
+		}
+		if readErr != nil {
+			if readErr == io.EOF {
+				break
+			}
+			outFile.Close()
+			os.Remove(tmpPath)
+			return fmt.Errorf("读取升级包失败: %v", readErr)
+		}
+	}
+	outFile.Close()
+
+	if downloaded == 0 {
+		os.Remove(tmpPath)
+		return fmt.Errorf("下载的升级包为空")
+	}
+
+	w.sendUpgradeProgress("downloading", 100, fmt.Sprintf("下载完成 (%d bytes)", downloaded))
+
+	// Checksum 校验
+	if checksumURL != "" {
+		w.sendUpgradeProgress("verifying", 0, "校验文件完整性...")
+		checksumResp, err := http.Get(checksumURL)
+		if err == nil {
+			defer checksumResp.Body.Close()
+			if checksumResp.StatusCode == http.StatusOK {
+				checksumBody, err := io.ReadAll(checksumResp.Body)
+				if err == nil {
+					// 格式: "<hash>  <filename>" 或 "<hash>"
+					expectedHash := strings.TrimSpace(strings.Split(string(checksumBody), " ")[0])
+					actualHash := hex.EncodeToString(hasher.Sum(nil))
+					if !strings.EqualFold(expectedHash, actualHash) {
+						os.Remove(tmpPath)
+						return fmt.Errorf("校验失败: 期望 %s, 实际 %s", expectedHash, actualHash)
+					}
+					fmt.Printf("✅ Checksum 校验通过: %s\n", actualHash)
+				}
+			}
+		}
+		w.sendUpgradeProgress("verifying", 100, "校验通过")
+	}
+
+	if err := os.Chmod(tmpPath, 0755); err != nil {
+		os.Remove(tmpPath)
+		return fmt.Errorf("设置执行权限失败: %v", err)
+	}
+
+	// 备份旧版本
+	w.sendUpgradeProgress("installing", 50, "备份旧版本...")
+	if _, err := os.Stat(binaryPath); err == nil {
+		// 复制旧文件作为备份（不用 rename，因为可能正在运行）
+		oldData, err := os.ReadFile(binaryPath)
+		if err == nil {
+			_ = os.WriteFile(backupPath, oldData, 0755)
+			fmt.Println("📦 旧版本已备份到", backupPath)
+		}
+	}
+
+	w.sendUpgradeProgress("installing", 80, "准备重启...")
+	fmt.Printf("✅ 升级包下载完成 (%d bytes), 准备重启...\n", downloaded)
+
+	// 执行重启脚本
+	// 使用 systemd-run 在独立的 transient unit 中运行重启脚本，
+	// 避免 systemctl stop 杀死 flux_agent cgroup 内所有进程（包括此脚本自身）导致 mv 未执行。
+	script := fmt.Sprintf("sleep 1 && systemctl stop flux_agent && mv %s %s && systemctl start flux_agent", tmpPath, binaryPath)
+	cmd := exec.Command("systemd-run", "--quiet", "/bin/sh", "-c", script)
+	if err := cmd.Start(); err != nil {
+		os.Remove(tmpPath)
+		return fmt.Errorf("启动重启脚本失败: %v", err)
+	}
+
+	w.sendUpgradeProgress("installing", 100, "重启中...")
+	fmt.Println("🔄 重启脚本已启动, Agent 将在 1 秒后重启...")
+	return nil
+}
+
+func (w *WebSocketReporter) handleRollbackAgent(data interface{}) error {
+	const binaryPath = "/etc/flux_agent/flux_agent"
+	backupPath := binaryPath + ".old"
+
+	// 检查备份文件是否存在
+	if _, err := os.Stat(backupPath); os.IsNotExist(err) {
+		return fmt.Errorf("没有可用的备份文件，无法回退")
+	}
+
+	fmt.Println("🔄 开始回退到旧版本...")
+
+	// 执行回退脚本（同升级逻辑，使用 systemd-run 避免 cgroup 问题）
+	script := fmt.Sprintf("sleep 1 && systemctl stop flux_agent && cp %s %s && systemctl start flux_agent", backupPath, binaryPath)
+	cmd := exec.Command("systemd-run", "--quiet", "/bin/sh", "-c", script)
+	if err := cmd.Start(); err != nil {
+		return fmt.Errorf("启动回退脚本失败: %v", err)
+	}
+
+	fmt.Println("🔄 回退脚本已启动, Agent 将在 1 秒后重启...")
 	return nil
 }
 

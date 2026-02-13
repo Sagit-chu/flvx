@@ -889,11 +889,11 @@ func firstPortFromRange(portRange string) int {
 
 func (h *Handler) listChainNodesForTunnel(tunnelID int64) ([]chainNodeRecord, error) {
 	rows, err := h.repo.DB().Query(`
-		SELECT ct.chain_type, COALESCE(ct.inx, 0), ct.node_id, COALESCE(ct.port, 0), n.name, ct.protocol, ct.strategy
+		SELECT CAST(ct.chain_type AS INTEGER), COALESCE(ct.inx, 0), ct.node_id, COALESCE(ct.port, 0), n.name, ct.protocol, ct.strategy
 		FROM chain_tunnel ct
 		LEFT JOIN node n ON n.id = ct.node_id
 		WHERE ct.tunnel_id = ?
-		ORDER BY ct.chain_type ASC, COALESCE(ct.inx, 0) ASC, ct.id ASC
+		ORDER BY CAST(ct.chain_type AS INTEGER) ASC, COALESCE(ct.inx, 0) ASC, ct.id ASC
 	`, tunnelID)
 	if err != nil {
 		return nil, err

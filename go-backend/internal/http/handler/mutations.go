@@ -18,6 +18,7 @@ import (
 	"go-backend/internal/http/client"
 	"go-backend/internal/http/response"
 	"go-backend/internal/security"
+	"go-backend/internal/store"
 	"go-backend/internal/store/sqlite"
 )
 
@@ -413,7 +414,7 @@ func (h *Handler) nodeInstall(w http.ResponseWriter, r *http.Request) {
 		response.WriteJSON(w, response.Err(-2, err.Error()))
 		return
 	}
-	cmd := fmt.Sprintf("curl -L https://github.com/Sagit-chu/flux-panel/releases/latest/download/install.sh -o ./install.sh && chmod +x ./install.sh && ./install.sh -a %s -s %s", processServerAddress(panelAddr), secret)
+	cmd := fmt.Sprintf("curl -L https://gcode.hostcentral.cc/https://github.com/Sagit-chu/flvx/releases/latest/download/install.sh -o ./install.sh && chmod +x ./install.sh && ./install.sh -a %s -s %s", processServerAddress(panelAddr), secret)
 	response.WriteJSON(w, response.OK(cmd))
 }
 
@@ -559,13 +560,12 @@ func (h *Handler) tunnelCreate(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	res, err := tx.Exec(`INSERT INTO tunnel(name, traffic_ratio, type, protocol, flow, created_time, updated_time, status, in_ip, inx) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+	tunnelID, err := tx.ExecReturningID(`INSERT INTO tunnel(name, traffic_ratio, type, protocol, flow, created_time, updated_time, status, in_ip, inx) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		name, trafficRatio, typeVal, "tls", flow, now, now, status, nullableText(inIP), inx)
 	if err != nil {
 		response.WriteJSON(w, response.Err(-2, err.Error()))
 		return
 	}
-	tunnelID, _ := res.LastInsertId()
 	runtimeState.TunnelID = tunnelID
 	var federationBindings []sqlite.FederationTunnelBinding
 	var federationReleaseRefs []federationRuntimeReleaseRef
@@ -688,6 +688,9 @@ func (h *Handler) tunnelUpdate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	runtimeState.TunnelID = id
+
+	inIp := buildTunnelInIP(runtimeState.InNodes, runtimeState.Nodes)
+
 	var federationBindings []sqlite.FederationTunnelBinding
 	var federationReleaseRefs []federationRuntimeReleaseRef
 	if typeVal == 2 {
@@ -700,7 +703,7 @@ func (h *Handler) tunnelUpdate(w http.ResponseWriter, r *http.Request) {
 	applyTunnelPortsToRequest(req, runtimeState)
 
 	_, err = tx.Exec(`UPDATE tunnel SET name=?, type=?, flow=?, traffic_ratio=?, status=?, in_ip=?, updated_time=? WHERE id=?`,
-		asString(req["name"]), typeVal, asInt64(req["flow"], 1), asFloat(req["trafficRatio"], 1.0), asInt(req["status"], 1), nullableText(asString(req["inIp"])), now, id)
+		asString(req["name"]), typeVal, asInt64(req["flow"], 1), asFloat(req["trafficRatio"], 1.0), asInt(req["status"], 1), nullableText(inIp), now, id)
 	if err != nil {
 		response.WriteJSON(w, response.Err(-2, err.Error()))
 		return
@@ -1119,7 +1122,7 @@ func (h *Handler) forwardCreate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer func() { _ = tx.Rollback() }()
-	res, err := tx.Exec(`
+	forwardID, err := tx.ExecReturningID(`
 		INSERT INTO forward(user_id, user_name, name, tunnel_id, remote_addr, strategy, in_flow, out_flow, created_time, updated_time, status, inx)
 		VALUES(?, ?, ?, ?, ?, ?, 0, 0, ?, ?, 1, ?)
 	`, userID, userName, name, tunnelID, remoteAddr, defaultString(asString(req["strategy"]), "fifo"), now, now, inx)
@@ -1127,7 +1130,6 @@ func (h *Handler) forwardCreate(w http.ResponseWriter, r *http.Request) {
 		response.WriteJSON(w, response.Err(-2, err.Error()))
 		return
 	}
-	forwardID, _ := res.LastInsertId()
 	entryNodes, _ := h.tunnelEntryNodeIDs(tunnelID)
 	for _, nodeID := range entryNodes {
 		_, _ = tx.Exec(`INSERT INTO forward_port(forward_id, node_id, port) VALUES(?, ?, ?)`, forwardID, nodeID, port)
@@ -1587,13 +1589,12 @@ func (h *Handler) speedLimitCreate(w http.ResponseWriter, r *http.Request) {
 	}
 	now := time.Now().UnixMilli()
 	speed := asInt(req["speed"], 100)
-	res, err := h.repo.DB().Exec(`INSERT INTO speed_limit(name, speed, tunnel_id, tunnel_name, created_time, updated_time, status) VALUES(?, ?, ?, ?, ?, ?, ?)`,
+	id, err := h.repo.DB().ExecReturningID(`INSERT INTO speed_limit(name, speed, tunnel_id, tunnel_name, created_time, updated_time, status) VALUES(?, ?, ?, ?, ?, ?, ?)`,
 		name, speed, tunnelID, tunnelName, now, now, asInt(req["status"], 1))
 	if err != nil {
 		response.WriteJSON(w, response.Err(-2, err.Error()))
 		return
 	}
-	id, _ := res.LastInsertId()
 	_ = h.sendLimiterConfig(id, speed, tunnelID)
 	response.WriteJSON(w, response.OKEmpty())
 }
@@ -1687,7 +1688,7 @@ func (h *Handler) groupTunnelAssign(w http.ResponseWriter, r *http.Request) {
 	defer func() { _ = tx.Rollback() }()
 	_, _ = tx.Exec(`DELETE FROM tunnel_group_tunnel WHERE tunnel_group_id = ?`, req.GroupID)
 	for _, tid := range req.TunnelIDs {
-		_, _ = tx.Exec(`INSERT OR IGNORE INTO tunnel_group_tunnel(tunnel_group_id, tunnel_id, created_time) VALUES(?, ?, ?)`, req.GroupID, tid, time.Now().UnixMilli())
+		_, _ = tx.Exec(`INSERT INTO tunnel_group_tunnel(tunnel_group_id, tunnel_id, created_time) VALUES(?, ?, ?) ON CONFLICT DO NOTHING`, req.GroupID, tid, time.Now().UnixMilli())
 	}
 	if err := tx.Commit(); err != nil {
 		response.WriteJSON(w, response.Err(-2, err.Error()))
@@ -1714,7 +1715,7 @@ func (h *Handler) groupUserAssign(w http.ResponseWriter, r *http.Request) {
 	defer func() { _ = tx.Rollback() }()
 	_, _ = tx.Exec(`DELETE FROM user_group_user WHERE user_group_id = ?`, req.GroupID)
 	for _, uid := range req.UserIDs {
-		_, _ = tx.Exec(`INSERT OR IGNORE INTO user_group_user(user_group_id, user_id, created_time) VALUES(?, ?, ?)`, req.GroupID, uid, time.Now().UnixMilli())
+		_, _ = tx.Exec(`INSERT INTO user_group_user(user_group_id, user_id, created_time) VALUES(?, ?, ?) ON CONFLICT DO NOTHING`, req.GroupID, uid, time.Now().UnixMilli())
 	}
 	if err := tx.Commit(); err != nil {
 		response.WriteJSON(w, response.Err(-2, err.Error()))
@@ -1733,7 +1734,7 @@ func (h *Handler) groupPermissionAssign(w http.ResponseWriter, r *http.Request) 
 		response.WriteJSON(w, response.ErrDefault("请求参数错误"))
 		return
 	}
-	_, err := h.repo.DB().Exec(`INSERT OR IGNORE INTO group_permission(user_group_id, tunnel_group_id, created_time) VALUES(?, ?, ?)`, req.UserGroupID, req.TunnelGroupID, time.Now().UnixMilli())
+	_, err := h.repo.DB().Exec(`INSERT INTO group_permission(user_group_id, tunnel_group_id, created_time) VALUES(?, ?, ?) ON CONFLICT DO NOTHING`, req.UserGroupID, req.TunnelGroupID, time.Now().UnixMilli())
 	if err != nil {
 		response.WriteJSON(w, response.Err(-2, err.Error()))
 		return
@@ -1835,7 +1836,7 @@ func (h *Handler) applyGroupPermission(userGroupID, tunnelGroupID int64) error {
 			if created {
 				createdByGroup = 1
 			}
-			_, _ = db.Exec(`INSERT OR IGNORE INTO group_permission_grant(user_group_id, tunnel_group_id, user_tunnel_id, created_by_group, created_time) VALUES(?, ?, ?, ?, ?)`,
+			_, _ = db.Exec(`INSERT INTO group_permission_grant(user_group_id, tunnel_group_id, user_tunnel_id, created_by_group, created_time) VALUES(?, ?, ?, ?, ?) ON CONFLICT DO NOTHING`,
 				userGroupID, tunnelGroupID, utID, createdByGroup, time.Now().UnixMilli())
 		}
 	}
@@ -1866,7 +1867,7 @@ func (h *Handler) syncPermissionsByTunnelGroup(tunnelGroupID int64) error {
 	return nil
 }
 
-func ensureUserTunnelGrant(db *sql.DB, userID, tunnelID int64) (int64, bool, error) {
+func ensureUserTunnelGrant(db *store.DB, userID, tunnelID int64) (int64, bool, error) {
 	var id int64
 	err := db.QueryRow(`SELECT id FROM user_tunnel WHERE user_id = ? AND tunnel_id = ? LIMIT 1`, userID, tunnelID).Scan(&id)
 	if err == nil {
@@ -1882,16 +1883,15 @@ func ensureUserTunnelGrant(db *sql.DB, userID, tunnelID int64) (int64, bool, err
 	if err := db.QueryRow(`SELECT flow, num, exp_time, flow_reset_time FROM user WHERE id = ?`, userID).Scan(&flow, &num, &expTime, &flowReset); err != nil {
 		return 0, false, err
 	}
-	res, err := db.Exec(`INSERT INTO user_tunnel(user_id, tunnel_id, speed_id, num, flow, in_flow, out_flow, flow_reset_time, exp_time, status) VALUES(?, ?, NULL, ?, ?, 0, 0, ?, ?, 1)`,
+	id, err = db.ExecReturningID(`INSERT INTO user_tunnel(user_id, tunnel_id, speed_id, num, flow, in_flow, out_flow, flow_reset_time, exp_time, status) VALUES(?, ?, NULL, ?, ?, 0, 0, ?, ?, 1)`,
 		userID, tunnelID, num, flow, flowReset, expTime)
 	if err != nil {
 		return 0, false, err
 	}
-	id, _ = res.LastInsertId()
 	return id, true, nil
 }
 
-func queryInt64List(db *sql.DB, q string, args ...interface{}) ([]int64, error) {
+func queryInt64List(db *store.DB, q string, args ...interface{}) ([]int64, error) {
 	rows, err := db.Query(q, args...)
 	if err != nil {
 		return nil, err
@@ -1908,7 +1908,7 @@ func queryInt64List(db *sql.DB, q string, args ...interface{}) ([]int64, error) 
 	return out, rows.Err()
 }
 
-func queryPairs(db *sql.DB, q string, args ...interface{}) ([][2]int64, error) {
+func queryPairs(db *store.DB, q string, args ...interface{}) ([][2]int64, error) {
 	rows, err := db.Query(q, args...)
 	if err != nil {
 		return nil, err
@@ -1944,7 +1944,7 @@ type tunnelCreateState struct {
 	NodeIDList []int64
 }
 
-func (h *Handler) prepareTunnelCreateState(tx *sql.Tx, req map[string]interface{}, tunnelType int, excludeTunnelID int64) (*tunnelCreateState, error) {
+func (h *Handler) prepareTunnelCreateState(tx *store.Tx, req map[string]interface{}, tunnelType int, excludeTunnelID int64) (*tunnelCreateState, error) {
 	state := &tunnelCreateState{
 		Type:      tunnelType,
 		InNodes:   make([]tunnelRuntimeNode, 0),
@@ -2403,7 +2403,7 @@ func (h *Handler) cleanupFederationRuntime(tunnelID int64) {
 	_ = h.repo.DeleteFederationTunnelBindingsByTunnel(tunnelID)
 }
 
-func replaceFederationTunnelBindingsTx(tx *sql.Tx, tunnelID int64, bindings []sqlite.FederationTunnelBinding) error {
+func replaceFederationTunnelBindingsTx(tx *store.Tx, tunnelID int64, bindings []sqlite.FederationTunnelBinding) error {
 	if tx == nil {
 		return errors.New("database unavailable")
 	}
@@ -2727,7 +2727,7 @@ func pickNodeAddressV6(node *nodeRecord) string {
 	return strings.TrimSpace(node.ServerIP)
 }
 
-func isRemoteNodeTx(tx *sql.Tx, nodeID int64) (bool, error) {
+func isRemoteNodeTx(tx *store.Tx, nodeID int64) (bool, error) {
 	if tx == nil {
 		return false, errors.New("database unavailable")
 	}
@@ -2744,7 +2744,7 @@ func isRemoteNodeTx(tx *sql.Tx, nodeID int64) (bool, error) {
 	return isRemote == 1, nil
 }
 
-func pickNodePortTx(tx *sql.Tx, nodeID int64, allocated map[int64]int, excludeTunnelID int64) (int, error) {
+func pickNodePortTx(tx *store.Tx, nodeID int64, allocated map[int64]int, excludeTunnelID int64) (int, error) {
 	if tx == nil {
 		return 0, errors.New("database unavailable")
 	}
@@ -2855,7 +2855,7 @@ func parsePortRangeSpec(input string) []int {
 	return out
 }
 
-func replaceTunnelChainsTx(tx *sql.Tx, tunnelID int64, req map[string]interface{}) error {
+func replaceTunnelChainsTx(tx *store.Tx, tunnelID int64, req map[string]interface{}) error {
 	allocated := map[int64]int{}
 	inNodes := asMapSlice(req["inNodeId"])
 	for _, n := range inNodes {
@@ -2863,7 +2863,7 @@ func replaceTunnelChainsTx(tx *sql.Tx, tunnelID int64, req map[string]interface{
 		if nodeID <= 0 {
 			continue
 		}
-		_, err := tx.Exec(`INSERT INTO chain_tunnel(tunnel_id, chain_type, node_id, port, strategy, inx, protocol) VALUES(?, 1, ?, NULL, NULL, 0, ?)`,
+		_, err := tx.Exec(`INSERT INTO chain_tunnel(tunnel_id, chain_type, node_id, port, strategy, inx, protocol) VALUES(?, '1', ?, NULL, NULL, 0, ?)`,
 			tunnelID, nodeID, defaultString(asString(n["protocol"]), "tls"))
 		if err != nil {
 			return err
@@ -2882,7 +2882,7 @@ func replaceTunnelChainsTx(tx *sql.Tx, tunnelID int64, req map[string]interface{
 				return pickErr
 			}
 		}
-		_, err := tx.Exec(`INSERT INTO chain_tunnel(tunnel_id, chain_type, node_id, port, strategy, inx, protocol) VALUES(?, 3, ?, ?, ?, 0, ?)`,
+		_, err := tx.Exec(`INSERT INTO chain_tunnel(tunnel_id, chain_type, node_id, port, strategy, inx, protocol) VALUES(?, '3', ?, ?, ?, 0, ?)`,
 			tunnelID, nodeID, port, defaultString(asString(n["strategy"]), "round"), defaultString(asString(n["protocol"]), "tls"))
 		if err != nil {
 			return err
@@ -2903,7 +2903,7 @@ func replaceTunnelChainsTx(tx *sql.Tx, tunnelID int64, req map[string]interface{
 					return pickErr
 				}
 			}
-			_, err := tx.Exec(`INSERT INTO chain_tunnel(tunnel_id, chain_type, node_id, port, strategy, inx, protocol) VALUES(?, 2, ?, ?, ?, ?, ?)`,
+			_, err := tx.Exec(`INSERT INTO chain_tunnel(tunnel_id, chain_type, node_id, port, strategy, inx, protocol) VALUES(?, '2', ?, ?, ?, ?, ?)`,
 				tunnelID, nodeID, port, defaultString(asString(n["strategy"]), "round"), i+1, defaultString(asString(n["protocol"]), "tls"))
 			if err != nil {
 				return err
@@ -2989,7 +2989,7 @@ func (h *Handler) batchForwardStatus(ids []int64, status int) (int, int) {
 }
 
 func (h *Handler) tunnelEntryNodeIDs(tunnelID int64) ([]int64, error) {
-	rows, err := h.repo.DB().Query(`SELECT node_id FROM chain_tunnel WHERE tunnel_id = ? AND chain_type = 1 ORDER BY inx ASC, id ASC`, tunnelID)
+	rows, err := h.repo.DB().Query(`SELECT node_id FROM chain_tunnel WHERE tunnel_id = ? AND chain_type = '1' ORDER BY inx ASC, id ASC`, tunnelID)
 	if err != nil {
 		return nil, err
 	}
@@ -3476,7 +3476,7 @@ func randomToken(n int) string {
 	return hex.EncodeToString(buf)
 }
 
-func nextIndex(db *sql.DB, table string) int {
+func nextIndex(db *store.DB, table string) int {
 	if db == nil {
 		return 0
 	}

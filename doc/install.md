@@ -41,6 +41,8 @@ curl -L https://raw.githubusercontent.com/Sagit-chu/flux-panel/main/panel_instal
 1. 安装面板
 2. 更新面板
 3. 卸载面板
+4. 迁移到 PostgreSQL
+5. 退出
 
 ---
 
@@ -77,3 +79,57 @@ curl -L https://raw.githubusercontent.com/Sagit-chu/flux-panel/main/install.sh -
 安装完成后，服务会自动启动。
 - 查看状态: `systemctl status flux_agent`
 - 回到面板 **节点管理** 页面，该节点状态应显示为 **在线**。
+
+---
+
+## 三、Caddy 反向代理（可选）
+
+如果需要通过域名访问面板并自动获取 HTTPS 证书，可以使用 Caddy 作为反向代理。
+
+### 1. 安装 Caddy
+
+```bash
+# Debian / Ubuntu
+sudo apt install -y debian-keyring debian-archive-keyring apt-transport-https curl
+curl -1sLf 'https://dl.cloudflare.com/content/v1/e2qwFJ2fRP2b2q/stable/gpg.key' | sudo gpg --dearmor -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg
+curl -1sLf 'https://dl.cloudflare.com/content/v1/e2qwFJ2fRP2b2q/stable/debian.deb.txt' | sudo tee /etc/apt/sources.list.d/caddy-stable.list
+sudo apt update
+sudo apt install caddy
+```
+
+其他系统请参考 [Caddy 官方安装文档](https://caddyserver.com/docs/install)。
+
+### 2. 配置 Caddyfile
+
+编辑 Caddy 配置文件：
+
+```bash
+sudo nano /etc/caddy/Caddyfile
+```
+
+#### 面板域名配置
+
+将 `panel.example.com` 替换为你自己的域名：
+
+```caddyfile
+panel.example.com {
+    reverse_proxy localhost:6366
+}
+```
+
+Caddy 会自动为域名申请和续期 HTTPS 证书，无需额外配置。
+
+### 3. 重启 Caddy
+
+```bash
+sudo systemctl restart caddy
+```
+
+### 4. 注意事项
+
+- 确保域名已正确解析到服务器 IP。
+- 确保服务器防火墙放行了 **80** 和 **443** 端口（Caddy 自动申请证书需要）。
+- 使用 Caddy 反向代理后，可以在 `.env` 中将前端端口改为仅监听本地，避免直接暴露：
+  ```
+  FRONTEND_PORT=127.0.0.1:6366
+  ```
