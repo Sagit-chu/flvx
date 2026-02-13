@@ -1203,6 +1203,12 @@ func (h *Handler) backupImport(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	autoBackup, err := h.repo.ExportAll()
+	if err != nil {
+		response.WriteJSON(w, response.Err(-2, fmt.Sprintf("导入前自动备份失败: %v", err)))
+		return
+	}
+
 	var backup sqlite.BackupData
 	if err := decodeJSON(r.Body, &backup); err != nil {
 		response.WriteJSON(w, response.Err(500, "备份数据格式错误"))
@@ -1211,9 +1217,10 @@ func (h *Handler) backupImport(w http.ResponseWriter, r *http.Request) {
 
 	result, err := h.repo.Import(&backup, req.Types)
 	if err != nil {
-		response.WriteJSON(w, response.Err(-2, err.Error()))
+		response.WriteJSON(w, response.Err(-2, fmt.Sprintf("导入失败: %v", err)))
 		return
 	}
 
+	result.AutoBackup = autoBackup
 	response.WriteJSON(w, response.OK(result))
 }
