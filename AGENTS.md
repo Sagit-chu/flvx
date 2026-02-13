@@ -1,8 +1,8 @@
 # PROJECT KNOWLEDGE BASE
 
-**Generated:** Mon Feb 02 2026
-**Commit:** 7ca01ab
-**Branch:** beta
+**Generated:** Fri Feb 13 2026
+**Commit:** 3799729
+**Branch:** (detached)
 
 ## OVERVIEW
 FLVX (formerly Flux Panel) is a traffic forwarding management system built on a forked GOST v3 stack. It ships as a Go-based admin API (SQLite) + Vite/React UI + Go forwarding agent, with optional mobile WebView wrappers.
@@ -47,7 +47,11 @@ FLVX (formerly Flux Panel) is a traffic forwarding management system built on a 
 - `go-gost/` uses `replace github.com/go-gost/x => ./x` and `go-gost/x/` is also its own Go module.
 
 ## ANTI-PATTERNS (THIS PROJECT)
-- Do not edit generated protobuf output: `go-gost/x/internal/util/grpc/proto/*.pb.go`, `go-gost/x/internal/util/grpc/proto/*_grpc.pb.go`.
+- **DO NOT EDIT** generated protobuf output: `go-gost/x/internal/util/grpc/proto/*.pb.go`, `go-gost/x/internal/util/grpc/proto/*_grpc.pb.go`.
+- **DO NOT ADD** `Bearer` prefix to Authorization header - expects raw JWT token.
+- **DO NOT MODIFY** `install.sh` or `panel_install.sh` locally - CI overwrites these on release.
+- **DO NOT USE** ORM in backend - uses raw SQL with `database/sql`.
+- **DO NOT ADD** frontend tests - project has no test infrastructure (Vitest/Jest not configured).
 
 ## COMMANDS
 ```bash
@@ -68,3 +72,6 @@ docker compose -f docker-compose-v6.yml up -d
 ## NOTES
 - LSP servers are not installed in this environment (gopls/jdtls/typescript-language-server); rely on grep-based navigation.
 - `vite-frontend/vite.config.ts` sets `minify: false` and disables treeshake; expect larger bundles.
+- Install scripts (`install.sh`, `panel_install.sh`) self-delete after execution - common pattern in one-liner installs.
+- CI uses UPX compression on Go binaries before release.
+- Backend has contract tests in `go-backend/tests/contract/` - frontend has no test infrastructure.
