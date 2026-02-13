@@ -1000,14 +1000,19 @@ func (h *Handler) federationRuntimeApplyRole(w http.ResponseWriter, r *http.Requ
 				response.WriteJSON(w, response.ErrDefault("Invalid target"))
 				return
 			}
+			targetProtocol := defaultString(target.Protocol, protocol)
+			connector := map[string]interface{}{
+				"type": "relay",
+			}
+			if isTLSTunnelProtocol(targetProtocol) {
+				connector["metadata"] = map[string]interface{}{"nodelay": true}
+			}
 			nodeItems = append(nodeItems, map[string]interface{}{
-				"name": fmt.Sprintf("node_%d", i+1),
-				"addr": processServerAddress(fmt.Sprintf("%s:%d", host, target.Port)),
-				"connector": map[string]interface{}{
-					"type": "relay",
-				},
+				"name":      fmt.Sprintf("node_%d", i+1),
+				"addr":      processServerAddress(fmt.Sprintf("%s:%d", host, target.Port)),
+				"connector": connector,
 				"dialer": map[string]interface{}{
-					"type": defaultString(target.Protocol, protocol),
+					"type": targetProtocol,
 				},
 			})
 		}
@@ -1045,6 +1050,9 @@ func (h *Handler) federationRuntimeApplyRole(w http.ResponseWriter, r *http.Requ
 		"listener": map[string]interface{}{
 			"type": protocol,
 		},
+	}
+	if isTLSTunnelProtocol(protocol) {
+		service["handler"].(map[string]interface{})["metadata"] = map[string]interface{}{"nodelay": true}
 	}
 	if req.Role == "middle" {
 		service["handler"].(map[string]interface{})["chain"] = chainName

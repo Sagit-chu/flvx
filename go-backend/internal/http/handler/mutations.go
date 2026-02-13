@@ -2564,14 +2564,19 @@ func buildTunnelChainConfig(tunnelID int64, fromNodeID int64, targets []tunnelRu
 		if port <= 0 {
 			return nil, errors.New("节点端口不能为空")
 		}
+		protocol := defaultString(target.Protocol, "tls")
+		connector := map[string]interface{}{
+			"type": "relay",
+		}
+		if isTLSTunnelProtocol(protocol) {
+			connector["metadata"] = map[string]interface{}{"nodelay": true}
+		}
 		nodeItems = append(nodeItems, map[string]interface{}{
-			"name": fmt.Sprintf("node_%d", idx+1),
-			"addr": processServerAddress(fmt.Sprintf("%s:%d", host, port)),
-			"connector": map[string]interface{}{
-				"type": "relay",
-			},
+			"name":      fmt.Sprintf("node_%d", idx+1),
+			"addr":      processServerAddress(fmt.Sprintf("%s:%d", host, port)),
+			"connector": connector,
 			"dialer": map[string]interface{}{
-				"type": defaultString(target.Protocol, "tls"),
+				"type": protocol,
 			},
 		})
 	}
@@ -2600,14 +2605,19 @@ func buildTunnelChainServiceConfig(tunnelID int64, chainNode tunnelRuntimeNode, 
 	if node == nil {
 		return nil
 	}
+	protocol := defaultString(chainNode.Protocol, "tls")
+	handlerCfg := map[string]interface{}{
+		"type": "relay",
+	}
+	if isTLSTunnelProtocol(protocol) {
+		handlerCfg["metadata"] = map[string]interface{}{"nodelay": true}
+	}
 	service := map[string]interface{}{
-		"name": fmt.Sprintf("%d_tls", tunnelID),
-		"addr": fmt.Sprintf("%s:%d", node.TCPListenAddr, chainNode.Port),
-		"handler": map[string]interface{}{
-			"type": "relay",
-		},
+		"name":    fmt.Sprintf("%d_tls", tunnelID),
+		"addr":    fmt.Sprintf("%s:%d", node.TCPListenAddr, chainNode.Port),
+		"handler": handlerCfg,
 		"listener": map[string]interface{}{
-			"type": defaultString(chainNode.Protocol, "tls"),
+			"type": protocol,
 		},
 	}
 	if chainNode.ChainType == 2 {
@@ -2651,6 +2661,10 @@ func nodeDisplayName(node *nodeRecord) string {
 		return strings.TrimSpace(node.Name)
 	}
 	return fmt.Sprintf("node_%d", node.ID)
+}
+
+func isTLSTunnelProtocol(protocol string) bool {
+	return strings.EqualFold(strings.TrimSpace(defaultString(protocol, "tls")), "tls")
 }
 
 func nodeSupportsV4(node *nodeRecord) bool {
