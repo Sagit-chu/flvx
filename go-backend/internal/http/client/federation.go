@@ -77,6 +77,18 @@ type RuntimeDiagnoseRequest struct {
 	Timeout int    `json:"timeout"`
 }
 
+type RuntimeNodeCommandRequest struct {
+	CommandType string      `json:"commandType"`
+	Data        interface{} `json:"data"`
+}
+
+type RuntimeNodeCommandResponse struct {
+	Type    string                 `json:"type"`
+	Success bool                   `json:"success"`
+	Message string                 `json:"message"`
+	Data    map[string]interface{} `json:"data,omitempty"`
+}
+
 func NewFederationClient() *FederationClient {
 	return &FederationClient{
 		client: &http.Client{
@@ -332,4 +344,43 @@ func (c *FederationClient) Diagnose(url, token, localDomain string, reqData Runt
 	}
 
 	return res.Data, nil
+}
+
+func (c *FederationClient) Command(url, token, localDomain string, reqData RuntimeNodeCommandRequest) (*RuntimeNodeCommandResponse, error) {
+	url = strings.TrimSuffix(url, "/")
+	bodyBytes, _ := json.Marshal(reqData)
+	req, err := http.NewRequest("POST", url+"/api/v1/federation/runtime/command", strings.NewReader(string(bodyBytes)))
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Authorization", "Bearer "+token)
+	if localDomain != "" {
+		req.Header.Set("X-Panel-Domain", localDomain)
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := c.client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != 200 {
+		body, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("remote error %d: %s", resp.StatusCode, string(body))
+	}
+
+	var res struct {
+		Code int                        `json:"code"`
+		Msg  string                     `json:"msg"`
+		Data RuntimeNodeCommandResponse `json:"data"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&res); err != nil {
+		return nil, err
+	}
+	if res.Code != 0 {
+		return nil, fmt.Errorf("remote api error: %s", res.Msg)
+	}
+
+	return &res.Data, nil
 }

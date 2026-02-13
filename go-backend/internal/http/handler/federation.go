@@ -91,6 +91,11 @@ type federationRuntimeDiagnoseRequest struct {
 	Timeout int    `json:"timeout"`
 }
 
+type federationRuntimeCommandRequest struct {
+	CommandType string      `json:"commandType"`
+	Data        interface{} `json:"data"`
+}
+
 type peerShareUsedPort struct {
 	RuntimeID   int64  `json:"runtimeId"`
 	Port        int    `json:"port"`
@@ -1197,6 +1202,51 @@ func (h *Handler) federationRuntimeDiagnose(w http.ResponseWriter, r *http.Reque
 	}
 
 	response.WriteJSON(w, response.OK(res.Data))
+}
+
+func (h *Handler) federationRuntimeCommand(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		response.WriteJSON(w, response.ErrDefault("Invalid method"))
+		return
+	}
+
+	token := extractBearerToken(r)
+	share, err := h.repo.GetPeerShareByToken(token)
+	if err != nil || share == nil {
+		response.WriteJSON(w, response.Err(401, "Unauthorized"))
+		return
+	}
+
+	var req federationRuntimeCommandRequest
+	if err := decodeJSON(r.Body, &req); err != nil {
+		response.WriteJSON(w, response.ErrDefault("Invalid JSON"))
+		return
+	}
+	cmd := strings.TrimSpace(req.CommandType)
+	if cmd == "" {
+		response.WriteJSON(w, response.ErrDefault("commandType is required"))
+		return
+	}
+	if !isFederationRuntimeCommandAllowed(cmd) {
+		response.WriteJSON(w, response.ErrDefault("command not allowed"))
+		return
+	}
+
+	res, err := h.sendNodeCommand(share.NodeID, cmd, req.Data, false, false)
+	if err != nil {
+		response.WriteJSON(w, response.ErrDefault(err.Error()))
+		return
+	}
+	response.WriteJSON(w, response.OK(res))
+}
+
+func isFederationRuntimeCommandAllowed(commandType string) bool {
+	switch strings.ToLower(strings.TrimSpace(commandType)) {
+	case "addservice", "updateservice", "deleteservice", "pauseservice", "resumeservice", "addchains", "deletechains", "addlimiters", "deletelimiters", "tcpping", "reload":
+		return true
+	default:
+		return false
+	}
 }
 
 func (h *Handler) pickPeerSharePort(share *sqlite.PeerShare, requestedPort int) (int, error) {
