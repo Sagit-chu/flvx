@@ -115,6 +115,14 @@ func requiresAdmin(path string) bool {
 		return true
 	}
 
+	if strings.HasPrefix(path, "/api/v1/backup/") {
+		return true
+	}
+
+	if strings.HasPrefix(path, "/api/v1/api/v1/backup/") {
+		return true
+	}
+
 	if strings.HasPrefix(path, "/api/v1/tunnel/") {
 		if strings.HasPrefix(path, "/api/v1/tunnel/user/tunnel") {
 			return false

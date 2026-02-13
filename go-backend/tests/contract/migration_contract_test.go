@@ -203,6 +203,142 @@ func TestSpeedLimitTunnelsRouteAlias(t *testing.T) {
 	})
 }
 
+func TestBackupExportImportRestoreContracts(t *testing.T) {
+	secret := "contract-jwt-secret"
+	router, repo := setupContractRouter(t, secret)
+
+	adminToken, err := auth.GenerateToken(1, "admin_user", 0, secret)
+	if err != nil {
+		t.Fatalf("generate admin token: %v", err)
+	}
+	userToken, err := auth.GenerateToken(2, "normal_user", 1, secret)
+	if err != nil {
+		t.Fatalf("generate user token: %v", err)
+	}
+
+	key := "backup_contract_key"
+	if _, err := repo.DB().Exec(`
+		INSERT INTO vite_config(name, value, time)
+		VALUES(?, ?, ?)
+		ON CONFLICT(name) DO UPDATE SET value = excluded.value, time = excluded.time
+	`, key, "v1", time.Now().UnixMilli()); err != nil {
+		t.Fatalf("seed config for backup contract: %v", err)
+	}
+
+	t.Run("non-admin is blocked on backup export", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/backup/export", nil)
+		req.Header.Set("Authorization", userToken)
+		resp := httptest.NewRecorder()
+
+		router.ServeHTTP(resp, req)
+		assertCodeMsg(t, resp, 403, "权限不足，仅管理员可操作")
+	})
+
+	t.Run("standard and duplicate export routes both work", func(t *testing.T) {
+		payloadA := exportBackupPayload(t, router, "/api/v1/backup/export", adminToken)
+		if len(payloadA.Tables) == 0 {
+			t.Fatalf("expected exported tables, got none")
+		}
+		if _, ok := payloadA.Tables["vite_config"]; !ok {
+			t.Fatalf("expected vite_config in exported tables")
+		}
+
+		payloadB := exportBackupPayload(t, router, "/api/v1/api/v1/backup/export", adminToken)
+		if len(payloadB.Tables) == 0 {
+			t.Fatalf("expected exported tables from duplicate-prefix route, got none")
+		}
+	})
+
+	t.Run("backup import applies exported data", func(t *testing.T) {
+		payload := exportBackupPayload(t, router, "/api/v1/backup/export", adminToken)
+		setBackupConfigValue(t, payload.Tables["vite_config"], key, "v2")
+		raw, err := json.Marshal(payload)
+		if err != nil {
+			t.Fatalf("marshal import payload: %v", err)
+		}
+
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/backup/import", bytes.NewReader(raw))
+		req.Header.Set("Authorization", adminToken)
+		req.Header.Set("Content-Type", "application/json")
+		resp := httptest.NewRecorder()
+
+		router.ServeHTTP(resp, req)
+		assertCode(t, resp, 0)
+
+		cfg, err := repo.GetConfigByName(key)
+		if err != nil {
+			t.Fatalf("query imported config: %v", err)
+		}
+		if cfg == nil || cfg.Value != "v2" {
+			t.Fatalf("expected imported config value v2, got %+v", cfg)
+		}
+	})
+
+	t.Run("backup restore alias applies exported data", func(t *testing.T) {
+		payload := exportBackupPayload(t, router, "/api/v1/backup/export", adminToken)
+		setBackupConfigValue(t, payload.Tables["vite_config"], key, "v3")
+		raw, err := json.Marshal(payload)
+		if err != nil {
+			t.Fatalf("marshal restore payload: %v", err)
+		}
+
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/backup/restore", bytes.NewReader(raw))
+		req.Header.Set("Authorization", adminToken)
+		req.Header.Set("Content-Type", "application/json")
+		resp := httptest.NewRecorder()
+
+		router.ServeHTTP(resp, req)
+		assertCode(t, resp, 0)
+
+		cfg, err := repo.GetConfigByName(key)
+		if err != nil {
+			t.Fatalf("query restored config: %v", err)
+		}
+		if cfg == nil || cfg.Value != "v3" {
+			t.Fatalf("expected restored config value v3, got %+v", cfg)
+		}
+	})
+}
+
+type backupExportPayload struct {
+	Version    int                         `json:"version"`
+	ExportedAt int64                       `json:"exportedAt"`
+	Dialect    string                      `json:"dialect"`
+	Tables     map[string][]map[string]any `json:"tables"`
+}
+
+func exportBackupPayload(t *testing.T, router http.Handler, path, token string) backupExportPayload {
+	t.Helper()
+	req := httptest.NewRequest(http.MethodPost, path, nil)
+	req.Header.Set("Authorization", token)
+	resp := httptest.NewRecorder()
+
+	router.ServeHTTP(resp, req)
+	if resp.Code != http.StatusOK {
+		t.Fatalf("expected status 200 on %s, got %d", path, resp.Code)
+	}
+
+	var payload backupExportPayload
+	if err := json.NewDecoder(resp.Body).Decode(&payload); err != nil {
+		t.Fatalf("decode backup payload from %s: %v", path, err)
+	}
+	if payload.Version != 1 {
+		t.Fatalf("expected backup payload version 1, got %d", payload.Version)
+	}
+	return payload
+}
+
+func setBackupConfigValue(t *testing.T, rows []map[string]any, key, value string) {
+	t.Helper()
+	for _, row := range rows {
+		if strings.TrimSpace(valueAsString(row["name"])) == key {
+			row["value"] = value
+			return
+		}
+	}
+	t.Fatalf("did not find config row %q in backup payload", key)
+}
+
 func setupContractRouter(t *testing.T, jwtSecret string) (http.Handler, *sqlite.Repository) {
 	t.Helper()
 	dbPath := filepath.Join(t.TempDir(), "contract.db")
