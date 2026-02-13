@@ -228,3 +228,46 @@ export const importRemoteNode = (data: {
   remoteUrl: string;
   token: string;
 }) => Network.post("/federation/node/import", data);
+
+import axios from "axios";
+
+export interface BackupTypes {
+  users?: boolean;
+  nodes?: boolean;
+  tunnels?: boolean;
+  forwards?: boolean;
+  userTunnels?: boolean;
+  speedLimits?: boolean;
+  tunnelGroups?: boolean;
+  userGroups?: boolean;
+  permissions?: boolean;
+  configs?: boolean;
+}
+
+export const exportBackup = async (types: string[] = []) => {
+  const token = window.localStorage.getItem("token");
+  const baseURL = axios.defaults.baseURL || "/api/v1/";
+  
+  const response = await axios.post(`${baseURL}/backup/export`, { types }, {
+    headers: {
+      Authorization: token,
+      "Content-Type": "application/json",
+    },
+    responseType: "blob",
+  });
+
+  const url = window.URL.createObjectURL(new Blob([response.data]));
+  const link = document.createElement("a");
+  link.href = url;
+  const timestamp = new Date().toISOString().slice(0, 19).replace(/[:-]/g, "");
+  link.setAttribute("download", `backup_${timestamp}.json`);
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  window.URL.revokeObjectURL(url);
+};
+
+export const importBackup = (data: {
+  types: string[];
+  [key: string]: any;
+}) => Network.post("/backup/import", data);
