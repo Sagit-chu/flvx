@@ -310,6 +310,80 @@ func TestBackupExportImportRestoreContracts(t *testing.T) {
 			t.Fatalf("expected restored config value v3, got %+v", cfg)
 		}
 	})
+
+	t.Run("backup export tolerates nullable legacy tunnel chain fields", func(t *testing.T) {
+		now := time.Now().UnixMilli()
+		res, err := repo.DB().Exec(`
+			INSERT INTO tunnel(name, traffic_ratio, type, protocol, flow, created_time, updated_time, status, in_ip, inx)
+			VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		`, "legacy-null-chain", 1.0, 1, "tls", 1000, now, now, 1, nil, 1)
+		if err != nil {
+			t.Fatalf("seed tunnel for nullable chain export: %v", err)
+		}
+		tunnelID, err := res.LastInsertId()
+		if err != nil {
+			t.Fatalf("read tunnel id for nullable chain export: %v", err)
+		}
+
+		if _, err := repo.DB().Exec(`
+			INSERT INTO chain_tunnel(tunnel_id, chain_type, node_id, port, strategy, inx, protocol)
+			VALUES(?, ?, ?, ?, ?, ?, ?)
+		`, tunnelID, "1", 1, nil, nil, nil, nil); err != nil {
+			t.Fatalf("seed nullable chain_tunnel row: %v", err)
+		}
+
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/backup/export", bytes.NewBufferString(`{"types":["tunnels"]}`))
+		req.Header.Set("Authorization", adminToken)
+		req.Header.Set("Content-Type", "application/json")
+		resp := httptest.NewRecorder()
+		router.ServeHTTP(resp, req)
+
+		if resp.Code != http.StatusOK {
+			t.Fatalf("expected status 200, got %d", resp.Code)
+		}
+
+		var payload struct {
+			Version string `json:"version"`
+			Tunnels []struct {
+				ID           int64 `json:"id"`
+				ChainTunnels []struct {
+					Inx      int    `json:"inx"`
+					Strategy string `json:"strategy"`
+					Protocol string `json:"protocol"`
+				} `json:"chainTunnels"`
+			} `json:"tunnels"`
+		}
+		if err := json.NewDecoder(resp.Body).Decode(&payload); err != nil {
+			t.Fatalf("decode tunnels backup payload: %v", err)
+		}
+		if strings.TrimSpace(payload.Version) == "" {
+			t.Fatalf("expected backup payload version, got empty")
+		}
+
+		found := false
+		for _, tunnel := range payload.Tunnels {
+			if tunnel.ID != tunnelID {
+				continue
+			}
+			if len(tunnel.ChainTunnels) != 1 {
+				t.Fatalf("expected one chain tunnel for seeded tunnel %d, got %d", tunnelID, len(tunnel.ChainTunnels))
+			}
+			if tunnel.ChainTunnels[0].Inx != 0 {
+				t.Fatalf("expected nullable chain inx to export as 0, got %d", tunnel.ChainTunnels[0].Inx)
+			}
+			if tunnel.ChainTunnels[0].Strategy != "" {
+				t.Fatalf("expected nullable chain strategy to export as empty string, got %q", tunnel.ChainTunnels[0].Strategy)
+			}
+			if tunnel.ChainTunnels[0].Protocol != "" {
+				t.Fatalf("expected nullable chain protocol to export as empty string, got %q", tunnel.ChainTunnels[0].Protocol)
+			}
+			found = true
+			break
+		}
+		if !found {
+			t.Fatalf("expected seeded tunnel %d in backup export", tunnelID)
+		}
+	})
 }
 
 type backupExportPayload struct {
