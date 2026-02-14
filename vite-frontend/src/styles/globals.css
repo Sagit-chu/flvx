@@ -52,14 +52,17 @@ html, body {
 
 [data-slot="input-wrapper"]:focus-within:not([data-invalid="true"]),
 [data-slot="input-wrapper"][data-focus="true"]:not([data-invalid="true"]),
-[data-slot="input-wrapper"][data-focused="true"]:not([data-invalid="true"]) {
+[data-slot="input-wrapper"][data-focused="true"]:not([data-invalid="true"]),
+button[data-slot="trigger"][data-focus="true"]:not([data-invalid="true"]),
+button[data-slot="trigger"][data-open="true"]:not([data-invalid="true"]) {
   border-color: var(--heroui-default-200, #e5e7eb) !important;
   outline: none !important;
   outline-offset: 0 !important;
   box-shadow: none !important;
 }
 
-[data-slot="input-wrapper"] input:focus {
+[data-slot="input-wrapper"] input:focus,
+[data-slot="input-wrapper"] textarea:focus {
   outline: none !important;
   box-shadow: none !important;
   border-color: transparent !important;
