@@ -50,6 +50,7 @@ html, body {
   box-shadow: none;
 }
 
+<<<<<<< HEAD
 [data-slot="input-wrapper"]:focus-within:not([data-invalid="true"]),
 [data-slot="input-wrapper"][data-focus="true"]:not([data-invalid="true"]),
 [data-slot="input-wrapper"][data-focused="true"]:not([data-invalid="true"]) {
@@ -57,6 +58,12 @@ html, body {
   outline: none !important;
   outline-offset: 0 !important;
   box-shadow: none !important;
+=======
+[data-slot="input-wrapper"]:focus-within:not([data-invalid="true"]) {
+  outline: none;
+  outline-offset: 0;
+  box-shadow: none;
+>>>>>>> origin/main
 }
 
 .safe-top {
