@@ -50,10 +50,13 @@ html, body {
   box-shadow: none;
 }
 
-[data-slot="input-wrapper"]:focus-within:not([data-invalid="true"]) {
-  outline: none;
-  outline-offset: 0;
-  box-shadow: none;
+[data-slot="input-wrapper"]:focus-within:not([data-invalid="true"]),
+[data-slot="input-wrapper"][data-focus="true"]:not([data-invalid="true"]),
+[data-slot="input-wrapper"][data-focused="true"]:not([data-invalid="true"]) {
+  border-color: var(--heroui-default-200, #e5e7eb) !important;
+  outline: none !important;
+  outline-offset: 0 !important;
+  box-shadow: none !important;
 }
 
 .safe-top {
