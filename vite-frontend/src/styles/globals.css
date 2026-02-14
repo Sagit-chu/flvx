@@ -46,6 +46,15 @@ html, body {
   --safe-area-bottom: env(safe-area-inset-bottom, 0px);
 }
 
+[data-slot="input-wrapper"] {
+  box-shadow: none;
+}
+
+[data-slot="input-wrapper"]:focus-within:not([data-invalid="true"]) {
+  border-color: rgb(59 130 246);
+  outline: 2px solid rgb(59 130 246 / 35%);
+}
+
 .safe-top {
   padding-top: var(--safe-area-top);
 }
