@@ -1307,6 +1307,8 @@ func bootstrapSchema(db *store.DB, schemaSQL, seedSQL string) error {
 
 const currentSchemaVersion = 2
 
+var ensurePostgresIDDefaultsFn = ensurePostgresIDDefaults
+
 func getSchemaVersion(db *store.DB) int {
 	_, _ = db.Exec(`CREATE TABLE IF NOT EXISTS schema_version (version INTEGER NOT NULL DEFAULT 0)`)
 	var v int
@@ -1327,6 +1329,11 @@ func migrateSchema(db *store.DB) error {
 	}
 
 	ver := getSchemaVersion(db)
+	if db.Dialect() == store.DialectPostgres {
+		if err := ensurePostgresIDDefaultsFn(db); err != nil {
+			return err
+		}
+	}
 	if ver >= currentSchemaVersion {
 		return nil
 	}
@@ -1396,11 +1403,6 @@ func migrateSchema(db *store.DB) error {
 		return err
 	}
 
-	if db.Dialect() == store.DialectPostgres {
-		if err := ensurePostgresIDDefaults(db); err != nil {
-			return err
-		}
-	}
 	setSchemaVersion(db, currentSchemaVersion)
 	return nil
 }
