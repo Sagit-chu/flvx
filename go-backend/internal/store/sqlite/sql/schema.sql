@@ -244,3 +244,11 @@ CREATE TABLE IF NOT EXISTS federation_tunnel_binding (
 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_federation_tunnel_binding_unique ON federation_tunnel_binding(tunnel_id, node_id, chain_type, hop_inx);
 CREATE INDEX IF NOT EXISTS idx_federation_tunnel_binding_tunnel ON federation_tunnel_binding(tunnel_id, status);
+
+CREATE TABLE IF NOT EXISTS announcement (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  content TEXT NOT NULL,
+  enabled INTEGER NOT NULL DEFAULT 1,
+  created_time INTEGER NOT NULL,
+  updated_time INTEGER
+);
