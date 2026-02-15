@@ -1384,9 +1384,6 @@ func migrateSchema(db *store.DB) error {
 			return err
 		}
 	}
-	if ver >= currentSchemaVersion {
-		return nil
-	}
 
 	ensureColumn := func(table, col, typ string) {
 		var dummy interface{}
@@ -1452,6 +1449,10 @@ func migrateSchema(db *store.DB) error {
 	}
 	if err := normalizeStrategy("peer_share_runtime", "round"); err != nil {
 		return err
+	}
+
+	if ver >= currentSchemaVersion {
+		return nil
 	}
 
 	setSchemaVersion(db, currentSchemaVersion)
@@ -1624,10 +1625,10 @@ func isMissingTableError(dialect store.Dialect, err error) bool {
 		return false
 	}
 	msg := strings.ToLower(err.Error())
-	if dialect == store.DialectPostgres {
-		return strings.Contains(msg, "relation") && strings.Contains(msg, "does not exist")
-	}
-	return strings.Contains(msg, "no such table")
+	// Check both PostgreSQL and SQLite patterns for robustness
+	// (tests may use SQLite with DialectPostgres for convenience)
+	return (strings.Contains(msg, "relation") && strings.Contains(msg, "does not exist")) ||
+		strings.Contains(msg, "no such table")
 }
 
 func (r *Repository) CreatePeerShare(share *PeerShare) error {
