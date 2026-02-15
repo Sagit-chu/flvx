@@ -7,6 +7,7 @@ import (
 	"net"
 	"net/http"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -1232,6 +1233,13 @@ func (h *Handler) federationRuntimeCommand(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
+	if isFederationServiceCommand(cmd) {
+		if err := validateFederationCommandPorts(share, req.Data); err != nil {
+			response.WriteJSON(w, response.Err(403, err.Error()))
+			return
+		}
+	}
+
 	res, err := h.sendNodeCommand(share.NodeID, cmd, req.Data, false, false)
 	if err != nil {
 		response.WriteJSON(w, response.ErrDefault(err.Error()))
@@ -1247,6 +1255,55 @@ func isFederationRuntimeCommandAllowed(commandType string) bool {
 	default:
 		return false
 	}
+}
+
+func isFederationServiceCommand(commandType string) bool {
+	switch strings.ToLower(strings.TrimSpace(commandType)) {
+	case "addservice", "updateservice":
+		return true
+	default:
+		return false
+	}
+}
+
+func validateFederationCommandPorts(share *sqlite.PeerShare, data interface{}) error {
+	if share == nil || (share.PortRangeStart <= 0 && share.PortRangeEnd <= 0) {
+		return nil
+	}
+	dataMap, ok := data.(map[string]interface{})
+	if !ok {
+		return nil
+	}
+	services, ok := dataMap["services"]
+	if !ok {
+		return nil
+	}
+	serviceList, ok := services.([]interface{})
+	if !ok {
+		return nil
+	}
+	for _, svc := range serviceList {
+		svcMap, ok := svc.(map[string]interface{})
+		if !ok {
+			continue
+		}
+		addr, ok := svcMap["addr"].(string)
+		if !ok || addr == "" {
+			continue
+		}
+		_, portStr, err := net.SplitHostPort(addr)
+		if err != nil {
+			continue
+		}
+		port, err := strconv.Atoi(portStr)
+		if err != nil || port <= 0 {
+			continue
+		}
+		if port < share.PortRangeStart || port > share.PortRangeEnd {
+			return fmt.Errorf("port %d out of allowed range %d-%d", port, share.PortRangeStart, share.PortRangeEnd)
+		}
+	}
+	return nil
 }
 
 func (h *Handler) pickPeerSharePort(share *sqlite.PeerShare, requestedPort int) (int, error) {

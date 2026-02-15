@@ -688,3 +688,112 @@ func valueAsBool(v interface{}) bool {
 		return false
 	}
 }
+
+func TestFederationRuntimeCommandPortRangeEnforcement(t *testing.T) {
+	providerSecret := "provider-portrange-jwt"
+	providerRouter, providerRepo := setupContractRouter(t, providerSecret)
+	providerServer := httptest.NewServer(providerRouter)
+	defer providerServer.Close()
+
+	now := time.Now().UnixMilli()
+	providerNodeID := insertContractNode(t, providerRepo, "provider-portrange-node", "198.51.100.50", "44000-44010", "provider-portrange-secret", 1)
+
+	insertPeerShare(t, providerRepo, &sqlite.PeerShare{
+		Name:           "portrange-share",
+		NodeID:         providerNodeID,
+		Token:          "share-portrange-token",
+		PortRangeStart: 44000,
+		PortRangeEnd:   44010,
+		IsActive:       1,
+		CreatedTime:    now,
+		UpdatedTime:    now,
+	})
+
+	stopNode := startMockNodeSession(t, providerServer.URL, "provider-portrange-secret")
+	defer stopNode()
+
+	sendCommand := func(token string, cmdType string, data interface{}) *httptest.ResponseRecorder {
+		payload := map[string]interface{}{
+			"commandType": cmdType,
+			"data":        data,
+		}
+		body, err := json.Marshal(payload)
+		if err != nil {
+			t.Fatalf("marshal command payload: %v", err)
+		}
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/federation/runtime/command", bytes.NewReader(body))
+		req.Header.Set("Authorization", "Bearer "+token)
+		req.Header.Set("Content-Type", "application/json")
+		res := httptest.NewRecorder()
+		providerRouter.ServeHTTP(res, req)
+		return res
+	}
+
+	// Test: AddService with port OUTSIDE allowed range should be rejected
+	outOfRangeData := map[string]interface{}{
+		"services": []map[string]interface{}{
+			{
+				"name": "test_service_tcp",
+				"addr": "[::]:55555",
+				"handler": map[string]interface{}{
+					"type": "tcp",
+				},
+				"listener": map[string]interface{}{
+					"type": "tcp",
+				},
+			},
+		},
+	}
+	res := sendCommand("share-portrange-token", "AddService", outOfRangeData)
+	var out response.R
+	if err := json.NewDecoder(res.Body).Decode(&out); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if out.Code != 403 {
+		t.Fatalf("expected code 403 for out-of-range port, got %d (msg: %s)", out.Code, out.Msg)
+	}
+
+	// Test: UpdateService with port OUTSIDE allowed range should be rejected
+	res = sendCommand("share-portrange-token", "UpdateService", outOfRangeData)
+	out = response.R{}
+	if err := json.NewDecoder(res.Body).Decode(&out); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if out.Code != 403 {
+		t.Fatalf("expected code 403 for out-of-range UpdateService, got %d (msg: %s)", out.Code, out.Msg)
+	}
+
+	// Test: AddService with port INSIDE allowed range should succeed
+	inRangeData := map[string]interface{}{
+		"services": []map[string]interface{}{
+			{
+				"name": "test_service_ok_tcp",
+				"addr": "[::]:44005",
+				"handler": map[string]interface{}{
+					"type": "tcp",
+				},
+				"listener": map[string]interface{}{
+					"type": "tcp",
+				},
+			},
+		},
+	}
+	res = sendCommand("share-portrange-token", "AddService", inRangeData)
+	out = response.R{}
+	if err := json.NewDecoder(res.Body).Decode(&out); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if out.Code != 0 {
+		t.Fatalf("expected code 0 for in-range port, got %d (msg: %s)", out.Code, out.Msg)
+	}
+
+	// Test: Non-service commands should pass through without port validation
+	res = sendCommand("share-portrange-token", "reload", nil)
+	out = response.R{}
+	if err := json.NewDecoder(res.Body).Decode(&out); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if out.Code != 0 {
+		t.Fatalf("expected code 0 for reload command, got %d (msg: %s)", out.Code, out.Msg)
+	}
+}
