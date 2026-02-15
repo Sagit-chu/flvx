@@ -66,6 +66,14 @@ type ViteConfig struct {
 	Time  int64  `json:"time"`
 }
 
+type Announcement struct {
+	ID          int64         `json:"id"`
+	Content     string        `json:"content"`
+	Enabled     int           `json:"enabled"`
+	CreatedTime int64         `json:"created_time"`
+	UpdatedTime sql.NullInt64 `json:"updated_time,omitempty"`
+}
+
 type UserTunnelDetail struct {
 	ID            int64
 	UserID        int64
@@ -316,6 +324,46 @@ func (r *Repository) UpsertConfig(name, value string, now int64) error {
 		VALUES(?, ?, ?)
 		ON CONFLICT(name) DO UPDATE SET value=excluded.value, time=excluded.time
 	`, name, value, now)
+	return err
+}
+
+func (r *Repository) GetAnnouncement() (*Announcement, error) {
+	if r == nil || r.db == nil {
+		return nil, errors.New("repository not initialized")
+	}
+
+	row := r.db.QueryRow(`SELECT id, content, enabled, created_time, updated_time FROM announcement ORDER BY id DESC LIMIT 1`)
+	ann := &Announcement{}
+	if err := row.Scan(&ann.ID, &ann.Content, &ann.Enabled, &ann.CreatedTime, &ann.UpdatedTime); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return ann, nil
+}
+
+func (r *Repository) UpsertAnnouncement(content string, enabled int, now int64) error {
+	if r == nil || r.db == nil {
+		return errors.New("repository not initialized")
+	}
+
+	var count int
+	err := r.db.QueryRow(`SELECT COUNT(*) FROM announcement`).Scan(&count)
+	if err != nil {
+		return err
+	}
+
+	if count == 0 {
+		_, err = r.db.Exec(`
+			INSERT INTO announcement(content, enabled, created_time, updated_time)
+			VALUES(?, ?, ?, ?)
+		`, content, enabled, now, now)
+	} else {
+		_, err = r.db.Exec(`
+			UPDATE announcement SET content = ?, enabled = ?, updated_time = ?
+		`, content, enabled, now)
+	}
 	return err
 }
 
