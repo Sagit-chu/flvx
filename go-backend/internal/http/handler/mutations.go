@@ -497,6 +497,7 @@ func (h *Handler) tunnelCreate(w http.ResponseWriter, r *http.Request) {
 	status := asInt(req["status"], 1)
 	trafficRatio := asFloat(req["trafficRatio"], 1.0)
 	inIP := asString(req["inIp"])
+	ipPreference := asString(req["ipPreference"])
 	now := time.Now().UnixMilli()
 	inx := nextIndex(h.repo.DB(), "tunnel")
 
@@ -512,6 +513,7 @@ func (h *Handler) tunnelCreate(w http.ResponseWriter, r *http.Request) {
 		response.WriteJSON(w, response.ErrDefault(err.Error()))
 		return
 	}
+	runtimeState.IPPreference = ipPreference
 	if strings.TrimSpace(inIP) == "" {
 		inIP = buildTunnelInIP(runtimeState.InNodes, runtimeState.Nodes)
 	}
@@ -565,8 +567,8 @@ func (h *Handler) tunnelCreate(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	tunnelID, err := tx.ExecReturningID(`INSERT INTO tunnel(name, traffic_ratio, type, protocol, flow, created_time, updated_time, status, in_ip, inx) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		name, trafficRatio, typeVal, "tls", flow, now, now, status, nullableText(inIP), inx)
+	tunnelID, err := tx.ExecReturningID(`INSERT INTO tunnel(name, traffic_ratio, type, protocol, flow, created_time, updated_time, status, in_ip, inx, ip_preference) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		name, trafficRatio, typeVal, "tls", flow, now, now, status, nullableText(inIP), inx, ipPreference)
 	if err != nil {
 		response.WriteJSON(w, response.Err(-2, err.Error()))
 		return
@@ -677,6 +679,7 @@ func (h *Handler) tunnelUpdate(w http.ResponseWriter, r *http.Request) {
 
 	now := time.Now().UnixMilli()
 	typeVal := asInt(req["type"], 1)
+	ipPreference := asString(req["ipPreference"])
 
 	tx, err := h.repo.DB().Begin()
 	if err != nil {
@@ -691,6 +694,7 @@ func (h *Handler) tunnelUpdate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	runtimeState.TunnelID = id
+	runtimeState.IPPreference = ipPreference
 
 	inIp := buildTunnelInIP(runtimeState.InNodes, runtimeState.Nodes)
 
@@ -703,8 +707,8 @@ func (h *Handler) tunnelUpdate(w http.ResponseWriter, r *http.Request) {
 	}
 	applyTunnelPortsToRequest(req, runtimeState)
 
-	_, err = tx.Exec(`UPDATE tunnel SET name=?, type=?, flow=?, traffic_ratio=?, status=?, in_ip=?, updated_time=? WHERE id=?`,
-		asString(req["name"]), typeVal, asInt64(req["flow"], 1), asFloat(req["trafficRatio"], 1.0), asInt(req["status"], 1), nullableText(inIp), now, id)
+	_, err = tx.Exec(`UPDATE tunnel SET name=?, type=?, flow=?, traffic_ratio=?, status=?, in_ip=?, ip_preference=?, updated_time=? WHERE id=?`,
+		asString(req["name"]), typeVal, asInt64(req["flow"], 1), asFloat(req["trafficRatio"], 1.0), asInt(req["status"], 1), nullableText(inIp), ipPreference, now, id)
 	if err != nil {
 		response.WriteJSON(w, response.Err(-2, err.Error()))
 		return
@@ -838,14 +842,18 @@ func (h *Handler) reconstructTunnelState(tunnelID int64) (*tunnelCreateState, er
 		return nil, err
 	}
 
+	var ipPreference string
+	_ = h.repo.DB().QueryRow(`SELECT COALESCE(ip_preference, '') FROM tunnel WHERE id = ?`, tunnelID).Scan(&ipPreference)
+
 	state := &tunnelCreateState{
-		TunnelID:   tunnelID,
-		Type:       tunnel.Type,
-		InNodes:    make([]tunnelRuntimeNode, 0),
-		ChainHops:  make([][]tunnelRuntimeNode, 0),
-		OutNodes:   make([]tunnelRuntimeNode, 0),
-		Nodes:      make(map[int64]*nodeRecord),
-		NodeIDList: make([]int64, 0),
+		TunnelID:     tunnelID,
+		Type:         tunnel.Type,
+		IPPreference: ipPreference,
+		InNodes:      make([]tunnelRuntimeNode, 0),
+		ChainHops:    make([][]tunnelRuntimeNode, 0),
+		OutNodes:     make([]tunnelRuntimeNode, 0),
+		Nodes:        make(map[int64]*nodeRecord),
+		NodeIDList:   make([]int64, 0),
 	}
 
 	inNodes, chainHops, outNodes := splitChainNodeGroups(chainRows)
@@ -2145,13 +2153,14 @@ type tunnelRuntimeNode struct {
 }
 
 type tunnelCreateState struct {
-	TunnelID   int64
-	Type       int
-	InNodes    []tunnelRuntimeNode
-	ChainHops  [][]tunnelRuntimeNode
-	OutNodes   []tunnelRuntimeNode
-	Nodes      map[int64]*nodeRecord
-	NodeIDList []int64
+	TunnelID     int64
+	Type         int
+	IPPreference string // "" = auto, "v4" = prefer IPv4, "v6" = prefer IPv6
+	InNodes      []tunnelRuntimeNode
+	ChainHops    [][]tunnelRuntimeNode
+	OutNodes     []tunnelRuntimeNode
+	Nodes        map[int64]*nodeRecord
+	NodeIDList   []int64
 }
 
 func (h *Handler) prepareTunnelCreateState(tx *store.Tx, req map[string]interface{}, tunnelType int, excludeTunnelID int64) (*tunnelCreateState, error) {
@@ -2513,7 +2522,7 @@ func (h *Handler) applyFederationRuntime(state *tunnelCreateState) ([]sqlite.Fed
 					h.releaseFederationRuntimeRefs(releaseRefs)
 					return nil, nil, errors.New("节点不存在")
 				}
-				host, hostErr := selectTunnelDialHost(node, targetNode)
+				host, hostErr := selectTunnelDialHost(node, targetNode, state.IPPreference)
 				if hostErr != nil {
 					h.releaseFederationRuntimeRefs(releaseRefs)
 					return nil, nil, hostErr
@@ -2669,7 +2678,7 @@ func (h *Handler) applyTunnelRuntime(state *tunnelCreateState) ([]int64, []int64
 		if len(state.ChainHops) > 0 {
 			targets = state.ChainHops[0]
 		}
-		chainData, err := buildTunnelChainConfig(state.TunnelID, inNode.NodeID, targets, state.Nodes)
+		chainData, err := buildTunnelChainConfig(state.TunnelID, inNode.NodeID, targets, state.Nodes, state.IPPreference)
 		if err != nil {
 			return createdChains, createdServices, err
 		}
@@ -2691,7 +2700,7 @@ func (h *Handler) applyTunnelRuntime(state *tunnelCreateState) ([]int64, []int64
 			if node := state.Nodes[chainNode.NodeID]; node != nil && node.IsRemote == 1 {
 				continue
 			}
-			chainData, err := buildTunnelChainConfig(state.TunnelID, chainNode.NodeID, nextTargets, state.Nodes)
+			chainData, err := buildTunnelChainConfig(state.TunnelID, chainNode.NodeID, nextTargets, state.Nodes, state.IPPreference)
 			if err != nil {
 				return createdChains, createdServices, err
 			}
@@ -2766,7 +2775,7 @@ func shouldDeferTunnelRuntimeApplyError(err error) bool {
 	return false
 }
 
-func buildTunnelChainConfig(tunnelID int64, fromNodeID int64, targets []tunnelRuntimeNode, nodes map[int64]*nodeRecord) (map[string]interface{}, error) {
+func buildTunnelChainConfig(tunnelID int64, fromNodeID int64, targets []tunnelRuntimeNode, nodes map[int64]*nodeRecord, ipPreference string) (map[string]interface{}, error) {
 	fromNode := nodes[fromNodeID]
 	if fromNode == nil {
 		return nil, errors.New("节点不存在")
@@ -2780,7 +2789,7 @@ func buildTunnelChainConfig(tunnelID int64, fromNodeID int64, targets []tunnelRu
 		if targetNode == nil {
 			return nil, errors.New("节点不存在")
 		}
-		host, err := selectTunnelDialHost(fromNode, targetNode)
+		host, err := selectTunnelDialHost(fromNode, targetNode, ipPreference)
 		if err != nil {
 			return nil, err
 		}
@@ -2853,7 +2862,7 @@ func buildTunnelChainServiceConfig(tunnelID int64, chainNode tunnelRuntimeNode, 
 	return []map[string]interface{}{service}
 }
 
-func selectTunnelDialHost(fromNode, toNode *nodeRecord) (string, error) {
+func selectTunnelDialHost(fromNode, toNode *nodeRecord, ipPreference string) (string, error) {
 	if fromNode == nil || toNode == nil {
 		return "", errors.New("节点不存在")
 	}
@@ -2862,16 +2871,39 @@ func selectTunnelDialHost(fromNode, toNode *nodeRecord) (string, error) {
 	toV4 := nodeSupportsV4(toNode)
 	toV6 := nodeSupportsV6(toNode)
 
-	if fromV4 && toV4 {
-		host := pickNodeAddressV4(toNode)
-		if host != "" {
-			return host, nil
+	switch strings.TrimSpace(ipPreference) {
+	case "v6":
+		if fromV6 && toV6 {
+			if host := pickNodeAddressV6(toNode); host != "" {
+				return host, nil
+			}
 		}
-	}
-	if fromV6 && toV6 {
-		host := pickNodeAddressV6(toNode)
-		if host != "" {
-			return host, nil
+		if fromV4 && toV4 {
+			if host := pickNodeAddressV4(toNode); host != "" {
+				return host, nil
+			}
+		}
+	case "v4":
+		if fromV4 && toV4 {
+			if host := pickNodeAddressV4(toNode); host != "" {
+				return host, nil
+			}
+		}
+		if fromV6 && toV6 {
+			if host := pickNodeAddressV6(toNode); host != "" {
+				return host, nil
+			}
+		}
+	default:
+		if fromV4 && toV4 {
+			if host := pickNodeAddressV4(toNode); host != "" {
+				return host, nil
+			}
+		}
+		if fromV6 && toV6 {
+			if host := pickNodeAddressV6(toNode); host != "" {
+				return host, nil
+			}
 		}
 	}
 	return "", fmt.Errorf("节点链路不兼容：%s(v4=%t,v6=%t) -> %s(v4=%t,v6=%t)", nodeDisplayName(fromNode), fromV4, fromV6, nodeDisplayName(toNode), toV4, toV6)

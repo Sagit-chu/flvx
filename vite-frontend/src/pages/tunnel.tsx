@@ -67,6 +67,7 @@ interface Tunnel {
   protocol?: string;
   flow: number; // 1: 单向, 2: 双向
   trafficRatio: number;
+  ipPreference?: string;
   status: number;
   createdTime: string;
 }
@@ -87,6 +88,7 @@ interface TunnelForm {
   flow: number;
   trafficRatio: number;
   inIp: string; // 入口IP
+  ipPreference: string;
   status: number;
 }
 
@@ -141,6 +143,7 @@ export default function TunnelPage() {
     flow: 1,
     trafficRatio: 1.0,
     inIp: "",
+    ipPreference: "",
     status: 1,
   });
 
@@ -301,6 +304,7 @@ export default function TunnelPage() {
       flow: 1,
       trafficRatio: 1.0,
       inIp: "",
+      ipPreference: "",
       status: 1,
     });
     setErrors({});
@@ -313,21 +317,22 @@ export default function TunnelPage() {
 
     // 直接使用列表数据，getAllTunnels 已经包含完整的节点信息
     setForm({
-      id: tunnel.id,
-      name: tunnel.name,
-      type: tunnel.type,
-      inNodeId: tunnel.inNodeId || [],
-      outNodeId: tunnel.outNodeId || [],
-      chainNodes: tunnel.chainNodes || [],
-      flow: tunnel.flow,
-      trafficRatio: tunnel.trafficRatio,
-      inIp: tunnel.inIp
-        ? tunnel.inIp
-            .split(",")
-            .map((ip) => ip.trim())
-            .join("\n")
-        : "",
-      status: tunnel.status,
+    id: tunnel.id,
+    name: tunnel.name,
+    type: tunnel.type,
+    inNodeId: tunnel.inNodeId || [],
+    outNodeId: tunnel.outNodeId || [],
+    chainNodes: tunnel.chainNodes || [],
+    flow: tunnel.flow,
+    trafficRatio: tunnel.trafficRatio,
+    inIp: tunnel.inIp
+      ? tunnel.inIp
+          .split(",")
+          .map((ip: string) => ip.trim())
+          .join("\n")
+      : "",
+    ipPreference: tunnel.ipPreference || "",
+    status: tunnel.status,
     });
     setErrors({});
     setModalOpen(true);
@@ -1045,7 +1050,7 @@ export default function TunnelPage() {
                             </div>
 
                             {/* 流量配置 */}
-                            <div className="grid grid-cols-2 gap-2">
+                            <div className={`grid gap-2 ${tunnel.type === 2 && tunnel.ipPreference ? "grid-cols-3" : "grid-cols-2"}`}>
                               <div className="text-center p-1.5 bg-default-50 dark:bg-default-100/30 rounded">
                                 <div className="text-xs text-default-500">
                                   流量计算
@@ -1062,6 +1067,16 @@ export default function TunnelPage() {
                                   {tunnel.trafficRatio}x
                                 </div>
                               </div>
+                              {tunnel.type === 2 && tunnel.ipPreference && (
+                                <div className="text-center p-1.5 bg-default-50 dark:bg-default-100/30 rounded">
+                                  <div className="text-xs text-default-500">
+                                    连接偏好
+                                  </div>
+                                  <div className="text-sm font-semibold text-foreground mt-0.5">
+                                    {tunnel.ipPreference === "v4" ? "IPv4" : "IPv6"}
+                                  </div>
+                                </div>
+                              )}
                             </div>
                           </div>
 
@@ -1292,6 +1307,27 @@ export default function TunnelPage() {
                       setForm((prev) => ({ ...prev, inIp: e.target.value }))
                     }
                   />
+
+                  {form.type === 2 && (
+                    <Select
+                      description="当节点同时拥有IPv4和IPv6地址时，选择隧道连接使用的地址类型"
+                      label="隧道连接地址偏好"
+                      selectedKeys={[form.ipPreference || ""]}
+                      variant="bordered"
+                      onSelectionChange={(keys) => {
+                        const selectedKey = Array.from(keys)[0] as string;
+
+                        setForm((prev) => ({
+                          ...prev,
+                          ipPreference: selectedKey || "",
+                        }));
+                      }}
+                    >
+                      <SelectItem key="">自动选择</SelectItem>
+                      <SelectItem key="v4">优先IPv4</SelectItem>
+                      <SelectItem key="v6">优先IPv6</SelectItem>
+                    </Select>
+                  )}
 
                   <Divider />
                   <h3 className="text-lg font-semibold">入口配置</h3>

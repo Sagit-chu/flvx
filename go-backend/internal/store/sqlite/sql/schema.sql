@@ -80,7 +80,8 @@ CREATE TABLE IF NOT EXISTS tunnel (
   updated_time INTEGER NOT NULL,
   status INTEGER NOT NULL,
   in_ip TEXT,
-  inx INTEGER NOT NULL DEFAULT 0
+  inx INTEGER NOT NULL DEFAULT 0,
+  ip_preference VARCHAR(10) NOT NULL DEFAULT ''
 );
 
 CREATE TABLE IF NOT EXISTS chain_tunnel (

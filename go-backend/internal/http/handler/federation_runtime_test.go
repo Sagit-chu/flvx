@@ -56,14 +56,35 @@ func TestPickPeerSharePortUsesRuntimeReservations(t *testing.T) {
 	}
 }
 
-func TestApplyTunnelRuntimeSkipsRemoteNodes(t *testing.T) {
-	h := &Handler{}
+func TestApplyTunnelRuntimeSkipsRemoteChainAndOutNodes(t *testing.T) {
+	repo, err := sqlite.Open(filepath.Join(t.TempDir(), "rt-skip.db"))
+	if err != nil {
+		t.Fatalf("open repo: %v", err)
+	}
+	defer repo.Close()
+
+	h := &Handler{repo: repo}
+	now := time.Now().UnixMilli()
+	for _, n := range []struct {
+		id   int64
+		name string
+		ip   string
+	}{
+		{12, "remote-chain", "10.99.0.2"},
+		{13, "remote-out", "10.99.0.3"},
+	} {
+		if _, err := repo.DB().Exec(`
+			INSERT INTO node(id, name, secret, server_ip, server_ip_v4, server_ip_v6, port, interface_name, version, http, tls, socks, created_time, updated_time, status, tcp_listen_addr, udp_listen_addr, inx, is_remote, remote_url, remote_token)
+			VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		`, n.id, n.name, n.name+"-secret", n.ip, n.ip, "", "40000-40010", "", "v1", 1, 1, 1, now, now, 1, "[::]", "[::]", 0, 1, "http://remote-peer", "remote-token"); err != nil {
+			t.Fatalf("insert node %s: %v", n.name, err)
+		}
+	}
+
 	state := &tunnelCreateState{
 		TunnelID: 1,
 		Type:     2,
-		InNodes: []tunnelRuntimeNode{
-			{NodeID: 11, ChainType: 1, Protocol: "tls"},
-		},
+		InNodes:  []tunnelRuntimeNode{},
 		ChainHops: [][]tunnelRuntimeNode{
 			{
 				{NodeID: 12, ChainType: 2, Inx: 1, Port: 41000, Protocol: "tls", Strategy: "round"},
@@ -73,9 +94,8 @@ func TestApplyTunnelRuntimeSkipsRemoteNodes(t *testing.T) {
 			{NodeID: 13, ChainType: 3, Port: 42000, Protocol: "tls", Strategy: "round"},
 		},
 		Nodes: map[int64]*nodeRecord{
-			11: {ID: 11, Name: "remote-in", IsRemote: 1},
-			12: {ID: 12, Name: "remote-chain", IsRemote: 1},
-			13: {ID: 13, Name: "remote-out", IsRemote: 1},
+			12: {ID: 12, Name: "remote-chain", IsRemote: 1, ServerIPv4: "10.99.0.2"},
+			13: {ID: 13, Name: "remote-out", IsRemote: 1, ServerIPv4: "10.99.0.3"},
 		},
 	}
 
@@ -84,10 +104,10 @@ func TestApplyTunnelRuntimeSkipsRemoteNodes(t *testing.T) {
 		t.Fatalf("apply runtime: %v", err)
 	}
 	if len(chains) != 0 {
-		t.Fatalf("expected no local chains created, got %d", len(chains))
+		t.Fatalf("expected no local chains for remote-only nodes, got %d", len(chains))
 	}
 	if len(services) != 0 {
-		t.Fatalf("expected no local services created, got %d", len(services))
+		t.Fatalf("expected no local services for remote-only nodes, got %d", len(services))
 	}
 }
 

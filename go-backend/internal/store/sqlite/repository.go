@@ -849,7 +849,7 @@ func (r *Repository) ListTunnels() ([]map[string]interface{}, error) {
 	}
 
 	rows, err := r.db.Query(`
-		SELECT id, inx, name, type, flow, traffic_ratio, status, created_time, in_ip
+		SELECT id, inx, name, type, flow, traffic_ratio, status, created_time, in_ip, COALESCE(ip_preference, '')
 		FROM tunnel
 		ORDER BY inx ASC, id ASC
 	`)
@@ -867,7 +867,8 @@ func (r *Repository) ListTunnels() ([]map[string]interface{}, error) {
 		var typ, status int
 		var trafficRatio float64
 		var inIP sql.NullString
-		if err := rows.Scan(&id, &inx, &name, &typ, &flow, &trafficRatio, &status, &createdTime, &inIP); err != nil {
+		var ipPreference string
+		if err := rows.Scan(&id, &inx, &name, &typ, &flow, &trafficRatio, &status, &createdTime, &inIP, &ipPreference); err != nil {
 			return nil, err
 		}
 
@@ -881,6 +882,7 @@ func (r *Repository) ListTunnels() ([]map[string]interface{}, error) {
 			"status":       status,
 			"createdTime":  createdTime,
 			"inIp":         nullableString(inIP),
+			"ipPreference": ipPreference,
 			"inNodeId":     make([]map[string]interface{}, 0),
 			"outNodeId":    make([]map[string]interface{}, 0),
 			"chainNodes":   make([][]map[string]interface{}, 0),
@@ -1366,7 +1368,8 @@ func migrateSchema(db *store.DB) error {
 			"remote_config": "TEXT",
 		},
 		"tunnel": {
-			"inx": "INTEGER NOT NULL DEFAULT 0",
+			"inx":           "INTEGER NOT NULL DEFAULT 0",
+			"ip_preference": "VARCHAR(10) NOT NULL DEFAULT ''",
 		},
 		"forward": {
 			"inx": "INTEGER NOT NULL DEFAULT 0",
@@ -1997,6 +2000,7 @@ type TunnelBackup struct {
 	Status       int                 `json:"status"`
 	InIP         string              `json:"inIp,omitempty"`
 	Inx          int                 `json:"inx"`
+	IPPreference string              `json:"ipPreference,omitempty"`
 	ChainTunnels []ChainTunnelBackup `json:"chainTunnels,omitempty"`
 }
 
@@ -2327,7 +2331,7 @@ func (r *Repository) exportNodes() ([]NodeBackup, error) {
 
 func (r *Repository) exportTunnels() ([]TunnelBackup, error) {
 	rows, err := r.db.Query(`
-		SELECT id, name, traffic_ratio, type, protocol, flow, created_time, updated_time, status, in_ip, inx
+		SELECT id, name, traffic_ratio, type, protocol, flow, created_time, updated_time, status, in_ip, inx, COALESCE(ip_preference, '')
 		FROM tunnel ORDER BY inx ASC, id ASC
 	`)
 	if err != nil {
@@ -2342,7 +2346,7 @@ func (r *Repository) exportTunnels() ([]TunnelBackup, error) {
 		var updatedTime sql.NullInt64
 		var inIP sql.NullString
 		var inx sql.NullInt64
-		if err := rows.Scan(&t.ID, &t.Name, &t.TrafficRatio, &t.Type, &protocol, &t.Flow, &t.CreatedTime, &updatedTime, &t.Status, &inIP, &inx); err != nil {
+		if err := rows.Scan(&t.ID, &t.Name, &t.TrafficRatio, &t.Type, &protocol, &t.Flow, &t.CreatedTime, &updatedTime, &t.Status, &inIP, &inx, &t.IPPreference); err != nil {
 			return nil, err
 		}
 		if protocol.Valid {
@@ -2826,8 +2830,8 @@ func (r *Repository) importTunnels(db Execer, tunnels []TunnelBackup, now int64)
 	count := 0
 	for _, t := range tunnels {
 		_, err := db.Exec(`
-			INSERT INTO tunnel(id, name, traffic_ratio, type, protocol, flow, created_time, updated_time, status, in_ip, inx)
-			VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			INSERT INTO tunnel(id, name, traffic_ratio, type, protocol, flow, created_time, updated_time, status, in_ip, inx, ip_preference)
+			VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 			ON CONFLICT(id) DO UPDATE SET
 				name = excluded.name,
 				traffic_ratio = excluded.traffic_ratio,
@@ -2837,8 +2841,9 @@ func (r *Repository) importTunnels(db Execer, tunnels []TunnelBackup, now int64)
 				updated_time = excluded.updated_time,
 				status = excluded.status,
 				in_ip = excluded.in_ip,
-				inx = excluded.inx
-		`, t.ID, t.Name, t.TrafficRatio, t.Type, t.Protocol, t.Flow, t.CreatedTime, now, t.Status, t.InIP, t.Inx)
+				inx = excluded.inx,
+				ip_preference = excluded.ip_preference
+		`, t.ID, t.Name, t.TrafficRatio, t.Type, t.Protocol, t.Flow, t.CreatedTime, now, t.Status, t.InIP, t.Inx, t.IPPreference)
 		if err != nil {
 			return count, err
 		}
