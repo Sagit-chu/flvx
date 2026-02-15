@@ -1,8 +1,8 @@
 # PROJECT KNOWLEDGE BASE
 
-**Generated:** Fri Feb 13 2026
-**Commit:** 3799729
-**Branch:** (detached)
+**Generated:** Sun Feb 15 2026
+**Commit:** e5e22ba
+**Branch:** main
 
 ## OVERVIEW
 FLVX (formerly Flux Panel) is a traffic forwarding management system built on a forked GOST v3 stack. It ships as a Go-based admin API (SQLite) + Vite/React UI + Go forwarding agent, with optional mobile WebView wrappers.
@@ -43,8 +43,10 @@ FLVX (formerly Flux Panel) is a traffic forwarding management system built on a 
 
 
 ## CONVENTIONS
-- `Authorization` header carries the raw JWT token (no `Bearer` prefix) between `vite-frontend/` and `go-backend/`.
-- `go-gost/` uses `replace github.com/go-gost/x => ./x` and `go-gost/x/` is also its own Go module.
+- **Auth**: `Authorization` header carries the raw JWT token (no `Bearer` prefix) between `vite-frontend/` and `go-backend/`.
+- **Module Fork**: `go-gost/` uses `replace github.com/go-gost/x => ./x` and `go-gost/x/` is also its own Go module.
+- **Encryption**: Agent-to-panel communication uses AES encryption with node `secret` as PSK.
+- **API Envelope**: All REST responses follow `{code, msg, data, ts}` structure (code 0 = success).
 
 ## ANTI-PATTERNS (THIS PROJECT)
 - **DO NOT EDIT** generated protobuf output: `go-gost/x/internal/util/grpc/proto/*.pb.go`, `go-gost/x/internal/util/grpc/proto/*_grpc.pb.go`.
@@ -69,9 +71,19 @@ docker compose -f docker-compose-v6.yml up -d
 (cd go-gost && go run .)
 ```
 
+## UNIQUE STYLES
+- **Flat Monorepo**: Language-prefixed dirs (`go-backend`, `go-gost`, `vite-frontend`) instead of `apps/`/`libs/`.
+- **Asymmetric Go Layout**: `go-backend` follows `cmd/<app>/main.go` while `go-gost` uses `root/main.go`.
+- **Frontend Hybrid Mode**: `App.tsx` detects "H5 mode" (mobile WebView) vs desktop, dictating layout strategy.
+
 ## NOTES
 - LSP servers are not installed in this environment (gopls/jdtls/typescript-language-server); rely on grep-based navigation.
 - `vite-frontend/vite.config.ts` sets `minify: false` and disables treeshake; expect larger bundles.
+- `vite-frontend` uses `rolldown-vite` (experimental Rust bundler) instead of standard Vite.
 - Install scripts (`install.sh`, `panel_install.sh`) self-delete after execution - common pattern in one-liner installs.
-- CI uses UPX compression on Go binaries before release.
-- Backend has contract tests in `go-backend/tests/contract/` - frontend has no test infrastructure.
+- CI uses UPX compression (`--best --lzma`) on Go binaries before release.
+- CI dynamically injects `PINNED_VERSION` into install scripts and docker-compose files during releases.
+- `panel_install.sh` auto-detects IPv6 and modifies `/etc/docker/daemon.json` to enable IPv6 bridge.
+- Download proxy `https://gcode.hostcentral.cc/` used for GitHub downloads in China/restricted environments.
+- Backend has contract tests in `go-backend/tests/contract/` - frontend has no test infrastructure (Vitest/Jest not configured).
+- `analysis/3x-ui/` contains a separate git repo for reference/comparison - not part of FLVX core.

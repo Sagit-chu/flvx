@@ -1,7 +1,7 @@
 # GO-GOST/X KNOWLEDGE BASE
 
 ## OVERVIEW
-Local fork of `github.com/go-gost/x` used by `go-gost/` via `replace github.com/go-gost/x => ./x`. Most protocol/runtime behavior changes happen here.
+Local fork of `github.com/go-gost/x` used by `go-gost/` via `replace github.com/go-gost/x => ./x`. Most protocol/runtime behavior changes happen here. 30+ top-level packages - framework-style layout.
 
 ## STRUCTURE
 ```
@@ -31,6 +31,8 @@ go-gost/x/
 ## CONVENTIONS
 - `go-gost/x/` is a standalone Go module (`go-gost/x/go.mod`); run go tooling from this dir when debugging module resolution.
 - Generated gRPC/proto code lives under `go-gost/x/internal/util/grpc/proto/`.
+- Handlers/listeners/dialers follow consistent pattern: `{type}.go` + `metadata.go` per protocol.
+- OS-specific code uses `name_[os].go` suffix (e.g., `tun_linux.go`, `tun_darwin.go`).
 
 ## ANTI-PATTERNS
 - Do not edit generated files in `go-gost/x/internal/util/grpc/proto/` (`*.pb.go`, `*_grpc.pb.go`).

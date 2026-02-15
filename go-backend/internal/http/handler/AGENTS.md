@@ -1,6 +1,6 @@
 # BACKEND HTTP HANDLER KNOWLEDGE BASE
 
-**Generated:** Fri Feb 13 2026
+**Generated:** Sun Feb 15 2026
 
 ## OVERVIEW
 HTTP request handlers for FLVX Admin API. Core business logic layer.
@@ -29,8 +29,9 @@ handler/
 
 ## CONVENTIONS
 - Inherits from parent: raw SQL, no ORM, JWT in Authorization header.
-- Large files expected (`mutations.go` >100k LOC).
+- Large files expected (`mutations.go` 3716 LOC - central mutation hub).
 - Uses `sqlite.Repository` for DB access via `repo.XXX()` methods.
+- Domain-driven file split: one file per functional area (federation, jobs, etc.).
 
 ## ANTI-PATTERNS
 - Do NOT add ORM here - uses raw SQL throughout.

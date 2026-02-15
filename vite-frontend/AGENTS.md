@@ -1,10 +1,10 @@
 # VITE FRONTEND KNOWLEDGE BASE
 
-**Generated:** Mon Feb 02 2026
+**Generated:** Sun Feb 15 2026
 
 ## OVERVIEW
-Web management console for FLVX (formerly Flux Panel).
-**Stack:** React 18, Vite 5, TypeScript, TailwindCSS 4, HeroUI.
+Web management console for FLVX.
+**Stack:** React 18, Vite 5 (rolldown-vite), TypeScript, TailwindCSS 4, HeroUI.
 
 ## STRUCTURE
 ```
@@ -37,9 +37,19 @@ vite-frontend/
 
 ## CONVENTIONS
 - **Auth**: JWT stored as `localStorage.token`. Sent in `Authorization` header (no "Bearer" prefix).
-- **API**: Default base URL is `/api/v1/`.
+- **API**: Default base URL is `/api/v1/`. Responses follow `{code, msg, data, ts}` structure.
 - **WebView**: In WebView mode, base URL is derived from selected panel address. If unset, API returns `code: -1`.
 - **Routing**: URL query param `h5=true` forces mobile layout.
+- **Build**: `minify: false`, `treeshake: false` - unoptimized production bundles for debugging.
+- **ESLint**: `react-hooks/exhaustive-deps` disabled, unused vars starting with `_` ignored.
+- **Large Pages**: `forward.tsx` (3263 LOC), `tunnel.tsx` (2552 LOC), `node.tsx` (2194 LOC).
+
+## ANTI-PATTERNS
+- **DO NOT ADD** tests - no test infrastructure (Vitest/Jest not configured).
+
+## NOTES
+- Uses `rolldown-vite` (experimental Rust bundler) instead of standard Vite.
+- ESLint Flat Config format with custom import ordering rules.
 
 ## COMMANDS
 ```bash

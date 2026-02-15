@@ -1,8 +1,8 @@
 # GO BACKEND KNOWLEDGE BASE
 
 ## OVERVIEW
-Go-based Admin API for FLVX (formerly Flux Panel). Replaces the legacy Spring Boot backend.
-**Stack:** Go 1.23, net/http (std lib), SQLite (modernc.org/sqlite).
+Go-based Admin API for FLVX. Replaced legacy Spring Boot backend.
+**Stack:** Go 1.23, net/http (std lib), SQLite/PostgreSQL (modernc.org/sqlite - CGO-free).
 
 ## STRUCTURE
 ```
@@ -34,14 +34,21 @@ go-backend/
 
 ## CONVENTIONS
 - **No ORM**: Uses raw SQL with `database/sql` and `modernc.org/sqlite`.
+- **CGO-Free SQLite**: `modernc.org/sqlite` instead of `mattn/go-sqlite3` - builds without CGO.
 - **Standard Lib**: Uses `net/http` for routing (Go 1.22+ patterns).
 - **Auth**: Expects raw JWT in `Authorization` header (no `Bearer` prefix).
+- **API Envelope**: All responses use `response.R{code, msg, data, ts}` structure.
 - **Config**: Loaded from environment variables (see `cmd/paneld/main.go`).
+- **SQL Idempotency**: Prefer `ON CONFLICT DO NOTHING` for inserts in migrations/sync.
+
+## ANTI-PATTERNS
+- **DO NOT USE** ORM - uses raw SQL throughout.
+- **DO NOT CHANGE** handler signatures without updating `router.go`.
 
 ## COMMANDS
 ```bash
 cd go-backend
-go run ./cmd/paneld
+go run ./cmd/paneld       # Default: SERVER_ADDR=:6365
 go test ./...
 make build
 ```

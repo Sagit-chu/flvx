@@ -1,6 +1,6 @@
 # GO-GOST SERVICE KNOWLEDGE BASE
 
-**Generated:** Mon Feb 02 2026
+**Generated:** Sun Feb 15 2026
 
 ## OVERVIEW
 Forwarding agent built on GOST v3 with a local fork of `github.com/go-gost/x` under `x/`.
@@ -27,6 +27,11 @@ go-gost/
 ## CONVENTIONS
 - Two configs exist: panel integration uses `config.json`; forwarding services use GOST config (defaults to `gost.{json,yaml}` via viper search paths).
 - `go-gost/x/` is the primary extension surface; avoid editing vendored deps.
+- Agent communicates with panel via WebSocket (real-time commands) + HTTP (batch traffic reports).
+- All panel communication uses AES encryption with node `secret` as PSK.
+
+## ANTI-PATTERNS
+- **DO NOT EDIT** generated protobuf in `x/internal/util/grpc/proto/`.
 
 ## COMMANDS
 ```bash
