@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@heroui/button";
 import { Card, CardBody, CardHeader } from "@heroui/card";
 import { Input } from "@heroui/input";
+import { Textarea } from "@heroui/input";
 import { Spinner } from "@heroui/spinner";
 import { Divider } from "@heroui/divider";
 import { Switch } from "@heroui/switch";
@@ -10,7 +11,7 @@ import { Select, SelectItem } from "@heroui/select";
 import { Checkbox, CheckboxGroup } from "@heroui/checkbox";
 import toast from "react-hot-toast";
 
-import { updateConfigs, exportBackup, importBackup } from "@/api";
+import { updateConfigs, exportBackup, importBackup, getAnnouncement, updateAnnouncement, type AnnouncementData } from "@/api";
 import { SettingsIcon } from "@/components/icons";
 import { isAdmin } from "@/utils/auth";
 import {
@@ -144,6 +145,13 @@ export default function ConfigPage() {
   const [importFileName, setImportFileName] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const [announcement, setAnnouncement] = useState<AnnouncementData>({
+    content: "",
+    enabled: 0,
+  });
+  const [announcementLoading, setAnnouncementLoading] = useState(true);
+  const [announcementSaving, setAnnouncementSaving] = useState(false);
+
   // 权限检查
   useEffect(() => {
     if (!isAdmin()) {
@@ -188,21 +196,51 @@ export default function ConfigPage() {
   };
 
   useEffect(() => {
-    // 延迟加载，避免阻塞初始渲染
     const timer = setTimeout(() => {
       loadConfigs(initialConfigs);
+      loadAnnouncement();
     }, 100);
 
     return () => clearTimeout(timer);
-  }, []); // 只在组件挂载时执行一次
+  }, []);
 
-  // 处理配置项变更
+  const loadAnnouncement = async () => {
+    setAnnouncementLoading(true);
+    try {
+      const res = await getAnnouncement();
+
+      if (res.code === 0 && res.data) {
+        setAnnouncement(res.data);
+      }
+    } catch (error) {
+      console.error("Failed to load announcement:", error);
+    } finally {
+      setAnnouncementLoading(false);
+    }
+  };
+
+  const saveAnnouncement = async () => {
+    setAnnouncementSaving(true);
+    try {
+      const res = await updateAnnouncement(announcement);
+
+      if (res.code === 0) {
+        toast.success("公告保存成功");
+      } else {
+        toast.error(res.msg || "保存失败");
+      }
+    } catch {
+      toast.error("保存公告失败，请重试");
+    } finally {
+      setAnnouncementSaving(false);
+    }
+  };
+
   const handleConfigChange = (key: string, value: string) => {
     const newConfigs = { ...configs, [key]: value };
 
     setConfigs(newConfigs);
 
-    // 检查是否有变更
     const hasChangesNow =
       Object.keys(newConfigs).some(
         (k) => newConfigs[k] !== originalConfigs[k],
@@ -479,7 +517,6 @@ export default function ConfigPage() {
         </CardBody>
       </Card>
 
-      {/* 操作提示 */}
       {hasChanges && (
         <Card className="mt-4 bg-warning-50 dark:bg-warning-900/20 border-warning-200 dark:border-warning-800">
           <CardBody className="py-3">
@@ -492,6 +529,69 @@ export default function ConfigPage() {
           </CardBody>
         </Card>
       )}
+
+      <Card className="mt-6 shadow-md">
+        <CardHeader className="pb-4">
+          <div className="flex justify-between items-center w-full">
+            <div>
+              <h2 className="text-xl font-semibold">公告管理</h2>
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                设置首页显示的公告内容
+              </p>
+            </div>
+          </div>
+        </CardHeader>
+
+        <Divider />
+
+        <CardBody className="space-y-4 pt-6">
+          {announcementLoading ? (
+            <div className="flex justify-center py-8">
+              <Spinner size="lg" />
+            </div>
+          ) : (
+            <>
+              <div className="space-y-2">
+                <Switch
+                  isSelected={announcement.enabled === 1}
+                  onValueChange={(checked) =>
+                    setAnnouncement({ ...announcement, enabled: checked ? 1 : 0 })
+                  }
+                >
+                  <span className="text-sm text-gray-700 dark:text-gray-300">
+                    {announcement.enabled === 1 ? "已启用" : "已禁用"}
+                  </span>
+                </Switch>
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  启用后，公告将在首页顶部显示
+                </p>
+              </div>
+
+              <Textarea
+                label="公告内容"
+                placeholder="请输入公告内容"
+                value={announcement.content}
+                variant="bordered"
+                minRows={4}
+                onChange={(e) =>
+                  setAnnouncement({ ...announcement, content: e.target.value })
+                }
+              />
+
+              <div className="flex justify-end">
+                <Button
+                  color="primary"
+                  isLoading={announcementSaving}
+                  startContent={<SaveIcon className="w-4 h-4" />}
+                  onClick={saveAnnouncement}
+                >
+                  保存公告
+                </Button>
+              </div>
+            </>
+          )}
+        </CardBody>
+      </Card>
 
       {/* 备份与恢复 */}
       <Card className="mt-6 shadow-md">

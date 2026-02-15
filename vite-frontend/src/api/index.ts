@@ -285,3 +285,11 @@ export const exportBackup = async (types: string[] = []) => {
 
 export const importBackup = (data: { types: string[]; [key: string]: any }) =>
   Network.post("/backup/import", data);
+
+export interface AnnouncementData {
+  content: string;
+  enabled: number;
+}
+
+export const getAnnouncement = () => Network.get<AnnouncementData>("/announcement/get");
+export const updateAnnouncement = (data: AnnouncementData) => Network.post("/announcement/update", data);
