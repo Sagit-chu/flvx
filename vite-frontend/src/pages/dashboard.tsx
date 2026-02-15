@@ -13,7 +13,7 @@ import {
   ResponsiveContainer,
 } from "recharts";
 
-import { getUserPackageInfo } from "@/api";
+import { getUserPackageInfo, getAnnouncement, type AnnouncementData } from "@/api";
 
 interface UserInfo {
   flow: number;
@@ -71,6 +71,7 @@ export default function DashboardPage() {
   const [forwardList, setForwardList] = useState<Forward[]>([]);
   const [statisticsFlows, setStatisticsFlows] = useState<StatisticsFlow[]>([]);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [announcement, setAnnouncement] = useState<AnnouncementData | null>(null);
 
   const [addressModalOpen, setAddressModalOpen] = useState(false);
   const [addressModalTitle, setAddressModalTitle] = useState("");
@@ -170,21 +171,32 @@ export default function DashboardPage() {
   };
 
   useEffect(() => {
-    // 重置状态并加载数据，防止页面切换时显示旧数据
     setLoading(true);
     setUserInfo({} as UserInfo);
     setUserTunnels([]);
     setForwardList([]);
     setStatisticsFlows([]);
 
-    // 检查用户是否是管理员
     const adminStatus = localStorage.getItem("admin");
 
     setIsAdmin(adminStatus === "true");
 
     loadPackageData();
+    loadAnnouncement();
     localStorage.setItem("e", "/dashboard");
   }, []);
+
+  const loadAnnouncement = async () => {
+    try {
+      const res = await getAnnouncement();
+
+      if (res.code === 0 && res.data && res.data.enabled === 1) {
+        setAnnouncement(res.data);
+      }
+    } catch (error) {
+      console.error("Failed to load announcement:", error);
+    }
+  };
 
   const loadPackageData = async () => {
     setLoading(true);
@@ -703,7 +715,35 @@ export default function DashboardPage() {
 
   return (
     <div className="px-3 lg:px-6 py-2 lg:py-4">
-      {/* 响应式统计卡片 */}
+      {announcement && announcement.content && (
+        <Card className="mb-4 lg:mb-6 border border-blue-200 dark:border-blue-500/30 bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-500/10 dark:to-purple-500/10">
+          <CardBody className="p-4">
+            <div className="flex items-start gap-3">
+              <div className="p-2 bg-blue-100 dark:bg-blue-500/20 rounded-lg flex-shrink-0">
+                <svg
+                  className="w-5 h-5 text-blue-600 dark:text-blue-400"
+                  fill="currentColor"
+                  viewBox="0 0 20 20"
+                >
+                  <path
+                    clipRule="evenodd"
+                    d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
+                    fillRule="evenodd"
+                  />
+                </svg>
+              </div>
+              <div className="flex-1 min-w-0">
+                <h3 className="text-sm lg:text-base font-semibold text-blue-900 dark:text-blue-100 mb-1">
+                  公告
+                </h3>
+                <p className="text-xs lg:text-sm text-blue-800 dark:text-blue-200 whitespace-pre-wrap break-words">
+                  {announcement.content}
+                </p>
+              </div>
+            </div>
+          </CardBody>
+        </Card>
+      )}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4 mb-6 lg:mb-8">
         <Card className="border border-gray-200 dark:border-default-200 shadow-md hover:shadow-lg transition-shadow">
           <CardBody className="p-3 lg:p-4">
