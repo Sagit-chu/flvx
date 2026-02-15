@@ -299,11 +299,18 @@ func (h *Handler) federationShareDelete(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
+	share, _ := h.repo.GetPeerShare(req.ID)
+
 	h.cleanupPeerShareRuntimes(req.ID)
+	h.cleanupFederationTunnels(req.ID)
 
 	if err := h.repo.DeletePeerShare(req.ID); err != nil {
 		response.WriteJSON(w, response.Err(-2, err.Error()))
 		return
+	}
+
+	if share != nil && h.wsServer != nil {
+		h.wsServer.SendCommand(share.NodeID, "reload", nil, time.Second*5)
 	}
 
 	response.WriteJSON(w, response.OKEmpty())
@@ -1640,5 +1647,29 @@ func (h *Handler) cleanupPeerShareRuntimes(shareID int64) {
 			}
 		}
 		_ = h.repo.MarkPeerShareRuntimeReleased(runtime.ID, now)
+	}
+}
+
+func (h *Handler) cleanupFederationTunnels(shareID int64) {
+	if h == nil || h.repo == nil || shareID <= 0 {
+		return
+	}
+	namePrefix := fmt.Sprintf("Share-%d-Port-", shareID)
+	rows, err := h.repo.DB().Query(`SELECT id FROM tunnel WHERE name LIKE ?`, namePrefix+"%")
+	if err != nil {
+		return
+	}
+	defer rows.Close()
+
+	var tunnelIDs []int64
+	for rows.Next() {
+		var id int64
+		if err := rows.Scan(&id); err == nil {
+			tunnelIDs = append(tunnelIDs, id)
+		}
+	}
+
+	for _, tid := range tunnelIDs {
+		_ = h.deleteTunnelByID(tid)
 	}
 }
