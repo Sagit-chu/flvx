@@ -437,7 +437,7 @@ func (h *Handler) tunnelCreate(w http.ResponseWriter, r *http.Request) {
 	}
 	runtimeState.IPPreference = ipPreference
 	if strings.TrimSpace(inIP) == "" {
-		inIP = buildTunnelInIP(runtimeState.InNodes, runtimeState.Nodes)
+		inIP = buildTunnelInIP(runtimeState.InNodes, runtimeState.Nodes, ipPreference)
 	}
 
 	if len(runtimeState.InNodes) > 0 {
@@ -634,7 +634,7 @@ func (h *Handler) tunnelUpdate(w http.ResponseWriter, r *http.Request) {
 	runtimeState.TunnelID = id
 	runtimeState.IPPreference = ipPreference
 
-	inIp := buildTunnelInIP(runtimeState.InNodes, runtimeState.Nodes)
+	inIp := buildTunnelInIP(runtimeState.InNodes, runtimeState.Nodes, ipPreference)
 
 	var federationBindings []repo.FederationTunnelBinding
 	var federationReleaseRefs []federationRuntimeReleaseRef
@@ -1995,32 +1995,42 @@ func (h *Handler) prepareTunnelCreateState(tx *gorm.DB, req map[string]interface
 	return state, nil
 }
 
-func buildTunnelInIP(inNodes []tunnelRuntimeNode, nodes map[int64]*nodeRecord) string {
+func buildTunnelInIP(inNodes []tunnelRuntimeNode, nodes map[int64]*nodeRecord, ipPreference string) string {
 	set := make(map[string]struct{})
 	ordered := make([]string, 0)
+	preferV6 := strings.TrimSpace(ipPreference) == "v6"
 	for _, inNode := range inNodes {
 		node := nodes[inNode.NodeID]
 		if node == nil {
 			continue
 		}
-		if v := strings.TrimSpace(node.ServerIPv4); v != "" {
-			if _, ok := set[v]; !ok {
-				set[v] = struct{}{}
-				ordered = append(ordered, v)
+		v4 := strings.TrimSpace(node.ServerIPv4)
+		v6 := strings.TrimSpace(node.ServerIPv6)
+		var addrs []string
+		if preferV6 {
+			if v6 != "" {
+				addrs = append(addrs, v6)
+			}
+			if v4 != "" {
+				addrs = append(addrs, v4)
+			}
+		} else {
+			if v4 != "" {
+				addrs = append(addrs, v4)
+			}
+			if v6 != "" {
+				addrs = append(addrs, v6)
 			}
 		}
-		if v := strings.TrimSpace(node.ServerIPv6); v != "" {
-			if _, ok := set[v]; !ok {
-				set[v] = struct{}{}
-				ordered = append(ordered, v)
-			}
-		}
-		if strings.TrimSpace(node.ServerIPv4) == "" && strings.TrimSpace(node.ServerIPv6) == "" {
+		if len(addrs) == 0 {
 			if v := strings.TrimSpace(node.ServerIP); v != "" {
-				if _, ok := set[v]; !ok {
-					set[v] = struct{}{}
-					ordered = append(ordered, v)
-				}
+				addrs = append(addrs, v)
+			}
+		}
+		for _, a := range addrs {
+			if _, ok := set[a]; !ok {
+				set[a] = struct{}{}
+				ordered = append(ordered, a)
 			}
 		}
 	}

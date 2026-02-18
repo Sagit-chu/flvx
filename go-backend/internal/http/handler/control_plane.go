@@ -383,7 +383,7 @@ func (h *Handler) diagnoseForwardRuntime(forward *forwardRecord) (map[string]int
 						"fromChainType": 1,
 						"toChainType":   2,
 						"toInx":         firstNode.Inx,
-					})
+					}, "")
 				}
 			} else {
 				for _, outNode := range outNodes {
@@ -391,7 +391,7 @@ func (h *Handler) diagnoseForwardRuntime(forward *forwardRecord) (map[string]int
 					h.appendChainHopDiagnosis(&results, nodeCache, inNode.NodeID, outNode, description, map[string]interface{}{
 						"fromChainType": 1,
 						"toChainType":   3,
-					})
+					}, "")
 				}
 			}
 		}
@@ -406,7 +406,7 @@ func (h *Handler) diagnoseForwardRuntime(forward *forwardRecord) (map[string]int
 							"fromInx":       currentNode.Inx,
 							"toChainType":   2,
 							"toInx":         nextNode.Inx,
-						})
+						}, "")
 					}
 				} else {
 					for _, outNode := range outNodes {
@@ -415,7 +415,7 @@ func (h *Handler) diagnoseForwardRuntime(forward *forwardRecord) (map[string]int
 							"fromChainType": 2,
 							"fromInx":       currentNode.Inx,
 							"toChainType":   3,
-						})
+						}, "")
 					}
 				}
 			}
@@ -470,6 +470,7 @@ func (h *Handler) diagnoseTunnelRuntime(tunnelID int64) (map[string]interface{},
 		return nil, errors.New("隧道配置不完整")
 	}
 
+	ipPreference := h.repo.GetTunnelIPPreference(tunnelID)
 	inNodes, chainHops, outNodes := splitChainNodeGroups(chainRows)
 	results := make([]map[string]interface{}, 0, len(chainRows)*2)
 	nodeCache := map[int64]*nodeRecord{}
@@ -491,7 +492,7 @@ func (h *Handler) diagnoseTunnelRuntime(tunnelID int64) (map[string]interface{},
 						"fromChainType": 1,
 						"toChainType":   2,
 						"toInx":         firstNode.Inx,
-					})
+					}, ipPreference)
 				}
 			} else {
 				for _, outNode := range outNodes {
@@ -499,7 +500,7 @@ func (h *Handler) diagnoseTunnelRuntime(tunnelID int64) (map[string]interface{},
 					h.appendChainHopDiagnosis(&results, nodeCache, inNode.NodeID, outNode, description, map[string]interface{}{
 						"fromChainType": 1,
 						"toChainType":   3,
-					})
+					}, ipPreference)
 				}
 			}
 		}
@@ -514,7 +515,7 @@ func (h *Handler) diagnoseTunnelRuntime(tunnelID int64) (map[string]interface{},
 							"fromInx":       currentNode.Inx,
 							"toChainType":   2,
 							"toInx":         nextNode.Inx,
-						})
+						}, ipPreference)
 					}
 				} else {
 					for _, outNode := range outNodes {
@@ -523,7 +524,7 @@ func (h *Handler) diagnoseTunnelRuntime(tunnelID int64) (map[string]interface{},
 							"fromChainType": 2,
 							"fromInx":       currentNode.Inx,
 							"toChainType":   3,
-						})
+						}, ipPreference)
 					}
 				}
 			}
@@ -693,13 +694,14 @@ func (h *Handler) appendPathDiagnosis(results *[]map[string]interface{}, nodeCac
 	*results = append(*results, item)
 }
 
-func (h *Handler) appendChainHopDiagnosis(results *[]map[string]interface{}, nodeCache map[int64]*nodeRecord, fromNodeID int64, toNode chainNodeRecord, description string, metadata map[string]interface{}) {
+func (h *Handler) appendChainHopDiagnosis(results *[]map[string]interface{}, nodeCache map[int64]*nodeRecord, fromNodeID int64, toNode chainNodeRecord, description string, metadata map[string]interface{}, ipPreference string) {
+	fromNode, _ := h.cachedNode(nodeCache, fromNodeID)
 	targetNode, err := h.cachedNode(nodeCache, toNode.NodeID)
 	if err != nil {
 		h.appendFailedDiagnosis(results, nodeCache, fromNodeID, "", 0, description, metadata, err.Error())
 		return
 	}
-	targetIP, targetPort, err := resolveChainProbeTarget(targetNode, toNode.Port)
+	targetIP, targetPort, err := resolveChainProbeTarget(fromNode, targetNode, toNode.Port, ipPreference)
 	if err != nil {
 		h.appendFailedDiagnosis(results, nodeCache, fromNodeID, strings.Trim(strings.TrimSpace(targetNode.ServerIP), "[]"), toNode.Port, description, metadata, err.Error())
 		return
@@ -707,11 +709,14 @@ func (h *Handler) appendChainHopDiagnosis(results *[]map[string]interface{}, nod
 	h.appendPathDiagnosis(results, nodeCache, fromNodeID, targetIP, targetPort, description, metadata)
 }
 
-func resolveChainProbeTarget(targetNode *nodeRecord, preferredPort int) (string, int, error) {
+func resolveChainProbeTarget(fromNode, targetNode *nodeRecord, preferredPort int, ipPreference string) (string, int, error) {
 	if targetNode == nil {
 		return "", 0, errors.New("目标节点不存在")
 	}
-	host := strings.Trim(strings.TrimSpace(targetNode.ServerIP), "[]")
+	host, err := selectTunnelDialHost(fromNode, targetNode, ipPreference)
+	if err != nil {
+		host = strings.Trim(strings.TrimSpace(targetNode.ServerIP), "[]")
+	}
 	if host == "" {
 		return "", 0, errors.New("目标节点地址为空")
 	}
