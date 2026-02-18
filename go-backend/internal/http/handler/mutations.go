@@ -696,6 +696,12 @@ func (h *Handler) tunnelUpdate(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	if forwards, fwdErr := h.listForwardsByTunnel(id); fwdErr == nil {
+		for i := range forwards {
+			_ = h.syncForwardServices(&forwards[i], "UpdateService", true)
+		}
+	}
+
 	response.WriteJSON(w, response.OKEmpty())
 }
 
