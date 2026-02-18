@@ -127,6 +127,11 @@ func OpenPostgres(dsn string) (*Repository, error) {
 		return nil, err
 	}
 
+	if err := preparePostgresLegacySchema(db); err != nil {
+		_ = sqlDB.Close()
+		return nil, fmt.Errorf("prepare postgres legacy schema: %w", err)
+	}
+
 	if err := autoMigrateAll(db); err != nil {
 		_ = sqlDB.Close()
 		return nil, fmt.Errorf("auto migrate: %w", err)
@@ -202,6 +207,49 @@ func autoMigrateAll(db *gorm.DB) error {
 		}
 	}
 
+	return nil
+}
+
+// preparePostgresLegacySchema renames unique constraints that were created by
+// the old schema.sql (which used inline UNIQUE column syntax) to the names
+// expected by GORM's NamingStrategy ("uni_<table>_<column>"). Without this,
+// GORM's AutoMigrate emits "DROP CONSTRAINT uni_..." against constraints that
+// don't exist under that name, crashing startup on upgraded PostgreSQL installs.
+func preparePostgresLegacySchema(db *gorm.DB) error {
+	if db == nil || db.Dialector.Name() != "postgres" {
+		return nil
+	}
+
+	type rename struct{ table, oldName, newName string }
+	renames := []rename{
+		{"vite_config", "vite_config_name_key", "uni_vite_config_name"},
+		{"peer_share", "peer_share_token_key", "uni_peer_share_token"},
+		{"peer_share_runtime", "peer_share_runtime_reservation_id_key", "uni_peer_share_runtime_reservation_id"},
+		{"peer_share_runtime", "peer_share_runtime_resource_key_key", "uni_peer_share_runtime_resource_key"},
+		{"federation_tunnel_binding", "federation_tunnel_binding_resource_key_key", "uni_federation_tunnel_binding_resource_key"},
+	}
+
+	for _, r := range renames {
+		var count int64
+		if err := db.Raw(
+			`SELECT COUNT(*) FROM information_schema.table_constraints
+			 WHERE constraint_schema = current_schema()
+			   AND table_name = ?
+			   AND constraint_name = ?
+			   AND constraint_type = 'UNIQUE'`,
+			r.table, r.oldName,
+		).Scan(&count).Error; err != nil {
+			return fmt.Errorf("check constraint %s.%s: %w", r.table, r.oldName, err)
+		}
+		if count == 0 {
+			continue
+		}
+		if err := db.Exec(
+			fmt.Sprintf(`ALTER TABLE %q RENAME CONSTRAINT %q TO %q`, r.table, r.oldName, r.newName),
+		).Error; err != nil {
+			return fmt.Errorf("rename constraint %s.%s→%s: %w", r.table, r.oldName, r.newName, err)
+		}
+	}
 	return nil
 }
 
