@@ -317,22 +317,22 @@ export default function TunnelPage() {
 
     // 直接使用列表数据，getAllTunnels 已经包含完整的节点信息
     setForm({
-    id: tunnel.id,
-    name: tunnel.name,
-    type: tunnel.type,
-    inNodeId: tunnel.inNodeId || [],
-    outNodeId: tunnel.outNodeId || [],
-    chainNodes: tunnel.chainNodes || [],
-    flow: tunnel.flow,
-    trafficRatio: tunnel.trafficRatio,
-    inIp: tunnel.inIp
-      ? tunnel.inIp
-          .split(",")
-          .map((ip: string) => ip.trim())
-          .join("\n")
-      : "",
-    ipPreference: tunnel.ipPreference || "",
-    status: tunnel.status,
+      id: tunnel.id,
+      name: tunnel.name,
+      type: tunnel.type,
+      inNodeId: tunnel.inNodeId || [],
+      outNodeId: tunnel.outNodeId || [],
+      chainNodes: tunnel.chainNodes || [],
+      flow: tunnel.flow,
+      trafficRatio: tunnel.trafficRatio,
+      inIp: tunnel.inIp
+        ? tunnel.inIp
+            .split(",")
+            .map((ip: string) => ip.trim())
+            .join("\n")
+        : "",
+      ipPreference: tunnel.ipPreference || "",
+      status: tunnel.status,
     });
     setErrors({});
     setModalOpen(true);
@@ -1050,7 +1050,9 @@ export default function TunnelPage() {
                             </div>
 
                             {/* 流量配置 */}
-                            <div className={`grid gap-2 ${tunnel.type === 2 && tunnel.ipPreference ? "grid-cols-3" : "grid-cols-2"}`}>
+                            <div
+                              className={`grid gap-2 ${tunnel.type === 2 && tunnel.ipPreference ? "grid-cols-3" : "grid-cols-2"}`}
+                            >
                               <div className="text-center p-1.5 bg-default-50 dark:bg-default-100/30 rounded">
                                 <div className="text-xs text-default-500">
                                   流量计算
@@ -1073,7 +1075,9 @@ export default function TunnelPage() {
                                     连接偏好
                                   </div>
                                   <div className="text-sm font-semibold text-foreground mt-0.5">
-                                    {tunnel.ipPreference === "v4" ? "IPv4" : "IPv6"}
+                                    {tunnel.ipPreference === "v4"
+                                      ? "IPv4"
+                                      : "IPv6"}
                                   </div>
                                 </div>
                               )}
@@ -1280,11 +1284,11 @@ export default function TunnelPage() {
                       errorMessage={errors.trafficRatio}
                       isInvalid={!!errors.trafficRatio}
                       label="流量倍率"
-                      placeholder="例如：0.5 或 1 或 2"
-                      type="number"
-                      step="any"
-                      min={0.01}
                       max={100}
+                      min={0.01}
+                      placeholder="例如：0.5 或 1 或 2"
+                      step="any"
+                      type="number"
                       value={form.trafficRatio.toString()}
                       variant="bordered"
                       onChange={(e) =>

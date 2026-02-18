@@ -18,7 +18,14 @@ import {
 } from "@heroui/modal";
 import toast from "react-hot-toast";
 
-import { updateConfigs, exportBackup, importBackup, getAnnouncement, updateAnnouncement, type AnnouncementData } from "@/api";
+import {
+  updateConfigs,
+  exportBackup,
+  importBackup,
+  getAnnouncement,
+  updateAnnouncement,
+  type AnnouncementData,
+} from "@/api";
 import { SettingsIcon } from "@/components/icons";
 import { isAdmin } from "@/utils/auth";
 import {
@@ -501,7 +508,9 @@ export default function ConfigPage() {
             <Button
               size="sm"
               variant="flat"
-              onPress={() => setTypes(allSelected ? [] : [...BACKUP_TYPE_VALUES])}
+              onPress={() =>
+                setTypes(allSelected ? [] : [...BACKUP_TYPE_VALUES])
+              }
             >
               {allSelected ? "取消全选" : "全选"}
             </Button>
@@ -675,7 +684,10 @@ export default function ConfigPage() {
                 <Switch
                   isSelected={announcement.enabled === 1}
                   onValueChange={(checked) =>
-                    setAnnouncement({ ...announcement, enabled: checked ? 1 : 0 })
+                    setAnnouncement({
+                      ...announcement,
+                      enabled: checked ? 1 : 0,
+                    })
                   }
                 >
                   <span className="text-sm text-gray-700 dark:text-gray-300">
@@ -689,10 +701,10 @@ export default function ConfigPage() {
 
               <Textarea
                 label="公告内容"
+                minRows={4}
                 placeholder="请输入公告内容"
                 value={announcement.content}
                 variant="bordered"
-                minRows={4}
                 onChange={(e) =>
                   setAnnouncement({ ...announcement, content: e.target.value })
                 }
@@ -801,7 +813,11 @@ export default function ConfigPage() {
                 <Button variant="light" onPress={onClose}>
                   取消
                 </Button>
-                <Button color="primary" isLoading={exporting} onPress={handleExport}>
+                <Button
+                  color="primary"
+                  isLoading={exporting}
+                  onPress={handleExport}
+                >
                   {exporting ? "导出中..." : "确认导出"}
                 </Button>
               </ModalFooter>

@@ -13,7 +13,11 @@ import {
   ResponsiveContainer,
 } from "recharts";
 
-import { getUserPackageInfo, getAnnouncement, type AnnouncementData } from "@/api";
+import {
+  getUserPackageInfo,
+  getAnnouncement,
+  type AnnouncementData,
+} from "@/api";
 
 interface UserInfo {
   flow: number;
@@ -71,7 +75,9 @@ export default function DashboardPage() {
   const [forwardList, setForwardList] = useState<Forward[]>([]);
   const [statisticsFlows, setStatisticsFlows] = useState<StatisticsFlow[]>([]);
   const [isAdmin, setIsAdmin] = useState(false);
-  const [announcement, setAnnouncement] = useState<AnnouncementData | null>(null);
+  const [announcement, setAnnouncement] = useState<AnnouncementData | null>(
+    null,
+  );
 
   const [addressModalOpen, setAddressModalOpen] = useState(false);
   const [addressModalTitle, setAddressModalTitle] = useState("");

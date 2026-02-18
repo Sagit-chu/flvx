@@ -31,6 +31,7 @@ import { parseDate } from "@internationalized/date";
 import {
   User,
   UserForm,
+  UserGroup,
   UserTunnel,
   TunnelAssignItem,
   Tunnel,
@@ -49,6 +50,8 @@ import {
   updateUserTunnel,
   getSpeedLimitList,
   resetUserFlow,
+  getUserGroupList,
+  getUserGroups,
 } from "@/api";
 import {
   SearchIcon,
@@ -204,12 +207,14 @@ export default function UserPage() {
   // 其他数据
   const [tunnels, setTunnels] = useState<Tunnel[]>([]);
   const [speedLimits, setSpeedLimits] = useState<SpeedLimit[]>([]);
+  const [userGroups, setUserGroups] = useState<UserGroup[]>([]);
 
   // 生命周期
   useEffect(() => {
     loadUsers();
     loadTunnels();
     loadSpeedLimits();
+    loadUserGroups();
   }, [pagination.current, pagination.size, searchKeyword]);
 
   // 数据加载函数
@@ -256,6 +261,16 @@ export default function UserPage() {
     } catch {}
   };
 
+  const loadUserGroups = async () => {
+    try {
+      const response = await getUserGroupList();
+
+      if (response.code === 0) {
+        setUserGroups(response.data || []);
+      }
+    } catch {}
+  };
+
   const loadUserTunnels = async (userId: number) => {
     setTunnelListLoading(true);
     try {
@@ -289,12 +304,23 @@ export default function UserPage() {
       num: 10,
       expTime: null,
       flowResetTime: 0,
+      groupIds: [],
     });
     onUserModalOpen();
   };
 
-  const handleEdit = (user: User) => {
+  const handleEdit = async (user: User) => {
     setIsEdit(true);
+    let currentGroupIds: number[] = [];
+
+    try {
+      const groupRes = await getUserGroups(user.id);
+
+      if (groupRes.code === 0) {
+        currentGroupIds = groupRes.data || [];
+      }
+    } catch {}
+
     setUserForm({
       id: user.id,
       name: user.name,
@@ -305,6 +331,7 @@ export default function UserPage() {
       num: user.num,
       expTime: user.expTime ? new Date(user.expTime) : null,
       flowResetTime: user.flowResetTime ?? 0,
+      groupIds: currentGroupIds,
     });
     onUserModalOpen();
   };
@@ -345,6 +372,7 @@ export default function UserPage() {
       const submitData: any = {
         ...userForm,
         expTime: userForm.expTime.getTime(),
+        groupIds: userForm.groupIds ?? [],
       };
 
       if (isEdit && !submitData.pwd) {
@@ -951,6 +979,26 @@ export default function UserPage() {
               <Radio value="1">正常</Radio>
               <Radio value="0">禁用</Radio>
             </RadioGroup>
+
+            {userGroups.length > 0 && (
+              <Select
+                label="用户分组（可选）"
+                placeholder="选择要加入的分组"
+                selectedKeys={new Set((userForm.groupIds ?? []).map(String))}
+                selectionMode="multiple"
+                onSelectionChange={(keys) => {
+                  const selected = Array.from(keys as Set<string>).map(Number);
+
+                  setUserForm((prev) => ({ ...prev, groupIds: selected }));
+                }}
+              >
+                {userGroups.map((g) => (
+                  <SelectItem key={g.id.toString()} textValue={g.name}>
+                    {g.name}
+                  </SelectItem>
+                ))}
+              </Select>
+            )}
           </ModalBody>
           <ModalFooter>
             <Button onPress={onUserModalClose}>取消</Button>

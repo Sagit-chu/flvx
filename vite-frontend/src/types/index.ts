@@ -20,6 +20,12 @@ export interface User {
   outFlow?: number; // 上传流量(字节)
 }
 
+export interface UserGroup {
+  id: number;
+  name: string;
+  status: number;
+}
+
 export interface UserForm {
   id?: number;
   name?: string;
@@ -30,6 +36,7 @@ export interface UserForm {
   num: number;
   expTime: Date | null;
   flowResetTime: number;
+  groupIds?: number[];
 }
 
 export interface UserTunnel {

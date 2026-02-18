@@ -34,9 +34,9 @@ func (r *Repository) UserExistsExcluding(username string, excludeID int64) (bool
 	return cnt > 0, err
 }
 
-func (r *Repository) CreateUser(username, pwdHash string, roleID int, expTime, flow, flowResetTime int64, num, status int, now int64) error {
+func (r *Repository) CreateUser(username, pwdHash string, roleID int, expTime, flow, flowResetTime int64, num, status int, now int64) (int64, error) {
 	if r == nil || r.db == nil {
-		return errors.New("repository not initialized")
+		return 0, errors.New("repository not initialized")
 	}
 	user := model.User{
 		User:          username,
@@ -52,7 +52,10 @@ func (r *Repository) CreateUser(username, pwdHash string, roleID int, expTime, f
 		UpdatedTime:   sql.NullInt64{Int64: now, Valid: true},
 		Status:        status,
 	}
-	return r.db.Create(&user).Error
+	if err := r.db.Create(&user).Error; err != nil {
+		return 0, err
+	}
+	return user.ID, nil
 }
 
 func (r *Repository) GetUserRoleID(userID int64) (int, error) {
@@ -1405,4 +1408,71 @@ func parsePortRangeSpec(input string) []int {
 	}
 	sort.Ints(out)
 	return out
+}
+
+func (r *Repository) AddUserToGroups(userID int64, groupIDs []int64, now int64) error {
+	if r == nil || r.db == nil {
+		return errors.New("repository not initialized")
+	}
+	if len(groupIDs) == 0 {
+		return nil
+	}
+	rows := make([]model.UserGroupUser, 0, len(groupIDs))
+	for _, gid := range groupIDs {
+		if gid <= 0 {
+			continue
+		}
+		rows = append(rows, model.UserGroupUser{UserGroupID: gid, UserID: userID, CreatedTime: now})
+	}
+	if len(rows) == 0 {
+		return nil
+	}
+	return r.db.Clauses(clause.OnConflict{DoNothing: true}).Create(&rows).Error
+}
+
+func (r *Repository) ReplaceUserGroupsByUserID(userID int64, newGroupIDs []int64, now int64) (affectedGroupIDs []int64, err error) {
+	if r == nil || r.db == nil {
+		return nil, errors.New("repository not initialized")
+	}
+
+	var oldGroupIDs []int64
+	if err = r.db.Model(&model.UserGroupUser{}).
+		Where("user_id = ?", userID).
+		Pluck("user_group_id", &oldGroupIDs).Error; err != nil {
+		return nil, err
+	}
+
+	seen := make(map[int64]struct{})
+	for _, id := range oldGroupIDs {
+		seen[id] = struct{}{}
+	}
+	for _, id := range newGroupIDs {
+		if id > 0 {
+			seen[id] = struct{}{}
+		}
+	}
+	for id := range seen {
+		affectedGroupIDs = append(affectedGroupIDs, id)
+	}
+
+	if err = r.db.Where("user_id = ?", userID).Delete(&model.UserGroupUser{}).Error; err != nil {
+		return nil, err
+	}
+
+	if len(newGroupIDs) == 0 {
+		return affectedGroupIDs, nil
+	}
+	rows := make([]model.UserGroupUser, 0, len(newGroupIDs))
+	for _, gid := range newGroupIDs {
+		if gid <= 0 {
+			continue
+		}
+		rows = append(rows, model.UserGroupUser{UserGroupID: gid, UserID: userID, CreatedTime: now})
+	}
+	if len(rows) > 0 {
+		if err = r.db.Clauses(clause.OnConflict{DoNothing: true}).Create(&rows).Error; err != nil {
+			return nil, err
+		}
+	}
+	return affectedGroupIDs, nil
 }

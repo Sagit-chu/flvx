@@ -89,6 +89,7 @@ func (h *Handler) Register(mux *http.ServeMux) {
 	mux.HandleFunc("/api/v1/user/update", h.userUpdate)
 	mux.HandleFunc("/api/v1/user/delete", h.userDelete)
 	mux.HandleFunc("/api/v1/user/reset", h.userResetFlow)
+	mux.HandleFunc("/api/v1/user/groups", h.userGroups)
 	mux.HandleFunc("/api/v1/config/get", h.getConfigByName)
 	mux.HandleFunc("/api/v1/config/list", h.getConfigs)
 	mux.HandleFunc("/api/v1/config/update", h.updateConfigs)

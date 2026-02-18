@@ -131,6 +131,9 @@ export const updatePassword = (data: any) =>
 export const resetUserFlow = (data: { id: number; type: number }) =>
   Network.post("/user/reset", data);
 
+export const getUserGroups = (id: number) =>
+  Network.post<number[]>("/user/groups", { id });
+
 // 网站配置相关接口
 export const getConfigs = () => Network.post("/config/list");
 export const getConfigByName = (name: string) =>
@@ -141,8 +144,10 @@ export const updateConfig = (name: string, value: string) =>
   Network.post("/config/update-single", { name, value });
 
 export const exportBackupData = () => Network.post("/backup/export");
-export const importBackupData = (data: any) => Network.post("/backup/import", data);
-export const restoreBackupData = (data: any) => Network.post("/backup/restore", data);
+export const importBackupData = (data: any) =>
+  Network.post("/backup/import", data);
+export const restoreBackupData = (data: any) =>
+  Network.post("/backup/restore", data);
 
 // 验证码相关接口
 export const checkCaptcha = () => Network.post("/captcha/check");
@@ -291,5 +296,7 @@ export interface AnnouncementData {
   enabled: number;
 }
 
-export const getAnnouncement = () => Network.get<AnnouncementData>("/announcement/get");
-export const updateAnnouncement = (data: AnnouncementData) => Network.post("/announcement/update", data);
+export const getAnnouncement = () =>
+  Network.get<AnnouncementData>("/announcement/get");
+export const updateAnnouncement = (data: AnnouncementData) =>
+  Network.post("/announcement/update", data);

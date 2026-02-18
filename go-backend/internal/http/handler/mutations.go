@@ -60,10 +60,21 @@ func (h *Handler) userCreate(w http.ResponseWriter, r *http.Request) {
 	roleID := 1
 	now := time.Now().UnixMilli()
 
-	if err := h.repo.CreateUser(username, security.MD5(pwd), roleID, expTime, flow, flowResetTime, num, status, now); err != nil {
+	userID, err := h.repo.CreateUser(username, security.MD5(pwd), roleID, expTime, flow, flowResetTime, num, status, now)
+	if err != nil {
 		response.WriteJSON(w, response.Err(-2, err.Error()))
 		return
 	}
+
+	groupIDs := asInt64Slice(req["groupIds"])
+	if len(groupIDs) > 0 {
+		if addErr := h.repo.AddUserToGroups(userID, groupIDs, now); addErr == nil {
+			for _, gid := range groupIDs {
+				_ = h.syncPermissionsByUserGroup(gid)
+			}
+		}
+	}
+
 	response.WriteJSON(w, response.OKEmpty())
 }
 
@@ -133,7 +144,34 @@ func (h *Handler) userUpdate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	h.repo.PropagateUserFlowToTunnels(id, flow, num, expTime, flowResetTime)
+
+	if groupIDsRaw, ok := req["groupIds"]; ok {
+		newGroupIDs := asInt64Slice(groupIDsRaw)
+		if affected, replaceErr := h.repo.ReplaceUserGroupsByUserID(id, newGroupIDs, now); replaceErr == nil {
+			for _, gid := range affected {
+				_ = h.syncPermissionsByUserGroup(gid)
+			}
+		}
+	}
+
 	response.WriteJSON(w, response.OKEmpty())
+}
+
+func (h *Handler) userGroups(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		response.WriteJSON(w, response.ErrDefault("请求失败"))
+		return
+	}
+	id := idFromBody(r, w)
+	if id <= 0 {
+		return
+	}
+	ids, err := h.repo.GetUserGroupIDsByUserID(id)
+	if err != nil {
+		response.WriteJSON(w, response.Err(-2, err.Error()))
+		return
+	}
+	response.WriteJSON(w, response.OK(ids))
 }
 
 func (h *Handler) userDelete(w http.ResponseWriter, r *http.Request) {
@@ -3203,4 +3241,18 @@ func randomToken(n int) string {
 		return strconv.FormatInt(time.Now().UnixNano(), 16)
 	}
 	return hex.EncodeToString(buf)
+}
+
+func asInt64Slice(v interface{}) []int64 {
+	arr := asAnySlice(v)
+	if len(arr) == 0 {
+		return nil
+	}
+	ids := make([]int64, 0, len(arr))
+	for _, x := range arr {
+		if id := asInt64(x, 0); id > 0 {
+			ids = append(ids, id)
+		}
+	}
+	return ids
 }

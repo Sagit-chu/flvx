@@ -50,8 +50,17 @@ func (r *Repository) ListGroupPermissionPairsByUserGroup(userGroupID int64) ([][
 	return result, err
 }
 
-// ListGroupPermissionPairsByTunnelGroup returns [userGroupID, tunnelGroupID] pairs
-// for all group permissions associated with a tunnel group.
+func (r *Repository) GetUserGroupIDsByUserID(userID int64) ([]int64, error) {
+	if r == nil || r.db == nil {
+		return nil, errors.New("repository not initialized")
+	}
+	var ids []int64
+	err := r.db.Model(&model.UserGroupUser{}).
+		Where("user_id = ?", userID).
+		Pluck("user_group_id", &ids).Error
+	return ids, err
+}
+
 func (r *Repository) ListGroupPermissionPairsByTunnelGroup(tunnelGroupID int64) ([][2]int64, error) {
 	if r == nil || r.db == nil {
 		return nil, errors.New("repository not initialized")
