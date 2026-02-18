@@ -256,8 +256,8 @@ export default function TunnelPage() {
       }
     }
 
-    if (form.trafficRatio < 0.0 || form.trafficRatio > 100.0) {
-      newErrors.trafficRatio = "流量倍率必须在0.0-100.0之间";
+    if (form.trafficRatio <= 0 || form.trafficRatio > 100.0) {
+      newErrors.trafficRatio = "流量倍率须大于0，支持小数（如 0.5）";
     }
 
     // 隧道转发时的验证
@@ -1280,8 +1280,11 @@ export default function TunnelPage() {
                       errorMessage={errors.trafficRatio}
                       isInvalid={!!errors.trafficRatio}
                       label="流量倍率"
-                      placeholder="请输入流量倍率"
+                      placeholder="例如：0.5 或 1 或 2"
                       type="number"
+                      step="any"
+                      min={0.01}
+                      max={100}
                       value={form.trafficRatio.toString()}
                       variant="bordered"
                       onChange={(e) =>
