@@ -609,7 +609,7 @@ export default function ConfigPage() {
 
         <Divider />
 
-        <CardBody className="space-y-6 pt-6">
+        <CardBody className="space-y-6 pt-8 md:pt-8">
           {CONFIG_ITEMS.map((item, index) => {
             // 检查配置项是否应该显示
             if (!shouldShowItem(item)) {
@@ -673,7 +673,7 @@ export default function ConfigPage() {
 
         <Divider />
 
-        <CardBody className="space-y-4 pt-6">
+        <CardBody className="space-y-4 pt-8 md:pt-8">
           {announcementLoading ? (
             <div className="flex justify-center py-8">
               <Spinner size="lg" />
@@ -740,7 +740,7 @@ export default function ConfigPage() {
 
         <Divider />
 
-        <CardBody className="space-y-6 pt-6">
+        <CardBody className="space-y-6 pt-8 md:pt-8">
           {/* 导出部分 */}
           <div className="space-y-4">
             <h3 className="text-lg font-medium">导出数据</h3>
