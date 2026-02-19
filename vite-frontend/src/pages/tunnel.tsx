@@ -678,7 +678,7 @@ export default function TunnelPage() {
 
         <div className="flex items-center gap-2">
           <Button
-            color={selectMode ? "warning" : "default"}
+            color={selectMode ? "warning" : "primary"}
             size="sm"
             variant={selectMode ? "solid" : "flat"}
             onPress={toggleSelectMode}
@@ -697,10 +697,10 @@ export default function TunnelPage() {
             <span className="text-sm text-default-600 shrink-0">
               已选择 {selectedIds.size} 项
             </span>
-            <Button size="sm" variant="flat" onPress={selectAll}>
+            <Button color="primary" size="sm" variant="flat" onPress={selectAll}>
               全选
             </Button>
-            <Button size="sm" variant="flat" onPress={deselectAll}>
+            <Button color="secondary" size="sm" variant="flat" onPress={deselectAll}>
               清空
             </Button>
             <Button

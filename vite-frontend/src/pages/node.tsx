@@ -1000,12 +1000,12 @@ export default function NodePage() {
 
         <div className="flex gap-2 items-center">
           <Button
-            color={selectMode ? "warning" : "default"}
+            color={selectMode ? "warning" : "primary"}
             size="sm"
-            variant="flat"
+            variant={selectMode ? "solid" : "flat"}
             onPress={toggleSelectMode}
           >
-            {selectMode ? "取消多选" : "多选"}
+            {selectMode ? "退出" : "批量"}
           </Button>
           <Button color="primary" size="sm" variant="flat" onPress={handleAdd}>
             新增
@@ -1020,10 +1020,10 @@ export default function NodePage() {
             <span className="text-sm font-medium shrink-0">
               已选 {selectedIds.size} 项
             </span>
-            <Button size="sm" variant="flat" onPress={selectAll}>
+            <Button color="primary" size="sm" variant="flat" onPress={selectAll}>
               全选
             </Button>
-            <Button size="sm" variant="flat" onPress={deselectAll}>
+            <Button color="secondary" size="sm" variant="flat" onPress={deselectAll}>
               清空
             </Button>
             <Button
@@ -1083,7 +1083,7 @@ export default function NodePage() {
                         key={node.id}
                         className="group shadow-sm border border-divider hover:shadow-md transition-shadow duration-200 overflow-hidden"
                       >
-                        <CardHeader className="pb-2">
+                        <CardHeader className="pb-2 md:pb-2">
                           <div className="flex justify-between items-start w-full">
                             <div className="flex items-center gap-2 flex-1 min-w-0">
                               {selectMode && (
@@ -1143,7 +1143,7 @@ export default function NodePage() {
                           </div>
                         </CardHeader>
 
-                        <CardBody className="pt-0 pb-3">
+                        <CardBody className="pt-0 pb-3 md:pt-0 md:pb-3">
                           {isRemoteNode && node.syncError && (
                             <div className="mb-3 px-2 py-1.5 rounded-md bg-warning-50 dark:bg-warning-100/10 text-warning-700 dark:text-warning-400 text-xs">
                               {getRemoteSyncErrorMessage(node.syncError)}
