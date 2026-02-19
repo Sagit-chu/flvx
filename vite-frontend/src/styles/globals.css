@@ -1,5 +1,6 @@
 @import "tailwindcss";
 @import "tw-animate-css";
+@import "./tailwind-theme.pcss";
 
 :root {
   --safe-area-top: env(safe-area-inset-top, 0px);

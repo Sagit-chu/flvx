@@ -47,3 +47,6 @@
 - [2026-02-19] 完成 S8：构建验收通过（`npm run build`），`package.json` 已无 `heroui/nextui` 依赖
 - [2026-02-19] 验证结果：业务代码中 `@heroui/*` 导入为 `0`，已统一替换为 `@/shadcn-bridge/heroui/*`（22 文件，106 处）
 - [2026-02-19] 后续修复：`src/components/ui/button.tsx` 与 `src/shadcn-bridge/heroui/button.tsx` 改为 `forwardRef`，消除 `DropdownMenuTrigger asChild` 场景 ref 警告；复构建通过
+- [2026-02-19] 回归修复：定位“按钮边框/颜色丢失”根因是 Tailwind v4 下语义色未生成；新增 `src/styles/tailwind-theme.pcss`（由 `src/styles/globals.css` 引入）承载 `@theme inline` token 映射，恢复 `bg-primary`/`text-foreground`/`border-input` 等语义类输出
+- [2026-02-19] 回归修复：增强 `src/shadcn-bridge/heroui/button.tsx` 的 `solid/light/flat/bordered/shadow` 颜色映射，并修正 `src/components/ui/button.tsx` 的 `outline/ghost` hover 语义类，避免依赖未定义的 `accent` 色
+- [2026-02-19] 复验结果：`npm run build` 通过；编译产物已包含关键语义类；页面级视觉回归（forward/tunnel/node/user）通过（后端未启动时仅保留 `ERR_CONNECTION_REFUSED` 噪音）
