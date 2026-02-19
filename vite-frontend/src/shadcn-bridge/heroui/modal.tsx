@@ -1,6 +1,9 @@
 import * as React from "react";
 
-import { Dialog, DialogContent as BaseDialogContent } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent as BaseDialogContent,
+} from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 
 interface DisclosureOptions {
@@ -35,6 +38,8 @@ export function useDisclosure(options: DisclosureOptions = {}) {
 interface ModalContextValue {
   classNames?: Record<string, string>;
   onClose: () => void;
+  scrollBehavior?: "inside" | "outside";
+  size?: ModalSize;
 }
 
 const ModalContext = React.createContext<ModalContextValue | null>(null);
@@ -88,6 +93,8 @@ export function Modal({
   isOpen = false,
   onClose,
   onOpenChange,
+  scrollBehavior,
+  size,
 }: ModalProps) {
   const handleOpenChange = (open: boolean) => {
     onOpenChange?.(open);
@@ -101,16 +108,21 @@ export function Modal({
     onClose: () => {
       handleOpenChange(false);
     },
+    scrollBehavior,
+    size,
   };
 
   return (
     <Dialog open={isOpen} onOpenChange={handleOpenChange}>
-      <ModalContext.Provider value={contextValue}>{children}</ModalContext.Provider>
+      <ModalContext.Provider value={contextValue}>
+        {children}
+      </ModalContext.Provider>
     </Dialog>
   );
 }
 
-interface ModalContentProps extends Omit<React.ComponentProps<"div">, "children"> {
+interface ModalContentProps
+  extends Omit<React.ComponentProps<"div">, "children"> {
   children: React.ReactNode | ((onClose: () => void) => React.ReactNode);
   scrollBehavior?: "inside" | "outside";
   size?: ModalSize;
@@ -124,15 +136,24 @@ export function ModalContent({
   ...props
 }: ModalContentProps) {
   const context = useModalContext();
+  const resolvedScrollBehavior = scrollBehavior ?? context?.scrollBehavior;
+  const resolvedSize = size ?? context?.size;
   const renderedChildren =
-    typeof children === "function" ? children(() => context?.onClose()) : children;
+    typeof children === "function"
+      ? children(() => context?.onClose())
+      : children;
 
   return (
     <BaseDialogContent
       className={cn(
-        mapSize(size),
+        mapSize(resolvedSize),
         context?.classNames?.base,
-        scrollBehavior === "outside" ? "max-h-[90vh] overflow-y-auto" : "",
+        resolvedScrollBehavior === "outside"
+          ? "max-h-[90vh] overflow-y-auto"
+          : "",
+        resolvedScrollBehavior === "inside"
+          ? "max-h-[90vh] flex flex-col overflow-hidden [&>[data-slot=modal-body]]:min-h-0 [&>[data-slot=modal-body]]:flex-1 [&>[data-slot=modal-body]]:overflow-y-auto"
+          : "",
         className,
       )}
       showCloseButton={false}
@@ -143,18 +164,54 @@ export function ModalContent({
   );
 }
 
-export function ModalHeader({ className, ...props }: React.ComponentProps<"div">) {
-  return <div className={cn("text-lg font-semibold", className)} {...props} />;
-}
+export function ModalHeader({
+  className,
+  ...props
+}: React.ComponentProps<"div">) {
+  const context = useModalContext();
 
-export function ModalBody({ className, ...props }: React.ComponentProps<"div">) {
-  return <div className={cn("space-y-4", className)} {...props} />;
-}
-
-export function ModalFooter({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
-      className={cn("mt-4 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end", className)}
+      className={cn(
+        "text-lg font-semibold",
+        context?.classNames?.header,
+        className,
+      )}
+      data-slot="modal-header"
+      {...props}
+    />
+  );
+}
+
+export function ModalBody({
+  className,
+  ...props
+}: React.ComponentProps<"div">) {
+  const context = useModalContext();
+
+  return (
+    <div
+      className={cn("space-y-4", context?.classNames?.body, className)}
+      data-slot="modal-body"
+      {...props}
+    />
+  );
+}
+
+export function ModalFooter({
+  className,
+  ...props
+}: React.ComponentProps<"div">) {
+  const context = useModalContext();
+
+  return (
+    <div
+      className={cn(
+        "mt-4 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end",
+        context?.classNames?.footer,
+        className,
+      )}
+      data-slot="modal-footer"
       {...props}
     />
   );

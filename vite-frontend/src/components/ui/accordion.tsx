@@ -4,11 +4,16 @@ import { ChevronDownIcon } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 
-function Accordion({ ...props }: React.ComponentProps<typeof AccordionPrimitive.Root>) {
+function Accordion({
+  ...props
+}: React.ComponentProps<typeof AccordionPrimitive.Root>) {
   return <AccordionPrimitive.Root data-slot="accordion" {...props} />;
 }
 
-function AccordionItem({ className, ...props }: React.ComponentProps<typeof AccordionPrimitive.Item>) {
+function AccordionItem({
+  className,
+  ...props
+}: React.ComponentProps<typeof AccordionPrimitive.Item>) {
   return (
     <AccordionPrimitive.Item
       className={cn("border-b", className)}
@@ -27,7 +32,7 @@ function AccordionTrigger({
     <AccordionPrimitive.Header className="flex" data-slot="accordion-header">
       <AccordionPrimitive.Trigger
         className={cn(
-          "flex flex-1 items-center justify-between py-4 text-sm font-medium transition-all hover:underline [&[data-state=open]>svg]:rotate-180",
+          "flex flex-1 items-center justify-between gap-3 px-3 py-4 text-sm font-medium transition-all hover:underline [&[data-state=open]>svg]:rotate-180",
           className,
         )}
         data-slot="accordion-trigger"
