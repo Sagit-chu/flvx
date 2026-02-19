@@ -585,7 +585,7 @@ export default function ConfigPage() {
       </div>
 
       <Card className="shadow-md">
-        <CardHeader className="pb-4">
+        <CardHeader className="pb-6">
           <div className="flex justify-between items-center w-full">
             <div>
               <h2 className="text-xl font-semibold">基本设置</h2>
@@ -660,7 +660,7 @@ export default function ConfigPage() {
       )}
 
       <Card className="mt-6 shadow-md">
-        <CardHeader className="pb-4">
+        <CardHeader className="pb-6">
           <div className="flex justify-between items-center w-full">
             <div>
               <h2 className="text-xl font-semibold">公告管理</h2>
@@ -727,7 +727,7 @@ export default function ConfigPage() {
 
       {/* 备份与恢复 */}
       <Card className="mt-6 shadow-md">
-        <CardHeader className="pb-4">
+        <CardHeader className="pb-6">
           <div className="flex justify-between items-center w-full">
             <div>
               <h2 className="text-xl font-semibold">数据备份与恢复</h2>
