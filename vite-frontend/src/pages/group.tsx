@@ -599,7 +599,7 @@ export default function GroupPage() {
           <h3 className="text-lg font-semibold">权限分配</h3>
         </CardHeader>
         <CardBody className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-3 md:items-end">
             <Select
               items={userGroups}
               label="用户分组"
@@ -629,6 +629,7 @@ export default function GroupPage() {
               {(item) => <SelectItem key={item.id}>{item.name}</SelectItem>}
             </Select>
             <Button
+              className="md:self-end"
               color="primary"
               isLoading={savingPermission}
               onPress={handleAssignPermission}

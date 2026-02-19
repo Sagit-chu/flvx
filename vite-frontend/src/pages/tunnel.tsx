@@ -2075,7 +2075,6 @@ export default function TunnelPage() {
                                         </td>
                                         <td className="px-3 py-2 text-center">
                                           <Chip
-                                            className="min-w-[50px]"
                                             color={
                                               result.success
                                                 ? "success"
