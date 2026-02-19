@@ -129,27 +129,28 @@ docker compose up -d
 - **License**: Apache License 2.0
 
 ## Modifications
-The following major changes and additions have been made in this fork (FLVX):
+This fork (FLVX) is no longer a light patch on top of the upstream project. It has been deeply reworked, with both backend and frontend rebuilt around a Go-based architecture.
 
-### 1. Backend Architecture (Replaced)
-- **Removed**: The original `springboot-backend/` (Java/Spring Boot) has been entirely removed.
-- **Added**: A new `go-backend/` (Go/SQLite) implementation replaces the original backend.
+### 1. Backend (Rewritten)
+- **Removed**: The original `springboot-backend/` (Java/Spring Boot) implementation.
+- **Added**: A fully rewritten `go-backend/` service (Go), including updated data and API handling for panel management.
 
-### 2. Forwarding Agent (Modified)
-- **Modified**: `go-gost/` - Modified forwarding agent wrapper.
-- **Modified**: `go-gost/x/` - Modified local fork of the `gost` extensions library.
+### 2. Frontend (Reworked)
+- **Reworked**: `vite-frontend/` has been substantially rebuilt to match the new backend contract and current UI layer architecture.
+- **Updated**: Dashboard pages/components and interaction flows for the current React/Vite stack.
 
-### 3. Frontend (Modified)
-- **Modified**: `vite-frontend/` - Significant updates to the React/Vite dashboard to compatible with the new Go backend, including UI/UX improvements (HeroUI + Tailwind).
+### 3. Forwarding Stack (Modified)
+- **Modified**: `go-gost/` forwarding agent wrapper.
+- **Modified**: `go-gost/x/` local fork of `github.com/go-gost/x`.
 
-### 4. Mobile Applications (Removed)
-- **Removed**: `android-app/` - Source code for the Android client.
-- **Removed**: `ios-app/` - Source code for the iOS client.
+### 4. Mobile Clients (Removed)
+- **Removed**: `android-app/` source code.
+- **Removed**: `ios-app/` source code.
 
-### 5. Infrastructure & Scripts
-- **Modified**: `docker-compose.yml` (installer output name, auto-selects IPv4/IPv6 template, updated for Go backend).
-- **Modified**: `install.sh`, `panel_install.sh` (Updated installation logic).
-- **Added**: `AGENTS.md` (Project documentation).
+### 5. Deployment & Project Infrastructure
+- **Updated**: Docker deployment templates and installer output flow (IPv4/IPv6 compose variants).
+- **Updated**: Release installation scripts (`install.sh`, `panel_install.sh`) and supporting automation.
+- **Added/Updated**: Project-level engineering documentation (for example `AGENTS.md`).
 
 ---
 
