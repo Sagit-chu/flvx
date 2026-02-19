@@ -1,55 +1,66 @@
 # VITE FRONTEND KNOWLEDGE BASE
 
-**Generated:** Sun Feb 15 2026
+**Generated:** Thu Feb 19 2026
+**Commit:** 137c34e
+**Branch:** main
+**Tag:** 2.1.4-rc2
 
 ## OVERVIEW
 Web management console for FLVX.
-**Stack:** React 18, Vite 5 (rolldown-vite), TypeScript, TailwindCSS 4, HeroUI.
+**Stack:** React 18, rolldown-vite, TypeScript, Tailwind CSS v4, shadcn/radix primitives with HeroUI-compatible bridge.
 
 ## STRUCTURE
 ```
 vite-frontend/
 ├── src/
-│   ├── api/          # Axios wrapper + typed endpoint helpers
-│   ├── components/   # Shared UI components (HeroUI based)
-│   ├── config/       # Site config (title, repo, version)
-│   ├── layouts/      # Admin vs H5 page chrome
-│   ├── pages/        # Route views (many large single-file pages)
-│   ├── utils/        # Auth/JWT + WebView helpers
-│   ├── App.tsx       # Routes + ProtectedRoute + H5 layout selection
-│   ├── main.tsx      # ReactDOM + Providers (HeroUI, Theme, Toast)
-│   └── provider.tsx  # Context provider wrapper
-├── vite.config.ts    # base '/', host 0.0.0.0:3000; build minify/treeshake disabled
-├── eslint.config.mjs  # ESLint 9 flat config
+│   ├── api/                      # Axios wrapper + typed endpoint helpers
+│   ├── components/ui/            # shadcn/radix primitive components
+│   ├── shadcn-bridge/heroui/     # HeroUI-compatible facade used by pages/layouts
+│   ├── pages/                    # Route views + page modules (forward/node/tunnel split helpers)
+│   ├── hooks/                    # H5/WebView/mobile hooks
+│   ├── styles/
+│   │   ├── globals.css           # Base styles + imports tailwind-theme.pcss
+│   │   └── tailwind-theme.pcss   # Tailwind v4 @theme inline semantic token mapping
+│   ├── App.tsx                   # Routes + ProtectedRoute + H5 layout selection
+│   ├── main.tsx                  # ReactDOM + BrowserRouter + Provider
+│   └── provider.tsx              # Toast/theme/provider composition
+├── components.json               # shadcn/ui config
+├── tailwind.config.js            # Compatibility config still used by migration scaffolding
+├── vite.config.ts                # base '/', host 0.0.0.0:3000; build minify/treeshake disabled
 └── package.json
 ```
 
 ## WHERE TO LOOK
 | Task | Location | Notes |
 |------|----------|-------|
-| **Route definitions** | `src/App.tsx` | React Router v6; H5 detection logic |
-| **API Client** | `src/api/network.ts` | Sets `Authorization` header (raw token) |
-| **Endpoint Calls** | `src/api/index.ts` | Thin `Network.post` wrappers |
+| **Route definitions** | `src/App.tsx` | React Router v6 + ProtectedRoute |
+| **API Client/Auth header** | `src/api/network.ts` | Sends raw JWT in `Authorization` header |
 | **Login Flow** | `src/pages/index.tsx` | Calls `login()`, stores `localStorage.token` |
-| **Auth Logic** | `src/utils/auth.ts` | `isAdmin()` checks `role_id == 0` |
-| **Token Decoding** | `src/utils/jwt.ts` | Checks `exp` vs current time |
-| **WebView Logic** | `src/utils/panel.ts` | Handles panel address selection in app mode |
+| **Auth helpers** | `src/utils/auth.ts`, `src/utils/jwt.ts` | Role checks + token expiration parsing |
+| **UI bridge usage** | `src/shadcn-bridge/heroui/` | Import from bridge, not `@heroui/*` |
+| **Button parity mapping** | `src/shadcn-bridge/heroui/button.tsx` | Legacy `color`/`variant` mapped to shadcn classes |
+| **Semantic theme tokens** | `src/styles/tailwind-theme.pcss` | Restores classes like `bg-primary`, `border-input` |
+| **Theme wiring** | `src/styles/globals.css` | Must import `./tailwind-theme.pcss` |
 
 ## CONVENTIONS
-- **Auth**: JWT stored as `localStorage.token`. Sent in `Authorization` header (no "Bearer" prefix).
-- **API**: Default base URL is `/api/v1/`. Responses follow `{code, msg, data, ts}` structure.
-- **WebView**: In WebView mode, base URL is derived from selected panel address. If unset, API returns `code: -1`.
-- **Routing**: URL query param `h5=true` forces mobile layout.
-- **Build**: `minify: false`, `treeshake: false` - unoptimized production bundles for debugging.
-- **ESLint**: `react-hooks/exhaustive-deps` disabled, unused vars starting with `_` ignored.
-- **Large Pages**: `forward.tsx` (3263 LOC), `tunnel.tsx` (2552 LOC), `node.tsx` (2194 LOC).
+- **Auth Header**: Use raw JWT token (no `Bearer` prefix).
+- **API Envelope**: Responses follow `{code, msg, data, ts}`.
+- **UI Imports**: Use `src/shadcn-bridge/heroui/*` in app pages/layouts for compatibility.
+- **Semantic Colors**: Keep `globals.css -> tailwind-theme.pcss` import intact or semantic classes break.
+- **Build profile**: `minify: false`, `treeshake: false` for easier debugging.
+- **Layout mode**: H5/mobile mode still controlled by existing route/query and hook logic.
 
 ## ANTI-PATTERNS
-- **DO NOT ADD** tests - no test infrastructure (Vitest/Jest not configured).
+- **DO NOT ADD** `Bearer` to auth header in frontend requests.
+- **DO NOT REINTRODUCE** `@heroui/*` or `@nextui-org/*` dependencies.
+- **DO NOT REMOVE** `src/styles/tailwind-theme.pcss` import from `src/styles/globals.css`.
+- **DO NOT ADD** frontend tests; no Vitest/Jest setup exists.
 
 ## NOTES
+- PR `#144` (shadcn migration) and PR `#142` (user-group binding) are merged in `main`.
+- Release tag `2.1.4-rc2` points to commit `137c34e`.
+- Button border/color parity depends on both bridge mapping and semantic Tailwind token export.
 - Uses `rolldown-vite` (experimental Rust bundler) instead of standard Vite.
-- ESLint Flat Config format with custom import ordering rules.
 
 ## COMMANDS
 ```bash

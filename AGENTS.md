@@ -1,8 +1,9 @@
 # PROJECT KNOWLEDGE BASE
 
-**Generated:** Sun Feb 15 2026
-**Commit:** e5e22ba
+**Generated:** Thu Feb 19 2026
+**Commit:** 137c34e
 **Branch:** main
+**Tag:** 2.1.4-rc2
 
 ## OVERVIEW
 FLVX (formerly Flux Panel) is a traffic forwarding management system built on a forked GOST v3 stack. It ships as a Go-based admin API (SQLite) + Vite/React UI + Go forwarding agent, with optional mobile WebView wrappers.
@@ -13,7 +14,7 @@ FLVX (formerly Flux Panel) is a traffic forwarding management system built on a 
 ├── go-gost/               # Go forwarding agent (forked gost + local x/)
 │   └── x/                 # Local fork of github.com/go-gost/x (replace => ./x)
 ├── go-backend/            # Go Admin API (GORM + SQLite/PostgreSQL, net/http)
-├── vite-frontend/         # React/Vite dashboard (HeroUI + Tailwind)
+├── vite-frontend/         # React/Vite dashboard (shadcn bridge + Tailwind v4)
 ├── docker-compose-v4.yml  # Panel deploy (IPv4-only bridge)
 ├── docker-compose-v6.yml  # Panel deploy (IPv6-enabled bridge)
 ├── panel_install.sh       # Panel installer/upgrader (downloads compose)
@@ -29,7 +30,9 @@ FLVX (formerly Flux Panel) is a traffic forwarding management system built on a 
 | **Panel install** | `panel_install.sh` | Picks v4/v6, generates `JWT_SECRET`, downloads compose |
 | **Node install** | `install.sh` | Installs `/etc/flux_agent/flux_agent` + writes `config.json`/`gost.json` + systemd `flux_agent.service` |
 | **Admin API** | `go-backend/` | Go Admin API (SQLite) |
-| **Web UI** | `vite-frontend/` | React/Vite dashboard (HeroUI + Tailwind) |
+| **Web UI** | `vite-frontend/` | React/Vite dashboard (shadcn bridge + Tailwind v4) |
+| **UI Compatibility** | `vite-frontend/src/shadcn-bridge/heroui/` | HeroUI-compatible API wrappers backed by shadcn/radix |
+| **Theme Tokens** | `vite-frontend/src/styles/tailwind-theme.pcss` | Tailwind v4 `@theme inline` semantic color mapping |
 | **Go Agent** | `go-gost/` | Forwarding agent (forked gost + local x/) |
 | **Go Core** | `go-gost/x/` | Handlers/listeners/dialers + management API |
 
@@ -47,6 +50,8 @@ FLVX (formerly Flux Panel) is a traffic forwarding management system built on a 
 - **Module Fork**: `go-gost/` uses `replace github.com/go-gost/x => ./x` and `go-gost/x/` is also its own Go module.
 - **Encryption**: Agent-to-panel communication uses AES encryption with node `secret` as PSK.
 - **API Envelope**: All REST responses follow `{code, msg, data, ts}` structure (code 0 = success).
+- **Frontend UI Layer**: Import UI primitives from `src/shadcn-bridge/heroui/*` (legacy-compatible facade), not direct `@heroui/*` packages.
+- **Tailwind v4 Semantic Colors**: `src/styles/globals.css` must import `src/styles/tailwind-theme.pcss`; removing it breaks semantic classes like `bg-primary`, `text-foreground`, and `border-input`.
 
 ## ANTI-PATTERNS (THIS PROJECT)
 - **DO NOT EDIT** generated protobuf output: `go-gost/x/internal/util/grpc/proto/*.pb.go`, `go-gost/x/internal/util/grpc/proto/*_grpc.pb.go`.
@@ -54,6 +59,7 @@ FLVX (formerly Flux Panel) is a traffic forwarding management system built on a 
 - **DO NOT MODIFY** `install.sh` or `panel_install.sh` locally - CI overwrites these on release.
 - **DO NOT** let backend handlers call `repo.DB()` directly — add a Repository method instead.
 - **DO NOT ADD** frontend tests - project has no test infrastructure (Vitest/Jest not configured).
+- **DO NOT REINTRODUCE** `@heroui/*` or `@nextui-org/*` dependencies; migration is now shadcn bridge-based.
 
 ## COMMANDS
 ```bash
@@ -87,3 +93,5 @@ docker compose -f docker-compose-v6.yml up -d
 - Download proxy `https://gcode.hostcentral.cc/` used for GitHub downloads in China/restricted environments.
 - Backend has contract tests in `go-backend/tests/contract/` - frontend has no test infrastructure (Vitest/Jest not configured).
 - `analysis/3x-ui/` contains a separate git repo for reference/comparison - not part of FLVX core.
+- PR `#144` (shadcn migration) and PR `#142` (user-group binding) are merged into `main`; release tag `2.1.4-rc2` points to commit `137c34e`.
+- Button visual parity relies on `vite-frontend/src/shadcn-bridge/heroui/button.tsx` color mapping + `vite-frontend/src/styles/tailwind-theme.pcss` token export.
