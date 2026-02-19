@@ -1,10 +1,10 @@
 import { useState, useEffect } from "react";
-import { Input } from "@/shadcn-bridge/heroui/input";
-import { Button } from "@/shadcn-bridge/heroui/button";
-import { Card, CardBody } from "@/shadcn-bridge/heroui/card";
 import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 
+import { Input } from "@/shadcn-bridge/heroui/input";
+import { Button } from "@/shadcn-bridge/heroui/button";
+import { Card, CardBody } from "@/shadcn-bridge/heroui/card";
 import { reinitializeBaseURL } from "@/api/network";
 import {
   getPanelAddresses,

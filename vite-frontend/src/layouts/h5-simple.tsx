@@ -1,7 +1,7 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
-import { Button } from "@/shadcn-bridge/heroui/button";
 
+import { Button } from "@/shadcn-bridge/heroui/button";
 import { Logo } from "@/components/icons";
 import { siteConfig } from "@/config/site";
 import { useScrollTopOnPathChange } from "@/hooks/useScrollTopOnPathChange";

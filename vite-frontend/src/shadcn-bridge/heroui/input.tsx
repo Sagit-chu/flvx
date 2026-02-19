@@ -1,10 +1,10 @@
 import * as React from "react";
 
+import { FieldContainer, type FieldMetaProps } from "./shared";
+
 import { Input as BaseInput } from "@/components/ui/input";
 import { Textarea as BaseTextarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
-
-import { FieldContainer, type FieldMetaProps } from "./shared";
 
 type ClassNameMap = {
   base?: string;
@@ -84,7 +84,9 @@ export function Input({
           classNames?.inputWrapper,
         )}
       >
-        {startContent ? <div className="pl-3 text-default-500">{startContent}</div> : null}
+        {startContent ? (
+          <div className="pl-3 text-default-500">{startContent}</div>
+        ) : null}
         <BaseInput
           aria-invalid={isInvalid}
           className={cn(
@@ -100,7 +102,9 @@ export function Input({
           required={isRequired}
           {...props}
         />
-        {endContent ? <div className="pr-3 text-default-500">{endContent}</div> : null}
+        {endContent ? (
+          <div className="pr-3 text-default-500">{endContent}</div>
+        ) : null}
       </div>
     </FieldContainer>
   );

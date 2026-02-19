@@ -1,4 +1,3 @@
-import { Card, CardBody, CardHeader } from "@/shadcn-bridge/heroui/card";
 import {
   CartesianGrid,
   Line,
@@ -9,6 +8,7 @@ import {
   YAxis,
 } from "recharts";
 
+import { Card, CardBody, CardHeader } from "@/shadcn-bridge/heroui/card";
 import { PageEmptyState } from "@/components/page-state";
 
 interface FlowChartPoint {

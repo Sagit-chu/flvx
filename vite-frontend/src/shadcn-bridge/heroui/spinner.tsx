@@ -21,10 +21,17 @@ function iconSize(size: SpinnerSize | undefined) {
   return "h-5 w-5";
 }
 
-export function Spinner({ className, label, size = "md", ...props }: SpinnerProps) {
+export function Spinner({
+  className,
+  label,
+  size = "md",
+  ...props
+}: SpinnerProps) {
   return (
     <div className={cn("inline-flex items-center gap-2", className)} {...props}>
-      <Loader2Icon className={cn("animate-spin text-default-500", iconSize(size))} />
+      <Loader2Icon
+        className={cn("animate-spin text-default-500", iconSize(size))}
+      />
       {label ? <span className="text-sm text-default-500">{label}</span> : null}
     </div>
   );

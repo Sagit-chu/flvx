@@ -20,5 +20,10 @@ function mapColor(color: LinkColor) {
 }
 
 export function Link({ className, color = "default", ...props }: LinkProps) {
-  return <a className={cn("transition-colors", mapColor(color), className)} {...props} />;
+  return (
+    <a
+      className={cn("transition-colors", mapColor(color), className)}
+      {...props}
+    />
+  );
 }

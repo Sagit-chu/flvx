@@ -170,40 +170,10 @@ export function Select<T>({
     [children, items],
   );
   const containerRef = React.useRef<HTMLDivElement | null>(null);
-  const triggerRef = React.useRef<HTMLButtonElement | null>(null);
-  const [dropdownStyle, setDropdownStyle] = React.useState<
-    React.CSSProperties | undefined
-  >(undefined);
+  const listboxRef = React.useRef<HTMLDivElement | null>(null);
   const [isExpanded, setIsExpanded] = React.useState(false);
   const selected = React.useMemo(() => toSet(selectedKeys), [selectedKeys]);
   const disabled = React.useMemo(() => toSet(disabledKeys), [disabledKeys]);
-
-  const updateDropdownPosition = React.useCallback(() => {
-    const trigger = triggerRef.current;
-
-    if (!trigger) {
-      return;
-    }
-
-    const rect = trigger.getBoundingClientRect();
-    const viewportWidth = window.innerWidth;
-    const horizontalPadding = 8;
-    const targetWidth = Math.max(rect.width, 160);
-    const maxLeft = Math.max(
-      horizontalPadding,
-      viewportWidth - targetWidth - horizontalPadding,
-    );
-    const nextLeft = Math.min(Math.max(rect.left, horizontalPadding), maxLeft);
-
-    setDropdownStyle({
-      left: nextLeft,
-      minWidth: rect.width,
-      position: "fixed",
-      top: rect.bottom + 4,
-      width: targetWidth,
-      zIndex: 60,
-    });
-  }, []);
 
   React.useEffect(() => {
     if (!isExpanded) {
@@ -212,6 +182,7 @@ export function Select<T>({
 
     const handlePointerDown = (event: MouseEvent | TouchEvent) => {
       const container = containerRef.current;
+      const listbox = listboxRef.current;
 
       if (!container) {
         return;
@@ -223,7 +194,7 @@ export function Select<T>({
         return;
       }
 
-      if (container.contains(target)) {
+      if (container.contains(target) || listbox?.contains(target)) {
         return;
       }
 
@@ -252,26 +223,6 @@ export function Select<T>({
       setIsExpanded(false);
     }
   }, [isDisabled]);
-
-  React.useEffect(() => {
-    if (!isExpanded) {
-      return;
-    }
-
-    updateDropdownPosition();
-
-    const handleLayoutChange = () => {
-      updateDropdownPosition();
-    };
-
-    window.addEventListener("resize", handleLayoutChange);
-    window.addEventListener("scroll", handleLayoutChange, true);
-
-    return () => {
-      window.removeEventListener("resize", handleLayoutChange);
-      window.removeEventListener("scroll", handleLayoutChange, true);
-    };
-  }, [isExpanded, updateDropdownPosition]);
 
   const selectedArray = Array.from(selected);
   const singleValue = selectedArray[0] ?? "";
@@ -335,10 +286,10 @@ export function Select<T>({
 
     return (
       <div
-        className="max-h-56 space-y-1 overflow-y-auto rounded-md border border-divider bg-background p-2 shadow-md"
+        className="absolute left-0 top-full z-50 mt-1 max-h-56 w-full space-y-1 overflow-y-auto rounded-md border border-divider bg-background p-2 shadow-md"
         id={`${generatedId}-listbox`}
+        ref={listboxRef}
         role="listbox"
-        style={dropdownStyle}
       >
         {options.length === 0 ? (
           <div
@@ -421,15 +372,8 @@ export function Select<T>({
             )}
             disabled={isDisabled}
             id={generatedId}
-            ref={triggerRef}
             type="button"
-            onClick={() => {
-              if (!isExpanded) {
-                updateDropdownPosition();
-              }
-
-              setIsExpanded((prev) => !prev);
-            }}
+            onClick={() => setIsExpanded((prev) => !prev)}
           >
             <span
               className={cn(

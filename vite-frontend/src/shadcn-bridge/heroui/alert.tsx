@@ -9,7 +9,8 @@ import {
 type AlertColor = "default" | "success" | "warning" | "danger" | "primary";
 type AlertVariant = "solid" | "flat" | "faded" | "bordered";
 
-interface AlertProps extends Omit<React.ComponentProps<"div">, "color" | "title"> {
+interface AlertProps
+  extends Omit<React.ComponentProps<"div">, "color" | "title"> {
   color?: AlertColor;
   description?: React.ReactNode;
   title?: React.ReactNode;

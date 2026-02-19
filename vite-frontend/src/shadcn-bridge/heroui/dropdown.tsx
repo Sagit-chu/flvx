@@ -8,7 +8,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger as BaseDropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-
 import { cn } from "@/lib/utils";
 
 type Placement = "bottom-start" | "bottom-end" | "top-start" | "top-end";
@@ -17,14 +16,19 @@ interface DropdownContextValue {
   align: "start" | "end";
 }
 
-const DropdownContext = React.createContext<DropdownContextValue>({ align: "start" });
+const DropdownContext = React.createContext<DropdownContextValue>({
+  align: "start",
+});
 
 export interface DropdownProps {
   children: React.ReactNode;
   placement?: Placement;
 }
 
-export function Dropdown({ children, placement = "bottom-start" }: DropdownProps) {
+export function Dropdown({
+  children,
+  placement = "bottom-start",
+}: DropdownProps) {
   const align = placement.endsWith("end") ? "end" : "start";
 
   return (
@@ -66,7 +70,10 @@ export function DropdownItem({
 }: DropdownItemProps) {
   return (
     <BaseDropdownMenuItem
-      className={cn(color === "danger" ? "text-danger focus:text-danger" : "", className)}
+      className={cn(
+        color === "danger" ? "text-danger focus:text-danger" : "",
+        className,
+      )}
       onSelect={(event) => {
         event.preventDefault();
         onPress?.();

@@ -1,9 +1,9 @@
 import * as React from "react";
 
+import { FieldContainer, type FieldMetaProps } from "./shared";
+
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
-
-import { FieldContainer, type FieldMetaProps } from "./shared";
 
 interface CalendarDateLike {
   day: number;
@@ -76,7 +76,11 @@ export function DatePicker({
           const month = Number(monthText);
           const day = Number(dayText);
 
-          if (!Number.isFinite(year) || !Number.isFinite(month) || !Number.isFinite(day)) {
+          if (
+            !Number.isFinite(year) ||
+            !Number.isFinite(month) ||
+            !Number.isFinite(day)
+          ) {
             onChange(null);
 
             return;

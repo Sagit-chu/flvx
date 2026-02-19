@@ -781,8 +781,10 @@ export default function GroupPage() {
       >
         <ModalContent>
           <ModalHeader>分配隧道 - {assignTunnelGroup?.name}</ModalHeader>
-          <ModalBody>
+          <ModalBody className="min-w-0">
             <Select
+              className="min-w-0"
+              classNames={{ trigger: "max-w-full" }}
               items={tunnels}
               label="选择隧道"
               selectedKeys={selectedTunnelKeys}
@@ -796,7 +798,7 @@ export default function GroupPage() {
               {(item) => <SelectItem key={item.id}>{item.name}</SelectItem>}
             </Select>
             <p
-              className="text-xs text-default-500 truncate"
+              className="w-full min-w-0 max-w-full text-xs text-default-500 truncate"
               title={`当前已选：${selectedTunnelSummary}`}
             >
               当前已选：{selectedTunnelSummary}
@@ -826,8 +828,10 @@ export default function GroupPage() {
       >
         <ModalContent>
           <ModalHeader>分配用户 - {assignUserGroup?.name}</ModalHeader>
-          <ModalBody>
+          <ModalBody className="min-w-0">
             <Select
+              className="min-w-0"
+              classNames={{ trigger: "max-w-full" }}
               items={users}
               label="选择用户"
               selectedKeys={selectedUserKeys}
@@ -841,7 +845,7 @@ export default function GroupPage() {
               {(item) => <SelectItem key={item.id}>{item.user}</SelectItem>}
             </Select>
             <p
-              className="text-xs text-default-500 truncate"
+              className="w-full min-w-0 max-w-full text-xs text-default-500 truncate"
               title={`当前已选：${selectedUserSummary}`}
             >
               当前已选：{selectedUserSummary}

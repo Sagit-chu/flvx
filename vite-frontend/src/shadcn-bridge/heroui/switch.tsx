@@ -3,7 +3,11 @@ import * as React from "react";
 import { Switch as BaseSwitch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
 
-export interface SwitchProps extends Omit<React.ComponentProps<typeof BaseSwitch>, "checked" | "onCheckedChange"> {
+export interface SwitchProps
+  extends Omit<
+    React.ComponentProps<typeof BaseSwitch>,
+    "checked" | "onCheckedChange"
+  > {
   classNames?: Record<string, string>;
   color?: string;
   isDisabled?: boolean;

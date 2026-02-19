@@ -1,4 +1,7 @@
 import React, { useState, useEffect } from "react";
+import { toast } from "react-hot-toast";
+import { useNavigate } from "react-router-dom";
+
 import { Card, CardBody } from "@/shadcn-bridge/heroui/card";
 import { Button } from "@/shadcn-bridge/heroui/button";
 import {
@@ -10,9 +13,6 @@ import {
   useDisclosure,
 } from "@/shadcn-bridge/heroui/modal";
 import { Input } from "@/shadcn-bridge/heroui/input";
-import { toast } from "react-hot-toast";
-import { useNavigate } from "react-router-dom";
-
 import { isWebViewFunc } from "@/utils/panel";
 import { siteConfig } from "@/config/site";
 import { updatePassword } from "@/api";

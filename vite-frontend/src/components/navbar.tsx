@@ -1,12 +1,12 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+
 import { Link } from "@/shadcn-bridge/heroui/link";
 import {
   Navbar as HeroUINavbar,
   NavbarBrand,
   NavbarContent,
 } from "@/shadcn-bridge/heroui/navbar";
-import { useNavigate } from "react-router-dom";
-
 import { Logo } from "@/components/icons";
 import { siteConfig, getCachedConfig } from "@/config/site";
 import { useWebViewMode } from "@/hooks/useWebViewMode";

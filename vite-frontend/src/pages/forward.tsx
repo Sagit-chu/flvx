@@ -1,22 +1,4 @@
 import { useState, useEffect, useMemo } from "react";
-import { Card, CardBody, CardHeader } from "@/shadcn-bridge/heroui/card";
-import { Button } from "@/shadcn-bridge/heroui/button";
-import { Input } from "@/shadcn-bridge/heroui/input";
-import { Textarea } from "@/shadcn-bridge/heroui/input";
-import { Select, SelectItem } from "@/shadcn-bridge/heroui/select";
-import {
-  Modal,
-  ModalContent,
-  ModalHeader,
-  ModalBody,
-  ModalFooter,
-} from "@/shadcn-bridge/heroui/modal";
-import { Chip } from "@/shadcn-bridge/heroui/chip";
-import { Spinner } from "@/shadcn-bridge/heroui/spinner";
-import { Switch } from "@/shadcn-bridge/heroui/switch";
-import { Alert } from "@/shadcn-bridge/heroui/alert";
-import { Accordion, AccordionItem } from "@/shadcn-bridge/heroui/accordion";
-import { Checkbox } from "@/shadcn-bridge/heroui/checkbox";
 import toast from "react-hot-toast";
 import {
   DndContext,
@@ -37,6 +19,24 @@ import {
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 
+import { Card, CardBody, CardHeader } from "@/shadcn-bridge/heroui/card";
+import { Button } from "@/shadcn-bridge/heroui/button";
+import { Input } from "@/shadcn-bridge/heroui/input";
+import { Textarea } from "@/shadcn-bridge/heroui/input";
+import { Select, SelectItem } from "@/shadcn-bridge/heroui/select";
+import {
+  Modal,
+  ModalContent,
+  ModalHeader,
+  ModalBody,
+  ModalFooter,
+} from "@/shadcn-bridge/heroui/modal";
+import { Chip } from "@/shadcn-bridge/heroui/chip";
+import { Spinner } from "@/shadcn-bridge/heroui/spinner";
+import { Switch } from "@/shadcn-bridge/heroui/switch";
+import { Alert } from "@/shadcn-bridge/heroui/alert";
+import { Accordion, AccordionItem } from "@/shadcn-bridge/heroui/accordion";
+import { Checkbox } from "@/shadcn-bridge/heroui/checkbox";
 import {
   createForward,
   getForwardList,
@@ -1604,10 +1604,20 @@ export default function ForwardPage() {
             <span className="text-sm text-default-600 shrink-0">
               已选择 {selectedIds.size} 项
             </span>
-            <Button color="primary" size="sm" variant="flat" onPress={selectAll}>
+            <Button
+              color="primary"
+              size="sm"
+              variant="flat"
+              onPress={selectAll}
+            >
               全选
             </Button>
-            <Button color="secondary" size="sm" variant="flat" onPress={deselectAll}>
+            <Button
+              color="secondary"
+              size="sm"
+              variant="flat"
+              onPress={deselectAll}
+            >
               清空
             </Button>
             <Button

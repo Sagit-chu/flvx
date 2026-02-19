@@ -4,7 +4,10 @@ import { Checkbox as BaseCheckbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
 
 export interface CheckboxProps
-  extends Omit<React.ComponentProps<typeof BaseCheckbox>, "checked" | "onCheckedChange"> {
+  extends Omit<
+    React.ComponentProps<typeof BaseCheckbox>,
+    "checked" | "onCheckedChange"
+  > {
   classNames?: Record<string, string>;
   color?: string;
   isDisabled?: boolean;
@@ -30,7 +33,13 @@ export function Checkbox({
   };
 
   return (
-    <div className={cn("inline-flex items-center gap-2", isDisabled ? "opacity-50" : "", className)}>
+    <div
+      className={cn(
+        "inline-flex items-center gap-2",
+        isDisabled ? "opacity-50" : "",
+        className,
+      )}
+    >
       <BaseCheckbox
         checked={Boolean(isSelected)}
         disabled={isDisabled}

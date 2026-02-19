@@ -17,10 +17,17 @@ export interface TableProps extends React.ComponentProps<"table"> {
   classNames?: TableClassNames;
 }
 
-export function Table({ children, className, classNames, ...props }: TableProps) {
+export function Table({
+  children,
+  className,
+  classNames,
+  ...props
+}: TableProps) {
   return (
     <TableStyleContext.Provider value={{ thClassName: classNames?.th }}>
-      <div className={cn("w-full overflow-auto rounded-md", classNames?.wrapper)}>
+      <div
+        className={cn("w-full overflow-auto rounded-md", classNames?.wrapper)}
+      >
         <table className={cn("w-full text-sm", className)} {...props}>
           {children}
         </table>
@@ -29,7 +36,11 @@ export function Table({ children, className, classNames, ...props }: TableProps)
   );
 }
 
-export function TableHeader({ children, className, ...props }: React.ComponentProps<"thead">) {
+export function TableHeader({
+  children,
+  className,
+  ...props
+}: React.ComponentProps<"thead">) {
   const childArray = React.Children.toArray(children);
   const hasRow = childArray.some(
     (child) => React.isValidElement(child) && child.type === TableRow,
@@ -42,7 +53,8 @@ export function TableHeader({ children, className, ...props }: React.ComponentPr
   );
 }
 
-interface TableBodyProps<T> extends Omit<React.ComponentProps<"tbody">, "children"> {
+interface TableBodyProps<T>
+  extends Omit<React.ComponentProps<"tbody">, "children"> {
   children?: React.ReactNode | ((item: T) => React.ReactNode);
   emptyContent?: React.ReactNode;
   isLoading?: boolean;
@@ -120,19 +132,28 @@ export function TableBody<T>({
   );
 }
 
-export function TableColumn({ className, ...props }: React.ComponentProps<"th">) {
+export function TableColumn({
+  className,
+  ...props
+}: React.ComponentProps<"th">) {
   const { thClassName } = React.useContext(TableStyleContext);
 
   return (
     <th
-      className={cn("px-3 py-2 text-left font-medium text-default-600", thClassName, className)}
+      className={cn(
+        "px-3 py-2 text-left font-medium text-default-600",
+        thClassName,
+        className,
+      )}
       {...props}
     />
   );
 }
 
 export function TableRow({ className, ...props }: React.ComponentProps<"tr">) {
-  return <tr className={cn("border-b last:border-b-0", className)} {...props} />;
+  return (
+    <tr className={cn("border-b last:border-b-0", className)} {...props} />
+  );
 }
 
 export function TableCell({ className, ...props }: React.ComponentProps<"td">) {

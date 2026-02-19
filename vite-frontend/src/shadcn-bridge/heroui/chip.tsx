@@ -3,7 +3,13 @@ import * as React from "react";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
-type ChipColor = "default" | "primary" | "secondary" | "success" | "warning" | "danger";
+type ChipColor =
+  | "default"
+  | "primary"
+  | "secondary"
+  | "success"
+  | "warning"
+  | "danger";
 type ChipVariant = "solid" | "flat" | "light" | "bordered";
 type ChipSize = "sm" | "md" | "lg";
 

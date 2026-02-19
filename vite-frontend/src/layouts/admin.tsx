@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
+import { toast } from "react-hot-toast";
+
 import { Button } from "@/shadcn-bridge/heroui/button";
 import {
   Dropdown,
@@ -16,8 +18,6 @@ import {
   useDisclosure,
 } from "@/shadcn-bridge/heroui/modal";
 import { Input } from "@/shadcn-bridge/heroui/input";
-import { toast } from "react-hot-toast";
-
 import { Logo } from "@/components/icons";
 import { updatePassword } from "@/api";
 import { safeLogout } from "@/utils/logout";

@@ -1,6 +1,9 @@
 import * as React from "react";
 
-import { RadioGroup as BaseRadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import {
+  RadioGroup as BaseRadioGroup,
+  RadioGroupItem,
+} from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 
@@ -8,7 +11,9 @@ interface RadioContextValue {
   name: string;
 }
 
-const RadioContext = React.createContext<RadioContextValue>({ name: "radio-group" });
+const RadioContext = React.createContext<RadioContextValue>({
+  name: "radio-group",
+});
 
 export interface RadioGroupProps {
   children: React.ReactNode;
@@ -33,7 +38,9 @@ export function RadioGroup({
       <RadioContext.Provider value={{ name: generatedName }}>
         <BaseRadioGroup
           className={cn(
-            orientation === "horizontal" ? "flex flex-wrap items-center gap-4" : "grid gap-3",
+            orientation === "horizontal"
+              ? "flex flex-wrap items-center gap-4"
+              : "grid gap-3",
           )}
           value={value}
           onValueChange={onValueChange}

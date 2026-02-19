@@ -11,10 +11,18 @@ export function Card({ className, ...props }: React.ComponentProps<"div">) {
   return <BaseCard className={className} {...props} />;
 }
 
-export function CardHeader({ className, ...props }: React.ComponentProps<"div">) {
+export function CardHeader({
+  className,
+  ...props
+}: React.ComponentProps<"div">) {
   return <BaseCardHeader className={cn("p-4 md:p-6", className)} {...props} />;
 }
 
 export function CardBody({ className, ...props }: React.ComponentProps<"div">) {
-  return <CardContent className={cn("p-4 pt-0 md:p-6 md:pt-0", className)} {...props} />;
+  return (
+    <CardContent
+      className={cn("p-4 pt-0 md:p-6 md:pt-0", className)}
+      {...props}
+    />
+  );
 }

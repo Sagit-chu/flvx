@@ -1,9 +1,9 @@
 import * as React from "react";
-import { HeroUIProvider } from "@/shadcn-bridge/heroui/system";
 import { useHref, useNavigate } from "react-router-dom";
 import { Toaster } from "react-hot-toast";
 import { I18nProvider } from "@react-aria/i18n";
 
+import { HeroUIProvider } from "@/shadcn-bridge/heroui/system";
 import { ThemeProvider } from "@/components/theme-provider";
 
 export interface ProvidersProps {

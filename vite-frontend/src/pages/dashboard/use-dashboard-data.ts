@@ -1,3 +1,5 @@
+import type { ForwardApiItem } from "@/api/types";
+
 import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
 
@@ -6,7 +8,6 @@ import {
   getUserPackageInfo,
   type AnnouncementData,
 } from "@/api";
-import type { ForwardApiItem } from "@/api/types";
 import { getAdminFlag } from "@/utils/session";
 
 export interface DashboardUserInfo {
@@ -180,9 +181,13 @@ export const useDashboardData = (): DashboardDataState => {
   );
   const [userTunnels, setUserTunnels] = useState<DashboardUserTunnel[]>([]);
   const [forwardList, setForwardList] = useState<DashboardForward[]>([]);
-  const [statisticsFlows, setStatisticsFlows] = useState<DashboardStatisticsFlow[]>([]);
+  const [statisticsFlows, setStatisticsFlows] = useState<
+    DashboardStatisticsFlow[]
+  >([]);
   const [isAdmin, setIsAdmin] = useState(false);
-  const [announcement, setAnnouncement] = useState<AnnouncementData | null>(null);
+  const [announcement, setAnnouncement] = useState<AnnouncementData | null>(
+    null,
+  );
 
   useEffect(() => {
     const loadAnnouncement = async () => {
@@ -214,7 +219,10 @@ export const useDashboardData = (): DashboardDataState => {
           setForwardList(normalizedForwards);
           setStatisticsFlows(data.statisticsFlows || []);
 
-          checkExpirationNotifications(data.userInfo, normalizedTunnelPermissions);
+          checkExpirationNotifications(
+            data.userInfo,
+            normalizedTunnelPermissions,
+          );
         } else {
           toast.error(res.msg || "获取套餐信息失败");
         }

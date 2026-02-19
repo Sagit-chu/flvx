@@ -9,9 +9,12 @@ const alertVariants = cva(
     variants: {
       variant: {
         default: "border-default-200 bg-default-50/70 text-foreground",
-        destructive: "border-danger-200 bg-danger-50 text-danger-700 dark:text-danger-300",
-        success: "border-success-200 bg-success-50 text-success-700 dark:text-success-300",
-        warning: "border-warning-200 bg-warning-50 text-warning-700 dark:text-warning-300",
+        destructive:
+          "border-danger-200 bg-danger-50 text-danger-700 dark:text-danger-300",
+        success:
+          "border-success-200 bg-success-50 text-success-700 dark:text-success-300",
+        warning:
+          "border-warning-200 bg-warning-50 text-warning-700 dark:text-warning-300",
       },
     },
     defaultVariants: {
@@ -45,9 +48,16 @@ function AlertTitle({ className, ...props }: React.ComponentProps<"h5">) {
   );
 }
 
-function AlertDescription({ className, ...props }: React.ComponentProps<"div">) {
+function AlertDescription({
+  className,
+  ...props
+}: React.ComponentProps<"div">) {
   return (
-    <div className={cn("text-sm opacity-90", className)} data-slot="alert-description" {...props} />
+    <div
+      className={cn("text-sm opacity-90", className)}
+      data-slot="alert-description"
+      {...props}
+    />
   );
 }
 

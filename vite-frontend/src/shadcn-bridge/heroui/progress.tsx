@@ -3,7 +3,13 @@ import * as React from "react";
 import { Progress as BaseProgress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
 
-type ProgressColor = "default" | "primary" | "secondary" | "success" | "warning" | "danger";
+type ProgressColor =
+  | "default"
+  | "primary"
+  | "secondary"
+  | "success"
+  | "warning"
+  | "danger";
 
 export interface ProgressProps {
   "aria-label"?: string;

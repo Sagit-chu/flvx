@@ -52,7 +52,12 @@ export function Navbar({
       style={height ? { minHeight: height } : undefined}
       {...props}
     >
-      <div className={cn("mx-auto flex h-full w-full items-center justify-between px-4", maxWidthClass(maxWidth))}>
+      <div
+        className={cn(
+          "mx-auto flex h-full w-full items-center justify-between px-4",
+          maxWidthClass(maxWidth),
+        )}
+      >
         {children}
       </div>
     </nav>
@@ -85,6 +90,9 @@ export function NavbarContent({
   );
 }
 
-export function NavbarBrand({ className, ...props }: React.ComponentProps<"div">) {
+export function NavbarBrand({
+  className,
+  ...props
+}: React.ComponentProps<"div">) {
   return <div className={cn("flex items-center", className)} {...props} />;
 }

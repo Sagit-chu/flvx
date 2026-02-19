@@ -10,11 +10,14 @@ function resolveInitialTheme(): ThemeMode {
   }
 
   const fromStorage = window.localStorage.getItem(STORAGE_KEY);
+
   if (fromStorage === "dark" || fromStorage === "light") {
     return fromStorage;
   }
 
-  return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  return window.matchMedia("(prefers-color-scheme: dark)").matches
+    ? "dark"
+    : "light";
 }
 
 let currentTheme: ThemeMode = resolveInitialTheme();

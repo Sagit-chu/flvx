@@ -36,7 +36,9 @@ export function FieldContainer({
         </Label>
       ) : null}
       {children}
-      {description ? <p className="text-xs text-default-500">{description}</p> : null}
+      {description ? (
+        <p className="text-xs text-default-500">{description}</p>
+      ) : null}
       {isInvalid && errorMessage ? (
         <p className="text-xs text-danger">{errorMessage}</p>
       ) : null}
@@ -45,14 +47,21 @@ export function FieldContainer({
 }
 
 export function extractText(content: React.ReactNode): string {
-  if (content === null || content === undefined || typeof content === "boolean") {
+  if (
+    content === null ||
+    content === undefined ||
+    typeof content === "boolean"
+  ) {
     return "";
   }
   if (typeof content === "string" || typeof content === "number") {
     return String(content);
   }
   if (Array.isArray(content)) {
-    return content.map((item) => extractText(item)).join("").trim();
+    return content
+      .map((item) => extractText(item))
+      .join("")
+      .trim();
   }
   if (React.isValidElement(content)) {
     return extractText(content.props.children);
