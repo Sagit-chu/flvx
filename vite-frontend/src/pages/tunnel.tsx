@@ -2118,7 +2118,7 @@ export default function TunnelPage() {
                                         <td className="px-3 py-2 text-center">
                                           {result.success && quality ? (
                                             <Chip
-                                              className="text-xs"
+                                              className="text-xs whitespace-nowrap"
                                               color={quality.color as any}
                                               size="sm"
                                               variant="flat"
@@ -2282,7 +2282,7 @@ export default function TunnelPage() {
                                           {quality && (
                                             <>
                                               <Chip
-                                                className="text-xs"
+                                                className="text-xs whitespace-nowrap"
                                                 color={quality.color as any}
                                                 size="sm"
                                                 variant="flat"

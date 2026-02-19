@@ -626,7 +626,6 @@ export default function UserPage() {
                   "bg-default-100 border-2 border-default-200 hover:border-default-300 data-[hover=true]:border-default-300",
               }}
               placeholder="搜索用户名"
-              startContent={<SearchIcon className="w-4 h-4 text-default-400" />}
               value={searchKeyword}
               onChange={(e) => setSearchKeyword(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && handleSearch()}

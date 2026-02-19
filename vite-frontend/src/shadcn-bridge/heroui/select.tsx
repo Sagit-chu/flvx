@@ -1,4 +1,5 @@
 import * as React from "react";
+import { ChevronDownIcon } from "lucide-react";
 
 import { FieldContainer, extractText, type FieldMetaProps } from "./shared";
 
@@ -168,6 +169,7 @@ export function Select<T>({
     () => getOptions(children, items),
     [children, items],
   );
+  const [isExpanded, setIsExpanded] = React.useState(false);
   const selected = React.useMemo(() => toSet(selectedKeys), [selectedKeys]);
   const disabled = React.useMemo(() => toSet(disabledKeys), [disabledKeys]);
 
@@ -240,71 +242,94 @@ export function Select<T>({
           className={cn(
             "w-full rounded-md border border-input bg-background shadow-sm",
             isDisabled ? "cursor-not-allowed opacity-60" : "",
-            classNames?.trigger,
             className,
           )}
           id={generatedId}
         >
-          <div
+          <button
+            aria-controls={`${generatedId}-listbox`}
+            aria-expanded={isExpanded}
             className={cn(
-              "border-b border-divider px-3 py-2 text-default-500",
-              textSizeClass(size),
-              selectedArray.length > 0 ? "text-foreground" : "",
+              "flex w-full items-center gap-2 px-3 py-2 text-left",
+              classNames?.trigger,
             )}
-            title={selectedText}
+            disabled={isDisabled}
+            type="button"
+            onClick={() => setIsExpanded((prev) => !prev)}
           >
-            <span className="block truncate">{selectedText}</span>
-          </div>
-          <div className="max-h-56 space-y-1 overflow-y-auto p-2">
-            {options.length === 0 ? (
-              <div
-                className={cn(
-                  "px-2 py-1 text-default-500",
-                  textSizeClass(size),
-                )}
-              >
-                暂无可选项
-              </div>
-            ) : (
-              options.map((option) => {
-                const optionDisabled = isDisabled || disabled.has(option.key);
+            <span
+              className={cn(
+                "block flex-1 truncate",
+                textSizeClass(size),
+                selectedArray.length > 0 ? "text-foreground" : "text-default-500",
+              )}
+              title={selectedText}
+            >
+              {selectedText}
+            </span>
+            <ChevronDownIcon
+              className={cn(
+                "h-4 w-4 flex-shrink-0 text-default-500 transition-transform",
+                isExpanded ? "rotate-180" : "rotate-0",
+              )}
+            />
+          </button>
+          {isExpanded ? (
+            <div
+              className="max-h-56 space-y-1 overflow-y-auto border-t border-divider p-2"
+              id={`${generatedId}-listbox`}
+              role="listbox"
+            >
+              {options.length === 0 ? (
+                <div
+                  className={cn(
+                    "px-2 py-1 text-default-500",
+                    textSizeClass(size),
+                  )}
+                >
+                  暂无可选项
+                </div>
+              ) : (
+                options.map((option) => {
+                  const optionDisabled = isDisabled || disabled.has(option.key);
 
-                return (
-                  <div
-                    key={option.key}
-                    className={cn(
-                      "flex items-center gap-2 rounded-md px-2 py-1.5",
-                      optionDisabled
-                        ? "cursor-not-allowed opacity-60"
-                        : "hover:bg-default-100",
-                    )}
-                  >
-                    <BaseCheckbox
-                      checked={selected.has(option.key)}
-                      disabled={optionDisabled}
-                      onCheckedChange={(value) =>
-                        updateMultipleSelection(option.key, value === true)
-                      }
-                    />
-                    <button
+                  return (
+                    <div
+                      key={option.key}
                       className={cn(
-                        "min-w-0 flex-1 truncate text-left text-foreground",
-                        textSizeClass(size),
+                        "flex items-center gap-2 rounded-md px-2 py-1.5",
                         optionDisabled
-                          ? "cursor-not-allowed"
-                          : "cursor-pointer",
+                          ? "cursor-not-allowed opacity-60"
+                          : "hover:bg-default-100",
                       )}
-                      disabled={optionDisabled}
-                      type="button"
-                      onClick={() => updateMultipleSelection(option.key)}
                     >
-                      {option.label}
-                    </button>
-                  </div>
-                );
-              })
-            )}
-          </div>
+                      <BaseCheckbox
+                        checked={selected.has(option.key)}
+                        disabled={optionDisabled}
+                        onCheckedChange={(value) =>
+                          updateMultipleSelection(option.key, value === true)
+                        }
+                      />
+                      <button
+                        className={cn(
+                          "min-w-0 flex-1 truncate text-left text-foreground",
+                          textSizeClass(size),
+                          optionDisabled
+                            ? "cursor-not-allowed"
+                            : "cursor-pointer",
+                        )}
+                        disabled={optionDisabled}
+                        type="button"
+                        onClick={() => updateMultipleSelection(option.key)}
+                      >
+                        {option.label}
+                      </button>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          ) : null}
         </div>
       ) : (
         <select
