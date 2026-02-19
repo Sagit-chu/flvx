@@ -237,7 +237,7 @@ export default function LimitPage() {
               key={rule.id}
               className="shadow-sm border border-gray-200 dark:border-gray-700"
             >
-              <CardHeader className="pb-3 md:pb-3">
+              <CardHeader className="pb-2 md:pb-2">
                 <div className="flex justify-between items-start w-full">
                   <div>
                     <h3 className="font-semibold text-foreground">

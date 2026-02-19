@@ -1667,7 +1667,7 @@ export default function ForwardPage() {
                 key={userGroup.userId || "unknown"}
                 className="shadow-sm border border-divider w-full overflow-hidden"
               >
-                <CardHeader className="pb-3 md:pb-3">
+                <CardHeader className="pb-2 md:pb-2">
                   <div className="flex items-center justify-between w-full min-w-0">
                     <div className="flex items-center gap-3 min-w-0 flex-1">
                       <div className="w-10 h-10 bg-primary-100 dark:bg-primary-900/30 rounded-full flex items-center justify-center flex-shrink-0">
