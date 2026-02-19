@@ -46,3 +46,4 @@
 - [2026-02-19] 完成 S7：删除全部 HeroUI/NextUI 依赖，补齐 `@internationalized/date` 与 `@react-aria/i18n` 显式依赖
 - [2026-02-19] 完成 S8：构建验收通过（`npm run build`），`package.json` 已无 `heroui/nextui` 依赖
 - [2026-02-19] 验证结果：业务代码中 `@heroui/*` 导入为 `0`，已统一替换为 `@/shadcn-bridge/heroui/*`（22 文件，106 处）
+- [2026-02-19] 后续修复：`src/components/ui/button.tsx` 与 `src/shadcn-bridge/heroui/button.tsx` 改为 `forwardRef`，消除 `DropdownMenuTrigger asChild` 场景 ref 警告；复构建通过

@@ -57,49 +57,60 @@ function mapSize(size: HeroButtonSize, isIconOnly: boolean): "default" | "sm" | 
   return "default";
 }
 
-export function Button({
-  children,
-  className,
-  color = "default",
-  disabled,
-  endContent,
-  isIconOnly = false,
-  isLoading = false,
-  isDisabled,
-  onClick,
-  onPress,
-  size = "md",
-  startContent,
-  type = "button",
-  variant = "solid",
-  ...props
-}: ButtonProps & {
-  isDisabled?: boolean;
-}) {
-  const resolvedVariant = mapVariant(color, variant);
-  const resolvedSize = mapSize(size, isIconOnly);
-  const resolvedDisabled = Boolean(disabled || isDisabled || isLoading);
+export const Button = React.forwardRef<
+  HTMLButtonElement,
+  ButtonProps & {
+    isDisabled?: boolean;
+  }
+>(
+  (
+    {
+      children,
+      className,
+      color = "default",
+      disabled,
+      endContent,
+      isIconOnly = false,
+      isLoading = false,
+      isDisabled,
+      onClick,
+      onPress,
+      size = "md",
+      startContent,
+      type = "button",
+      variant = "solid",
+      ...props
+    },
+    ref,
+  ) => {
+    const resolvedVariant = mapVariant(color, variant);
+    const resolvedSize = mapSize(size, isIconOnly);
+    const resolvedDisabled = Boolean(disabled || isDisabled || isLoading);
 
-  const handleClick = (event: React.MouseEvent<HTMLButtonElement>) => {
-    onClick?.(event);
-    onPress?.(event);
-  };
+    const handleClick = (event: React.MouseEvent<HTMLButtonElement>) => {
+      onClick?.(event);
+      onPress?.(event);
+    };
 
-  return (
-    <BaseButton
-      className={cn(isIconOnly ? "p-0" : "", className)}
-      disabled={resolvedDisabled}
-      size={resolvedSize}
-      type={type}
-      variant={resolvedVariant}
-      onClick={handleClick}
-      {...props}
-    >
-      {isLoading ? <Loader2Icon className="mr-2 h-4 w-4 animate-spin" /> : null}
-      {startContent}
-      {isIconOnly ? null : children}
-      {isIconOnly ? children : null}
-      {endContent}
-    </BaseButton>
-  );
-}
+    return (
+      <BaseButton
+        className={cn(isIconOnly ? "p-0" : "", className)}
+        disabled={resolvedDisabled}
+        ref={ref}
+        size={resolvedSize}
+        type={type}
+        variant={resolvedVariant}
+        onClick={handleClick}
+        {...props}
+      >
+        {isLoading ? <Loader2Icon className="mr-2 h-4 w-4 animate-spin" /> : null}
+        {startContent}
+        {isIconOnly ? null : children}
+        {isIconOnly ? children : null}
+        {endContent}
+      </BaseButton>
+    );
+  },
+);
+
+Button.displayName = "HeroBridgeButton";

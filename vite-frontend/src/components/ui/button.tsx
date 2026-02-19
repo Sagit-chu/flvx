@@ -37,16 +37,21 @@ type ButtonProps = React.ComponentProps<"button"> &
     asChild?: boolean;
   };
 
-function Button({ asChild = false, className, size, variant, ...props }: ButtonProps) {
-  const Comp = asChild ? Slot : "button";
+const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
+  ({ asChild = false, className, size, variant, ...props }, ref) => {
+    const Comp = asChild ? Slot : "button";
 
-  return (
-    <Comp
-      className={cn(buttonVariants({ className, size, variant }))}
-      data-slot="button"
-      {...props}
-    />
-  );
-}
+    return (
+      <Comp
+        className={cn(buttonVariants({ className, size, variant }))}
+        data-slot="button"
+        ref={ref}
+        {...props}
+      />
+    );
+  },
+);
+
+Button.displayName = "Button";
 
 export { Button, buttonVariants };
