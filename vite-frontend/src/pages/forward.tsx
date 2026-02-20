@@ -1708,33 +1708,31 @@ export default function ForwardPage() {
           {/* 筛选按钮 (仅在分组视图显示) */}
           {viewMode === "grouped" && (
             <Button
+              isIconOnly
               aria-label="筛选条件"
-              className={filterUserId !== "all" || filterTunnelId !== "all" ? "bg-primary/20 text-primary" : "text-default-600"}
+              className={filterUserId !== "all" || filterTunnelId !== "all" ? "bg-primary/20 text-primary relative" : "text-default-600 relative"}
               color={filterUserId !== "all" || filterTunnelId !== "all" ? "primary" : "default"}
               size="sm"
               title="筛选条件"
               variant="flat"
               onPress={() => setIsFilterModalOpen(true)}
-              startContent={
-                <svg
-                  aria-hidden="true"
-                  className="w-4 h-4"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"
-                  />
-                </svg>
-              }
             >
-              <span className="hidden sm:inline">筛选</span>
+              <svg
+                aria-hidden="true"
+                className="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"
+                />
+              </svg>
               {(filterUserId !== "all" || filterTunnelId !== "all") && (
-                <span className="ml-1 flex h-1.5 w-1.5 rounded-full bg-primary" />
+                <span className="absolute top-1.5 right-1.5 flex h-1.5 w-1.5 rounded-full bg-primary" />
               )}
             </Button>
           )}
