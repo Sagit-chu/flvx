@@ -678,7 +678,7 @@ export default function TunnelPage() {
 
         <div className="flex items-center gap-2">
           <Button
-            color={selectMode ? "secondary" : "default"}
+            color="warning"
             size="sm"
             variant={selectMode ? "solid" : "flat"}
             onPress={toggleSelectMode}

@@ -1584,7 +1584,7 @@ export default function ForwardPage() {
           </Button>
 
           <Button
-            color={selectMode ? "secondary" : "default"}
+            color="warning"
             size="sm"
             variant={selectMode ? "solid" : "flat"}
             onPress={toggleSelectMode}
