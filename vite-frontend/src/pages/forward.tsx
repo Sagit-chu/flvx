@@ -1702,46 +1702,48 @@ export default function ForwardPage() {
     <div className="px-3 lg:px-6 py-8">
       {/* 页面头部 */}
       <div className="flex items-center justify-between mb-6 gap-2">
-        <div className="flex-1 flex gap-2">
+        <div className="flex items-center gap-2 flex-shrink-0">
           {viewMode === "grouped" && (
             <>
-              <Select
-                aria-label="筛选用户"
-                className="w-[130px] sm:w-[150px]"
-                size="sm"
-                variant="bordered"
-                selectedKeys={[filterUserId]}
-                onSelectionChange={(keys) => {
-                  const key = Array.from(keys)[0] as string;
-                  setFilterUserId(key || "all");
-                }}
-              >
-                <SelectItem key="all">全部用户</SelectItem>
-                {uniqueUsers.map(user => (
-                  <SelectItem key={user.id.toString()}>{user.name}</SelectItem>
-                ))}
-              </Select>
+              <div className="w-[130px] sm:w-[150px]">
+                <Select
+                  aria-label="筛选用户"
+                  size="sm"
+                  variant="bordered"
+                  selectedKeys={[filterUserId]}
+                  onSelectionChange={(keys) => {
+                    const key = Array.from(keys)[0] as string;
+                    setFilterUserId(key || "all");
+                  }}
+                >
+                  <SelectItem key="all">全部用户</SelectItem>
+                  {uniqueUsers.map(user => (
+                    <SelectItem key={user.id.toString()}>{user.name}</SelectItem>
+                  ))}
+                </Select>
+              </div>
 
-              <Select
-                aria-label="筛选隧道"
-                className="w-[130px] sm:w-[150px]"
-                size="sm"
-                variant="bordered"
-                selectedKeys={[filterTunnelId]}
-                onSelectionChange={(keys) => {
-                  const key = Array.from(keys)[0] as string;
-                  setFilterTunnelId(key || "all");
-                }}
-              >
-                <SelectItem key="all">全部隧道</SelectItem>
-                {tunnels.map(tunnel => (
-                  <SelectItem key={tunnel.id.toString()}>{tunnel.name}</SelectItem>
-                ))}
-              </Select>
+              <div className="w-[130px] sm:w-[150px]">
+                <Select
+                  aria-label="筛选隧道"
+                  size="sm"
+                  variant="bordered"
+                  selectedKeys={[filterTunnelId]}
+                  onSelectionChange={(keys) => {
+                    const key = Array.from(keys)[0] as string;
+                    setFilterTunnelId(key || "all");
+                  }}
+                >
+                  <SelectItem key="all">全部隧道</SelectItem>
+                  {tunnels.map(tunnel => (
+                    <SelectItem key={tunnel.id.toString()}>{tunnel.name}</SelectItem>
+                  ))}
+                </Select>
+              </div>
             </>
           )}
         </div>
-        <div className="flex flex-wrap items-center justify-end gap-2 sm:gap-3">
+        <div className="flex flex-1 flex-wrap items-center justify-end gap-2 sm:gap-3">
           {/* 显示模式切换按钮 */}
           <Button
             isIconOnly
