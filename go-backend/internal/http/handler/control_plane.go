@@ -360,6 +360,8 @@ func (h *Handler) diagnoseForwardRuntime(forward *forwardRecord) (map[string]int
 		return nil, errors.New("隧道配置不完整")
 	}
 
+	ipPreference := h.repo.GetTunnelIPPreference(forward.TunnelID)
+
 	inNodes, chainHops, outNodes := splitChainNodeGroups(chainRows)
 	results := make([]map[string]interface{}, 0, len(chainRows)*2+len(targets))
 	nodeCache := map[int64]*nodeRecord{}
@@ -383,7 +385,7 @@ func (h *Handler) diagnoseForwardRuntime(forward *forwardRecord) (map[string]int
 						"fromChainType": 1,
 						"toChainType":   2,
 						"toInx":         firstNode.Inx,
-					}, "")
+					}, ipPreference)
 				}
 			} else {
 				for _, outNode := range outNodes {
@@ -391,7 +393,7 @@ func (h *Handler) diagnoseForwardRuntime(forward *forwardRecord) (map[string]int
 					h.appendChainHopDiagnosis(&results, nodeCache, inNode.NodeID, outNode, description, map[string]interface{}{
 						"fromChainType": 1,
 						"toChainType":   3,
-					}, "")
+					}, ipPreference)
 				}
 			}
 		}
@@ -406,7 +408,7 @@ func (h *Handler) diagnoseForwardRuntime(forward *forwardRecord) (map[string]int
 							"fromInx":       currentNode.Inx,
 							"toChainType":   2,
 							"toInx":         nextNode.Inx,
-						}, "")
+						}, ipPreference)
 					}
 				} else {
 					for _, outNode := range outNodes {
@@ -415,7 +417,7 @@ func (h *Handler) diagnoseForwardRuntime(forward *forwardRecord) (map[string]int
 							"fromChainType": 2,
 							"fromInx":       currentNode.Inx,
 							"toChainType":   3,
-						}, "")
+						}, ipPreference)
 					}
 				}
 			}
