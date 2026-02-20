@@ -479,7 +479,7 @@ func (h *Handler) diagnoseTunnelRuntime(tunnelID int64) (map[string]interface{},
 	case 1:
 		for _, inNode := range inNodes {
 			description := fmt.Sprintf("入口(%s)->外网", inNode.NodeName)
-			h.appendPathDiagnosis(&results, nodeCache, inNode.NodeID, "www.google.com", 443, description, map[string]interface{}{
+			h.appendPathDiagnosis(&results, nodeCache, inNode.NodeID, "www.bing.com", 443, description, map[string]interface{}{
 				"fromChainType": 1,
 			})
 		}
@@ -532,14 +532,14 @@ func (h *Handler) diagnoseTunnelRuntime(tunnelID int64) (map[string]interface{},
 
 		for _, outNode := range outNodes {
 			description := fmt.Sprintf("出口(%s)->外网", outNode.NodeName)
-			h.appendPathDiagnosis(&results, nodeCache, outNode.NodeID, "www.google.com", 443, description, map[string]interface{}{
+			h.appendPathDiagnosis(&results, nodeCache, outNode.NodeID, "www.bing.com", 443, description, map[string]interface{}{
 				"fromChainType": 3,
 			})
 		}
 	default:
 		for _, inNode := range inNodes {
 			description := fmt.Sprintf("入口(%s)->外网", inNode.NodeName)
-			h.appendPathDiagnosis(&results, nodeCache, inNode.NodeID, "www.google.com", 443, description, map[string]interface{}{
+			h.appendPathDiagnosis(&results, nodeCache, inNode.NodeID, "www.bing.com", 443, description, map[string]interface{}{
 				"fromChainType": 1,
 			})
 		}
