@@ -1381,6 +1381,7 @@ export default function TunnelPage() {
                                       ]}
                                       label="节点"
                                       placeholder="选择节点（可多选）"
+                                      dropdownPlacement="top"
                                       selectedKeys={groupNodes
                                         .filter((ct) => ct.nodeId !== -1)
                                         .map((ct) => ct.nodeId.toString())}
@@ -1598,6 +1599,7 @@ export default function TunnelPage() {
                             isInvalid={!!errors.outNodeId}
                             label="节点"
                             placeholder="请选择出口节点（可多选）"
+                            dropdownPlacement="top"
                             selectedKeys={
                               form.outNodeId
                                 ? form.outNodeId
@@ -2051,16 +2053,16 @@ export default function TunnelPage() {
                                       <tr
                                         key={index}
                                         className={`hover:bg-default-50 dark:hover:bg-gray-700/50 ${result.success
-                                            ? "bg-white dark:bg-gray-800"
-                                            : "bg-danger-50 dark:bg-danger-900/30"
+                                          ? "bg-white dark:bg-gray-800"
+                                          : "bg-danger-50 dark:bg-danger-900/30"
                                           }`}
                                       >
                                         <td className="px-3 py-2">
                                           <div className="flex items-center gap-2">
                                             <span
                                               className={`w-5 h-5 rounded-full flex items-center justify-center text-xs ${result.success
-                                                  ? "bg-success text-white"
-                                                  : "bg-danger text-white"
+                                                ? "bg-success text-white"
+                                                : "bg-danger text-white"
                                                 }`}
                                             >
                                               {result.success ? "✓" : "✗"}
@@ -2104,8 +2106,8 @@ export default function TunnelPage() {
                                           {result.success ? (
                                             <span
                                               className={`font-semibold ${(result.packetLoss || 0) > 0
-                                                  ? "text-warning"
-                                                  : "text-success"
+                                                ? "text-warning"
+                                                : "text-success"
                                                 }`}
                                             >
                                               {result.packetLoss?.toFixed(1)}%
@@ -2220,15 +2222,15 @@ export default function TunnelPage() {
                                   <div
                                     key={index}
                                     className={`border rounded-lg p-3 ${result.success
-                                        ? "border-divider bg-white dark:bg-gray-800"
-                                        : "border-danger-200 dark:border-danger-300/30 bg-danger-50 dark:bg-danger-900/30"
+                                      ? "border-divider bg-white dark:bg-gray-800"
+                                      : "border-danger-200 dark:border-danger-300/30 bg-danger-50 dark:bg-danger-900/30"
                                       }`}
                                   >
                                     <div className="flex items-start gap-2 mb-2">
                                       <span
                                         className={`w-6 h-6 rounded-full flex items-center justify-center text-xs flex-shrink-0 ${result.success
-                                            ? "bg-success text-white"
-                                            : "bg-danger text-white"
+                                          ? "bg-success text-white"
+                                          : "bg-danger text-white"
                                           }`}
                                       >
                                         {result.success ? "✓" : "✗"}
@@ -2266,8 +2268,8 @@ export default function TunnelPage() {
                                         <div className="text-center">
                                           <div
                                             className={`text-lg font-bold ${(result.packetLoss || 0) > 0
-                                                ? "text-warning"
-                                                : "text-success"
+                                              ? "text-warning"
+                                              : "text-success"
                                               }`}
                                           >
                                             {result.packetLoss?.toFixed(1)}%

@@ -37,6 +37,7 @@ export interface SelectProps<T = unknown> extends FieldMetaProps {
   selectionMode?: SelectionMode;
   size?: "sm" | "md" | "lg";
   variant?: string;
+  dropdownPlacement?: "bottom" | "top";
 }
 
 export interface SelectItemProps {
@@ -163,6 +164,7 @@ export function Select<T>({
   selectedKeys,
   selectionMode = "single",
   size,
+  dropdownPlacement = "bottom",
 }: SelectProps<T>) {
   const generatedId = React.useId();
   const options = React.useMemo(
@@ -284,9 +286,16 @@ export function Select<T>({
       return null;
     }
 
+    const placementClasses = dropdownPlacement === "top"
+      ? "bottom-full mb-1"
+      : "top-full mt-1";
+
     return (
       <div
-        className="absolute left-0 top-full z-50 mt-1 max-h-56 w-full space-y-1 overflow-y-auto rounded-md border border-divider bg-background p-2 shadow-md"
+        className={cn(
+          "absolute left-0 z-50 w-full space-y-1 overflow-y-auto rounded-md border border-divider bg-background p-2 shadow-md max-h-56",
+          placementClasses
+        )}
         id={`${generatedId}-listbox`}
         ref={listboxRef}
         role="listbox"
