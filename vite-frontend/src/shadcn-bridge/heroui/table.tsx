@@ -72,18 +72,24 @@ interface TableBodyProps<T>
   loadingContent?: React.ReactNode;
 }
 
-export function TableBody<T>({
-  children,
-  className,
-  emptyContent,
-  isLoading,
-  items,
-  loadingContent,
-  ...props
-}: TableBodyProps<T>) {
+export const TableBody = React.forwardRef<
+  HTMLTableSectionElement,
+  TableBodyProps<any>
+>(function TableBody<T>(
+  {
+    children,
+    className,
+    emptyContent,
+    isLoading,
+    items,
+    loadingContent,
+    ...props
+  }: TableBodyProps<T>,
+  ref: React.Ref<HTMLTableSectionElement>,
+) {
   if (isLoading) {
     return (
-      <tbody className={className} {...props}>
+      <tbody ref={ref} className={className} {...props}>
         <tr>
           <td className="p-4 text-center text-default-500" colSpan={999}>
             {loadingContent ?? "加载中..."}
@@ -96,7 +102,7 @@ export function TableBody<T>({
   if (items && typeof children === "function") {
     if (items.length === 0) {
       return (
-        <tbody className={className} {...props}>
+        <tbody ref={ref} className={className} {...props}>
           <tr>
             <td className="p-4 text-center text-default-500" colSpan={999}>
               {emptyContent ?? "暂无数据"}
@@ -107,7 +113,7 @@ export function TableBody<T>({
     }
 
     return (
-      <tbody className={className} {...props}>
+      <tbody ref={ref} className={className} {...props}>
         {items.map((item) => {
           const key =
             typeof item === "object" && item !== null && "id" in item
@@ -125,7 +131,7 @@ export function TableBody<T>({
 
   if (staticChildren.length === 0) {
     return (
-      <tbody className={className} {...props}>
+      <tbody ref={ref} className={className} {...props}>
         <tr>
           <td className="p-4 text-center text-default-500" colSpan={999}>
             {emptyContent ?? "暂无数据"}
@@ -136,11 +142,11 @@ export function TableBody<T>({
   }
 
   return (
-    <tbody className={className} {...props}>
+    <tbody ref={ref} className={className} {...props}>
       {typeof children === "function" ? null : children}
     </tbody>
   );
-}
+});
 
 export function TableColumn({
   className,
@@ -160,16 +166,21 @@ export function TableColumn({
   );
 }
 
-export function TableRow({ className, ...props }: React.ComponentProps<"tr">) {
+export const TableRow = React.forwardRef<
+  HTMLTableRowElement,
+  React.ComponentProps<"tr">
+>(({ className, ...props }, ref) => {
   const { trClassName } = React.useContext(TableStyleContext);
 
   return (
     <tr
+      ref={ref}
       className={cn("border-b last:border-b-0", trClassName, className)}
       {...props}
     />
   );
-}
+});
+TableRow.displayName = "TableRow";
 
 export function TableCell({ className, ...props }: React.ComponentProps<"td">) {
   const { tdClassName } = React.useContext(TableStyleContext);

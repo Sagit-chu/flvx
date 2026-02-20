@@ -15,6 +15,7 @@ import {
   SortableContext,
   sortableKeyboardCoordinates,
   rectSortingStrategy,
+  verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
@@ -143,16 +144,21 @@ export default function ForwardPage() {
       const savedMode = localStorage.getItem("forward-view-mode");
 
       return (savedMode as "grouped" | "direct") || "direct";
-    } catch {
+    } catch (e) {
       return "direct";
     }
   });
+
+  // 筛选状态
+  const [filterUserId, setFilterUserId] = useState<string>("all");
+  const [filterTunnelId, setFilterTunnelId] = useState<string>("all");
 
   // 拖拽排序相关状态
   const [forwardOrder, setForwardOrder] = useState<number[]>([]);
 
   // 模态框状态
   const [modalOpen, setModalOpen] = useState(false);
+  const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [addressModalOpen, setAddressModalOpen] = useState(false);
   const [diagnosisModalOpen, setDiagnosisModalOpen] = useState(false);
@@ -1184,6 +1190,15 @@ export default function ForwardPage() {
           (forward) => forward.userId === tokenUserId,
         );
       }
+    } else if (viewMode === "grouped") {
+      if (filterUserId !== "all") {
+        const targetUserId = parseInt(filterUserId);
+        filteredForwards = filteredForwards.filter(f => f.userId === targetUserId || (targetUserId === 0 && !f.userId));
+      }
+      if (filterTunnelId !== "all") {
+        const targetTunnelId = parseInt(filterTunnelId);
+        filteredForwards = filteredForwards.filter(f => f.tunnelId === targetTunnelId);
+      }
     }
 
     // 确保过滤后的转发列表有效
@@ -1227,7 +1242,7 @@ export default function ForwardPage() {
     }
 
     return sortedByDb;
-  }, [forwards, forwardOrder, viewMode, tokenUserId]);
+  }, [forwards, forwardOrder, viewMode, tokenUserId, filterUserId, filterTunnelId]);
 
   const sortableForwardIds = useMemo(
     () => sortedForwards.map((f) => f.id).filter((id) => id > 0),
@@ -1256,6 +1271,170 @@ export default function ForwardPage() {
       <div ref={setNodeRef} style={style} {...attributes}>
         {renderForwardCard(forward, listeners)}
       </div>
+    );
+  };
+
+  // 生成用作筛选项的用户和隧道列表
+  const uniqueUsers = useMemo(() => {
+    const userMap = new Map<number, { id: number; name: string }>();
+    forwards.forEach((f) => {
+      const uId = f.userId || 0;
+      if (!userMap.has(uId)) {
+        userMap.set(uId, { id: uId, name: f.userName || "未知用户" });
+      }
+    });
+
+    return Array.from(userMap.values());
+  }, [forwards]);
+
+  // 可拖拽的表格行组件
+  const SortableTableRow = ({ forward, selectMode, selectedIds, toggleSelect, getStrategyDisplay, formatInAddress, formatRemoteAddress, handleServiceToggle, handleEdit, handleDelete, handleDiagnose, showAddressModal, hasMultipleAddresses }: any) => {
+    const {
+      attributes,
+      listeners,
+      setNodeRef,
+      transform,
+      transition,
+      isDragging,
+    } = useSortable({ id: forward.id });
+
+    const style = {
+      transform: transform ? CSS.Transform.toString(transform) : undefined,
+      transition: isDragging ? undefined : transition || undefined,
+      opacity: isDragging ? 0.5 : 1,
+      backgroundColor: isDragging ? "var(--nextui-default-100)" : undefined,
+    };
+
+    const strategyDisplay = getStrategyDisplay(forward.strategy);
+
+    return (
+      <TableRow ref={setNodeRef} style={style} key={forward.id}>
+        {selectMode && (
+          <TableCell>
+            <Checkbox
+              isSelected={selectedIds.has(forward.id)}
+              onValueChange={() => toggleSelect(forward.id)}
+            />
+          </TableCell>
+        )}
+        <TableCell>
+          <div
+            className="cursor-grab active:cursor-grabbing p-1 text-default-400 hover:text-default-600 transition-colors"
+            {...attributes}
+            {...listeners}
+            title="拖拽排序"
+          >
+            <svg aria-hidden="true" className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+              <path d="M7 2a2 2 0 1 1 .001 4.001A2 2 0 0 1 7 2zm0 6a2 2 0 1 1 .001 4.001A2 2 0 0 1 7 8zm0 6a2 2 0 1 1 .001 4.001A2 2 0 0 1 7 14zm6-8a2 2 0 1 1-.001-4.001A2 2 0 0 1 13 6zm0 2a2 2 0 1 1 .001 4.001A2 2 0 0 1 13 8zm0 6a2 2 0 1 1 .001 4.001A2 2 0 0 1 13 14z" />
+            </svg>
+          </div>
+        </TableCell>
+        <TableCell className="whitespace-nowrap">
+          <span className="text-sm font-medium text-default-700">
+            {forward.userName || "未知用户"}
+          </span>
+        </TableCell>
+        <TableCell className="whitespace-nowrap">
+          <Chip
+            size="sm"
+            color="secondary"
+            className="border-none bg-secondary/10 px-2"
+          >
+            <span className="font-medium text-secondary-700">{forward.tunnelName}</span>
+          </Chip>
+        </TableCell>
+        <TableCell className="whitespace-nowrap font-semibold text-foreground">
+          {forward.name}
+        </TableCell>
+        <TableCell className="max-w-[220px]">
+          <button
+            className={`w-full truncate rounded-md bg-default-100/50 px-2.5 py-1.5 text-left font-mono text-xs font-medium text-default-700 transition-all ${hasMultipleAddresses(forward.inIp)
+              ? "hover:bg-default-200 hover:shadow-sm"
+              : ""
+              }`}
+            title={formatInAddress(forward.inIp, forward.inPort)}
+            type="button"
+            onClick={() =>
+              showAddressModal(forward.inIp, forward.inPort, "入口端口")
+            }
+          >
+            {formatInAddress(forward.inIp, forward.inPort)}
+          </button>
+        </TableCell>
+        <TableCell className="max-w-[240px]">
+          <button
+            className={`w-full truncate rounded-md bg-default-100/50 px-2.5 py-1.5 text-left font-mono text-xs font-medium text-default-700 transition-all ${hasMultipleAddresses(forward.remoteAddr)
+              ? "hover:bg-default-200 hover:shadow-sm"
+              : ""
+              }`}
+            title={formatRemoteAddress(forward.remoteAddr)}
+            type="button"
+            onClick={() =>
+              showAddressModal(forward.remoteAddr, null, "目标地址")
+            }
+          >
+            {formatRemoteAddress(forward.remoteAddr)}
+          </button>
+        </TableCell>
+        <TableCell>
+          <Chip
+            className="text-xs font-medium"
+            color={strategyDisplay.color as any}
+            size="sm"
+            variant="flat"
+          >
+            {strategyDisplay.text}
+          </Chip>
+        </TableCell>
+        <TableCell>
+          <div className="flex items-center gap-2.5 whitespace-nowrap">
+            <Switch
+              isDisabled={forward.status !== 1 && forward.status !== 0}
+              isSelected={forward.serviceRunning}
+              size="sm"
+              color="success"
+              onValueChange={() => handleServiceToggle(forward)}
+            />
+          </div>
+        </TableCell>
+        <TableCell>
+          <div className="flex justify-end gap-2">
+            <Button
+              isIconOnly
+              className="bg-primary/10 text-primary hover:bg-primary/20"
+              size="sm"
+              title="编辑"
+              onPress={() => handleEdit(forward)}
+            >
+              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+              </svg>
+            </Button>
+            <Button
+              isIconOnly
+              className="bg-warning/10 text-warning hover:bg-warning/20"
+              size="sm"
+              title="诊断"
+              onPress={() => handleDiagnose(forward)}
+            >
+              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+              </svg>
+            </Button>
+            <Button
+              isIconOnly
+              className="bg-danger/10 text-danger hover:bg-danger/20"
+              size="sm"
+              title="删除"
+              onPress={() => handleDelete(forward)}
+            >
+              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              </svg>
+            </Button>
+          </div>
+        </TableCell>
+      </TableRow>
     );
   };
 
@@ -1524,8 +1703,39 @@ export default function ForwardPage() {
     <div className="px-3 lg:px-6 py-8">
       {/* 页面头部 */}
       <div className="flex items-center justify-between mb-6 gap-2">
-        <div className="flex-1" />
+        <div className="flex-1"></div>
         <div className="flex flex-wrap items-center justify-end gap-2 sm:gap-3">
+          {/* 筛选按钮 (仅在分组视图显示) */}
+          {viewMode === "grouped" && (
+            <Button
+              isIconOnly
+              aria-label="筛选条件"
+              className={filterUserId !== "all" || filterTunnelId !== "all" ? "bg-primary/20 text-primary relative" : "text-default-600 relative"}
+              color={filterUserId !== "all" || filterTunnelId !== "all" ? "primary" : "default"}
+              size="sm"
+              title="筛选条件"
+              variant="flat"
+              onPress={() => setIsFilterModalOpen(true)}
+            >
+              <svg
+                aria-hidden="true"
+                className="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"
+                />
+              </svg>
+              {(filterUserId !== "all" || filterTunnelId !== "all") && (
+                <span className="absolute top-1.5 right-1.5 flex h-1.5 w-1.5 rounded-full bg-primary" />
+              )}
+            </Button>
+          )}
           {/* 显示模式切换按钮 */}
           <Button
             isIconOnly
@@ -1673,175 +1883,54 @@ export default function ForwardPage() {
       {viewMode === "grouped" ? (
         sortedForwards.length > 0 ? (
           <div className="overflow-hidden rounded-xl border border-divider bg-content1 shadow-md">
-            <Table
-              aria-label="全部转发列表"
-              classNames={{
-                th: "bg-default-100/50 text-default-600 font-semibold text-sm border-b border-divider py-3 uppercase tracking-wider",
-                td: "py-3 border-b border-divider/50 group-data-[last=true]:border-b-0",
-                tr: "hover:bg-default-50/50 transition-colors",
-              }}
+            <DndContext
+              collisionDetection={closestCenter}
+              sensors={sensors}
+              onDragEnd={handleDragEnd}
             >
-              <TableHeader>
-                {selectMode && <TableColumn className="w-14">选择</TableColumn>}
-                <TableColumn>用户</TableColumn>
-                <TableColumn>隧道</TableColumn>
-                <TableColumn>名称</TableColumn>
-                <TableColumn>入口</TableColumn>
-                <TableColumn>目标</TableColumn>
-                <TableColumn>策略</TableColumn>
-                <TableColumn>流量</TableColumn>
-                <TableColumn>状态</TableColumn>
-                <TableColumn className="text-right">操作</TableColumn>
-              </TableHeader>
-              <TableBody emptyContent="暂无转发配置" items={sortedForwards}>
-                {(forward) => {
-                  const statusDisplay = getStatusDisplay(forward.status);
-                  const strategyDisplay = getStrategyDisplay(forward.strategy);
-
-                  return (
-                    <TableRow key={forward.id}>
-                      {selectMode && (
-                        <TableCell>
-                          <Checkbox
-                            isSelected={selectedIds.has(forward.id)}
-                            onValueChange={() => toggleSelect(forward.id)}
-                          />
-                        </TableCell>
-                      )}
-                      <TableCell className="whitespace-nowrap">
-                        <div className="flex items-center gap-2">
-                          <div className="flex h-7 w-7 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
-                            {(forward.userName || "未")[0].toUpperCase()}
-                          </div>
-                          <span className="text-sm font-medium text-default-700">
-                            {forward.userName || "未知用户"}
-                          </span>
-                        </div>
-                      </TableCell>
-                      <TableCell className="whitespace-nowrap">
-                        <Chip
-                          size="sm"
-                          color="secondary"
-                          className="border-none bg-secondary/10 px-2"
-                        >
-                          <span className="font-medium text-secondary-700">{forward.tunnelName}</span>
-                        </Chip>
-                      </TableCell>
-                      <TableCell className="whitespace-nowrap font-semibold text-foreground">
-                        {forward.name}
-                      </TableCell>
-                      <TableCell className="max-w-[220px]">
-                        <button
-                          className={`w-full truncate rounded-md bg-default-100/50 px-2.5 py-1.5 text-left font-mono text-xs font-medium text-default-700 transition-all ${hasMultipleAddresses(forward.inIp)
-                            ? "hover:bg-default-200 hover:shadow-sm"
-                            : ""
-                            }`}
-                          title={formatInAddress(forward.inIp, forward.inPort)}
-                          type="button"
-                          onClick={() =>
-                            showAddressModal(forward.inIp, forward.inPort, "入口端口")
-                          }
-                        >
-                          {formatInAddress(forward.inIp, forward.inPort)}
-                        </button>
-                      </TableCell>
-                      <TableCell className="max-w-[240px]">
-                        <button
-                          className={`w-full truncate rounded-md bg-default-100/50 px-2.5 py-1.5 text-left font-mono text-xs font-medium text-default-700 transition-all ${hasMultipleAddresses(forward.remoteAddr)
-                            ? "hover:bg-default-200 hover:shadow-sm"
-                            : ""
-                            }`}
-                          title={formatRemoteAddress(forward.remoteAddr)}
-                          type="button"
-                          onClick={() =>
-                            showAddressModal(forward.remoteAddr, null, "目标地址")
-                          }
-                        >
-                          {formatRemoteAddress(forward.remoteAddr)}
-                        </button>
-                      </TableCell>
-                      <TableCell>
-                        <Chip
-                          className="text-xs font-medium"
-                          color={strategyDisplay.color as any}
-                          size="sm"
-                          variant="flat"
-                        >
-                          {strategyDisplay.text}
-                        </Chip>
-                      </TableCell>
-                      <TableCell className="whitespace-nowrap">
-                        <div className="flex flex-col gap-1.5 text-xs font-medium text-default-600">
-                          <span className="flex items-center gap-1 text-success-600">
-                            <span className="text-[10px]">↑</span>
-                            {formatFlow(forward.inFlow || 0)}
-                          </span>
-                          <span className="flex items-center gap-1 text-primary-600">
-                            <span className="text-[10px]">↓</span>
-                            {formatFlow(forward.outFlow || 0)}
-                          </span>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2.5 whitespace-nowrap">
-                          <Switch
-                            isDisabled={forward.status !== 1 && forward.status !== 0}
-                            isSelected={forward.serviceRunning}
-                            size="sm"
-                            color="success"
-                            onValueChange={() => handleServiceToggle(forward)}
-                          />
-                          <Chip
-                            className="border-none text-xs font-medium"
-                            color={statusDisplay.color as any}
-                            size="sm"
-                          >
-                            {statusDisplay.text}
-                          </Chip>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex justify-end gap-2">
-                          <Button
-                            isIconOnly
-                            className="bg-primary/10 text-primary hover:bg-primary/20"
-                            size="sm"
-                            title="编辑"
-                            onPress={() => handleEdit(forward)}
-                          >
-                            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                            </svg>
-                          </Button>
-                          <Button
-                            isIconOnly
-                            className="bg-warning/10 text-warning hover:bg-warning/20"
-                            size="sm"
-                            title="诊断"
-                            onPress={() => handleDiagnose(forward)}
-                          >
-                            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
-                            </svg>
-                          </Button>
-                          <Button
-                            isIconOnly
-                            className="bg-danger/10 text-danger hover:bg-danger/20"
-                            size="sm"
-                            title="删除"
-                            onPress={() => handleDelete(forward)}
-                          >
-                            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                            </svg>
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  );
+              <Table
+                aria-label="全部转发列表"
+                classNames={{
+                  th: "bg-default-100/50 text-default-600 font-semibold text-sm border-b border-divider py-3 uppercase tracking-wider",
+                  td: "py-3 border-b border-divider/50 group-data-[last=true]:border-b-0",
+                  tr: "hover:bg-default-50/50 transition-colors",
                 }}
-              </TableBody>
-            </Table>
+              >
+                <TableHeader>
+                  {selectMode && <TableColumn className="w-14">选择</TableColumn>}
+                  <TableColumn className="w-10 pl-4"></TableColumn>
+                  <TableColumn>用户</TableColumn>
+                  <TableColumn>隧道</TableColumn>
+                  <TableColumn>名称</TableColumn>
+                  <TableColumn>入口</TableColumn>
+                  <TableColumn>目标</TableColumn>
+                  <TableColumn>策略</TableColumn>
+                  <TableColumn>状态</TableColumn>
+                  <TableColumn className="text-right">操作</TableColumn>
+                </TableHeader>
+                <TableBody emptyContent="暂无转发配置" items={sortedForwards}>
+                  {(forward) => (
+                    <SortableContext items={sortableForwardIds} strategy={verticalListSortingStrategy} key={forward.id}>
+                      <SortableTableRow
+                        forward={forward}
+                        selectMode={selectMode}
+                        selectedIds={selectedIds}
+                        toggleSelect={toggleSelect}
+                        getStrategyDisplay={getStrategyDisplay}
+                        formatInAddress={formatInAddress}
+                        formatRemoteAddress={formatRemoteAddress}
+                        handleServiceToggle={handleServiceToggle}
+                        handleEdit={handleEdit}
+                        handleDelete={handleDelete}
+                        handleDiagnose={handleDiagnose}
+                        showAddressModal={showAddressModal}
+                        hasMultipleAddresses={hasMultipleAddresses}
+                      />
+                    </SortableContext>
+                  )}
+                </TableBody>
+              </Table>
+            </DndContext>
           </div>
         ) : (
           /* 空状态 */
@@ -3063,6 +3152,73 @@ export default function ForwardPage() {
                   onPress={handleBatchChangeTunnel}
                 >
                   确认换隧道
+                </Button>
+              </ModalFooter>
+            </>
+          )}
+        </ModalContent>
+      </Modal>
+
+      {/* 筛选模态框 */}
+      <Modal
+        isOpen={isFilterModalOpen}
+        onOpenChange={setIsFilterModalOpen}
+        placement="center"
+        size="md"
+      >
+        <ModalContent>
+          {(onClose) => (
+            <>
+              <ModalHeader className="flex flex-col gap-1">筛选条件</ModalHeader>
+              <ModalBody>
+                <div className="flex flex-col gap-4 py-2">
+                  <div className="flex flex-col gap-2">
+                    <label className="text-sm font-medium">按用户筛选</label>
+                    <Select
+                      aria-label="筛选用户"
+                      className="w-full"
+                      variant="bordered"
+                      selectedKeys={[filterUserId]}
+                      onSelectionChange={(keys) => {
+                        const key = Array.from(keys)[0] as string;
+                        setFilterUserId(key || "all");
+                      }}
+                    >
+                      <SelectItem key="all">全部用户</SelectItem>
+                      {uniqueUsers.map(user => (
+                        <SelectItem key={user.id.toString()}>{user.name}</SelectItem>
+                      ))}
+                    </Select>
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    <label className="text-sm font-medium">按隧道筛选</label>
+                    <Select
+                      aria-label="筛选隧道"
+                      className="w-full"
+                      variant="bordered"
+                      selectedKeys={[filterTunnelId]}
+                      onSelectionChange={(keys) => {
+                        const key = Array.from(keys)[0] as string;
+                        setFilterTunnelId(key || "all");
+                      }}
+                    >
+                      <SelectItem key="all">全部隧道</SelectItem>
+                      {tunnels.map(tunnel => (
+                        <SelectItem key={tunnel.id.toString()}>{tunnel.name}</SelectItem>
+                      ))}
+                    </Select>
+                  </div>
+                </div>
+              </ModalBody>
+              <ModalFooter>
+                <Button color="default" variant="flat" onPress={() => {
+                  setFilterUserId("all");
+                  setFilterTunnelId("all");
+                }}>
+                  重置
+                </Button>
+                <Button color="primary" onPress={onClose}>
+                  完成
                 </Button>
               </ModalFooter>
             </>
