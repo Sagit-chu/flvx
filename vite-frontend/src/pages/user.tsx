@@ -943,7 +943,6 @@ export default function UserPage() {
               <DatePicker
                 isRequired
                 showMonthAndYearPickers
-                className="cursor-pointer"
                 label="过期时间"
                 value={
                   userForm.expTime
@@ -1167,17 +1166,22 @@ export default function UserPage() {
                     )}
                   </div>
 
-                  <Button
-                    className="w-full sm:w-auto"
-                    color="primary"
-                    isDisabled={batchTunnelSelections.size === 0}
-                    isLoading={assignLoading}
-                    onPress={handleBatchAssignTunnel}
-                  >
-                    分配权限{" "}
-                    {batchTunnelSelections.size > 0 &&
-                      `(${batchTunnelSelections.size}个隧道)`}
-                  </Button>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Button
+                      className="w-full sm:w-auto"
+                      color="primary"
+                      isDisabled={batchTunnelSelections.size === 0}
+                      isLoading={assignLoading}
+                      onPress={handleBatchAssignTunnel}
+                    >
+                      分配权限
+                    </Button>
+                    {batchTunnelSelections.size > 0 && (
+                      <Chip color="primary" size="sm" variant="flat">
+                        已选 {batchTunnelSelections.size} 个隧道
+                      </Chip>
+                    )}
+                  </div>
                 </div>
               </div>
 
@@ -1434,7 +1438,6 @@ export default function UserPage() {
                   <DatePicker
                     isRequired
                     showMonthAndYearPickers
-                    className="cursor-pointer"
                     label="到期时间"
                     value={
                       editTunnelForm.expTime

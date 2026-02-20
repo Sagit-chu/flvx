@@ -397,11 +397,30 @@ export default function PanelSharingPage() {
         selectedKey={selectedTab}
         onSelectionChange={(k) => setSelectedTab(k as string)}
       >
-        <Tab key="my-shares" title="我分享的 (Provider)">
+        <Tab
+          key="my-shares"
+          title={
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-semibold text-foreground">
+                Provider
+              </span>
+              <span className="text-xs text-default-500">我分享的</span>
+            </div>
+          }
+        >
           <Card>
-            <CardBody>
-              <div className="mb-4">
+            <CardBody className="space-y-5 pt-4 md:pt-6">
+              <div className="flex flex-col gap-4 rounded-lg border border-divider bg-default-50/60 dark:bg-default-100/20 p-4 md:flex-row md:items-center md:justify-between">
+                <div className="space-y-1">
+                  <h2 className="text-lg font-semibold text-foreground">
+                    Provider 共享
+                  </h2>
+                  <p className="text-sm text-default-500">
+                    将本地节点分享给其他面板，统一管理 Token、端口范围和到期策略。
+                  </p>
+                </div>
                 <Button
+                  className="self-start md:self-auto"
                   color="primary"
                   onPress={() => setCreateShareOpen(true)}
                 >
@@ -410,9 +429,25 @@ export default function PanelSharingPage() {
               </div>
 
               {loading ? (
-                <div className="text-center py-10 text-gray-500">加载中...</div>
+                <div className="text-center py-12 text-default-500">加载中...</div>
               ) : shares.length === 0 ? (
-                <div className="text-center py-10 text-gray-500">暂无分享</div>
+                <div className="rounded-lg border border-dashed border-divider bg-default-50/60 dark:bg-default-100/20 px-6 py-10 text-center">
+                  <p className="text-base font-semibold text-foreground">
+                    暂无分享
+                  </p>
+                  <p className="mt-2 text-sm text-default-500">
+                    先创建一个分享，把本地节点开放给其他面板使用。
+                  </p>
+                  <div className="mt-5 flex justify-center">
+                    <Button
+                      color="primary"
+                      variant="flat"
+                      onPress={() => setCreateShareOpen(true)}
+                    >
+                      创建第一个分享
+                    </Button>
+                  </div>
+                </div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {shares.map((share) => (
@@ -507,11 +542,30 @@ export default function PanelSharingPage() {
             </CardBody>
           </Card>
         </Tab>
-        <Tab key="remote-nodes" title="远程节点 (Consumer)">
+        <Tab
+          key="remote-nodes"
+          title={
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-semibold text-foreground">
+                Consumer
+              </span>
+              <span className="text-xs text-default-500">远程节点</span>
+            </div>
+          }
+        >
           <Card>
-            <CardBody>
-              <div className="mb-4">
+            <CardBody className="space-y-5 pt-4 md:pt-6">
+              <div className="flex flex-col gap-4 rounded-lg border border-divider bg-default-50/60 dark:bg-default-100/20 p-4 md:flex-row md:items-center md:justify-between">
+                <div className="space-y-1">
+                  <h2 className="text-lg font-semibold text-foreground">
+                    Consumer 接入
+                  </h2>
+                  <p className="text-sm text-default-500">
+                    导入远程节点后，可在这里查看端口占用和同步状态。
+                  </p>
+                </div>
                 <Button
+                  className="self-start md:self-auto"
                   color="secondary"
                   onPress={() => setImportNodeOpen(true)}
                 >
@@ -520,13 +574,24 @@ export default function PanelSharingPage() {
               </div>
 
               {remoteUsageLoading ? (
-                <div className="text-center py-10 text-gray-500">加载中...</div>
+                <div className="text-center py-12 text-default-500">加载中...</div>
               ) : remoteUsageNodes.length === 0 ? (
-                <div className="text-center py-10 text-gray-500">
-                  <p>暂无远程节点占用记录。</p>
-                  <p className="mt-2">
+                <div className="rounded-lg border border-dashed border-divider bg-default-50/60 dark:bg-default-100/20 px-6 py-10 text-center">
+                  <p className="text-base font-semibold text-foreground">
+                    暂无远程节点占用记录
+                  </p>
+                  <p className="mt-2 text-sm text-default-500">
                     导入远程节点并创建隧道后，这里会显示远端端口占用情况。
                   </p>
+                  <div className="mt-5 flex justify-center">
+                    <Button
+                      color="secondary"
+                      variant="flat"
+                      onPress={() => setImportNodeOpen(true)}
+                    >
+                      去导入远程节点
+                    </Button>
+                  </div>
                 </div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

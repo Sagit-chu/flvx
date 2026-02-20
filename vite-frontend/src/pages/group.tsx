@@ -645,9 +645,10 @@ export default function GroupPage() {
               {(item) => <SelectItem key={item.id}>{item.name}</SelectItem>}
             </Select>
             <Button
-              className="md:self-end"
+              className="md:self-end md:justify-self-start whitespace-nowrap px-4"
               color="primary"
               isLoading={savingPermission}
+              size="sm"
               onPress={handleAssignPermission}
             >
               分配权限
