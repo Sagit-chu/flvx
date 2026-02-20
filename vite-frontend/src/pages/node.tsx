@@ -1000,7 +1000,7 @@ export default function NodePage() {
 
         <div className="flex gap-2 items-center">
           <Button
-            color="warning"
+            color="default"
             size="sm"
             variant={selectMode ? "solid" : "flat"}
             onPress={toggleSelectMode}
