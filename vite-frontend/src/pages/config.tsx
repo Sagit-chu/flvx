@@ -149,7 +149,7 @@ const getInitialConfigs = (): Record<string, string> => {
         initialConfigs[key] = cachedValue;
       }
     });
-  } catch {}
+  } catch { }
 
   return initialConfigs;
 };
@@ -528,11 +528,10 @@ export default function ConfigPage() {
               <button
                 key={option.value}
                 aria-pressed={isSelected}
-                className={`w-full px-4 py-3 rounded-lg border transition-all duration-200 cursor-pointer text-left ${
-                  isSelected
+                className={`w-full px-4 py-3 rounded-lg border transition-all duration-200 cursor-pointer text-left ${isSelected
                     ? "bg-primary-50 dark:bg-primary-900/20 border-primary-300 dark:border-primary-500/50 shadow-sm"
                     : "bg-white dark:bg-default-50 border-default-200 dark:border-default-100/30 hover:border-primary-200 dark:hover:border-primary-500/30 hover:shadow-sm"
-                }`}
+                  }`}
                 type="button"
                 onClick={() => toggleTypeSelection(option.value, setTypes)}
               >
@@ -546,11 +545,10 @@ export default function ConfigPage() {
                     size="md"
                   />
                   <span
-                    className={`font-medium ${
-                      isSelected
+                    className={`font-medium ${isSelected
                         ? "text-default-900 dark:text-default-100"
                         : "text-default-700 dark:text-default-500"
-                    }`}
+                      }`}
                   >
                     {option.label}
                   </span>
@@ -648,10 +646,10 @@ export default function ConfigPage() {
 
       {hasChanges && (
         <Card className="mt-4 bg-warning-50 dark:bg-warning-900/20 border-warning-200 dark:border-warning-800">
-          <CardBody className="py-3">
-            <div className="flex items-center gap-2 text-warning-700 dark:text-warning-300">
+          <CardBody className="py-3 flex flex-row items-center justify-center">
+            <div className="flex items-center justify-center gap-2 text-warning-700 dark:text-warning-300">
               <div className="w-2 h-2 bg-warning-500 rounded-full animate-pulse" />
-              <span className="text-sm">
+              <span className="text-sm font-medium">
                 检测到配置变更，请记得保存您的修改
               </span>
             </div>
