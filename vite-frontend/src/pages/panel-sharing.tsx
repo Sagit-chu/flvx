@@ -409,7 +409,7 @@ export default function PanelSharingPage() {
           }
         >
           <Card>
-            <CardBody className="space-y-5">
+            <CardBody className="space-y-5 pt-4 md:pt-6">
               <div className="flex flex-col gap-4 rounded-lg border border-divider bg-default-50/60 dark:bg-default-100/20 p-4 md:flex-row md:items-center md:justify-between">
                 <div className="space-y-1">
                   <h2 className="text-lg font-semibold text-foreground">
@@ -554,7 +554,7 @@ export default function PanelSharingPage() {
           }
         >
           <Card>
-            <CardBody className="space-y-5">
+            <CardBody className="space-y-5 pt-4 md:pt-6">
               <div className="flex flex-col gap-4 rounded-lg border border-divider bg-default-50/60 dark:bg-default-100/20 p-4 md:flex-row md:items-center md:justify-between">
                 <div className="space-y-1">
                   <h2 className="text-lg font-semibold text-foreground">
