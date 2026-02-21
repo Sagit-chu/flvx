@@ -121,6 +121,7 @@ export default function UserPage() {
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchKeyword, setSearchKeyword] = useState("");
+  const [isSearchVisible, setIsSearchVisible] = useState(false);
   const [pagination, setPagination] = useState<PaginationType>({
     current: 1,
     size: 10,
@@ -611,40 +612,69 @@ export default function UserPage() {
   return (
     <div className="px-3 lg:px-6 py-8">
       {/* 页面头部 */}
-      <div className="flex flex-col gap-4 mb-6">
-        <div className="flex items-center gap-3" />
-
-        <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center justify-between">
-          <div className="flex items-center gap-3 flex-1 max-w-md">
-            <Input
-              className="flex-1"
-              classNames={{
-                base: "bg-default-100",
-                input: "bg-transparent",
-                inputWrapper:
-                  "bg-default-100 border-2 border-default-200 hover:border-default-300 data-[hover=true]:border-default-300",
-              }}
-              placeholder="搜索用户名"
-              value={searchKeyword}
-              onChange={(e) => setSearchKeyword(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && handleSearch()}
-            />
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between mb-6 gap-3">
+        <div className="flex-1 max-w-sm flex items-center gap-2">
+          {!isSearchVisible ? (
             <Button
               isIconOnly
-              aria-label="搜索用户"
-              className="min-h-10 w-10"
-              color="primary"
-              variant="solid"
-              onPress={handleSearch}
+              aria-label="搜索"
+              className="text-default-600"
+              color="default"
+              size="sm"
+              variant="flat"
+              onPress={() => setIsSearchVisible(true)}
             >
               <SearchIcon className="w-4 h-4" />
             </Button>
-          </div>
-
-          <Button color="primary" variant="flat" onPress={handleAdd}>
-            新增
-          </Button>
+          ) : (
+            <div className="flex w-full items-center gap-2 animate-appearance-in">
+              <Input
+                autoFocus
+                classNames={{
+                  base: "bg-default-100",
+                  input: "bg-transparent",
+                  inputWrapper:
+                    "bg-default-100 border-2 border-default-200 hover:border-default-300 data-[hover=true]:border-default-300",
+                }}
+                placeholder="搜索用户名"
+                value={searchKeyword}
+                onChange={(e) => setSearchKeyword(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && handleSearch()}
+              />
+              <Button
+                isIconOnly
+                aria-label="关闭搜索"
+                className="text-default-600 shrink-0"
+                color="default"
+                size="sm"
+                variant="light"
+                onPress={() => {
+                  setIsSearchVisible(false);
+                  setSearchKeyword("");
+                }}
+              >
+                <svg
+                  aria-hidden="true"
+                  className="w-4 h-4"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    d="M6 18L18 6M6 6l12 12"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                  />
+                </svg>
+              </Button>
+            </div>
+          )}
         </div>
+
+        <Button color="primary" size="sm" variant="flat" onPress={handleAdd}>
+          新增
+        </Button>
       </div>
 
       {/* 用户列表 */}

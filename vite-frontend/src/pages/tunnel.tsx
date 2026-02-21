@@ -45,6 +45,7 @@ import {
   batchDeleteTunnels,
   batchRedeployTunnels,
 } from "@/api";
+import { SearchIcon } from "@/components/icons";
 import { PageLoadingState } from "@/components/page-state";
 import {
   buildDiagnosisFallbackResult,
@@ -111,6 +112,8 @@ export default function TunnelPage() {
   const [tunnels, setTunnels] = useState<Tunnel[]>([]);
   const [tunnelOrder, setTunnelOrder] = useState<number[]>([]);
   const [nodes, setNodes] = useState<Node[]>([]);
+  const [searchKeyword, setSearchKeyword] = useState("");
+  const [isSearchVisible, setIsSearchVisible] = useState(false);
 
   // 模态框状态
   const [modalOpen, setModalOpen] = useState(false);
@@ -597,7 +600,17 @@ export default function TunnelPage() {
   const sortedTunnels = useMemo((): Tunnel[] => {
     if (!tunnels || tunnels.length === 0) return [];
 
-    const sortedByDb = [...tunnels].sort((a, b) => {
+    let filteredTunnels = tunnels;
+
+    if (searchKeyword.trim()) {
+      const lowerKeyword = searchKeyword.toLowerCase();
+      filteredTunnels = filteredTunnels.filter(t =>
+        (t.name && t.name.toLowerCase().includes(lowerKeyword)) ||
+        (t.inIp && t.inIp.toLowerCase().includes(lowerKeyword))
+      );
+    }
+
+    const sortedByDb = [...filteredTunnels].sort((a, b) => {
       const aInx = a.inx ?? 0;
       const bInx = b.inx ?? 0;
 
@@ -610,7 +623,7 @@ export default function TunnelPage() {
       tunnelOrder.length > 0 &&
       sortedByDb.every((t) => t.inx === undefined || t.inx === 0)
     ) {
-      const tunnelMap = new Map(tunnels.map((t) => [t.id, t] as const));
+      const tunnelMap = new Map(filteredTunnels.map((t) => [t.id, t] as const));
       const localSorted: Tunnel[] = [];
 
       tunnelOrder.forEach((id) => {
@@ -619,7 +632,7 @@ export default function TunnelPage() {
         if (tunnel) localSorted.push(tunnel);
       });
 
-      tunnels.forEach((tunnel) => {
+      filteredTunnels.forEach((tunnel) => {
         if (!tunnelOrder.includes(tunnel.id)) {
           localSorted.push(tunnel);
         }
@@ -629,7 +642,7 @@ export default function TunnelPage() {
     }
 
     return sortedByDb;
-  }, [tunnels, tunnelOrder]);
+  }, [tunnels, tunnelOrder, searchKeyword]);
 
   const sortableTunnelIds = useMemo(
     () => sortedTunnels.map((t) => t.id),
@@ -672,9 +685,64 @@ export default function TunnelPage() {
 
   return (
     <div className="px-3 lg:px-6 py-8">
-      {/* 页面头部 */}
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex-1" />
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between mb-6 gap-3">
+        <div className="flex-1 max-w-sm flex items-center gap-2">
+          {!isSearchVisible ? (
+            <Button
+              isIconOnly
+              aria-label="搜索"
+              className="text-default-600"
+              color="default"
+              size="sm"
+              variant="flat"
+              onPress={() => setIsSearchVisible(true)}
+            >
+              <SearchIcon className="w-4 h-4" />
+            </Button>
+          ) : (
+            <div className="flex w-full items-center gap-2 animate-appearance-in">
+              <Input
+                autoFocus
+                classNames={{
+                  base: "bg-default-100",
+                  input: "bg-transparent",
+                  inputWrapper:
+                    "bg-default-100 border-2 border-default-200 hover:border-default-300 data-[hover=true]:border-default-300",
+                }}
+                placeholder="搜索隧道名称或IP"
+                value={searchKeyword}
+                onChange={(e) => setSearchKeyword(e.target.value)}
+              />
+              <Button
+                isIconOnly
+                aria-label="关闭搜索"
+                className="text-default-600 shrink-0"
+                color="default"
+                size="sm"
+                variant="light"
+                onPress={() => {
+                  setIsSearchVisible(false);
+                  setSearchKeyword("");
+                }}
+              >
+                <svg
+                  aria-hidden="true"
+                  className="w-4 h-4"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    d="M6 18L18 6M6 6l12 12"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                  />
+                </svg>
+              </Button>
+            </div>
+          )}
+        </div>
 
         <div className="flex items-center gap-2">
           <Button

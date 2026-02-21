@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import toast from "react-hot-toast";
 
 import { Card, CardBody, CardHeader } from "@/shadcn-bridge/heroui/card";
@@ -20,6 +20,7 @@ import {
   deleteSpeedLimit,
   getTunnelList,
 } from "@/api";
+import { SearchIcon } from "@/components/icons";
 import { PageLoadingState } from "@/components/page-state";
 
 interface SpeedLimitRule {
@@ -51,6 +52,18 @@ export default function LimitPage() {
   const [loading, setLoading] = useState(true);
   const [rules, setRules] = useState<SpeedLimitRule[]>([]);
   const [tunnels, setTunnels] = useState<Tunnel[]>([]);
+  const [searchKeyword, setSearchKeyword] = useState("");
+  const [isSearchVisible, setIsSearchVisible] = useState(false);
+
+  const filteredRules = useMemo(() => {
+    if (!searchKeyword.trim()) return rules;
+    const lowerKeyword = searchKeyword.toLowerCase();
+
+    return rules.filter(r =>
+      (r.name && r.name.toLowerCase().includes(lowerKeyword)) ||
+      (r.tunnelName && r.tunnelName.toLowerCase().includes(lowerKeyword))
+    );
+  }, [rules, searchKeyword]);
 
   // 模态框状态
   const [modalOpen, setModalOpen] = useState(false);
@@ -220,9 +233,64 @@ export default function LimitPage() {
 
   return (
     <div className="px-3 lg:px-6 py-8">
-      {/* 页面头部 */}
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex-1" />
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between mb-6 gap-3">
+        <div className="flex-1 max-w-sm flex items-center gap-2">
+          {!isSearchVisible ? (
+            <Button
+              isIconOnly
+              aria-label="搜索"
+              className="text-default-600"
+              color="default"
+              size="sm"
+              variant="flat"
+              onPress={() => setIsSearchVisible(true)}
+            >
+              <SearchIcon className="w-4 h-4" />
+            </Button>
+          ) : (
+            <div className="flex w-full items-center gap-2 animate-appearance-in">
+              <Input
+                autoFocus
+                classNames={{
+                  base: "bg-default-100",
+                  input: "bg-transparent",
+                  inputWrapper:
+                    "bg-default-100 border-2 border-default-200 hover:border-default-300 data-[hover=true]:border-default-300",
+                }}
+                placeholder="搜索规则名称或绑定隧道"
+                value={searchKeyword}
+                onChange={(e) => setSearchKeyword(e.target.value)}
+              />
+              <Button
+                isIconOnly
+                aria-label="关闭搜索"
+                className="text-default-600 shrink-0"
+                color="default"
+                size="sm"
+                variant="light"
+                onPress={() => {
+                  setIsSearchVisible(false);
+                  setSearchKeyword("");
+                }}
+              >
+                <svg
+                  aria-hidden="true"
+                  className="w-4 h-4"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    d="M6 18L18 6M6 6l12 12"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                  />
+                </svg>
+              </Button>
+            </div>
+          )}
+        </div>
 
         <Button color="primary" size="sm" variant="flat" onPress={handleAdd}>
           新增
@@ -230,9 +298,9 @@ export default function LimitPage() {
       </div>
 
       {/* 统一卡片网格 */}
-      {rules.length > 0 ? (
+      {filteredRules.length > 0 ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4">
-          {rules.map((rule) => (
+          {filteredRules.map((rule) => (
             <Card
               key={rule.id}
               className="shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden"
