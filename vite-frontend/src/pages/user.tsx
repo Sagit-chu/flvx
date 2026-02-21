@@ -57,7 +57,6 @@ import {
   SearchIcon,
   EditIcon,
   DeleteIcon,
-  UserIcon,
   SettingsIcon,
 } from "@/components/icons";
 import { PageLoadingState } from "@/components/page-state";
@@ -247,7 +246,7 @@ export default function UserPage() {
       if (response.code === 0) {
         setTunnels(Array.isArray(response.data) ? response.data : []);
       }
-    } catch {}
+    } catch { }
   };
 
   const loadSpeedLimits = async () => {
@@ -257,15 +256,15 @@ export default function UserPage() {
       if (response.code === 0) {
         const speedLimitList = Array.isArray(response.data)
           ? response.data.map((item) => ({
-              ...item,
-              uploadSpeed: item.uploadSpeed ?? item.speed ?? 0,
-              downloadSpeed: item.downloadSpeed ?? item.speed ?? 0,
-            }))
+            ...item,
+            uploadSpeed: item.uploadSpeed ?? item.speed ?? 0,
+            downloadSpeed: item.downloadSpeed ?? item.speed ?? 0,
+          }))
           : [];
 
         setSpeedLimits(speedLimitList);
       }
-    } catch {}
+    } catch { }
   };
 
   const loadUserGroups = async () => {
@@ -275,7 +274,7 @@ export default function UserPage() {
       if (response.code === 0) {
         setUserGroups(Array.isArray(response.data) ? response.data : []);
       }
-    } catch {}
+    } catch { }
   };
 
   const loadUserTunnels = async (userId: number) => {
@@ -326,7 +325,7 @@ export default function UserPage() {
       if (groupRes.code === 0) {
         currentGroupIds = groupRes.data || [];
       }
-    } catch {}
+    } catch { }
 
     setUserForm({
       id: user.id,
@@ -652,21 +651,14 @@ export default function UserPage() {
       {loading ? (
         <PageLoadingState message="正在加载..." />
       ) : users.length === 0 ? (
-        <Card className="shadow-sm border border-gray-200 dark:border-gray-700">
-          <CardBody className="text-center py-16">
-            <div className="flex flex-col items-center gap-4">
-              <div className="w-16 h-16 bg-default-100 rounded-full flex items-center justify-center">
-                <UserIcon className="w-8 h-8 text-default-400" />
-              </div>
-              <div>
-                <h3 className="text-lg font-semibold text-foreground">
-                  暂无用户数据
-                </h3>
-                <p className="text-default-500 text-sm mt-1">
-                  还没有创建任何用户，点击上方按钮开始创建
-                </p>
-              </div>
-            </div>
+        <Card className="shadow-sm border border-gray-200 dark:border-gray-700 bg-default-50/50">
+          <CardBody className="text-center py-20 flex flex-col items-center justify-center min-h-[240px]">
+            <h3 className="text-xl font-medium text-foreground tracking-tight mb-2">
+              暂无用户数据
+            </h3>
+            <p className="text-default-500 text-sm max-w-xs mx-auto leading-relaxed">
+              还没有创建任何用户，点击上方按钮开始创建
+            </p>
           </CardBody>
         </Card>
       ) : (
@@ -680,9 +672,9 @@ export default function UserPage() {
             const flowPercent =
               user.flow > 0
                 ? Math.min(
-                    (usedFlow / (user.flow * 1024 * 1024 * 1024)) * 100,
-                    100,
-                  )
+                  (usedFlow / (user.flow * 1024 * 1024 * 1024)) * 100,
+                  100,
+                )
                 : 0;
 
             return (
@@ -947,8 +939,8 @@ export default function UserPage() {
                 value={
                   userForm.expTime
                     ? (parseDate(
-                        userForm.expTime.toISOString().split("T")[0],
-                      ) as any)
+                      userForm.expTime.toISOString().split("T")[0],
+                    ) as any)
                     : null
                 }
                 onChange={(date) => {
@@ -1054,12 +1046,11 @@ export default function UserPage() {
                           aria-disabled={isAssigned}
                           className={`
                             px-4 py-3 rounded-lg border transition-all duration-200 cursor-pointer
-                            ${
-                              isAssigned
-                                ? "bg-default-100/50 dark:bg-default-50/50 border-default-200/50 dark:border-default-100/20 opacity-60 cursor-not-allowed"
-                                : isSelected
-                                  ? "bg-primary-50 dark:bg-primary-900/20 border-primary-300 dark:border-primary-500/50 shadow-sm"
-                                  : "bg-white dark:bg-default-50 border-default-200 dark:border-default-100/30 hover:border-primary-200 dark:hover:border-primary-500/30 hover:shadow-sm"
+                            ${isAssigned
+                              ? "bg-default-100/50 dark:bg-default-50/50 border-default-200/50 dark:border-default-100/20 opacity-60 cursor-not-allowed"
+                              : isSelected
+                                ? "bg-primary-50 dark:bg-primary-900/20 border-primary-300 dark:border-primary-500/50 shadow-sm"
+                                : "bg-white dark:bg-default-50 border-default-200 dark:border-default-100/30 hover:border-primary-200 dark:hover:border-primary-500/30 hover:shadow-sm"
                             }
                           `}
                           role="button"
@@ -1119,13 +1110,13 @@ export default function UserPage() {
                                   selectedKeys={
                                     batchTunnelSelections.get(tunnel.id) !==
                                       null &&
-                                    batchTunnelSelections.get(tunnel.id) !==
+                                      batchTunnelSelections.get(tunnel.id) !==
                                       undefined
                                       ? [
-                                          batchTunnelSelections
-                                            .get(tunnel.id)!
-                                            .toString(),
-                                        ]
+                                        batchTunnelSelections
+                                          .get(tunnel.id)!
+                                          .toString(),
+                                      ]
                                       : ["null"]
                                   }
                                   size="sm"
@@ -1385,9 +1376,9 @@ export default function UserPage() {
                       setEditTunnelForm((prev) =>
                         prev
                           ? {
-                              ...prev,
-                              speedId: value === "null" ? null : Number(value),
-                            }
+                            ...prev,
+                            speedId: value === "null" ? null : Number(value),
+                          }
                           : null,
                       );
                     }}
@@ -1442,10 +1433,10 @@ export default function UserPage() {
                     value={
                       editTunnelForm.expTime
                         ? (parseDate(
-                            new Date(editTunnelForm.expTime)
-                              .toISOString()
-                              .split("T")[0],
-                          ) as any)
+                          new Date(editTunnelForm.expTime)
+                            .toISOString()
+                            .split("T")[0],
+                        ) as any)
                         : null
                     }
                     onChange={(date) => {

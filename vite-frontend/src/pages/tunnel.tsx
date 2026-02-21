@@ -1014,34 +1014,14 @@ export default function TunnelPage() {
         </DndContext>
       ) : (
         /* 空状态 */
-        <Card className="shadow-sm border border-gray-200 dark:border-gray-700">
-          <CardBody className="text-center py-16">
-            <div className="flex flex-col items-center gap-4">
-              <div className="w-16 h-16 bg-default-100 rounded-full flex items-center justify-center">
-                <svg
-                  aria-hidden="true"
-                  className="w-8 h-8 text-default-400"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    d="M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01m-7.08-7.071c3.904-3.905 10.236-3.905 14.141 0M1.394 9.393c5.857-5.857 15.355-5.857 21.213 0"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={1.5}
-                  />
-                </svg>
-              </div>
-              <div>
-                <h3 className="text-lg font-semibold text-foreground">
-                  暂无隧道配置
-                </h3>
-                <p className="text-default-500 text-sm mt-1">
-                  还没有创建任何隧道配置，点击上方按钮开始创建
-                </p>
-              </div>
-            </div>
+        <Card className="shadow-sm border border-gray-200 dark:border-gray-700 bg-default-50/50">
+          <CardBody className="text-center py-20 flex flex-col items-center justify-center min-h-[240px]">
+            <h3 className="text-xl font-medium text-foreground tracking-tight mb-2">
+              暂无隧道配置
+            </h3>
+            <p className="text-default-500 text-sm max-w-xs mx-auto leading-relaxed">
+              还没有创建任何隧道配置，点击上方按钮开始创建
+            </p>
           </CardBody>
         </Card>
       )}

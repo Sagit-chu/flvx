@@ -268,3 +268,6 @@ sql/
 !go-backend/internal/store/postgres/sql/
 !go-backend/internal/store/postgres/sql/schema.sql
 !go-backend/internal/store/postgres/sql/data.sql
+go-backend/gost.db-shm
+.gitignore
+go-backend/gost.db-wal
