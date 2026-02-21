@@ -34,6 +34,9 @@ type Handler struct {
 	jobsCancel  context.CancelFunc
 	jobsStarted bool
 	jobsWG      sync.WaitGroup
+
+	upgradeMu              sync.Mutex
+	pendingUpgradeRedeploy map[int64]struct{}
 }
 
 type loginRequest struct {
@@ -70,12 +73,15 @@ type flowItem struct {
 }
 
 func New(repo *repo.Repository, jwtSecret string) *Handler {
-	return &Handler{
-		repo:          repo,
-		jwtSecret:     jwtSecret,
-		wsServer:      ws.NewServer(repo, jwtSecret),
-		captchaTokens: make(map[string]int64),
+	h := &Handler{
+		repo:                   repo,
+		jwtSecret:              jwtSecret,
+		wsServer:               ws.NewServer(repo, jwtSecret),
+		captchaTokens:          make(map[string]int64),
+		pendingUpgradeRedeploy: make(map[int64]struct{}),
 	}
+	h.wsServer.SetNodeOnlineHook(h.onNodeOnline)
+	return h
 }
 
 func (h *Handler) WebSocketHandler() http.Handler {

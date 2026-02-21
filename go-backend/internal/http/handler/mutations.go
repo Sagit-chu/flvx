@@ -918,6 +918,58 @@ func (h *Handler) reconstructTunnelState(tunnelID int64) (*tunnelCreateState, er
 	return state, nil
 }
 
+func (h *Handler) redeployTunnelAndForwards(tunnelID int64) error {
+	tunnel, err := h.getTunnelRecord(tunnelID)
+	if err != nil {
+		return err
+	}
+
+	if tunnel.Type == 2 {
+		h.cleanupTunnelRuntime(tunnelID)
+		h.cleanupFederationRuntime(tunnelID)
+		state, err := h.reconstructTunnelState(tunnelID)
+		if err != nil {
+			return err
+		}
+		federationBindings, federationReleaseRefs, fedErr := h.applyFederationRuntime(state, h.federationLocalDomain())
+		if fedErr != nil {
+			return fedErr
+		}
+		tx := h.repo.BeginTx()
+		if tx.Error != nil {
+			h.releaseFederationRuntimeRefs(federationReleaseRefs)
+			return tx.Error
+		}
+		if replaceErr := h.repo.ReplaceFederationTunnelBindingsTx(tx, tunnelID, federationBindings); replaceErr != nil {
+			tx.Rollback()
+			h.releaseFederationRuntimeRefs(federationReleaseRefs)
+			return replaceErr
+		}
+		if commitErr := tx.Commit().Error; commitErr != nil {
+			h.releaseFederationRuntimeRefs(federationReleaseRefs)
+			return commitErr
+		}
+		_, _, applyErr := h.applyTunnelRuntime(state)
+		if applyErr != nil {
+			h.releaseFederationRuntimeRefs(federationReleaseRefs)
+			_ = h.repo.DeleteFederationTunnelBindingsByTunnel(tunnelID)
+			return applyErr
+		}
+	}
+
+	forwards, err := h.listForwardsByTunnel(tunnelID)
+	if err != nil {
+		return err
+	}
+	for i := range forwards {
+		if err := h.syncForwardServices(&forwards[i], "UpdateService", true); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 func (h *Handler) tunnelBatchRedeploy(w http.ResponseWriter, r *http.Request) {
 	ids := idsFromBody(r, w)
 	if ids == nil {
@@ -926,72 +978,11 @@ func (h *Handler) tunnelBatchRedeploy(w http.ResponseWriter, r *http.Request) {
 	success := 0
 	fail := 0
 	for _, tunnelID := range ids {
-		tunnel, err := h.getTunnelRecord(tunnelID)
-		if err != nil {
+		if err := h.redeployTunnelAndForwards(tunnelID); err != nil {
 			fail++
 			continue
 		}
-
-		if tunnel.Type == 2 {
-			h.cleanupTunnelRuntime(tunnelID)
-			h.cleanupFederationRuntime(tunnelID)
-			state, err := h.reconstructTunnelState(tunnelID)
-			if err != nil {
-				fail++
-				continue
-			}
-			federationBindings, federationReleaseRefs, fedErr := h.applyFederationRuntime(state, h.federationLocalDomain())
-			if fedErr != nil {
-				fail++
-				continue
-			}
-			tx := h.repo.BeginTx()
-			if tx.Error != nil {
-				h.releaseFederationRuntimeRefs(federationReleaseRefs)
-				fail++
-				continue
-			}
-			if replaceErr := h.repo.ReplaceFederationTunnelBindingsTx(tx, tunnelID, federationBindings); replaceErr != nil {
-				tx.Rollback()
-				h.releaseFederationRuntimeRefs(federationReleaseRefs)
-				fail++
-				continue
-			}
-			if commitErr := tx.Commit().Error; commitErr != nil {
-				h.releaseFederationRuntimeRefs(federationReleaseRefs)
-				fail++
-				continue
-			}
-			_, _, applyErr := h.applyTunnelRuntime(state)
-			if applyErr != nil {
-				h.releaseFederationRuntimeRefs(federationReleaseRefs)
-				_ = h.repo.DeleteFederationTunnelBindingsByTunnel(tunnelID)
-				fail++
-				continue
-			}
-		}
-
-		forwards, err := h.listForwardsByTunnel(tunnelID)
-		if err != nil {
-			fail++
-			continue
-		}
-		if len(forwards) == 0 {
-			success++
-			continue
-		}
-		ok := true
-		for i := range forwards {
-			if err := h.syncForwardServices(&forwards[i], "UpdateService", true); err != nil {
-				ok = false
-				break
-			}
-		}
-		if ok {
-			success++
-		} else {
-			fail++
-		}
+		success++
 	}
 	response.WriteJSON(w, response.OK(map[string]interface{}{"successCount": success, "failCount": fail}))
 }

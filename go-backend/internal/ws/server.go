@@ -68,15 +68,25 @@ type CommandResult struct {
 }
 
 type Server struct {
-	repo      *repo.Repository
-	jwtSecret string
-	upgrader  websocket.Upgrader
+	repo         *repo.Repository
+	jwtSecret    string
+	upgrader     websocket.Upgrader
+	onNodeOnline func(nodeID int64)
 
 	mu      sync.RWMutex
 	admins  map[*connWrap]struct{}
 	nodes   map[int64]*nodeSession
 	byConn  map[*websocket.Conn]*nodeSession
 	pending map[string]pendingRequest
+}
+
+func (s *Server) SetNodeOnlineHook(fn func(nodeID int64)) {
+	if s == nil {
+		return
+	}
+	s.mu.Lock()
+	s.onNodeOnline = fn
+	s.mu.Unlock()
 }
 
 func NewServer(repo *repo.Repository, jwtSecret string) *Server {
@@ -182,6 +192,13 @@ func (s *Server) handleNode(w http.ResponseWriter, r *http.Request, nodeID int64
 
 	_ = s.repo.UpdateNodeOnline(nodeID, 1, version, httpVal, tlsVal, socksVal)
 	s.broadcastStatus(nodeID, 1)
+
+	s.mu.RLock()
+	onlineHook := s.onNodeOnline
+	s.mu.RUnlock()
+	if onlineHook != nil {
+		go onlineHook(nodeID)
+	}
 
 	defer func() {
 		close(done)
