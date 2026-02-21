@@ -355,11 +355,28 @@ func (h *Handler) nodeInstall(w http.ResponseWriter, r *http.Request) {
 		response.WriteJSON(w, response.ErrDefault("请求失败"))
 		return
 	}
-	id := idFromBody(r, w)
-	if id <= 0 {
+
+	var req struct {
+		ID      int64  `json:"id"`
+		Channel string `json:"channel"`
+	}
+	if err := decodeJSON(r.Body, &req); err != nil {
+		response.WriteJSON(w, response.ErrDefault("请求参数错误"))
 		return
 	}
-	secret, err := h.repo.GetNodeSecret(id)
+	if req.ID <= 0 {
+		response.WriteJSON(w, response.ErrDefault("参数错误"))
+		return
+	}
+
+	channel := normalizeReleaseChannel(req.Channel)
+	version, err := resolveLatestReleaseByChannel(channel)
+	if err != nil {
+		response.WriteJSON(w, response.Err(-2, fmt.Sprintf("获取最新%s失败: %v", releaseChannelLabel(channel), err)))
+		return
+	}
+
+	secret, err := h.repo.GetNodeSecret(req.ID)
 	if err != nil {
 		response.WriteJSON(w, response.ErrDefault("节点不存在"))
 		return
@@ -373,7 +390,7 @@ func (h *Handler) nodeInstall(w http.ResponseWriter, r *http.Request) {
 		response.WriteJSON(w, response.Err(-2, err.Error()))
 		return
 	}
-	cmd := fmt.Sprintf("curl -L https://gcode.hostcentral.cc/https://github.com/Sagit-chu/flvx/releases/latest/download/install.sh -o ./install.sh && chmod +x ./install.sh && ./install.sh -a %s -s %s", processServerAddress(panelAddr), secret)
+	cmd := fmt.Sprintf("curl -L https://gcode.hostcentral.cc/https://github.com/Sagit-chu/flvx/releases/download/%s/install.sh -o ./install.sh && chmod +x ./install.sh && VERSION=%s ./install.sh -a %s -s %s", version, version, processServerAddress(panelAddr), secret)
 	response.WriteJSON(w, response.OK(cmd))
 }
 

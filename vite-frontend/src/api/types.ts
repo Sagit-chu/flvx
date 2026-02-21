@@ -172,6 +172,7 @@ export interface NodeReleaseApiItem {
   name: string;
   publishedAt: string;
   prerelease: boolean;
+  channel: "stable" | "dev";
 }
 
 export interface UserPackageInfoApiData {

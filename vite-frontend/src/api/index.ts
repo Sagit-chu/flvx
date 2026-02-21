@@ -31,6 +31,8 @@ import axios from "axios";
 
 import Network from "./network";
 
+export type ReleaseChannel = "stable" | "dev";
+
 // 登陆相关接口
 export interface LoginData {
   username: string;
@@ -66,8 +68,10 @@ export const getNodeList = () => Network.post<NodeApiItem[]>("/node/list");
 export const updateNode = (data: NodeMutationPayload) =>
   Network.post("/node/update", data);
 export const deleteNode = (id: number) => Network.post("/node/delete", { id });
-export const getNodeInstallCommand = (id: number) =>
-  Network.post<string>("/node/install", { id });
+export const getNodeInstallCommand = (
+  id: number,
+  channel: ReleaseChannel = "stable",
+) => Network.post<string>("/node/install", { id, channel });
 export const updateNodeOrder = (data: {
   nodes: Array<{ id: number; inx: number }>;
 }) => Network.post("/node/update-order", data);
@@ -77,20 +81,28 @@ export const checkNodeStatus = (nodeId?: number) => {
   return Network.post("/node/check-status", params);
 };
 
-export const upgradeNode = (id: number, version?: string) =>
+export const upgradeNode = (
+  id: number,
+  version?: string,
+  channel: ReleaseChannel = "stable",
+) =>
   Network.post(
     "/node/upgrade",
-    { id, version: version || "" },
+    { id, version: version || "", channel },
     { timeout: 5 * 60 * 1000 },
   );
-export const batchUpgradeNodes = (ids: number[], version?: string) =>
+export const batchUpgradeNodes = (
+  ids: number[],
+  version?: string,
+  channel: ReleaseChannel = "stable",
+) =>
   Network.post(
     "/node/batch-upgrade",
-    { ids, version: version || "" },
+    { ids, version: version || "", channel },
     { timeout: 15 * 60 * 1000 },
   );
-export const getNodeReleases = () =>
-  Network.post<NodeReleaseApiItem[]>("/node/releases");
+export const getNodeReleases = (channel: ReleaseChannel = "stable") =>
+  Network.post<NodeReleaseApiItem[]>("/node/releases", { channel });
 export const rollbackNode = (id: number) =>
   Network.post("/node/rollback", { id });
 
