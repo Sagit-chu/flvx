@@ -1,4 +1,7 @@
 import type { AnnouncementData } from "@/api";
+import ReactMarkdown from "react-markdown";
+import rehypeSanitize from "rehype-sanitize";
+import remarkGfm from "remark-gfm";
 
 import { Card, CardBody } from "@/shadcn-bridge/heroui/card";
 
@@ -35,9 +38,48 @@ export const AnnouncementBanner = ({
             <h3 className="text-base font-semibold leading-none text-blue-900 dark:text-blue-100 mb-1.5">
               公告
             </h3>
-            <p className="text-sm text-blue-800 dark:text-blue-200 whitespace-pre-wrap break-words leading-relaxed">
-              {announcement.content}
-            </p>
+            <div className="text-sm text-blue-800 dark:text-blue-200 break-words leading-relaxed">
+              <ReactMarkdown
+                rehypePlugins={[rehypeSanitize]}
+                remarkPlugins={[remarkGfm]}
+                components={{
+                  p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
+                  a: ({ children, href }) => (
+                    <a
+                      className="underline decoration-blue-500/70 underline-offset-2 hover:text-blue-700 dark:hover:text-blue-100"
+                      href={href}
+                      rel="noopener noreferrer"
+                      target="_blank"
+                    >
+                      {children}
+                    </a>
+                  ),
+                  ul: ({ children }) => (
+                    <ul className="list-disc pl-5 space-y-1 mb-2 last:mb-0">{children}</ul>
+                  ),
+                  ol: ({ children }) => (
+                    <ol className="list-decimal pl-5 space-y-1 mb-2 last:mb-0">{children}</ol>
+                  ),
+                  code: ({ children }) => (
+                    <code className="rounded bg-blue-100/80 dark:bg-blue-900/40 px-1 py-0.5 text-[0.92em]">
+                      {children}
+                    </code>
+                  ),
+                  pre: ({ children }) => (
+                    <pre className="mb-2 overflow-x-auto rounded-md bg-blue-100/70 dark:bg-blue-900/40 p-2.5 text-xs leading-relaxed">
+                      {children}
+                    </pre>
+                  ),
+                  blockquote: ({ children }) => (
+                    <blockquote className="mb-2 border-l-2 border-blue-300/80 dark:border-blue-500/60 pl-3 italic">
+                      {children}
+                    </blockquote>
+                  ),
+                }}
+              >
+                {announcement.content}
+              </ReactMarkdown>
+            </div>
           </div>
         </div>
       </CardBody>

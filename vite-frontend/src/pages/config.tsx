@@ -700,13 +700,16 @@ export default function ConfigPage() {
               <Textarea
                 label="公告内容"
                 minRows={4}
-                placeholder="请输入公告内容"
+                placeholder="支持 Markdown，例如：**加粗**、[链接](https://example.com)、- 列表"
                 value={announcement.content}
                 variant="bordered"
                 onChange={(e) =>
                   setAnnouncement({ ...announcement, content: e.target.value })
                 }
               />
+              <p className="text-xs text-gray-500 dark:text-gray-400">
+                公告支持 Markdown 语法，链接会在新标签页打开
+              </p>
 
               <div className="flex justify-end">
                 <Button
