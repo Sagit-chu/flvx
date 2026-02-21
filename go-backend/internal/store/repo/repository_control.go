@@ -56,6 +56,40 @@ func (r *Repository) ListForwardsByTunnel(tunnelID int64) ([]model.ForwardRecord
 	return rows, nil
 }
 
+func (r *Repository) ListActiveTunnelIDsByNode(nodeID int64) ([]int64, error) {
+	if r == nil || r.db == nil {
+		return nil, errors.New("repository not initialized")
+	}
+	var ids []int64
+	err := r.db.Model(&model.ChainTunnel{}).
+		Joins("JOIN tunnel ON tunnel.id = chain_tunnel.tunnel_id").
+		Where("chain_tunnel.node_id = ? AND tunnel.status = 1", nodeID).
+		Select("DISTINCT chain_tunnel.tunnel_id").
+		Order("chain_tunnel.tunnel_id ASC").
+		Pluck("chain_tunnel.tunnel_id", &ids).Error
+	if err != nil {
+		return nil, err
+	}
+	return ids, nil
+}
+
+func (r *Repository) ListActiveForwardIDsByNode(nodeID int64) ([]int64, error) {
+	if r == nil || r.db == nil {
+		return nil, errors.New("repository not initialized")
+	}
+	var ids []int64
+	err := r.db.Model(&model.ForwardPort{}).
+		Joins("JOIN forward ON forward.id = forward_port.forward_id").
+		Where("forward_port.node_id = ? AND forward.status = 1", nodeID).
+		Select("DISTINCT forward_port.forward_id").
+		Order("forward_port.forward_id ASC").
+		Pluck("forward_port.forward_id", &ids).Error
+	if err != nil {
+		return nil, err
+	}
+	return ids, nil
+}
+
 func (r *Repository) ListForwardPorts(forwardID int64) ([]model.ForwardPortRecord, error) {
 	if r == nil || r.db == nil {
 		return nil, errors.New("repository not initialized")

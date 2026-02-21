@@ -166,6 +166,7 @@ func (h *Handler) nodeUpgrade(w http.ResponseWriter, r *http.Request) {
 		response.WriteJSON(w, response.Err(-2, fmt.Sprintf("升级失败: %v", err)))
 		return
 	}
+	h.markNodePendingUpgradeRedeploy(req.ID)
 
 	response.WriteJSON(w, response.OK(map[string]interface{}{
 		"version": version,
@@ -246,6 +247,7 @@ func (h *Handler) nodeBatchUpgrade(w http.ResponseWriter, r *http.Request) {
 				results[index] = upgradeResult{ID: nodeID, Success: false, Message: err.Error()}
 				return
 			}
+			h.markNodePendingUpgradeRedeploy(nodeID)
 			results[index] = upgradeResult{ID: nodeID, Success: true, Message: result.Message}
 		}(i, id)
 	}
@@ -339,4 +341,67 @@ func (h *Handler) nodeRollback(w http.ResponseWriter, r *http.Request) {
 	response.WriteJSON(w, response.OK(map[string]interface{}{
 		"message": result.Message,
 	}))
+}
+
+func (h *Handler) markNodePendingUpgradeRedeploy(nodeID int64) {
+	if h == nil || nodeID <= 0 {
+		return
+	}
+	h.upgradeMu.Lock()
+	h.pendingUpgradeRedeploy[nodeID] = struct{}{}
+	h.upgradeMu.Unlock()
+}
+
+func (h *Handler) consumeNodePendingUpgradeRedeploy(nodeID int64) bool {
+	if h == nil || nodeID <= 0 {
+		return false
+	}
+	h.upgradeMu.Lock()
+	_, ok := h.pendingUpgradeRedeploy[nodeID]
+	if ok {
+		delete(h.pendingUpgradeRedeploy, nodeID)
+	}
+	h.upgradeMu.Unlock()
+	return ok
+}
+
+func (h *Handler) onNodeOnline(nodeID int64) {
+	if !h.consumeNodePendingUpgradeRedeploy(nodeID) {
+		return
+	}
+	h.redeployNodeRuntimeAfterUpgrade(nodeID)
+}
+
+func (h *Handler) redeployNodeRuntimeAfterUpgrade(nodeID int64) {
+	tunnelIDs, err := h.repo.ListActiveTunnelIDsByNode(nodeID)
+	if err != nil {
+		fmt.Printf("post-upgrade redeploy: list tunnels for node %d failed: %v\n", nodeID, err)
+		return
+	}
+	forwardIDs, err := h.repo.ListActiveForwardIDsByNode(nodeID)
+	if err != nil {
+		fmt.Printf("post-upgrade redeploy: list forwards for node %d failed: %v\n", nodeID, err)
+		return
+	}
+
+	tunnelFailed := make(map[int64]struct{})
+	for _, tunnelID := range tunnelIDs {
+		if err := h.redeployTunnelAndForwards(tunnelID); err != nil {
+			tunnelFailed[tunnelID] = struct{}{}
+			fmt.Printf("post-upgrade redeploy: tunnel %d failed on node %d: %v\n", tunnelID, nodeID, err)
+		}
+	}
+
+	for _, forwardID := range forwardIDs {
+		forward, getErr := h.getForwardRecord(forwardID)
+		if getErr != nil || forward == nil {
+			continue
+		}
+		if _, skipped := tunnelFailed[forward.TunnelID]; skipped {
+			continue
+		}
+		if err := h.syncForwardServices(forward, "UpdateService", true); err != nil {
+			fmt.Printf("post-upgrade redeploy: forward %d failed on node %d: %v\n", forwardID, nodeID, err)
+		}
+	}
 }
