@@ -2,6 +2,14 @@
 @import "tw-animate-css";
 @import "./tailwind-theme.pcss";
 
+/* GPU acceleration helper - prevents font blurriness during transforms */
+.gpu-accelerated {
+  will-change: transform;
+  backface-visibility: hidden;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
 :root {
   --safe-area-top: env(safe-area-inset-top, 0px);
   --safe-area-bottom: env(safe-area-inset-bottom, 0px);
@@ -181,12 +189,12 @@ body {
 @keyframes captchaModalIn {
   from {
     opacity: 0;
-    transform: scale(0.9) translateY(-20px);
+    transform: translateY(-20px);
   }
 
   to {
     opacity: 1;
-    transform: scale(1) translateY(0);
+    transform: translateY(0);
   }
 }
 

@@ -29,8 +29,8 @@ export function SearchBar({
                     <motion.div
                         key="search-btn"
                         animate={{ opacity: 1, scale: 1 }}
-                        exit={{ opacity: 0, scale: 0.8 }}
-                        initial={{ opacity: 0, scale: 0.8 }}
+                        exit={{ opacity: 0 }}
+                        initial={{ opacity: 0 }}
                         transition={{ duration: 0.12 }}
                     >
                         <Button

@@ -346,7 +346,6 @@ export default function AdminLayout({
                       }
                      `}
                     transition={{ duration: 0.15 }}
-                    whileTap={{ scale: 0.97 }}
                     onClick={() => handleMenuClick(item.path)}
                   >
                     {isActive && (

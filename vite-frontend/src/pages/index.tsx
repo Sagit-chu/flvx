@@ -154,9 +154,9 @@ export default function IndexPage() {
     <DefaultLayout>
       <section className="flex flex-col items-center justify-center gap-4 py-4 sm:py-8 md:py-10 pb-20 min-h-[calc(100dvh-120px)] sm:min-h-[calc(100dvh-200px)]">
         <motion.div
-          animate={{ opacity: 1, y: 0, scale: 1 }}
+          animate={{ opacity: 1, y: 0 }}
           className="w-full max-w-md px-4 sm:px-0"
-          initial={{ opacity: 0, y: 24, scale: 0.97 }}
+          initial={{ opacity: 0, y: 24 }}
           transition={{ duration: 0.35, ease: [0.25, 0.46, 0.45, 0.94] }}
         >
           <Card className="w-full">
