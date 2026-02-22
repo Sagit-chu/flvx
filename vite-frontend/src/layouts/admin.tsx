@@ -340,10 +340,11 @@ export default function AdminLayout({
                     className={`
                        w-full flex items-center gap-3 px-4 py-3 rounded-lg text-left
                        relative min-h-[44px]
-                       ${isActive
-                        ? "text-primary-600 dark:text-primary-300"
-                        : "text-gray-700 dark:text-gray-200"
-                      }
+                       ${
+                         isActive
+                           ? "text-primary-600 dark:text-primary-300"
+                           : "text-gray-700 dark:text-gray-200"
+                       }
                      `}
                     transition={{ duration: 0.15 }}
                     onClick={() => handleMenuClick(item.path)}
@@ -352,7 +353,11 @@ export default function AdminLayout({
                       <motion.div
                         className="absolute inset-0 rounded-lg bg-primary-100 dark:bg-primary-600/20"
                         layoutId="sidebar-active"
-                        transition={{ type: "spring", stiffness: 380, damping: 30 }}
+                        transition={{
+                          type: "spring",
+                          stiffness: 380,
+                          damping: 30,
+                        }}
                       />
                     )}
                     {!isActive && (
@@ -362,8 +367,12 @@ export default function AdminLayout({
                         whileHover={{ opacity: 1 }}
                       />
                     )}
-                    <div className="flex-shrink-0 relative z-10">{item.icon}</div>
-                    <span className="font-medium text-sm relative z-10">{item.label}</span>
+                    <div className="flex-shrink-0 relative z-10">
+                      {item.icon}
+                    </div>
+                    <span className="font-medium text-sm relative z-10">
+                      {item.label}
+                    </span>
                   </motion.button>
                 </li>
               );

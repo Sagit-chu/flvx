@@ -259,9 +259,9 @@ export default function IndexPage() {
                     theme: (document.documentElement.classList.contains(
                       "dark",
                     ) ||
-                      document.documentElement.getAttribute("data-theme") ===
+                    document.documentElement.getAttribute("data-theme") ===
                       "dark" ||
-                      window.matchMedia("(prefers-color-scheme: dark)").matches
+                    window.matchMedia("(prefers-color-scheme: dark)").matches
                       ? "dark"
                       : "light") as "light" | "dark" | "auto",
                   }}

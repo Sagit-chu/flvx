@@ -1,8 +1,12 @@
 import { useState, useEffect } from "react";
 import toast from "react-hot-toast";
-import { AnimatedPage, StaggerList, StaggerItem } from "@/components/animated-page";
 import { parseDate } from "@internationalized/date";
 
+import {
+  AnimatedPage,
+  StaggerList,
+  StaggerItem,
+} from "@/components/animated-page";
 import { Button } from "@/shadcn-bridge/heroui/button";
 import { Card, CardBody, CardHeader } from "@/shadcn-bridge/heroui/card";
 import { Input } from "@/shadcn-bridge/heroui/input";
@@ -248,7 +252,7 @@ export default function UserPage() {
       if (response.code === 0) {
         setTunnels(Array.isArray(response.data) ? response.data : []);
       }
-    } catch { }
+    } catch {}
   };
 
   const loadSpeedLimits = async () => {
@@ -258,15 +262,15 @@ export default function UserPage() {
       if (response.code === 0) {
         const speedLimitList = Array.isArray(response.data)
           ? response.data.map((item) => ({
-            ...item,
-            uploadSpeed: item.uploadSpeed ?? item.speed ?? 0,
-            downloadSpeed: item.downloadSpeed ?? item.speed ?? 0,
-          }))
+              ...item,
+              uploadSpeed: item.uploadSpeed ?? item.speed ?? 0,
+              downloadSpeed: item.downloadSpeed ?? item.speed ?? 0,
+            }))
           : [];
 
         setSpeedLimits(speedLimitList);
       }
-    } catch { }
+    } catch {}
   };
 
   const loadUserGroups = async () => {
@@ -276,7 +280,7 @@ export default function UserPage() {
       if (response.code === 0) {
         setUserGroups(Array.isArray(response.data) ? response.data : []);
       }
-    } catch { }
+    } catch {}
   };
 
   const loadUserTunnels = async (userId: number) => {
@@ -327,7 +331,7 @@ export default function UserPage() {
       if (groupRes.code === 0) {
         currentGroupIds = groupRes.data || [];
       }
-    } catch { }
+    } catch {}
 
     setUserForm({
       id: user.id,
@@ -703,16 +707,14 @@ export default function UserPage() {
             const flowPercent =
               user.flow > 0
                 ? Math.min(
-                  (usedFlow / (user.flow * 1024 * 1024 * 1024)) * 100,
-                  100,
-                )
+                    (usedFlow / (user.flow * 1024 * 1024 * 1024)) * 100,
+                    100,
+                  )
                 : 0;
 
             return (
               <StaggerItem key={user.id}>
-                <Card
-                  className="shadow-sm border border-divider hover:shadow-md transition-shadow duration-200 overflow-hidden h-full"
-                >
+                <Card className="shadow-sm border border-divider hover:shadow-md transition-shadow duration-200 overflow-hidden h-full">
                   <CardHeader className="pb-2 md:pb-2">
                     <div className="flex justify-between items-start w-full">
                       <div className="flex-1 min-w-0">
@@ -771,7 +773,9 @@ export default function UserPage() {
                       <div className="space-y-1.5 pt-2 border-t border-divider">
                         <div className="flex justify-between text-sm">
                           <span className="text-default-600">转发数量</span>
-                          <span className="font-medium text-xs">{user.num}</span>
+                          <span className="font-medium text-xs">
+                            {user.num}
+                          </span>
                         </div>
                         <div className="flex justify-between text-sm">
                           <span className="text-default-600">重置日期</span>
@@ -876,7 +880,7 @@ export default function UserPage() {
       )}
 
       {/* 用户表单模态框 */}
-      < Modal
+      <Modal
         backdrop="blur"
         isOpen={isUserModalOpen}
         placement="center"
@@ -971,8 +975,8 @@ export default function UserPage() {
                 value={
                   userForm.expTime
                     ? (parseDate(
-                      userForm.expTime.toISOString().split("T")[0],
-                    ) as any)
+                        userForm.expTime.toISOString().split("T")[0],
+                      ) as any)
                     : null
                 }
                 onChange={(date) => {
@@ -1078,11 +1082,12 @@ export default function UserPage() {
                           aria-disabled={isAssigned}
                           className={`
                             px-4 py-3 rounded-lg border transition-all duration-200 cursor-pointer
-                            ${isAssigned
-                              ? "bg-default-100/50 dark:bg-default-50/50 border-default-200/50 dark:border-default-100/20 opacity-60 cursor-not-allowed"
-                              : isSelected
-                                ? "bg-primary-50 dark:bg-primary-900/20 border-primary-300 dark:border-primary-500/50 shadow-sm"
-                                : "bg-white dark:bg-default-50 border-default-200 dark:border-default-100/30 hover:border-primary-200 dark:hover:border-primary-500/30 hover:shadow-sm"
+                            ${
+                              isAssigned
+                                ? "bg-default-100/50 dark:bg-default-50/50 border-default-200/50 dark:border-default-100/20 opacity-60 cursor-not-allowed"
+                                : isSelected
+                                  ? "bg-primary-50 dark:bg-primary-900/20 border-primary-300 dark:border-primary-500/50 shadow-sm"
+                                  : "bg-white dark:bg-default-50 border-default-200 dark:border-default-100/30 hover:border-primary-200 dark:hover:border-primary-500/30 hover:shadow-sm"
                             }
                           `}
                           role="button"
@@ -1142,13 +1147,13 @@ export default function UserPage() {
                                   selectedKeys={
                                     batchTunnelSelections.get(tunnel.id) !==
                                       null &&
-                                      batchTunnelSelections.get(tunnel.id) !==
+                                    batchTunnelSelections.get(tunnel.id) !==
                                       undefined
                                       ? [
-                                        batchTunnelSelections
-                                          .get(tunnel.id)!
-                                          .toString(),
-                                      ]
+                                          batchTunnelSelections
+                                            .get(tunnel.id)!
+                                            .toString(),
+                                        ]
                                       : ["null"]
                                   }
                                   size="sm"
@@ -1408,9 +1413,9 @@ export default function UserPage() {
                       setEditTunnelForm((prev) =>
                         prev
                           ? {
-                            ...prev,
-                            speedId: value === "null" ? null : Number(value),
-                          }
+                              ...prev,
+                              speedId: value === "null" ? null : Number(value),
+                            }
                           : null,
                       );
                     }}
@@ -1465,10 +1470,10 @@ export default function UserPage() {
                     value={
                       editTunnelForm.expTime
                         ? (parseDate(
-                          new Date(editTunnelForm.expTime)
-                            .toISOString()
-                            .split("T")[0],
-                        ) as any)
+                            new Date(editTunnelForm.expTime)
+                              .toISOString()
+                              .split("T")[0],
+                          ) as any)
                         : null
                     }
                     onChange={(date) => {

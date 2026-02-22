@@ -1,7 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import toast from "react-hot-toast";
-import { AnimatedPage } from "@/components/animated-page";
-import { SearchBar } from "@/components/search-bar";
 import {
   DndContext,
   KeyboardSensor,
@@ -20,6 +18,8 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 
+import { SearchBar } from "@/components/search-bar";
+import { AnimatedPage } from "@/components/animated-page";
 import { Card, CardBody, CardHeader } from "@/shadcn-bridge/heroui/card";
 import { Button } from "@/shadcn-bridge/heroui/button";
 import { Input } from "@/shadcn-bridge/heroui/input";
@@ -828,23 +828,23 @@ export default function NodePage() {
             prev.map((n) =>
               n.id === form.id
                 ? {
-                  ...n,
-                  name: form.name,
-                  serverIp:
-                    form.serverIpV4?.trim() ||
-                    form.serverIpV6?.trim() ||
-                    form.serverHost?.trim() ||
-                    "",
-                  serverIpV4: form.serverIpV4,
-                  serverIpV6: form.serverIpV6,
-                  port: form.port,
-                  tcpListenAddr: form.tcpListenAddr,
-                  udpListenAddr: form.udpListenAddr,
-                  interfaceName: form.interfaceName,
-                  http: form.http,
-                  tls: form.tls,
-                  socks: form.socks,
-                }
+                    ...n,
+                    name: form.name,
+                    serverIp:
+                      form.serverIpV4?.trim() ||
+                      form.serverIpV6?.trim() ||
+                      form.serverHost?.trim() ||
+                      "",
+                    serverIpV4: form.serverIpV4,
+                    serverIpV6: form.serverIpV6,
+                    port: form.port,
+                    tcpListenAddr: form.tcpListenAddr,
+                    udpListenAddr: form.udpListenAddr,
+                    interfaceName: form.interfaceName,
+                    http: form.http,
+                    tls: form.tls,
+                    socks: form.socks,
+                  }
                 : n,
             ),
           );
@@ -1005,11 +1005,13 @@ export default function NodePage() {
 
     if (searchKeyword.trim()) {
       const lowerKeyword = searchKeyword.toLowerCase();
-      filteredNodes = filteredNodes.filter(n =>
-        (n.name && n.name.toLowerCase().includes(lowerKeyword)) ||
-        (n.serverIp && n.serverIp.toLowerCase().includes(lowerKeyword)) ||
-        (n.serverIpV4 && n.serverIpV4.toLowerCase().includes(lowerKeyword)) ||
-        (n.serverIpV6 && n.serverIpV6.toLowerCase().includes(lowerKeyword))
+
+      filteredNodes = filteredNodes.filter(
+        (n) =>
+          (n.name && n.name.toLowerCase().includes(lowerKeyword)) ||
+          (n.serverIp && n.serverIp.toLowerCase().includes(lowerKeyword)) ||
+          (n.serverIpV4 && n.serverIpV4.toLowerCase().includes(lowerKeyword)) ||
+          (n.serverIpV6 && n.serverIpV6.toLowerCase().includes(lowerKeyword)),
       );
     }
 
@@ -1235,7 +1237,7 @@ export default function NodePage() {
                               </span>
                               <div className="text-right text-xs min-w-0 flex-1 ml-2 min-h-[2.125rem]">
                                 {node.serverIpV4?.trim() ||
-                                  node.serverIpV6?.trim() ? (
+                                node.serverIpV6?.trim() ? (
                                   <div className="space-y-0.5">
                                     {node.serverIpV4?.trim() && (
                                       <span
@@ -1291,7 +1293,7 @@ export default function NodePage() {
                                   </span>
                                   <span className="text-xs">
                                     {node.connectionStatus === "online" &&
-                                      node.systemInfo
+                                    node.systemInfo
                                       ? formatUptime(node.systemInfo.uptime)
                                       : "-"}
                                   </span>
@@ -1310,7 +1312,7 @@ export default function NodePage() {
                                       <span>CPU</span>
                                       <span className="font-mono">
                                         {node.connectionStatus === "online" &&
-                                          node.systemInfo
+                                        node.systemInfo
                                           ? `${node.systemInfo.cpuUsage.toFixed(1)}%`
                                           : "-"}
                                       </span>
@@ -1327,7 +1329,7 @@ export default function NodePage() {
                                       size="sm"
                                       value={
                                         node.connectionStatus === "online" &&
-                                          node.systemInfo
+                                        node.systemInfo
                                           ? node.systemInfo.cpuUsage
                                           : 0
                                       }
@@ -1338,7 +1340,7 @@ export default function NodePage() {
                                       <span>内存</span>
                                       <span className="font-mono">
                                         {node.connectionStatus === "online" &&
-                                          node.systemInfo
+                                        node.systemInfo
                                           ? `${node.systemInfo.memoryUsage.toFixed(1)}%`
                                           : "-"}
                                       </span>
@@ -1355,7 +1357,7 @@ export default function NodePage() {
                                       size="sm"
                                       value={
                                         node.connectionStatus === "online" &&
-                                          node.systemInfo
+                                        node.systemInfo
                                           ? node.systemInfo.memoryUsage
                                           : 0
                                       }
@@ -1370,10 +1372,10 @@ export default function NodePage() {
                                     </div>
                                     <div className="font-mono">
                                       {node.connectionStatus === "online" &&
-                                        node.systemInfo
+                                      node.systemInfo
                                         ? formatSpeed(
-                                          node.systemInfo.uploadSpeed,
-                                        )
+                                            node.systemInfo.uploadSpeed,
+                                          )
                                         : "-"}
                                     </div>
                                   </div>
@@ -1383,10 +1385,10 @@ export default function NodePage() {
                                     </div>
                                     <div className="font-mono">
                                       {node.connectionStatus === "online" &&
-                                        node.systemInfo
+                                      node.systemInfo
                                         ? formatSpeed(
-                                          node.systemInfo.downloadSpeed,
-                                        )
+                                            node.systemInfo.downloadSpeed,
+                                          )
                                         : "-"}
                                     </div>
                                   </div>
@@ -1400,10 +1402,10 @@ export default function NodePage() {
                                     </div>
                                     <div className="font-mono text-primary-700 dark:text-primary-300">
                                       {node.connectionStatus === "online" &&
-                                        node.systemInfo
+                                      node.systemInfo
                                         ? formatTraffic(
-                                          node.systemInfo.uploadTraffic,
-                                        )
+                                            node.systemInfo.uploadTraffic,
+                                          )
                                         : "-"}
                                     </div>
                                   </div>
@@ -1413,10 +1415,10 @@ export default function NodePage() {
                                     </div>
                                     <div className="font-mono text-success-700 dark:text-success-300">
                                       {node.connectionStatus === "online" &&
-                                        node.systemInfo
+                                      node.systemInfo
                                         ? formatTraffic(
-                                          node.systemInfo.downloadTraffic,
-                                        )
+                                            node.systemInfo.downloadTraffic,
+                                          )
                                         : "-"}
                                     </div>
                                   </div>

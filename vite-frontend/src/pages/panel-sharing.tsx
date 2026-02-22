@@ -416,7 +416,8 @@ export default function PanelSharingPage() {
                     Provider 共享
                   </h2>
                   <p className="text-sm text-default-500">
-                    将本地节点分享给其他面板，统一管理 Token、端口范围和到期策略。
+                    将本地节点分享给其他面板，统一管理
+                    Token、端口范围和到期策略。
                   </p>
                 </div>
                 <Button
@@ -429,7 +430,9 @@ export default function PanelSharingPage() {
               </div>
 
               {loading ? (
-                <div className="text-center py-12 text-default-500">加载中...</div>
+                <div className="text-center py-12 text-default-500">
+                  加载中...
+                </div>
               ) : shares.length === 0 ? (
                 <div className="rounded-lg border border-dashed border-divider bg-default-50/60 dark:bg-default-100/20 px-6 py-10 text-center">
                   <p className="text-base font-semibold text-foreground">
@@ -574,7 +577,9 @@ export default function PanelSharingPage() {
               </div>
 
               {remoteUsageLoading ? (
-                <div className="text-center py-12 text-default-500">加载中...</div>
+                <div className="text-center py-12 text-default-500">
+                  加载中...
+                </div>
               ) : remoteUsageNodes.length === 0 ? (
                 <div className="rounded-lg border border-dashed border-divider bg-default-50/60 dark:bg-default-100/20 px-6 py-10 text-center">
                   <p className="text-base font-semibold text-foreground">

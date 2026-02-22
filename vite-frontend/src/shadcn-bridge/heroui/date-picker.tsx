@@ -177,6 +177,7 @@ export function DatePicker({
         required={isRequired}
         type={shouldUseTextInput ? "text" : "date"}
         value={shouldUseTextInput ? textValue : formattedValue}
+        onBlur={shouldUseTextInput ? commitTextInput : undefined}
         onChange={(event) => {
           const nextValue = event.target.value;
 
@@ -189,7 +190,6 @@ export function DatePicker({
 
           notifyNativeDateChange(nextValue);
         }}
-        onBlur={shouldUseTextInput ? commitTextInput : undefined}
         onKeyDown={
           shouldUseTextInput
             ? (event) => {
