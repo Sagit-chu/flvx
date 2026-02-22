@@ -1,5 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
+import toast from "react-hot-toast";
+
 import { Button } from "@/shadcn-bridge/heroui/button";
 import { Card, CardBody, CardHeader } from "@/shadcn-bridge/heroui/card";
 import { Input } from "@/shadcn-bridge/heroui/input";
@@ -16,8 +18,6 @@ import {
   ModalFooter,
   ModalHeader,
 } from "@/shadcn-bridge/heroui/modal";
-import toast from "react-hot-toast";
-
 import {
   updateConfigs,
   exportBackup,
@@ -149,7 +149,7 @@ const getInitialConfigs = (): Record<string, string> => {
         initialConfigs[key] = cachedValue;
       }
     });
-  } catch { }
+  } catch {}
 
   return initialConfigs;
 };
@@ -528,10 +528,11 @@ export default function ConfigPage() {
               <button
                 key={option.value}
                 aria-pressed={isSelected}
-                className={`w-full px-4 py-3 rounded-lg border transition-all duration-200 cursor-pointer text-left ${isSelected
-                  ? "bg-primary-50 dark:bg-primary-900/20 border-primary-300 dark:border-primary-500/50 shadow-sm"
-                  : "bg-white dark:bg-default-50 border-default-200 dark:border-default-100/30 hover:border-primary-200 dark:hover:border-primary-500/30 hover:shadow-sm"
-                  }`}
+                className={`w-full px-4 py-3 rounded-lg border transition-all duration-200 cursor-pointer text-left ${
+                  isSelected
+                    ? "bg-primary-50 dark:bg-primary-900/20 border-primary-300 dark:border-primary-500/50 shadow-sm"
+                    : "bg-white dark:bg-default-50 border-default-200 dark:border-default-100/30 hover:border-primary-200 dark:hover:border-primary-500/30 hover:shadow-sm"
+                }`}
                 type="button"
                 onClick={() => toggleTypeSelection(option.value, setTypes)}
               >
@@ -545,10 +546,11 @@ export default function ConfigPage() {
                     size="md"
                   />
                   <span
-                    className={`font-medium ${isSelected
-                      ? "text-default-900 dark:text-default-100"
-                      : "text-default-700 dark:text-default-500"
-                      }`}
+                    className={`font-medium ${
+                      isSelected
+                        ? "text-default-900 dark:text-default-100"
+                        : "text-default-700 dark:text-default-500"
+                    }`}
                   >
                     {option.label}
                   </span>

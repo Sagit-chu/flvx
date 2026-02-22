@@ -1,8 +1,12 @@
 import { useState, useEffect, useMemo } from "react";
 import toast from "react-hot-toast";
-import { AnimatedPage, StaggerList, StaggerItem } from "@/components/animated-page";
-import { SearchBar } from "@/components/search-bar";
 
+import {
+  AnimatedPage,
+  StaggerList,
+  StaggerItem,
+} from "@/components/animated-page";
+import { SearchBar } from "@/components/search-bar";
 import { Card, CardBody, CardHeader } from "@/shadcn-bridge/heroui/card";
 import { Button } from "@/shadcn-bridge/heroui/button";
 import { Input } from "@/shadcn-bridge/heroui/input";
@@ -60,9 +64,10 @@ export default function LimitPage() {
     if (!searchKeyword.trim()) return rules;
     const lowerKeyword = searchKeyword.toLowerCase();
 
-    return rules.filter(r =>
-      (r.name && r.name.toLowerCase().includes(lowerKeyword)) ||
-      (r.tunnelName && r.tunnelName.toLowerCase().includes(lowerKeyword))
+    return rules.filter(
+      (r) =>
+        (r.name && r.name.toLowerCase().includes(lowerKeyword)) ||
+        (r.tunnelName && r.tunnelName.toLowerCase().includes(lowerKeyword)),
     );
   }, [rules, searchKeyword]);
 

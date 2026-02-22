@@ -1,4 +1,5 @@
 import type { AnnouncementData } from "@/api";
+
 import ReactMarkdown from "react-markdown";
 import rehypeSanitize from "rehype-sanitize";
 import remarkGfm from "remark-gfm";
@@ -40,10 +41,10 @@ export const AnnouncementBanner = ({
             </h3>
             <div className="text-sm text-blue-800/90 dark:text-blue-100/90 break-words leading-relaxed">
               <ReactMarkdown
-                rehypePlugins={[rehypeSanitize]}
-                remarkPlugins={[remarkGfm]}
                 components={{
-                  p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
+                  p: ({ children }) => (
+                    <p className="mb-2 last:mb-0">{children}</p>
+                  ),
                   a: ({ children, href }) => (
                     <a
                       className="underline decoration-blue-500/70 underline-offset-2 hover:text-blue-700 dark:hover:text-blue-100"
@@ -55,10 +56,14 @@ export const AnnouncementBanner = ({
                     </a>
                   ),
                   ul: ({ children }) => (
-                    <ul className="list-disc pl-5 space-y-1 mb-2 last:mb-0">{children}</ul>
+                    <ul className="list-disc pl-5 space-y-1 mb-2 last:mb-0">
+                      {children}
+                    </ul>
                   ),
                   ol: ({ children }) => (
-                    <ol className="list-decimal pl-5 space-y-1 mb-2 last:mb-0">{children}</ol>
+                    <ol className="list-decimal pl-5 space-y-1 mb-2 last:mb-0">
+                      {children}
+                    </ol>
                   ),
                   code: ({ children }) => (
                     <code className="rounded bg-blue-100/80 dark:bg-blue-900/40 px-1 py-0.5 text-[0.92em]">
@@ -76,6 +81,8 @@ export const AnnouncementBanner = ({
                     </blockquote>
                   ),
                 }}
+                rehypePlugins={[rehypeSanitize]}
+                remarkPlugins={[remarkGfm]}
               >
                 {announcement.content}
               </ReactMarkdown>

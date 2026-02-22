@@ -286,26 +286,22 @@ export function Select<T>({
       return null;
     }
 
-    const placementClasses = dropdownPlacement === "top"
-      ? "bottom-full mb-1"
-      : "top-full mt-1";
+    const placementClasses =
+      dropdownPlacement === "top" ? "bottom-full mb-1" : "top-full mt-1";
 
     return (
       <div
+        ref={listboxRef}
         className={cn(
           "absolute left-0 z-50 w-full space-y-1 overflow-y-auto rounded-md border border-divider bg-background p-2 shadow-md max-h-56",
-          placementClasses
+          placementClasses,
         )}
         id={`${generatedId}-listbox`}
-        ref={listboxRef}
         role="listbox"
       >
         {options.length === 0 ? (
           <div
-            className={cn(
-              "px-2 py-1 text-default-500",
-              textSizeClass(size),
-            )}
+            className={cn("px-2 py-1 text-default-500", textSizeClass(size))}
           >
             暂无可选项
           </div>
@@ -334,9 +330,7 @@ export function Select<T>({
                   className={cn(
                     "min-w-0 flex-1 truncate text-left text-foreground",
                     textSizeClass(size),
-                    optionDisabled
-                      ? "cursor-not-allowed"
-                      : "cursor-pointer",
+                    optionDisabled ? "cursor-not-allowed" : "cursor-pointer",
                   )}
                   disabled={optionDisabled}
                   type="button"
@@ -363,13 +357,7 @@ export function Select<T>({
       label={label}
     >
       {selectionMode === "multiple" ? (
-        <div
-          ref={containerRef}
-          className={cn(
-            "relative w-full",
-            className,
-          )}
-        >
+        <div ref={containerRef} className={cn("relative w-full", className)}>
           <button
             aria-controls={`${generatedId}-listbox`}
             aria-expanded={isExpanded}
