@@ -1128,7 +1128,7 @@ export default function NodePage() {
           ) : (
             <>
               <Button
-                className="border border-sky-200 bg-sky-100 text-sky-700 hover:bg-sky-200 dark:border-sky-500/40 dark:bg-sky-900/30 dark:text-sky-300 dark:hover:bg-sky-900/45"
+                className="bg-sky-100 text-sky-700 hover:bg-sky-200 dark:bg-sky-900/30 dark:text-sky-300 dark:hover:bg-sky-900/45"
                 color="default"
                 size="sm"
                 variant="flat"
