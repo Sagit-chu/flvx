@@ -115,10 +115,10 @@ export default function H5Layout({ children }: { children: React.ReactNode }) {
       <main className="flex-1 bg-gray-100 dark:bg-black">{children}</main>
 
       {/* 用于给固定 Tabbar 腾出空间的占位元素 */}
-      <div aria-hidden className="h-16 safe-bottom" />
+      <div aria-hidden className="h-[calc(4rem+var(--safe-area-bottom))]" />
 
       {/* 底部Tabbar */}
-      <nav className="bg-white dark:bg-black border-t border-gray-200 dark:border-gray-600 h-16 safe-bottom flex-shrink-0 flex items-center justify-around px-2 fixed bottom-0 left-0 right-0 z-30">
+      <nav className="bg-white dark:bg-black border-t border-gray-200 dark:border-gray-600 h-[calc(4rem+var(--safe-area-bottom))] flex-shrink-0 flex items-center justify-around px-2 fixed bottom-0 left-0 right-0 z-30">
         {filteredTabItems.map((item) => {
           const isActive = location.pathname === item.path;
 
@@ -126,7 +126,7 @@ export default function H5Layout({ children }: { children: React.ReactNode }) {
             <button
               key={item.path}
               className={`
-                flex flex-col items-center justify-center flex-1 h-full
+                flex flex-col items-center justify-center flex-1 h-full pb-[var(--safe-area-bottom)]
                 transition-colors duration-200 min-h-[44px]
                 ${
                   isActive

@@ -230,7 +230,7 @@ export default function ForwardPage() {
     setViewMode(newMode);
     try {
       localStorage.setItem("forward-view-mode", newMode);
-    } catch { }
+    } catch {}
   };
 
   // 加载所有数据
@@ -1196,10 +1196,10 @@ export default function ForwardPage() {
     const style: React.CSSProperties = {
       transform: transform
         ? CSS.Transform.toString({
-          ...transform,
-          x: Math.round(transform.x),
-          y: Math.round(transform.y),
-        })
+            ...transform,
+            x: Math.round(transform.x),
+            y: Math.round(transform.y),
+          })
         : undefined,
       transition: isDragging ? undefined : transition || undefined,
       opacity: isDragging ? 0.5 : 1,
@@ -1257,10 +1257,10 @@ export default function ForwardPage() {
     const style = {
       transform: transform
         ? CSS.Transform.toString({
-          ...transform,
-          x: Math.round(transform.x),
-          y: Math.round(transform.y),
-        })
+            ...transform,
+            x: Math.round(transform.x),
+            y: Math.round(transform.y),
+          })
         : undefined,
       transition: isDragging ? undefined : transition || undefined,
       opacity: isDragging ? 0.5 : 1,
@@ -1317,10 +1317,11 @@ export default function ForwardPage() {
         </TableCell>
         <TableCell className="max-w-[220px]">
           <button
-            className={`w-full truncate rounded-md bg-default-100/50 px-2.5 py-1.5 text-left font-mono text-xs font-medium text-default-700 transition-all ${hasMultipleAddresses(forward.inIp)
-              ? "hover:bg-default-200 hover:shadow-sm"
-              : ""
-              }`}
+            className={`w-full truncate rounded-md bg-default-100/50 px-2.5 py-1.5 text-left font-mono text-xs font-medium text-default-700 transition-all ${
+              hasMultipleAddresses(forward.inIp)
+                ? "hover:bg-default-200 hover:shadow-sm"
+                : ""
+            }`}
             title={formatInAddress(forward.inIp, forward.inPort)}
             type="button"
             onClick={() =>
@@ -1332,10 +1333,11 @@ export default function ForwardPage() {
         </TableCell>
         <TableCell className="max-w-[240px]">
           <button
-            className={`w-full truncate rounded-md bg-default-100/50 px-2.5 py-1.5 text-left font-mono text-xs font-medium text-default-700 transition-all ${hasMultipleAddresses(forward.remoteAddr)
-              ? "hover:bg-default-200 hover:shadow-sm"
-              : ""
-              }`}
+            className={`w-full truncate rounded-md bg-default-100/50 px-2.5 py-1.5 text-left font-mono text-xs font-medium text-default-700 transition-all ${
+              hasMultipleAddresses(forward.remoteAddr)
+                ? "hover:bg-default-200 hover:shadow-sm"
+                : ""
+            }`}
             title={formatRemoteAddress(forward.remoteAddr)}
             type="button"
             onClick={() =>
@@ -1472,10 +1474,11 @@ export default function ForwardPage() {
             <div className="flex items-center gap-1.5 ml-2">
               {viewMode === "direct" && (
                 <div
-                  className={`cursor-grab active:cursor-grabbing p-2 text-default-400 hover:text-default-600 transition-colors touch-manipulation ${isMobile
-                    ? "opacity-100" // 移动端始终显示
-                    : "opacity-0 group-hover:opacity-100 sm:opacity-0 sm:group-hover:opacity-100"
-                    }`}
+                  className={`cursor-grab active:cursor-grabbing p-2 text-default-400 hover:text-default-600 transition-colors touch-manipulation ${
+                    isMobile
+                      ? "opacity-100" // 移动端始终显示
+                      : "opacity-0 group-hover:opacity-100 sm:opacity-0 sm:group-hover:opacity-100"
+                  }`}
                   {...listeners}
                   style={{ touchAction: "none" }}
                   title={isMobile ? "长按拖拽排序" : "拖拽排序"}
@@ -1513,10 +1516,11 @@ export default function ForwardPage() {
             {/* 地址信息 */}
             <div className="space-y-1">
               <button
-                className={`cursor-pointer px-2 py-1 bg-default-50 dark:bg-default-100/50 rounded border border-default-200 dark:border-default-300 transition-colors duration-200 ${hasMultipleAddresses(forward.inIp)
-                  ? "hover:bg-default-100 dark:hover:bg-default-200/50"
-                  : ""
-                  }`}
+                className={`cursor-pointer px-2 py-1 bg-default-50 dark:bg-default-100/50 rounded border border-default-200 dark:border-default-300 transition-colors duration-200 ${
+                  hasMultipleAddresses(forward.inIp)
+                    ? "hover:bg-default-100 dark:hover:bg-default-200/50"
+                    : ""
+                }`}
                 title={formatInAddress(forward.inIp, forward.inPort)}
                 type="button"
                 onClick={() =>
@@ -1552,10 +1556,11 @@ export default function ForwardPage() {
               </button>
 
               <button
-                className={`cursor-pointer px-2 py-1 bg-default-50 dark:bg-default-100/50 rounded border border-default-200 dark:border-default-300 transition-colors duration-200 ${hasMultipleAddresses(forward.remoteAddr)
-                  ? "hover:bg-default-100 dark:hover:bg-default-200/50"
-                  : ""
-                  }`}
+                className={`cursor-pointer px-2 py-1 bg-default-50 dark:bg-default-100/50 rounded border border-default-200 dark:border-default-300 transition-colors duration-200 ${
+                  hasMultipleAddresses(forward.remoteAddr)
+                    ? "hover:bg-default-100 dark:hover:bg-default-200/50"
+                    : ""
+                }`}
                 title={formatRemoteAddress(forward.remoteAddr)}
                 type="button"
                 onClick={() =>
@@ -1973,39 +1978,39 @@ export default function ForwardPage() {
           </Card>
         )
       ) : /* 直接显示模式 */
-        forwards.length > 0 ? (
-          <DndContext
-            collisionDetection={closestCenter}
-            sensors={sensors}
-            onDragEnd={handleDragEnd}
-            onDragStart={() => { }} // 添加空的 onDragStart 处理器
+      forwards.length > 0 ? (
+        <DndContext
+          collisionDetection={closestCenter}
+          sensors={sensors}
+          onDragEnd={handleDragEnd}
+          onDragStart={() => {}} // 添加空的 onDragStart 处理器
+        >
+          <SortableContext
+            items={sortableForwardIds}
+            strategy={rectSortingStrategy}
           >
-            <SortableContext
-              items={sortableForwardIds}
-              strategy={rectSortingStrategy}
-            >
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4">
-                {sortedForwards.map((forward) =>
-                  forward && forward.id ? (
-                    <SortableForwardCard key={forward.id} forward={forward} />
-                  ) : null,
-                )}
-              </div>
-            </SortableContext>
-          </DndContext>
-        ) : (
-          /* 空状态 */
-          <Card className="shadow-sm border border-gray-200 dark:border-gray-700 bg-default-50/50">
-            <CardBody className="text-center py-20 flex flex-col items-center justify-center min-h-[240px]">
-              <h3 className="text-xl font-medium text-foreground tracking-tight mb-2">
-                暂无转发配置
-              </h3>
-              <p className="text-default-500 text-sm max-w-xs mx-auto leading-relaxed">
-                还没有创建任何转发配置，点击上方按钮开始创建
-              </p>
-            </CardBody>
-          </Card>
-        )}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4">
+              {sortedForwards.map((forward) =>
+                forward && forward.id ? (
+                  <SortableForwardCard key={forward.id} forward={forward} />
+                ) : null,
+              )}
+            </div>
+          </SortableContext>
+        </DndContext>
+      ) : (
+        /* 空状态 */
+        <Card className="shadow-sm border border-gray-200 dark:border-gray-700 bg-default-50/50">
+          <CardBody className="text-center py-20 flex flex-col items-center justify-center min-h-[240px]">
+            <h3 className="text-xl font-medium text-foreground tracking-tight mb-2">
+              暂无转发配置
+            </h3>
+            <p className="text-default-500 text-sm max-w-xs mx-auto leading-relaxed">
+              还没有创建任何转发配置，点击上方按钮开始创建
+            </p>
+          </CardBody>
+        </Card>
+      )}
 
       {/* 新增/编辑模态框 */}
       <Modal
@@ -2474,10 +2479,11 @@ export default function ForwardPage() {
                     {importResults.map((result, index) => (
                       <div
                         key={index}
-                        className={`p-2 rounded border ${result.success
-                          ? "bg-success-50 dark:bg-success-100/10 border-success-200 dark:border-success-300/20"
-                          : "bg-danger-50 dark:bg-danger-100/10 border-danger-200 dark:border-danger-300/20"
-                          }`}
+                        className={`p-2 rounded border ${
+                          result.success
+                            ? "bg-success-50 dark:bg-success-100/10 border-success-200 dark:border-success-300/20"
+                            : "bg-danger-50 dark:bg-danger-100/10 border-danger-200 dark:border-danger-300/20"
+                        }`}
                       >
                         <div className="flex items-center gap-2">
                           {result.success ? (
@@ -2510,10 +2516,11 @@ export default function ForwardPage() {
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2 mb-0.5">
                               <span
-                                className={`text-xs font-medium ${result.success
-                                  ? "text-success-700 dark:text-success-300"
-                                  : "text-danger-700 dark:text-danger-300"
-                                  }`}
+                                className={`text-xs font-medium ${
+                                  result.success
+                                    ? "text-success-700 dark:text-success-300"
+                                    : "text-danger-700 dark:text-danger-300"
+                                }`}
                               >
                                 {result.success ? "成功" : "失败"}
                               </span>
@@ -2525,10 +2532,11 @@ export default function ForwardPage() {
                               </code>
                             </div>
                             <div
-                              className={`text-xs ${result.success
-                                ? "text-success-600 dark:text-success-400"
-                                : "text-danger-600 dark:text-danger-400"
-                                }`}
+                              className={`text-xs ${
+                                result.success
+                                  ? "text-success-600 dark:text-success-400"
+                                  : "text-danger-600 dark:text-danger-400"
+                              }`}
                             >
                               {result.message}
                             </div>
@@ -2711,18 +2719,20 @@ export default function ForwardPage() {
                                     return (
                                       <tr
                                         key={index}
-                                        className={`hover:bg-default-50 dark:hover:bg-gray-700/50 ${result.success
-                                          ? "bg-white dark:bg-gray-800"
-                                          : "bg-danger-50 dark:bg-danger-900/30"
-                                          }`}
+                                        className={`hover:bg-default-50 dark:hover:bg-gray-700/50 ${
+                                          result.success
+                                            ? "bg-white dark:bg-gray-800"
+                                            : "bg-danger-50 dark:bg-danger-900/30"
+                                        }`}
                                       >
                                         <td className="px-3 py-2">
                                           <div className="flex items-center gap-2">
                                             <span
-                                              className={`w-5 h-5 rounded-full flex items-center justify-center text-xs ${result.success
-                                                ? "bg-success text-white"
-                                                : "bg-danger text-white"
-                                                }`}
+                                              className={`w-5 h-5 rounded-full flex items-center justify-center text-xs ${
+                                                result.success
+                                                  ? "bg-success text-white"
+                                                  : "bg-danger text-white"
+                                              }`}
                                             >
                                               {result.success ? "✓" : "✗"}
                                             </span>
@@ -2764,10 +2774,11 @@ export default function ForwardPage() {
                                         <td className="px-3 py-2 text-center">
                                           {result.success ? (
                                             <span
-                                              className={`font-semibold ${(result.packetLoss || 0) > 0
-                                                ? "text-warning"
-                                                : "text-success"
-                                                }`}
+                                              className={`font-semibold ${
+                                                (result.packetLoss || 0) > 0
+                                                  ? "text-warning"
+                                                  : "text-success"
+                                              }`}
                                             >
                                               {result.packetLoss?.toFixed(1)}%
                                             </span>
@@ -2881,17 +2892,19 @@ export default function ForwardPage() {
                                 return (
                                   <div
                                     key={index}
-                                    className={`border rounded-lg p-3 ${result.success
-                                      ? "border-divider bg-white dark:bg-gray-800"
-                                      : "border-danger-200 dark:border-danger-300/30 bg-danger-50 dark:bg-danger-900/30"
-                                      }`}
+                                    className={`border rounded-lg p-3 ${
+                                      result.success
+                                        ? "border-divider bg-white dark:bg-gray-800"
+                                        : "border-danger-200 dark:border-danger-300/30 bg-danger-50 dark:bg-danger-900/30"
+                                    }`}
                                   >
                                     <div className="flex items-start gap-2 mb-2">
                                       <span
-                                        className={`w-6 h-6 rounded-full flex items-center justify-center text-xs flex-shrink-0 ${result.success
-                                          ? "bg-success text-white"
-                                          : "bg-danger text-white"
-                                          }`}
+                                        className={`w-6 h-6 rounded-full flex items-center justify-center text-xs flex-shrink-0 ${
+                                          result.success
+                                            ? "bg-success text-white"
+                                            : "bg-danger text-white"
+                                        }`}
                                       >
                                         {result.success ? "✓" : "✗"}
                                       </span>
@@ -2927,10 +2940,11 @@ export default function ForwardPage() {
                                         </div>
                                         <div className="text-center">
                                           <div
-                                            className={`text-lg font-bold ${(result.packetLoss || 0) > 0
-                                              ? "text-warning"
-                                              : "text-success"
-                                              }`}
+                                            className={`text-lg font-bold ${
+                                              (result.packetLoss || 0) > 0
+                                                ? "text-warning"
+                                                : "text-success"
+                                            }`}
                                           >
                                             {result.packetLoss?.toFixed(1)}%
                                           </div>

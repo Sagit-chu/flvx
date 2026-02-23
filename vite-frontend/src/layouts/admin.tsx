@@ -50,7 +50,9 @@ export default function AdminLayout({
   const { isOpen, onOpen, onOpenChange } = useDisclosure();
 
   const [mobileMenuVisible, setMobileMenuVisible] = useState(false);
-  const [isCollapsed, setIsCollapsed] = useState(() => localStorage.getItem("sidebar_collapsed") === "true");
+  const [isCollapsed, setIsCollapsed] = useState(
+    () => localStorage.getItem("sidebar_collapsed") === "true",
+  );
   const [username, setUsername] = useState("");
   const [isAdmin, setIsAdmin] = useState(false);
   const [passwordLoading, setPasswordLoading] = useState(false);
@@ -208,6 +210,7 @@ export default function AdminLayout({
   // 切换折叠状态
   const toggleCollapse = () => {
     const newCollapsed = !isCollapsed;
+
     setIsCollapsed(newCollapsed);
     localStorage.setItem("sidebar_collapsed", newCollapsed.toString());
   };
@@ -328,11 +331,15 @@ export default function AdminLayout({
           <div className="flex-shrink-0 flex items-center justify-center w-10">
             <Logo size={28} />
           </div>
-          <div className={`transition-all duration-300 overflow-hidden ${isCollapsed ? "max-w-0 opacity-0 ml-0" : "max-w-[180px] opacity-100 ml-2"}`}>
+          <div
+            className={`transition-all duration-300 overflow-hidden ${isCollapsed ? "max-w-0 opacity-0 ml-0" : "max-w-[180px] opacity-100 ml-2"}`}
+          >
             <h1 className="text-sm font-bold text-foreground overflow-hidden whitespace-nowrap text-ellipsis">
               {siteConfig.name}
             </h1>
-            <p className="text-xs text-default-500 overflow-hidden whitespace-nowrap text-ellipsis">v{siteConfig.version}</p>
+            <p className="text-xs text-default-500 overflow-hidden whitespace-nowrap text-ellipsis">
+              v{siteConfig.version}
+            </p>
           </div>
         </div>
 
@@ -345,15 +352,16 @@ export default function AdminLayout({
               return (
                 <li key={item.path}>
                   <motion.button
-                    title={isCollapsed ? item.label : undefined}
                     className={`
                        w-full flex items-center p-2 rounded-lg text-left
                        relative min-h-[44px] overflow-hidden transition-colors
-                       ${isActive
-                        ? "text-primary-600 dark:text-primary-300"
-                        : "text-gray-700 dark:text-gray-200"
-                      }
+                       ${
+                         isActive
+                           ? "text-primary-600 dark:text-primary-300"
+                           : "text-gray-700 dark:text-gray-200"
+                       }
                      `}
+                    title={isCollapsed ? item.label : undefined}
                     transition={{ duration: 0.15 }}
                     onClick={() => handleMenuClick(item.path)}
                   >
@@ -378,7 +386,9 @@ export default function AdminLayout({
                     <div className="flex-shrink-0 w-10 h-10 flex items-center justify-center relative z-10">
                       {item.icon}
                     </div>
-                    <div className={`transition-all duration-300 overflow-hidden flex items-center ${isCollapsed ? "max-w-0 opacity-0 ml-0" : "max-w-[200px] opacity-100 ml-2"}`}>
+                    <div
+                      className={`transition-all duration-300 overflow-hidden flex items-center ${isCollapsed ? "max-w-0 opacity-0 ml-0" : "max-w-[200px] opacity-100 ml-2"}`}
+                    >
                       <span className="font-medium text-sm relative z-10 whitespace-nowrap">
                         {item.label}
                       </span>
@@ -392,7 +402,9 @@ export default function AdminLayout({
 
         {/* 底部版权信息和折叠按钮 */}
         <div className="px-5 py-2 pb-4 mt-auto flex-shrink-0 flex items-center justify-between overflow-hidden whitespace-nowrap box-border">
-          <div className={`transition-all duration-300 overflow-hidden flex items-center ${isCollapsed ? "max-w-0 opacity-0" : "max-w-[200px] opacity-100"}`}>
+          <div
+            className={`transition-all duration-300 overflow-hidden flex items-center ${isCollapsed ? "max-w-0 opacity-0" : "max-w-[200px] opacity-100"}`}
+          >
             <p className="text-xs text-gray-400 dark:text-gray-500">
               Powered by{" "}
               <a
@@ -410,20 +422,40 @@ export default function AdminLayout({
           {!isMobile && (
             <Button
               isIconOnly
-              variant="light"
-              size="sm"
               className="flex-shrink-0 text-gray-400 hover:text-gray-700 dark:text-gray-500 dark:hover:text-gray-300 min-w-0 w-10 h-10 rounded-full ml-auto"
+              size="sm"
+              variant="light"
               onPress={toggleCollapse}
             >
               {isCollapsed ? (
                 // 向右扩展的提示
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 5l7 7-7 7M5 5l7 7-7 7" />
+                <svg
+                  className="w-5 h-5"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    d="M13 5l7 7-7 7M5 5l7 7-7 7"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                  />
                 </svg>
               ) : (
                 // 向左收起的提示
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
+                <svg
+                  className="w-5 h-5"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    d="M11 19l-7-7 7-7m8 14l-7-7 7-7"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                  />
                 </svg>
               )}
             </Button>
@@ -532,9 +564,7 @@ export default function AdminLayout({
         </header>
 
         {/* 主内容 */}
-        <main
-          className="flex-1 bg-gray-100 dark:bg-black overflow-y-auto"
-        >
+        <main className="flex-1 bg-gray-100 dark:bg-black overflow-y-auto">
           <AnimatePresence mode="wait">
             <motion.div
               key={location.pathname}
