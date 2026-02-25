@@ -704,7 +704,8 @@ func (h *Handler) flowConfig(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) flowUpload(w http.ResponseWriter, r *http.Request) {
 	secret := r.URL.Query().Get("secret")
-	if ok, _ := h.repo.NodeExistsBySecret(secret); !ok {
+	node, _ := h.repo.GetNodeBySecret(secret)
+	if node == nil {
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 		_, _ = w.Write([]byte("ok"))
 		return
@@ -715,7 +716,7 @@ func (h *Handler) flowUpload(w http.ResponseWriter, r *http.Request) {
 		var items []flowItem
 		if json.Unmarshal([]byte(raw), &items) == nil {
 			for _, item := range items {
-				h.processFlowItem(item)
+				h.processFlowItem(node.ID, item)
 			}
 		}
 	}
