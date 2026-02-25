@@ -38,6 +38,14 @@ type FederationBindingRow struct {
 	UpdatedTime     int64
 }
 
+type ActiveForwardPortRow struct {
+	ForwardID   int64
+	TunnelID    int64
+	TunnelName  string
+	Port        int
+	UpdatedTime int64
+}
+
 // ListRemoteNodes returns all nodes with is_remote=1, ordered by id desc.
 func (r *Repository) ListRemoteNodes() ([]RemoteNodeRow, error) {
 	if r == nil || r.db == nil {
@@ -83,6 +91,27 @@ func (r *Repository) ListActiveBindingsForNode(nodeID int64) ([]FederationBindin
 	}
 	if result == nil {
 		result = make([]FederationBindingRow, 0)
+	}
+	return result, nil
+}
+
+func (r *Repository) ListActiveForwardPortsForNode(nodeID int64) ([]ActiveForwardPortRow, error) {
+	if r == nil || r.db == nil {
+		return nil, errors.New("repository not initialized")
+	}
+	var result []ActiveForwardPortRow
+	err := r.db.Model(&model.ForwardPort{}).
+		Select("forward_port.forward_id, forward.tunnel_id, COALESCE(tunnel.name, '') AS tunnel_name, forward_port.port, forward.updated_time").
+		Joins("JOIN forward ON forward.id = forward_port.forward_id").
+		Joins("LEFT JOIN tunnel ON tunnel.id = forward.tunnel_id").
+		Where("forward_port.node_id = ? AND forward_port.port > 0", nodeID).
+		Order("forward_port.port ASC, forward_port.id ASC").
+		Find(&result).Error
+	if err != nil {
+		return nil, err
+	}
+	if result == nil {
+		result = make([]ActiveForwardPortRow, 0)
 	}
 	return result, nil
 }

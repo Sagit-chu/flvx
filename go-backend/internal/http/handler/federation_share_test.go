@@ -941,6 +941,110 @@ func TestFederationRemoteUsageList(t *testing.T) {
 	}
 }
 
+func TestFederationRemoteUsageListIncludesForwardPorts(t *testing.T) {
+	r, err := repo.Open(filepath.Join(t.TempDir(), "panel-forward-usage.db"))
+	if err != nil {
+		t.Fatalf("open sqlite: %v", err)
+	}
+	t.Cleanup(func() { _ = r.Close() })
+
+	h := New(r, "test-jwt-secret")
+	now := time.Now().UnixMilli()
+
+	if err := r.DB().Exec(`
+		INSERT INTO node(name, secret, server_ip, server_ip_v4, server_ip_v6, port, interface_name, version, http, tls, socks, created_time, updated_time, status, tcp_listen_addr, udp_listen_addr, inx, is_remote, remote_url, remote_token, remote_config)
+		VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+	`, "forward-usage-remote-node", "forward-usage-secret", "10.60.70.80", "10.60.70.80", "", "33000-33010", "", "v1", 1, 1, 1, now, now, 1, "[::]", "[::]", 0, 1, "", "", `{"shareId":99,"maxBandwidth":0,"currentFlow":0,"portRangeStart":33000,"portRangeEnd":33010}`).Error; err != nil {
+		t.Fatalf("insert remote node: %v", err)
+	}
+
+	var nodeID int64
+	if err := r.DB().Raw(`SELECT id FROM node WHERE name = ? ORDER BY id DESC LIMIT 1`, "forward-usage-remote-node").Row().Scan(&nodeID); err != nil {
+		t.Fatalf("query node id: %v", err)
+	}
+
+	if err := r.DB().Exec(`
+		INSERT INTO tunnel(name, type, protocol, flow, created_time, updated_time, status, in_ip, inx)
+		VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?)
+	`, "forward-usage-tunnel", 1, "tls", 1, now, now, 1, "", 0).Error; err != nil {
+		t.Fatalf("insert tunnel: %v", err)
+	}
+
+	var tunnelID int64
+	if err := r.DB().Raw(`SELECT id FROM tunnel WHERE name = ? ORDER BY id DESC LIMIT 1`, "forward-usage-tunnel").Row().Scan(&tunnelID); err != nil {
+		t.Fatalf("query tunnel id: %v", err)
+	}
+
+	if err := r.DB().Exec(`
+		INSERT INTO forward(user_id, user_name, name, tunnel_id, remote_addr, strategy, in_flow, out_flow, created_time, updated_time, status, inx)
+		VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+	`, 1, "tester", "forward-usage-item", tunnelID, "1.1.1.1:443", "fifo", 0, 0, now, now, 1, 0).Error; err != nil {
+		t.Fatalf("insert forward: %v", err)
+	}
+
+	var forwardID int64
+	if err := r.DB().Raw(`SELECT id FROM forward WHERE name = ? ORDER BY id DESC LIMIT 1`, "forward-usage-item").Row().Scan(&forwardID); err != nil {
+		t.Fatalf("query forward id: %v", err)
+	}
+
+	if err := r.DB().Exec(`INSERT INTO forward_port(forward_id, node_id, port) VALUES(?, ?, ?)`, forwardID, nodeID, 33001).Error; err != nil {
+		t.Fatalf("insert forward_port: %v", err)
+	}
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/federation/share/remote-usage/list", nil)
+	res := httptest.NewRecorder()
+	h.federationRemoteUsageList(res, req)
+
+	if res.Code != http.StatusOK {
+		t.Fatalf("expected status %d, got %d", http.StatusOK, res.Code)
+	}
+
+	var payload response.R
+	if err := json.NewDecoder(res.Body).Decode(&payload); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if payload.Code != 0 {
+		t.Fatalf("expected response code 0, got %d (%s)", payload.Code, payload.Msg)
+	}
+
+	rows, ok := payload.Data.([]interface{})
+	if !ok || len(rows) == 0 {
+		t.Fatalf("expected non-empty usage list, got %T", payload.Data)
+	}
+
+	first, ok := rows[0].(map[string]interface{})
+	if !ok {
+		t.Fatalf("expected usage row map, got %T", rows[0])
+	}
+
+	usedPortsRaw, ok := first["usedPorts"].([]interface{})
+	if !ok {
+		t.Fatalf("expected usedPorts array, got %T", first["usedPorts"])
+	}
+	if len(usedPortsRaw) != 1 || int(usedPortsRaw[0].(float64)) != 33001 {
+		t.Fatalf("expected usedPorts [33001], got %v", usedPortsRaw)
+	}
+
+	bindingsRaw, ok := first["bindings"].([]interface{})
+	if !ok {
+		t.Fatalf("expected bindings array, got %T", first["bindings"])
+	}
+	if len(bindingsRaw) != 1 {
+		t.Fatalf("expected 1 binding row from forward usage, got %d", len(bindingsRaw))
+	}
+
+	binding, ok := bindingsRaw[0].(map[string]interface{})
+	if !ok {
+		t.Fatalf("expected binding row object, got %T", bindingsRaw[0])
+	}
+	if int(binding["allocatedPort"].(float64)) != 33001 {
+		t.Fatalf("expected allocatedPort=33001, got %v", binding["allocatedPort"])
+	}
+	if int(binding["chainType"].(float64)) != 1 {
+		t.Fatalf("expected chainType=1 for forward usage row, got %v", binding["chainType"])
+	}
+}
+
 func TestAuthPeerAllowedIPs(t *testing.T) {
 	r, err := repo.Open(filepath.Join(t.TempDir(), "panel.db"))
 	if err != nil {

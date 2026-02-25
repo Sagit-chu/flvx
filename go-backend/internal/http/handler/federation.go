@@ -477,9 +477,14 @@ func (h *Handler) federationRemoteUsageList(w http.ResponseWriter, r *http.Reque
 			response.WriteJSON(w, response.Err(-2, err.Error()))
 			return
 		}
+		forwardPortRows, err := h.repo.ListActiveForwardPortsForNode(nodeID)
+		if err != nil {
+			response.WriteJSON(w, response.Err(-2, err.Error()))
+			return
+		}
 
 		usedSet := make(map[int]struct{})
-		bindings := make([]remoteUsageBindingItem, 0, len(bindingRows))
+		bindings := make([]remoteUsageBindingItem, 0, len(bindingRows)+len(forwardPortRows))
 		for _, b := range bindingRows {
 			bindings = append(bindings, remoteUsageBindingItem{
 				BindingID:       b.ID,
@@ -496,6 +501,29 @@ func (h *Handler) federationRemoteUsageList(w http.ResponseWriter, r *http.Reque
 				usedSet[b.AllocatedPort] = struct{}{}
 			}
 		}
+		for _, fp := range forwardPortRows {
+			bindings = append(bindings, remoteUsageBindingItem{
+				BindingID:       -fp.ForwardID,
+				TunnelID:        fp.TunnelID,
+				TunnelName:      fp.TunnelName,
+				ChainType:       1,
+				HopInx:          0,
+				AllocatedPort:   fp.Port,
+				ResourceKey:     fmt.Sprintf("forward:%d", fp.ForwardID),
+				RemoteBindingID: "",
+				UpdatedTime:     fp.UpdatedTime,
+			})
+			if fp.Port > 0 {
+				usedSet[fp.Port] = struct{}{}
+			}
+		}
+
+		sort.Slice(bindings, func(i, j int) bool {
+			if bindings[i].AllocatedPort == bindings[j].AllocatedPort {
+				return bindings[i].BindingID < bindings[j].BindingID
+			}
+			return bindings[i].AllocatedPort < bindings[j].AllocatedPort
+		})
 
 		usedPorts := make([]int, 0, len(usedSet))
 		for port := range usedSet {
