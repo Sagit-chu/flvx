@@ -722,6 +722,123 @@ func TestBindPeerShareForwardRuntimeServicesAcceptsTopLevelServiceArray(t *testi
 	}
 }
 
+func TestBindPeerShareForwardRuntimeServicesCreatesRuntimeWhenMissing(t *testing.T) {
+	r, err := repo.Open(filepath.Join(t.TempDir(), "panel-bind-create-runtime.db"))
+	if err != nil {
+		t.Fatalf("open sqlite: %v", err)
+	}
+	t.Cleanup(func() { _ = r.Close() })
+
+	h := New(r, "test-jwt-secret")
+	now := time.Now().UnixMilli()
+
+	if err := r.CreatePeerShare(&repo.PeerShare{
+		Name:           "bind-create-runtime-share",
+		NodeID:         1,
+		Token:          "bind-create-runtime-token",
+		MaxBandwidth:   0,
+		CurrentFlow:    0,
+		PortRangeStart: 26300,
+		PortRangeEnd:   26320,
+		IsActive:       1,
+		CreatedTime:    now,
+		UpdatedTime:    now,
+	}); err != nil {
+		t.Fatalf("create share: %v", err)
+	}
+	share, err := r.GetPeerShareByToken("bind-create-runtime-token")
+	if err != nil || share == nil {
+		t.Fatalf("load share: %v", err)
+	}
+
+	h.bindPeerShareForwardRuntimeServices(share, map[string]interface{}{
+		"services": []interface{}{
+			map[string]interface{}{"name": "55_2_10_tcp", "addr": "[::]:26301"},
+		},
+	})
+
+	var count int64
+	if err := r.DB().Raw(`SELECT COUNT(1) FROM peer_share_runtime WHERE share_id = ? AND role = ? AND status = 1`, share.ID, "forward").Scan(&count).Error; err != nil {
+		t.Fatalf("query runtime count: %v", err)
+	}
+	if count != 1 {
+		t.Fatalf("expected 1 active forward runtime row, got %d", count)
+	}
+
+	var serviceName string
+	var port int
+	var applied int
+	if err := r.DB().Raw(`SELECT service_name, port, applied FROM peer_share_runtime WHERE share_id = ? AND role = ? ORDER BY id DESC LIMIT 1`, share.ID, "forward").Row().Scan(&serviceName, &port, &applied); err != nil {
+		t.Fatalf("query created runtime: %v", err)
+	}
+	if serviceName != "55_2_10" {
+		t.Fatalf("expected service_name=55_2_10, got %q", serviceName)
+	}
+	if port != 26301 {
+		t.Fatalf("expected port=26301, got %d", port)
+	}
+	if applied != 1 {
+		t.Fatalf("expected applied=1, got %d", applied)
+	}
+}
+
+func TestReleasePeerShareForwardRuntimeServicesMarksRuntimeReleased(t *testing.T) {
+	r, err := repo.Open(filepath.Join(t.TempDir(), "panel-release-runtime.db"))
+	if err != nil {
+		t.Fatalf("open sqlite: %v", err)
+	}
+	t.Cleanup(func() { _ = r.Close() })
+
+	h := New(r, "test-jwt-secret")
+	now := time.Now().UnixMilli()
+
+	if err := r.CreatePeerShare(&repo.PeerShare{
+		Name:           "release-runtime-share",
+		NodeID:         1,
+		Token:          "release-runtime-token",
+		MaxBandwidth:   0,
+		CurrentFlow:    0,
+		PortRangeStart: 26400,
+		PortRangeEnd:   26420,
+		IsActive:       1,
+		CreatedTime:    now,
+		UpdatedTime:    now,
+	}); err != nil {
+		t.Fatalf("create share: %v", err)
+	}
+	share, err := r.GetPeerShareByToken("release-runtime-token")
+	if err != nil || share == nil {
+		t.Fatalf("load share: %v", err)
+	}
+
+	if err := r.DB().Exec(`
+		INSERT INTO peer_share_runtime(share_id, node_id, reservation_id, resource_key, binding_id, role, chain_name, service_name, protocol, strategy, port, target, applied, status, created_time, updated_time)
+		VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+	`, share.ID, share.NodeID, "release-r1", "release-rk1", "", "forward", "", "77_2_10", "tcp", "fifo", 26401, "", 1, 1, now, now).Error; err != nil {
+		t.Fatalf("insert runtime: %v", err)
+	}
+
+	h.releasePeerShareForwardRuntimeServices(share, map[string]interface{}{
+		"services": []interface{}{"77_2_10_tcp"},
+	})
+
+	var status int
+	var applied int
+	var serviceName string
+	if err := r.DB().Raw(`SELECT status, applied, service_name FROM peer_share_runtime WHERE share_id = ? AND role = ? ORDER BY id DESC LIMIT 1`, share.ID, "forward").Row().Scan(&status, &applied, &serviceName); err != nil {
+		t.Fatalf("query released runtime: %v", err)
+	}
+	if status != 0 {
+		t.Fatalf("expected status=0 after release, got %d", status)
+	}
+	if applied != 0 {
+		t.Fatalf("expected applied=0 after release, got %d", applied)
+	}
+	if serviceName != "" {
+		t.Fatalf("expected service_name cleared after release, got %q", serviceName)
+	}
+}
+
 func TestValidateFederationCommandPortsAcceptsTopLevelServiceArray(t *testing.T) {
 	share := &repo.PeerShare{
 		PortRangeStart: 26200,

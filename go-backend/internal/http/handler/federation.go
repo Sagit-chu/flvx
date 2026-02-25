@@ -1268,6 +1268,8 @@ func (h *Handler) federationRuntimeCommand(w http.ResponseWriter, r *http.Reques
 	}
 	if strings.EqualFold(cmd, "addservice") || strings.EqualFold(cmd, "updateservice") {
 		h.bindPeerShareForwardRuntimeServices(share, req.Data)
+	} else if strings.EqualFold(cmd, "deleteservice") {
+		h.releasePeerShareForwardRuntimeServices(share, req.Data)
 	}
 	response.WriteJSON(w, response.OK(res))
 }
@@ -1326,6 +1328,45 @@ func parseFederationForwardServiceBindings(data interface{}) []federationForward
 	return bindings
 }
 
+func parseFederationForwardServiceNamesForRelease(data interface{}) []string {
+	names := make(map[string]struct{})
+	appendName := func(raw string) {
+		name := normalizeForwardRuntimeServiceName(raw)
+		if name == "" {
+			return
+		}
+		if _, _, _, ok := parseFlowServiceIDs(name); !ok {
+			return
+		}
+		names[name] = struct{}{}
+	}
+
+	for _, svcMap := range extractFederationServiceEntries(data) {
+		appendName(asString(svcMap["name"]))
+	}
+
+	if dataMap, ok := data.(map[string]interface{}); ok {
+		for _, item := range asAnySlice(dataMap["services"]) {
+			appendName(asString(item))
+		}
+	}
+
+	for _, item := range asAnySlice(data) {
+		appendName(asString(item))
+	}
+
+	if len(names) == 0 {
+		return nil
+	}
+
+	out := make([]string, 0, len(names))
+	for name := range names {
+		out = append(out, name)
+	}
+	sort.Strings(out)
+	return out
+}
+
 func (h *Handler) bindPeerShareForwardRuntimeServices(share *repo.PeerShare, data interface{}) {
 	if h == nil || h.repo == nil || share == nil {
 		return
@@ -1338,13 +1379,66 @@ func (h *Handler) bindPeerShareForwardRuntimeServices(share *repo.PeerShare, dat
 	now := time.Now().UnixMilli()
 	for _, binding := range bindings {
 		runtime, err := h.repo.GetActiveForwardPeerShareRuntimeByPort(share.ID, binding.Port)
-		if err != nil || runtime == nil || runtime.Status != 1 {
+		if err != nil {
 			continue
 		}
-		if runtime.ServiceName == binding.Name && runtime.Applied == 1 {
+		if runtime == nil {
+			runtime, err = h.repo.GetActiveForwardPeerShareRuntimeByServiceName(share.ID, binding.Name)
+			if err != nil {
+				continue
+			}
+		}
+		if runtime == nil {
+			_ = h.repo.CreatePeerShareRuntime(&repo.PeerShareRuntime{
+				ShareID:       share.ID,
+				NodeID:        share.NodeID,
+				ReservationID: randomToken(24),
+				ResourceKey:   fmt.Sprintf("forward-runtime:%d:%s:%d:%s", share.ID, binding.Name, binding.Port, randomToken(8)),
+				BindingID:     "",
+				Role:          "forward",
+				ChainName:     "",
+				ServiceName:   binding.Name,
+				Protocol:      "tcp",
+				Strategy:      "fifo",
+				Port:          binding.Port,
+				Target:        "",
+				Applied:       1,
+				Status:        1,
+				CreatedTime:   now,
+				UpdatedTime:   now,
+			})
 			continue
 		}
-		_ = h.repo.UpdatePeerShareRuntimeServiceName(runtime.ID, binding.Name, now)
+		if runtime.ServiceName == binding.Name && runtime.Applied == 1 && runtime.Port == binding.Port && runtime.Status == 1 {
+			continue
+		}
+		runtime.ServiceName = binding.Name
+		runtime.Port = binding.Port
+		runtime.Applied = 1
+		runtime.Status = 1
+		runtime.UpdatedTime = now
+		if strings.TrimSpace(runtime.Protocol) == "" {
+			runtime.Protocol = "tcp"
+		}
+		if strings.TrimSpace(runtime.Strategy) == "" {
+			runtime.Strategy = "fifo"
+		}
+		_ = h.repo.UpdatePeerShareRuntime(runtime)
+	}
+}
+
+func (h *Handler) releasePeerShareForwardRuntimeServices(share *repo.PeerShare, data interface{}) {
+	if h == nil || h.repo == nil || share == nil {
+		return
+	}
+	names := parseFederationForwardServiceNamesForRelease(data)
+	if len(names) == 0 {
+		return
+	}
+
+	now := time.Now().UnixMilli()
+	for _, name := range names {
+		_ = h.repo.MarkForwardPeerShareRuntimeReleasedByServiceName(share.ID, name, now)
 	}
 }
 
