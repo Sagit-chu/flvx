@@ -375,6 +375,9 @@ export default function PanelSharingPage() {
   };
 
   const formatChainType = (chainType: number, hopInx: number) => {
+    if (chainType === 1) {
+      return "入口节点";
+    }
     if (chainType === 2) {
       return `中继跳点 #${hopInx}`;
     }

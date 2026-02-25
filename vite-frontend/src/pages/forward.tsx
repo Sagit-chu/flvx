@@ -50,6 +50,7 @@ import { Checkbox } from "@/shadcn-bridge/heroui/checkbox";
 import {
   createForward,
   getForwardList,
+  getPeerRemoteUsageList,
   updateForward,
   deleteForward,
   forceDeleteForward,
@@ -98,6 +99,7 @@ interface Forward {
   inFlow: number;
   outFlow: number;
   serviceRunning: boolean;
+  federationShareFlow?: number;
   createdTime: string;
   userName?: string;
   userId?: number;
@@ -219,6 +221,119 @@ export default function ForwardPage() {
   );
   const [batchLoading, setBatchLoading] = useState(false);
 
+  const parseShareIdFromTunnelName = (tunnelName: string): number | null => {
+    const normalized = (tunnelName || "").trim();
+
+    if (!normalized.startsWith("Share-")) {
+      return null;
+    }
+
+    const raw = normalized.slice("Share-".length);
+    const idx = raw.indexOf("-Port-");
+
+    if (idx <= 0) {
+      return null;
+    }
+
+    const shareId = Number(raw.slice(0, idx).trim());
+
+    return Number.isFinite(shareId) && shareId > 0 ? shareId : null;
+  };
+
+  const mergeFederationShareFlow = async (
+    forwardsData: Forward[],
+  ): Promise<Forward[]> => {
+    const shareIds = new Set<number>();
+
+    forwardsData.forEach((forward) => {
+      const shareId = parseShareIdFromTunnelName(forward.tunnelName || "");
+
+      if (shareId) {
+        shareIds.add(shareId);
+      }
+    });
+
+    if (shareIds.size === 0) {
+      return forwardsData;
+    }
+
+    try {
+      const usageRes = await getPeerRemoteUsageList();
+
+      if (usageRes.code !== 0 || !Array.isArray(usageRes.data)) {
+        return forwardsData;
+      }
+
+      const flowByShare = new Map<number, number>();
+
+      usageRes.data.forEach((item: Record<string, unknown>) => {
+        const shareId = Number(item.shareId || 0);
+        const currentFlow = Number(item.currentFlow || 0);
+
+        if (
+          Number.isFinite(shareId) &&
+          shareId > 0 &&
+          Number.isFinite(currentFlow) &&
+          currentFlow > 0
+        ) {
+          flowByShare.set(shareId, currentFlow);
+        }
+      });
+
+      const forwardCountByShare = new Map<number, number>();
+
+      forwardsData.forEach((forward) => {
+        const shareId = parseShareIdFromTunnelName(forward.tunnelName || "");
+
+        if (!shareId || !flowByShare.has(shareId)) {
+          return;
+        }
+
+        forwardCountByShare.set(
+          shareId,
+          (forwardCountByShare.get(shareId) || 0) + 1,
+        );
+      });
+
+      return forwardsData.map((forward) => {
+        const shareId = parseShareIdFromTunnelName(forward.tunnelName || "");
+
+        if (!shareId) {
+          return { ...forward, federationShareFlow: undefined };
+        }
+
+        const shareFlow = flowByShare.get(shareId) || 0;
+
+        if (shareFlow <= 0) {
+          return { ...forward, federationShareFlow: undefined };
+        }
+
+        const directFlow = (forward.inFlow || 0) + (forward.outFlow || 0);
+
+        if (directFlow > 0) {
+          return { ...forward, federationShareFlow: undefined };
+        }
+
+        const count = forwardCountByShare.get(shareId) || 1;
+        const estimated = Math.max(1, Math.floor(shareFlow / count));
+
+        return { ...forward, federationShareFlow: estimated };
+      });
+    } catch {
+      return forwardsData;
+    }
+  };
+
+  const getForwardDisplayFlow = (forward: Forward): number => {
+    const directFlow = (forward.inFlow || 0) + (forward.outFlow || 0);
+
+    if (directFlow > 0) {
+      return directFlow;
+    }
+
+    return forward.federationShareFlow || 0;
+  };
+
   useEffect(() => {
     loadData();
   }, []);
@@ -249,12 +364,14 @@ export default function ForwardPage() {
             serviceRunning: forward.status === 1,
           })) || [];
 
-        setForwards(forwardsData);
+        const mergedForwards = await mergeFederationShareFlow(forwardsData);
+
+        setForwards(mergedForwards);
 
         // 初始化拖拽排序顺序
         const currentUserId = JwtUtil.getUserIdFromToken();
         const { order, fromDatabase } = buildForwardOrder(
-          forwardsData,
+          mergedForwards,
           currentUserId,
         );
 
@@ -1359,7 +1476,7 @@ export default function ForwardPage() {
         </TableCell>
         <TableCell className="whitespace-nowrap">
           <span className="text-sm font-medium text-default-600 font-mono">
-            {formatFlow((forward.inFlow || 0) + (forward.outFlow || 0))}
+            {formatFlow(getForwardDisplayFlow(forward))}
           </span>
         </TableCell>
         <TableCell>
@@ -1606,24 +1723,46 @@ export default function ForwardPage() {
               >
                 {strategyDisplay.text}
               </Chip>
-              <div className="flex items-center gap-1">
+              {(forward.inFlow || 0) + (forward.outFlow || 0) > 0 ? (
+                <>
+                  <div className="flex items-center gap-1">
+                    <Chip
+                      className="text-xs whitespace-nowrap"
+                      color="primary"
+                      size="sm"
+                      variant="flat"
+                    >
+                      ↑{formatFlow(forward.inFlow || 0)}
+                    </Chip>
+                  </div>
+                  <Chip
+                    className="text-xs whitespace-nowrap"
+                    color="success"
+                    size="sm"
+                    variant="flat"
+                  >
+                    ↓{formatFlow(forward.outFlow || 0)}
+                  </Chip>
+                </>
+              ) : (forward.federationShareFlow || 0) > 0 ? (
                 <Chip
                   className="text-xs whitespace-nowrap"
-                  color="primary"
+                  color="secondary"
                   size="sm"
                   variant="flat"
                 >
-                  ↑{formatFlow(forward.inFlow || 0)}
+                  共享 {formatFlow(forward.federationShareFlow || 0)}
                 </Chip>
-              </div>
-              <Chip
-                className="text-xs whitespace-nowrap"
-                color="success"
-                size="sm"
-                variant="flat"
-              >
-                ↓{formatFlow(forward.outFlow || 0)}
-              </Chip>
+              ) : (
+                <Chip
+                  className="text-xs whitespace-nowrap"
+                  color="default"
+                  size="sm"
+                  variant="flat"
+                >
+                  总流量 {formatFlow(0)}
+                </Chip>
+              )}
             </div>
           </div>
 
