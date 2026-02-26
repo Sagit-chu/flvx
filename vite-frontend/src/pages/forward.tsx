@@ -503,9 +503,29 @@ export default function ForwardPage() {
   };
 
   // 表单验证
-  const availableSpeedLimits = useMemo(() => {
-    return speedLimits;
+  const noLimitSpeedLimitIds = useMemo(() => {
+    return new Set(
+      speedLimits
+        .filter((speedLimit) => speedLimit.name.trim() === "不限速")
+        .map((speedLimit) => speedLimit.id),
+    );
   }, [speedLimits]);
+
+  const availableSpeedLimits = useMemo(() => {
+    return speedLimits.filter(
+      (speedLimit) => !noLimitSpeedLimitIds.has(speedLimit.id),
+    );
+  }, [speedLimits, noLimitSpeedLimitIds]);
+
+  const normalizeSpeedId = (speedId?: number | null): number | null => {
+    if (speedId === null || speedId === undefined) {
+      return null;
+    }
+
+    return noLimitSpeedLimitIds.has(speedId) ? null : speedId;
+  };
+
+  const selectedSpeedId = normalizeSpeedId(form.speedId);
 
   const validateForm = (): boolean => {
     const newErrors: { [key: string]: string } = {};
@@ -591,7 +611,7 @@ export default function ForwardPage() {
       remoteAddr: forward.remoteAddr.split(",").join("\n"),
       interfaceName: forward.interfaceName || "",
       strategy: forward.strategy || "fifo",
-      speedId: forward.speedId ?? null,
+      speedId: normalizeSpeedId(forward.speedId),
     });
     setErrors({});
     setModalOpen(true);
@@ -671,7 +691,7 @@ export default function ForwardPage() {
           inPort: form.inPort,
           remoteAddr: processedRemoteAddr,
           strategy: addressCount > 1 ? form.strategy : "fifo",
-          speedId: form.speedId,
+          speedId: normalizeSpeedId(form.speedId),
         };
 
         res = await updateForward(updateData);
@@ -683,7 +703,7 @@ export default function ForwardPage() {
           inPort: form.inPort,
           remoteAddr: processedRemoteAddr,
           strategy: addressCount > 1 ? form.strategy : "fifo",
-          speedId: form.speedId,
+          speedId: normalizeSpeedId(form.speedId),
         };
 
         res = await createForward(createData);
@@ -2331,8 +2351,8 @@ export default function ForwardPage() {
                     label="限速规则"
                     placeholder="不限速"
                     selectedKeys={
-                      form.speedId !== null && form.speedId !== undefined
-                        ? [form.speedId.toString()]
+                      selectedSpeedId !== null
+                        ? [selectedSpeedId.toString()]
                         : ["null"]
                     }
                     variant="bordered"

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import toast from "react-hot-toast";
 import { parseDate } from "@internationalized/date";
 
@@ -219,6 +219,22 @@ export default function UserPage() {
   const [speedLimits, setSpeedLimits] = useState<SpeedLimit[]>([]);
   const [userGroups, setUserGroups] = useState<UserGroup[]>([]);
 
+  const noLimitSpeedLimitIds = useMemo(() => {
+    return new Set(
+      speedLimits
+        .filter((speedLimit) => speedLimit.name.trim() === "不限速")
+        .map((speedLimit) => speedLimit.id),
+    );
+  }, [speedLimits]);
+
+  const normalizeSpeedId = (speedId?: number | null): number | null => {
+    if (speedId === null || speedId === undefined) {
+      return null;
+    }
+
+    return noLimitSpeedLimitIds.has(speedId) ? null : speedId;
+  };
+
   // 生命周期
   useEffect(() => {
     loadUsers();
@@ -432,7 +448,10 @@ export default function UserPage() {
     try {
       const tunnelsToAssign: TunnelAssignItem[] = Array.from(
         batchTunnelSelections.entries(),
-      ).map(([tunnelId, speedId]) => ({ tunnelId, speedId }));
+      ).map(([tunnelId, speedId]) => ({
+        tunnelId,
+        speedId: normalizeSpeedId(speedId),
+      }));
 
       const response = await batchAssignUserTunnel({
         userId: currentUser.id,
@@ -456,6 +475,7 @@ export default function UserPage() {
   const handleEditTunnel = (userTunnel: UserTunnel) => {
     setEditTunnelForm({
       ...userTunnel,
+      speedId: normalizeSpeedId(userTunnel.speedId),
       expTime: userTunnel.expTime,
     });
     onEditTunnelModalOpen();
@@ -472,7 +492,7 @@ export default function UserPage() {
         num: editTunnelForm.num,
         expTime: editTunnelForm.expTime,
         flowResetTime: editTunnelForm.flowResetTime,
-        speedId: editTunnelForm.speedId,
+        speedId: normalizeSpeedId(editTunnelForm.speedId),
         status: editTunnelForm.status,
       });
 
@@ -582,11 +602,17 @@ export default function UserPage() {
     }
   };
 
-  const editAvailableSpeedLimits = speedLimits;
+  const editAvailableSpeedLimits = speedLimits.filter(
+    (speedLimit) => !noLimitSpeedLimitIds.has(speedLimit.id),
+  );
 
   const getSpeedLimitsForTunnel = (_tunnelId: number) => {
-    return speedLimits;
+    return speedLimits.filter(
+      (speedLimit) => !noLimitSpeedLimitIds.has(speedLimit.id),
+    );
   };
+
+  const editTunnelSelectedSpeedId = normalizeSpeedId(editTunnelForm?.speedId);
 
   const toggleTunnelSelection = (tunnelId: number) => {
     setBatchTunnelSelections((prev) => {
@@ -1404,8 +1430,8 @@ export default function UserPage() {
                   <Select
                     label="限速规则"
                     selectedKeys={
-                      editTunnelForm.speedId
-                        ? [editTunnelForm.speedId.toString()]
+                      editTunnelSelectedSpeedId !== null
+                        ? [editTunnelSelectedSpeedId.toString()]
                         : ["null"]
                     }
                     onSelectionChange={(keys) => {

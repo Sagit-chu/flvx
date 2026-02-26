@@ -366,6 +366,21 @@ export default function TunnelPage() {
     return form.chainNodes || [];
   };
 
+  const mergeOrderedNodes = (
+    currentNodes: ChainTunnel[],
+    selectedNodeIds: number[],
+    buildDefault: (nodeId: number) => ChainTunnel,
+  ): ChainTunnel[] => {
+    const selectedSet = new Set(selectedNodeIds);
+    const kept = currentNodes.filter((node) => selectedSet.has(node.nodeId));
+    const keptIds = new Set(kept.map((node) => node.nodeId));
+    const added = selectedNodeIds
+      .filter((nodeId) => !keptIds.has(nodeId))
+      .map((nodeId) => buildDefault(nodeId));
+
+    return [...kept, ...added];
+  };
+
   // 提交表单
   const handleSubmit = async () => {
     if (!validateForm()) return;
@@ -1241,15 +1256,10 @@ export default function TunnelPage() {
                         const selectedIds = Array.from(keys).map((key) =>
                           parseInt(key as string),
                         );
-                        const newInNodeId: ChainTunnel[] = selectedIds.map(
-                          (nodeId) => {
-                            // 保留已有的端口配置
-                            const existing = form.inNodeId.find(
-                              (ct) => ct.nodeId === nodeId,
-                            );
-
-                            return existing || { nodeId, chainType: 1 };
-                          },
+                        const newInNodeId = mergeOrderedNodes(
+                          form.inNodeId,
+                          selectedIds,
+                          (nodeId) => ({ nodeId, chainType: 1 }),
                         );
 
                         setForm((prev) => ({ ...prev, inNodeId: newInNodeId }));
@@ -1659,21 +1669,16 @@ export default function TunnelPage() {
                               const realNodes = currentOutNodes.filter(
                                 (ct) => ct.nodeId !== -1,
                               );
-                              const newOutNodeId: ChainTunnel[] =
-                                selectedIds.map((nodeId) => {
-                                  const existing = realNodes.find(
-                                    (ct) => ct.nodeId === nodeId,
-                                  );
-
-                                  return (
-                                    existing || {
-                                      nodeId,
-                                      chainType: 3,
-                                      protocol,
-                                      strategy,
-                                    }
-                                  );
-                                });
+                              const newOutNodeId = mergeOrderedNodes(
+                                realNodes,
+                                selectedIds,
+                                (nodeId) => ({
+                                  nodeId,
+                                  chainType: 3,
+                                  protocol,
+                                  strategy,
+                                }),
+                              );
 
                               setForm((prev) => ({
                                 ...prev,
