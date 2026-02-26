@@ -2806,7 +2806,7 @@ func pickNodeAddressV6(node *nodeRecord) string {
 func (h *Handler) replaceTunnelChainsTx(tx *gorm.DB, tunnelID int64, req map[string]interface{}) error {
 	allocated := map[int64]int{}
 	inNodes := asMapSlice(req["inNodeId"])
-	for _, n := range inNodes {
+	for i, n := range inNodes {
 		nodeID := asInt64(n["nodeId"], 0)
 		if nodeID <= 0 {
 			continue
@@ -2818,13 +2818,13 @@ func (h *Handler) replaceTunnelChainsTx(tx *gorm.DB, tunnelID int64, req map[str
 			nodeID,
 			sql.NullInt64{},
 			defaultString(asString(n["strategy"]), "round"),
-			0,
+			i+1,
 			defaultString(asString(n["protocol"]), "tls"),
 		); err != nil {
 			return err
 		}
 	}
-	for _, n := range asMapSlice(req["outNodeId"]) {
+	for i, n := range asMapSlice(req["outNodeId"]) {
 		nodeID := asInt64(n["nodeId"], 0)
 		if nodeID <= 0 {
 			continue
@@ -2844,7 +2844,7 @@ func (h *Handler) replaceTunnelChainsTx(tx *gorm.DB, tunnelID int64, req map[str
 			nodeID,
 			sql.NullInt64{Int64: int64(port), Valid: true},
 			defaultString(asString(n["strategy"]), "round"),
-			0,
+			i+1,
 			defaultString(asString(n["protocol"]), "tls"),
 		); err != nil {
 			return err
