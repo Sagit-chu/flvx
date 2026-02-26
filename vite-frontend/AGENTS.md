@@ -1,9 +1,9 @@
 # VITE FRONTEND KNOWLEDGE BASE
 
-**Generated:** Thu Feb 19 2026
-**Commit:** 137c34e
+**Generated:** Thu Feb 26 2026
+**Commit:** 21008cc
 **Branch:** main
-**Tag:** 2.1.4-rc2
+**Tag:** 2.1.5-rc15
 
 ## OVERVIEW
 Web management console for FLVX.
@@ -15,8 +15,8 @@ vite-frontend/
 ├── src/
 │   ├── api/                      # Axios wrapper + typed endpoint helpers
 │   ├── components/ui/            # shadcn/radix primitive components
-│   ├── shadcn-bridge/heroui/     # HeroUI-compatible facade used by pages/layouts
-│   ├── pages/                    # Route views + page modules (forward/node/tunnel split helpers)
+│   ├── shadcn-bridge/heroui/     # HeroUI-compatible facade (23 components)
+│   ├── pages/                    # Route views + page modules (forward/node/tunnel)
 │   ├── hooks/                    # H5/WebView/mobile hooks
 │   ├── styles/
 │   │   ├── globals.css           # Base styles + imports tailwind-theme.pcss
@@ -25,8 +25,8 @@ vite-frontend/
 │   ├── main.tsx                  # ReactDOM + BrowserRouter + Provider
 │   └── provider.tsx              # Toast/theme/provider composition
 ├── components.json               # shadcn/ui config
-├── tailwind.config.js            # Compatibility config still used by migration scaffolding
-├── vite.config.ts                # base '/', host 0.0.0.0:3000; build minify/treeshake disabled
+├── tailwind.config.js            # Compatibility config for migration scaffolding
+├── vite.config.ts                # base '/', host 0.0.0.0:3000; minify/treeshake disabled
 └── package.json
 ```
 
@@ -47,8 +47,8 @@ vite-frontend/
 - **API Envelope**: Responses follow `{code, msg, data, ts}`.
 - **UI Imports**: Use `src/shadcn-bridge/heroui/*` in app pages/layouts for compatibility.
 - **Semantic Colors**: Keep `globals.css -> tailwind-theme.pcss` import intact or semantic classes break.
-- **Build profile**: `minify: false`, `treeshake: false` for easier debugging.
-- **Layout mode**: H5/mobile mode still controlled by existing route/query and hook logic.
+- **Build profile**: `minify: false`, `treeshake: false` for debugging.
+- **Layout mode**: H5/mobile mode controlled by existing route/query and hook logic.
 
 ## ANTI-PATTERNS
 - **DO NOT ADD** `Bearer` to auth header in frontend requests.
@@ -57,10 +57,9 @@ vite-frontend/
 - **DO NOT ADD** frontend tests; no Vitest/Jest setup exists.
 
 ## NOTES
-- PR `#144` (shadcn migration) and PR `#142` (user-group binding) are merged in `main`.
-- Release tag `2.1.4-rc2` points to commit `137c34e`.
-- Button border/color parity depends on both bridge mapping and semantic Tailwind token export.
 - Uses `rolldown-vite` (experimental Rust bundler) instead of standard Vite.
+- Build outputs are non-minified (debugging mode).
+- No test infrastructure exists (Vitest/Jest not configured).
 
 ## COMMANDS
 ```bash

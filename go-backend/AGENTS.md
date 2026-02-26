@@ -2,7 +2,7 @@
 
 ## OVERVIEW
 Go-based Admin API for FLVX. Replaced legacy Spring Boot backend.
-**Stack:** Go 1.23, net/http (std lib), GORM + SQLite/PostgreSQL (glebarez/sqlite - CGO-free).
+**Stack:** Go 1.24, net/http (std lib), GORM + SQLite/PostgreSQL (glebarez/sqlite - CGO-free).
 
 ## STRUCTURE
 ```
@@ -17,14 +17,15 @@ go-backend/
 │   ├── store/
 │   │   ├── model/model.go    # GORM model structs (single source of truth)
 │   │   └── repo/             # Data Access Layer (Repository pattern, GORM)
-│   │       ├── repository.go           # Core queries, Open/OpenPostgres, AutoMigrate
-│   │       ├── repository_mutations.go # Mutation helpers (user/node/tunnel/forward CRUD)
-│   │       ├── repository_federation.go# Federation-specific queries
+│   │       ├── repository.go           # Core queries, Open/OpenPostgres, AutoMigrate (83k LOC)
+│   │       ├── repository_mutations.go # Mutation helpers (user/node/tunnel/forward CRUD, 43k LOC)
+│   │       ├── repository_federation.go # Federation-specific queries
 │   │       ├── repository_flow.go      # Flow/forward status queries
-│   │       └── repository_control.go   # Control plane queries
+│   │       ├── repository_control.go   # Control plane queries
+│   │       └── repository_groups.go    # Group management queries
 │   └── auth/                 # Auth logic
-├── tests/                    # Integration/Contract tests
-├── Dockerfile                # Multi-stage build (alpine)
+├── tests/contract/            # Integration/contract tests (14 tests)
+├── Dockerfile                # Multi-stage build (golang:1.24-bookworm → debian:bookworm-slim)
 └── Makefile                  # Build commands
 ```
 
@@ -36,6 +37,7 @@ go-backend/
 | **Repository** | `go-backend/internal/store/repo/` | GORM-based queries, all DB ops encapsulated |
 | **Auth Middleware** | `go-backend/internal/http/middleware/jwt.go` | Extracts `Authorization` header |
 | **WebSocket** | `go-backend/internal/ws/` | Real-time updates (traffic, status) |
+| **Contract Tests** | `go-backend/tests/contract/` | Integration tests for auth, federation, tunnels |
 
 ## CONVENTIONS
 - **GORM ORM**: Uses GORM with `glebarez/sqlite` (CGO-free) and `gorm.io/driver/postgres`.
@@ -47,6 +49,7 @@ go-backend/
 - **API Envelope**: All responses use `response.R{code, msg, data, ts}` structure.
 - **Config**: Loaded from environment variables (see `cmd/paneld/main.go`).
 - **SQLite Constraints**: `MaxOpenConns(1)`, WAL mode, busy_timeout=5000.
+- **PostgreSQL**: Supported via `DB_TYPE=postgres` and `DATABASE_URL` env vars.
 
 ## ANTI-PATTERNS
 - **DO NOT** let handlers call `repo.DB()` directly — add a Repository method instead.
@@ -58,6 +61,7 @@ go-backend/
 ```bash
 cd go-backend
 go run ./cmd/paneld       # Default: SERVER_ADDR=:6365
-go test ./...
+go test ./...             # Unit tests
+go test ./tests/contract/... # Contract tests
 make build
 ```

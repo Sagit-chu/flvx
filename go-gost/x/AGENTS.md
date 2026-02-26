@@ -6,27 +6,28 @@ Local fork of `github.com/go-gost/x` used by `go-gost/` via `replace github.com/
 ## STRUCTURE
 ```
 go-gost/x/
-├── api/        # Gin management API + embedded swagger docs
+├── api/        # Gin management API + embedded swagger docs (22 files)
 ├── config/     # Config model + parsing/load/reload
 ├── connector/  # Outbound connect implementations
-├── dialer/     # Outbound dialers (tcp/tls/ws/quic/...) 
+├── dialer/     # Outbound dialers (tcp/tls/ws/quic/...)
 ├── handler/    # Protocol handlers (socks/http/tunnel/relay/...)
 ├── listener/   # Inbound listeners (tcp/udp/tun/tap/redirect/...)
 ├── limiter/    # Traffic/rate/conn limiters
-├── registry/   # Registries for services/handlers/listeners/etc
+├── registry/   # Registries for services/handlers/listeners/etc (20 files)
 ├── service/    # Service wrappers + reporting hooks
-├── socket/     # WebSocket reporter / panel integration
+├── socket/     # WebSocket reporter / panel integration (6 files)
 └── internal/   # Shared internals (grpc proto, net utils, sniffing, tls, ...)
 ```
 
 ## WHERE TO LOOK
 | Task | Location | Notes |
 |------|----------|-------|
-| Management API routes/auth | `go-gost/x/api/api.go` | `/docs`, `/config/*`; BasicAuth + interceptor |
-| Service config parsing | `go-gost/x/config/parsing/` | Converts config to running services |
-| Add a handler | `go-gost/x/handler/` | Per-protocol subdirs |
-| Add a listener/dialer | `go-gost/x/listener/`, `go-gost/x/dialer/` | Transport variants |
-| Panel reporting | `go-gost/x/socket/` | WebSocket + HTTP report URL hooks |
+| **Management API routes/auth** | `go-gost/x/api/api.go` | `/docs`, `/config/*`; BasicAuth + interceptor |
+| **Service config parsing** | `go-gost/x/config/parsing/` | Converts config to running services |
+| **Add a handler** | `go-gost/x/handler/` | Per-protocol subdirs |
+| **Add a listener/dialer** | `go-gost/x/listener/`, `go-gost/x/dialer/` | Transport variants |
+| **Panel reporting** | `go-gost/x/socket/` | WebSocket + HTTP report URL hooks |
+| **Register new component** | `go-gost/x/registry/` | `Register{Type}(name, creator)` |
 
 ## CONVENTIONS
 - `go-gost/x/` is a standalone Go module (`go-gost/x/go.mod`); run go tooling from this dir when debugging module resolution.
