@@ -293,37 +293,10 @@ export default function TunnelPage() {
     }));
   };
 
-  // 添加节点到指定的转发链跳数
-  const addNodeToChain = (groupIndex: number, nodeId: number) => {
-    setForm((prev) => {
-      const chainNodes = [...(prev.chainNodes || [])];
-      const group = chainNodes[groupIndex] || [];
-
-      // 获取当前组的策略和协议
-      const strategy = group.length > 0 ? group[0].strategy : "round";
-      const protocol = group.length > 0 ? group[0].protocol : "tls";
-
-      // 添加节点到该组
-      chainNodes[groupIndex] = [
-        ...group,
-        { nodeId, chainType: 2, protocol, strategy },
-      ];
-
-      return { ...prev, chainNodes };
-    });
-  };
-
-  // 从某一跳删除指定节点
-  const removeNodeFromChain = (groupIndex: number, nodeId: number) => {
-    setForm((prev) => {
-      const chainNodes = [...(prev.chainNodes || [])];
-
-      chainNodes[groupIndex] = (chainNodes[groupIndex] || []).filter(
-        (node) => node.nodeId !== nodeId,
-      );
-
-      return { ...prev, chainNodes };
-    });
+  const toSelectedNodeIds = (keys: Iterable<unknown>): number[] => {
+    return Array.from(keys)
+      .map((key) => Number.parseInt(String(key), 10))
+      .filter((nodeId) => Number.isFinite(nodeId));
   };
 
   // 更新某一跳的所有节点的协议
@@ -379,6 +352,36 @@ export default function TunnelPage() {
       .map((nodeId) => buildDefault(nodeId));
 
     return [...kept, ...added];
+  };
+
+  const syncChainGroupNodes = (
+    groupIndex: number,
+    selectedNodeIds: number[],
+  ) => {
+    setForm((prev) => {
+      const chainNodes = [...(prev.chainNodes || [])];
+      const currentGroup = chainNodes[groupIndex] || [];
+      const protocol = currentGroup[0]?.protocol || "tls";
+      const strategy = currentGroup[0]?.strategy || "round";
+      const realNodes = currentGroup.filter((node) => node.nodeId !== -1);
+      const mergedNodes = mergeOrderedNodes(
+        realNodes,
+        selectedNodeIds,
+        (nodeId) => ({
+          nodeId,
+          chainType: 2,
+          protocol,
+          strategy,
+        }),
+      );
+
+      chainNodes[groupIndex] =
+        mergedNodes.length > 0
+          ? mergedNodes
+          : [{ nodeId: -1, chainType: 2, protocol, strategy }];
+
+      return { ...prev, chainNodes };
+    });
   };
 
   // 提交表单
@@ -1253,16 +1256,16 @@ export default function TunnelPage() {
                       selectionMode="multiple"
                       variant="bordered"
                       onSelectionChange={(keys) => {
-                        const selectedIds = Array.from(keys).map((key) =>
-                          parseInt(key as string),
-                        );
-                        const newInNodeId = mergeOrderedNodes(
-                          form.inNodeId,
-                          selectedIds,
-                          (nodeId) => ({ nodeId, chainType: 1 }),
-                        );
+                        const selectedIds = toSelectedNodeIds(keys);
 
-                        setForm((prev) => ({ ...prev, inNodeId: newInNodeId }));
+                        setForm((prev) => ({
+                          ...prev,
+                          inNodeId: mergeOrderedNodes(
+                            prev.inNodeId,
+                            selectedIds,
+                            (nodeId) => ({ nodeId, chainType: 1 }),
+                          ),
+                        }));
                       }}
                     >
                       {nodes.map((node) => (
@@ -1431,37 +1434,10 @@ export default function TunnelPage() {
                                       size="sm"
                                       variant="bordered"
                                       onSelectionChange={(keys) => {
-                                        const selectedIds = Array.from(
-                                          keys,
-                                        ).map((key) => parseInt(key as string));
-                                        const currentNodes = groupNodes.filter(
-                                          (ct) => ct.nodeId !== -1,
+                                        syncChainGroupNodes(
+                                          groupIndex,
+                                          toSelectedNodeIds(keys),
                                         );
-
-                                        // 找出新增的节点
-                                        const currentNodeIds = currentNodes.map(
-                                          (ct) => ct.nodeId,
-                                        );
-                                        const addedIds = selectedIds.filter(
-                                          (id) => !currentNodeIds.includes(id),
-                                        );
-                                        const removedIds =
-                                          currentNodeIds.filter(
-                                            (id) => !selectedIds.includes(id),
-                                          );
-
-                                        // 添加新节点
-                                        addedIds.forEach((nodeId) => {
-                                          addNodeToChain(groupIndex, nodeId);
-                                        });
-
-                                        // 删除取消选择的节点
-                                        removedIds.forEach((nodeId) => {
-                                          removeNodeFromChain(
-                                            groupIndex,
-                                            nodeId,
-                                          );
-                                        });
                                       }}
                                     >
                                       {nodes.map((node) => (
@@ -1652,38 +1628,32 @@ export default function TunnelPage() {
                             selectionMode="multiple"
                             variant="bordered"
                             onSelectionChange={(keys) => {
-                              const selectedIds = Array.from(keys).map((key) =>
-                                parseInt(key as string),
-                              );
-                              const currentOutNodes = form.outNodeId || [];
+                              const selectedIds = toSelectedNodeIds(keys);
 
-                              let protocol = "tls";
-                              let strategy = "round";
+                              setForm((prev) => {
+                                const currentOutNodes = prev.outNodeId || [];
+                                const protocol =
+                                  currentOutNodes[0]?.protocol || "tls";
+                                const strategy =
+                                  currentOutNodes[0]?.strategy || "round";
+                                const realNodes = currentOutNodes.filter(
+                                  (ct) => ct.nodeId !== -1,
+                                );
 
-                              if (currentOutNodes.length > 0) {
-                                protocol = currentOutNodes[0].protocol || "tls";
-                                strategy =
-                                  currentOutNodes[0].strategy || "round";
-                              }
-
-                              const realNodes = currentOutNodes.filter(
-                                (ct) => ct.nodeId !== -1,
-                              );
-                              const newOutNodeId = mergeOrderedNodes(
-                                realNodes,
-                                selectedIds,
-                                (nodeId) => ({
-                                  nodeId,
-                                  chainType: 3,
-                                  protocol,
-                                  strategy,
-                                }),
-                              );
-
-                              setForm((prev) => ({
-                                ...prev,
-                                outNodeId: newOutNodeId,
-                              }));
+                                return {
+                                  ...prev,
+                                  outNodeId: mergeOrderedNodes(
+                                    realNodes,
+                                    selectedIds,
+                                    (nodeId) => ({
+                                      nodeId,
+                                      chainType: 3,
+                                      protocol,
+                                      strategy,
+                                    }),
+                                  ),
+                                };
+                              });
                             }}
                           >
                             {nodes.map((node) => (
