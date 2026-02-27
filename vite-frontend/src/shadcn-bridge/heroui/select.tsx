@@ -228,11 +228,14 @@ export function Select<T>({
 
   const selectedArray = Array.from(selected);
   const singleValue = selectedArray[0] ?? "";
-  const selectedLabels = options
-    .filter((option) => selected.has(option.key))
-    .map((option) => option.label);
-  const resolvedSelectedValues =
-    selectedLabels.length > 0 ? selectedLabels : selectedArray;
+  const optionLabelMap = React.useMemo(() => {
+    return new Map(options.map((option) => [option.key, option.label]));
+  }, [options]);
+  const resolvedSelectedValues = selectedArray.map((key) => {
+    const keyText = String(key);
+
+    return optionLabelMap.get(keyText) ?? keyText;
+  });
   const selectedFullText = resolvedSelectedValues.join("、");
   const selectedText =
     selectedArray.length > 0 ? selectedFullText : (placeholder ?? "请选择");
