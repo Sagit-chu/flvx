@@ -7,7 +7,7 @@ import {
   NavbarBrand,
   NavbarContent,
 } from "@/shadcn-bridge/heroui/navbar";
-import { Logo } from "@/components/icons";
+import { BrandLogo } from "@/components/brand-logo";
 import { siteConfig, getCachedConfig } from "@/config/site";
 import { useWebViewMode } from "@/hooks/useWebViewMode";
 
@@ -69,7 +69,7 @@ export const Navbar = () => {
               color="foreground"
               href="/"
             >
-              <Logo size={24} />
+              <BrandLogo size={24} />
               <p className="font-bold text-inherit truncate">{appName}</p>
             </Link>
           </NavbarBrand>

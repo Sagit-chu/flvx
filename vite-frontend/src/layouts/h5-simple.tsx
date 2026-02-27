@@ -2,7 +2,7 @@ import React from "react";
 import { useNavigate } from "react-router-dom";
 
 import { Button } from "@/shadcn-bridge/heroui/button";
-import { Logo } from "@/components/icons";
+import { BrandLogo } from "@/components/brand-logo";
 import { siteConfig } from "@/config/site";
 import { useScrollTopOnPathChange } from "@/hooks/useScrollTopOnPathChange";
 
@@ -33,7 +33,7 @@ export default function H5SimpleLayout({
               />
             </svg>
           </Button>
-          <Logo size={20} />
+          <BrandLogo size={20} />
           <h1 className="text-sm font-bold text-foreground">
             {siteConfig.name}
           </h1>

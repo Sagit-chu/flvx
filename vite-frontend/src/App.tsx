@@ -18,7 +18,7 @@ import AdminLayout from "@/layouts/admin";
 import H5Layout from "@/layouts/h5";
 import H5SimpleLayout from "@/layouts/h5-simple";
 import { isLoggedIn } from "@/utils/auth";
-import { siteConfig } from "@/config/site";
+import { siteConfig, updateSiteConfig } from "@/config/site";
 import { useH5Mode } from "@/hooks/useH5Mode";
 
 // 简化的路由保护组件 - 使用 React Router 导航避免循环
@@ -90,23 +90,17 @@ function App() {
   useEffect(() => {
     document.title = siteConfig.name;
 
-    // 异步检查是否有配置更新
-    const checkTitleUpdate = async () => {
-      try {
-        // 引入必要的函数
-        const { getCachedConfig } = await import("@/config/site");
-        const cachedAppName = await getCachedConfig("app_name");
+    void updateSiteConfig();
 
-        if (cachedAppName && cachedAppName !== document.title) {
-          document.title = cachedAppName;
-        }
-      } catch {}
+    const handleConfigUpdate = () => {
+      void updateSiteConfig();
     };
 
-    // 延迟检查，避免阻塞初始渲染
-    const timer = setTimeout(checkTitleUpdate, 100);
+    window.addEventListener("configUpdated", handleConfigUpdate);
 
-    return () => clearTimeout(timer);
+    return () => {
+      window.removeEventListener("configUpdated", handleConfigUpdate);
+    };
   }, []);
 
   return (

@@ -67,6 +67,13 @@ interface ConfigItem {
   dependsValue?: string; // 依赖的配置项值
 }
 
+const BRAND_PREVIEW_KEYS = ["app_logo", "app_favicon"] as const;
+
+type BrandPreviewKey = (typeof BRAND_PREVIEW_KEYS)[number];
+
+const isBrandPreviewKey = (key: string): key is BrandPreviewKey =>
+  BRAND_PREVIEW_KEYS.includes(key as BrandPreviewKey);
+
 // 网站配置项定义
 const CONFIG_ITEMS: ConfigItem[] = [
   {
@@ -89,6 +96,22 @@ const CONFIG_ITEMS: ConfigItem[] = [
     label: "应用名称",
     placeholder: "请输入应用名称",
     description: "在浏览器标签页和导航栏显示的应用名称",
+    type: "input",
+  },
+  {
+    key: "app_logo",
+    label: "网页角标 Logo",
+    placeholder: "请输入 Logo 图片 URL",
+    description:
+      "用于页面左上角导航角标，支持站内路径（如 /logo.png）或完整图片 URL",
+    type: "input",
+  },
+  {
+    key: "app_favicon",
+    label: "浏览器缩略图标",
+    placeholder: "请输入 Favicon 图片 URL",
+    description:
+      "用于浏览器标签页图标，支持站内路径（如 /favicon.ico）或完整图片 URL",
     type: "input",
   },
   {
@@ -143,6 +166,8 @@ const getInitialConfigs = (): Record<string, string> => {
     "cloudflare_secret_key",
     "ip",
     "panel_domain",
+    "app_logo",
+    "app_favicon",
   ];
   const initialConfigs: Record<string, string> = {};
 
@@ -190,6 +215,9 @@ export default function ConfigPage() {
   const [updateChannel, setUpdateChannel] = useState<UpdateReleaseChannel>(
     getUpdateReleaseChannel(),
   );
+  const [previewLoadFailed, setPreviewLoadFailed] = useState<
+    Partial<Record<BrandPreviewKey, boolean>>
+  >({});
 
   // 权限检查
   useEffect(() => {
@@ -288,6 +316,10 @@ export default function ConfigPage() {
 
     setConfigs(newConfigs);
 
+    if (isBrandPreviewKey(key)) {
+      setPreviewLoadFailed((prev) => ({ ...prev, [key]: false }));
+    }
+
     const hasChangesNow =
       Object.keys(newConfigs).some(
         (k) => newConfigs[k] !== originalConfigs[k],
@@ -319,8 +351,11 @@ export default function ConfigPage() {
         setOriginalConfigs({ ...configs });
         setHasChanges(false);
 
-        // 如果应用名称发生变化，立即更新网站配置
-        if (changedKeys.includes("app_name")) {
+        if (
+          changedKeys.some((key) =>
+            ["app_name", "app_logo", "app_favicon"].includes(key),
+          )
+        ) {
           await updateSiteConfig();
         }
 
@@ -349,6 +384,78 @@ export default function ConfigPage() {
     return configs[item.dependsOn] === item.dependsValue;
   };
 
+  const renderBrandPreview = (key: BrandPreviewKey) => {
+    const previewUrl = (configs[key] || "").trim();
+    const appNamePreview = (configs.app_name || "").trim() || "应用名称";
+    const failed = previewLoadFailed[key] === true;
+    const showImage = previewUrl.length > 0 && !failed;
+
+    return (
+      <div className="mt-3 rounded-lg border border-default-200 dark:border-default-100/30 bg-default-50/60 dark:bg-default-100/10 p-3">
+        <p className="text-xs text-default-500">实时预览</p>
+        <div className="mt-2 rounded-md border border-default-200 dark:border-default-100/30 bg-white dark:bg-black px-3 py-2">
+          {key === "app_logo" ? (
+            <div className="flex h-10 items-center gap-2">
+              {showImage ? (
+                <img
+                  alt="logo preview"
+                  className="h-7 w-7 rounded-sm border border-default-200 object-cover dark:border-default-100/30"
+                  src={previewUrl}
+                  onError={() =>
+                    setPreviewLoadFailed((prev) => ({ ...prev, [key]: true }))
+                  }
+                  onLoad={() =>
+                    setPreviewLoadFailed((prev) => ({ ...prev, [key]: false }))
+                  }
+                />
+              ) : (
+                <div className="flex h-7 w-7 items-center justify-center rounded-sm bg-default-200 text-[10px] font-semibold text-default-600 dark:bg-default-700 dark:text-default-200">
+                  LOGO
+                </div>
+              )}
+              <span className="truncate text-sm font-semibold text-foreground">
+                {appNamePreview}
+              </span>
+            </div>
+          ) : (
+            <div className="flex h-7 max-w-[260px] items-center gap-2 rounded border border-default-200 bg-default-100/70 px-2 dark:border-default-100/30 dark:bg-default-100/20">
+              {showImage ? (
+                <img
+                  alt="favicon preview"
+                  className="h-4 w-4 rounded-sm object-contain"
+                  src={previewUrl}
+                  onError={() =>
+                    setPreviewLoadFailed((prev) => ({ ...prev, [key]: true }))
+                  }
+                  onLoad={() =>
+                    setPreviewLoadFailed((prev) => ({ ...prev, [key]: false }))
+                  }
+                />
+              ) : (
+                <div className="h-4 w-4 rounded-sm bg-default-300 dark:bg-default-600" />
+              )}
+              <span className="truncate text-xs text-default-700 dark:text-default-300">
+                {appNamePreview}
+              </span>
+            </div>
+          )}
+        </div>
+
+        {previewUrl.length === 0 ? (
+          <p className="mt-2 text-xs text-default-500">
+            输入图片 URL 后会实时显示预览
+          </p>
+        ) : null}
+
+        {previewUrl.length > 0 && failed ? (
+          <p className="mt-2 text-xs text-danger">
+            图片加载失败，请检查图片地址是否可访问
+          </p>
+        ) : null}
+      </div>
+    );
+  };
+
   // 渲染不同类型的配置项
   const renderConfigItem = (item: ConfigItem) => {
     const isChanged =
@@ -357,19 +464,22 @@ export default function ConfigPage() {
     switch (item.type) {
       case "input":
         return (
-          <Input
-            classNames={{
-              input: "text-sm",
-              inputWrapper: isChanged
-                ? "border-warning-300 data-[hover=true]:border-warning-400"
-                : "",
-            }}
-            placeholder={item.placeholder}
-            size="md"
-            value={configs[item.key] || ""}
-            variant="bordered"
-            onChange={(e) => handleConfigChange(item.key, e.target.value)}
-          />
+          <>
+            <Input
+              classNames={{
+                input: "text-sm",
+                inputWrapper: isChanged
+                  ? "border-warning-300 data-[hover=true]:border-warning-400"
+                  : "",
+              }}
+              placeholder={item.placeholder}
+              size="md"
+              value={configs[item.key] || ""}
+              variant="bordered"
+              onChange={(e) => handleConfigChange(item.key, e.target.value)}
+            />
+            {isBrandPreviewKey(item.key) ? renderBrandPreview(item.key) : null}
+          </>
         );
 
       case "switch":

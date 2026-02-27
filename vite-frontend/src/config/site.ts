@@ -16,10 +16,15 @@ const getInitialConfig = () => {
       version: VERSION,
       app_version: APP_VERSION,
       github_repo: GITHUB_REPO,
+      app_logo: "",
+      app_favicon: "",
     };
   }
 
   const cachedAppName = localStorage.getItem(CACHE_PREFIX + "app_name");
+  const cachedAppLogo = localStorage.getItem(CACHE_PREFIX + "app_logo") || "";
+  const cachedAppFavicon =
+    localStorage.getItem(CACHE_PREFIX + "app_favicon") || "";
 
   if (cachedAppName) {
     return {
@@ -27,6 +32,8 @@ const getInitialConfig = () => {
       version: VERSION,
       app_version: APP_VERSION,
       github_repo: GITHUB_REPO,
+      app_logo: cachedAppLogo,
+      app_favicon: cachedAppFavicon,
     };
   }
 
@@ -34,6 +41,9 @@ const getInitialConfig = () => {
     name: "FLVX",
     version: VERSION,
     app_version: APP_VERSION,
+    github_repo: GITHUB_REPO,
+    app_logo: cachedAppLogo,
+    app_favicon: cachedAppFavicon,
   };
 };
 
@@ -99,7 +109,7 @@ export const getCachedConfig = async (key: string): Promise<string | null> => {
 // 获取所有配置（优先从缓存）
 export const getCachedConfigs = async (): Promise<Record<string, string>> => {
   // 尝试从缓存获取所有配置
-  const configKeys = ["app_name"];
+  const configKeys = ["app_name", "app_logo", "app_favicon"];
   const cachedConfigs: Record<string, string> = {};
   let hasCachedData = false;
 
@@ -136,15 +146,48 @@ export const getCachedConfigs = async (): Promise<Record<string, string>> => {
   return {};
 };
 
+const updateDocumentFavicon = (faviconUrl: string) => {
+  if (typeof document === "undefined") {
+    return;
+  }
+
+  const normalized = faviconUrl.trim() || "/favicon.ico";
+  const iconLinks = Array.from(
+    document.head.querySelectorAll<HTMLLinkElement>(
+      'link[rel="icon"], link[rel="shortcut icon"]',
+    ),
+  );
+
+  if (iconLinks.length === 0) {
+    const link = document.createElement("link");
+
+    link.rel = "icon";
+    link.href = normalized;
+    document.head.appendChild(link);
+
+    return;
+  }
+
+  iconLinks.forEach((link) => {
+    link.href = normalized;
+  });
+};
+
 // 动态更新网站配置
 export const updateSiteConfig = async () => {
-  const appName = await getCachedConfig("app_name");
+  const configMap = await getCachedConfigs();
+  const appName = (configMap.app_name || "").trim();
+  const appLogo = (configMap.app_logo || "").trim();
+  const appFavicon = (configMap.app_favicon || "").trim();
 
   if (appName && appName !== siteConfig.name) {
     siteConfig.name = appName;
-    // 更新页面标题
-    document.title = appName;
   }
+
+  siteConfig.app_logo = appLogo;
+  siteConfig.app_favicon = appFavicon;
+  document.title = siteConfig.name;
+  updateDocumentFavicon(siteConfig.app_favicon);
 };
 
 // 清除配置缓存的工具函数

@@ -19,7 +19,7 @@ import {
   useDisclosure,
 } from "@/shadcn-bridge/heroui/modal";
 import { Input } from "@/shadcn-bridge/heroui/input";
-import { Logo } from "@/components/icons";
+import { BrandLogo } from "@/components/brand-logo";
 import { VersionFooter } from "@/components/version-footer";
 import { updatePassword } from "@/api";
 import { safeLogout } from "@/utils/logout";
@@ -330,7 +330,7 @@ export default function AdminLayout({
         {/* Logo 区域 */}
         <div className="px-5 h-14 flex items-center overflow-hidden whitespace-nowrap box-border">
           <div className="flex-shrink-0 flex items-center justify-center w-10">
-            <Logo size={28} />
+            <BrandLogo size={28} />
           </div>
           <div
             className={`transition-all duration-300 overflow-hidden ${isCollapsed ? "max-w-0 opacity-0 ml-0" : "max-w-[180px] opacity-100 ml-2"}`}

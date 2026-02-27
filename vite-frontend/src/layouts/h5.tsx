@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 
-import { Logo } from "@/components/icons";
+import { BrandLogo } from "@/components/brand-logo";
 import { siteConfig } from "@/config/site";
 import { getAdminFlag } from "@/utils/session";
 import { useScrollTopOnPathChange } from "@/hooks/useScrollTopOnPathChange";
@@ -102,7 +102,7 @@ export default function H5Layout({ children }: { children: React.ReactNode }) {
       {/* 顶部导航栏 */}
       <header className="bg-white dark:bg-black shadow-sm border-b border-gray-200 dark:border-gray-600 h-14 safe-top flex-shrink-0 flex items-center justify-between px-4 relative z-10">
         <div className="flex items-center gap-2">
-          <Logo size={20} />
+          <BrandLogo size={20} />
           <h1 className="text-sm font-bold text-foreground">
             {siteConfig.name}
           </h1>
