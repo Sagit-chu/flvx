@@ -30,6 +30,8 @@ nav:
   - 首页: index.md
   - 安装部署: install.md
   - 使用指南: usage.md
+  - AI Skill 接入: ai-skill.md
+  - PostgreSQL: postgresql.md
   - 常见问题: faq.md
 
 markdown_extensions:
