@@ -145,6 +145,18 @@ interface ForwardTunnelGroup {
 
 const UNKNOWN_FORWARD_USER_NAME = "未知用户";
 const UNCATEGORIZED_FORWARD_TUNNEL_NAME = "未分类";
+const FORWARD_GROUPED_TABLE_MIN_WIDTH_CLASS = "min-w-[1320px]";
+const FORWARD_GROUPED_TABLE_COLUMN_CLASS = {
+  select: "w-14",
+  drag: "w-10 pl-4",
+  name: "w-[200px]",
+  inbound: "w-[280px]",
+  target: "w-[280px]",
+  strategy: "w-[100px]",
+  totalFlow: "w-[120px]",
+  status: "w-[100px]",
+  actions: "w-[144px] text-right",
+} as const;
 
 const normalizeForwardUserName = (userName?: string): string => {
   const normalized = (userName || UNKNOWN_FORWARD_USER_NAME).trim();
@@ -1785,7 +1797,7 @@ export default function ForwardPage() {
     };
 
     return (
-      <div ref={setNodeRef} style={style} {...attributes}>
+      <div ref={setNodeRef} className="h-full" style={style} {...attributes}>
         {renderForwardCard(forward, listeners)}
       </div>
     );
@@ -1881,14 +1893,14 @@ export default function ForwardPage() {
     return (
       <TableRow key={forward.id} ref={setNodeRef} style={style}>
         {selectMode && (
-          <TableCell>
+          <TableCell className={FORWARD_GROUPED_TABLE_COLUMN_CLASS.select}>
             <Checkbox
               isSelected={selectedIds.has(forward.id)}
               onValueChange={() => toggleSelect(forward.id)}
             />
           </TableCell>
         )}
-        <TableCell>
+        <TableCell className={FORWARD_GROUPED_TABLE_COLUMN_CLASS.drag}>
           <div
             className="cursor-grab active:cursor-grabbing p-1 text-default-400 hover:text-default-600 transition-colors"
             {...attributes}
@@ -1905,10 +1917,14 @@ export default function ForwardPage() {
             </svg>
           </div>
         </TableCell>
-        <TableCell className="whitespace-nowrap font-semibold text-foreground">
+        <TableCell
+          className={`${FORWARD_GROUPED_TABLE_COLUMN_CLASS.name} whitespace-nowrap font-semibold text-foreground`}
+        >
           {forward.name}
         </TableCell>
-        <TableCell className="max-w-[220px]">
+        <TableCell
+          className={`${FORWARD_GROUPED_TABLE_COLUMN_CLASS.inbound} max-w-[280px]`}
+        >
           <button
             className={`w-full truncate rounded-md bg-default-100/50 px-2.5 py-1.5 text-left font-mono text-xs font-medium text-default-700 transition-all ${
               hasMultipleAddresses(forward.inIp)
@@ -1924,7 +1940,9 @@ export default function ForwardPage() {
             {formatInAddress(forward.inIp, forward.inPort)}
           </button>
         </TableCell>
-        <TableCell className="max-w-[240px]">
+        <TableCell
+          className={`${FORWARD_GROUPED_TABLE_COLUMN_CLASS.target} max-w-[280px]`}
+        >
           <button
             className={`w-full truncate rounded-md bg-default-100/50 px-2.5 py-1.5 text-left font-mono text-xs font-medium text-default-700 transition-all ${
               hasMultipleAddresses(forward.remoteAddr)
@@ -1940,7 +1958,7 @@ export default function ForwardPage() {
             {formatRemoteAddress(forward.remoteAddr)}
           </button>
         </TableCell>
-        <TableCell>
+        <TableCell className={FORWARD_GROUPED_TABLE_COLUMN_CLASS.strategy}>
           <Chip
             className="text-xs font-medium"
             color={strategyDisplay.color as any}
@@ -1950,12 +1968,14 @@ export default function ForwardPage() {
             {strategyDisplay.text}
           </Chip>
         </TableCell>
-        <TableCell className="whitespace-nowrap">
+        <TableCell
+          className={`${FORWARD_GROUPED_TABLE_COLUMN_CLASS.totalFlow} whitespace-nowrap`}
+        >
           <span className="text-sm font-medium text-default-600 font-mono">
             {formatFlow(getForwardDisplayFlow(forward))}
           </span>
         </TableCell>
-        <TableCell>
+        <TableCell className={FORWARD_GROUPED_TABLE_COLUMN_CLASS.status}>
           <div className="flex items-center gap-2.5 whitespace-nowrap">
             <Switch
               color="success"
@@ -1966,7 +1986,7 @@ export default function ForwardPage() {
             />
           </div>
         </TableCell>
-        <TableCell>
+        <TableCell className={FORWARD_GROUPED_TABLE_COLUMN_CLASS.actions}>
           <div className="flex justify-end gap-2">
             <Button
               isIconOnly
@@ -2045,7 +2065,7 @@ export default function ForwardPage() {
     return (
       <Card
         key={forward.id}
-        className="group shadow-sm border border-divider hover:shadow-md transition-shadow duration-200 overflow-hidden"
+        className="group h-full flex flex-col shadow-sm border border-divider hover:shadow-md transition-shadow duration-200 overflow-hidden"
       >
         <CardHeader className="pb-2 md:pb-2">
           <div className="flex justify-between items-start w-full">
@@ -2104,8 +2124,8 @@ export default function ForwardPage() {
           </div>
         </CardHeader>
 
-        <CardBody className="pt-0 pb-3 md:pt-0 md:pb-3">
-          <div className="space-y-2">
+        <CardBody className="flex flex-1 flex-col pt-0 pb-3 md:pt-0 md:pb-3">
+          <div className="space-y-2 flex-1">
             {/* 地址信息 */}
             <div className="space-y-1">
               <button
@@ -2601,6 +2621,7 @@ export default function ForwardPage() {
                           >
                             <Table
                               aria-label={`${group.userName}-${tunnel.tunnelName}转发列表`}
+                              className={`table-fixed ${FORWARD_GROUPED_TABLE_MIN_WIDTH_CLASS}`}
                               classNames={{
                                 th: "bg-default-100/50 text-default-600 font-semibold text-sm border-b border-divider py-3 uppercase tracking-wider",
                                 td: "py-3 border-b border-divider/50 group-data-[last=true]:border-b-0",
@@ -2609,16 +2630,60 @@ export default function ForwardPage() {
                             >
                               <TableHeader>
                                 {selectMode && (
-                                  <TableColumn className="w-14">选择</TableColumn>
+                                  <TableColumn
+                                    className={
+                                      FORWARD_GROUPED_TABLE_COLUMN_CLASS.select
+                                    }
+                                  >
+                                    选择
+                                  </TableColumn>
                                 )}
-                                <TableColumn className="w-10 pl-4" />
-                                <TableColumn>名称</TableColumn>
-                                <TableColumn>入口</TableColumn>
-                                <TableColumn>目标</TableColumn>
-                                <TableColumn>策略</TableColumn>
-                                <TableColumn>总流量</TableColumn>
-                                <TableColumn>状态</TableColumn>
-                                <TableColumn className="text-right">操作</TableColumn>
+                                <TableColumn
+                                  className={FORWARD_GROUPED_TABLE_COLUMN_CLASS.drag}
+                                />
+                                <TableColumn
+                                  className={FORWARD_GROUPED_TABLE_COLUMN_CLASS.name}
+                                >
+                                  名称
+                                </TableColumn>
+                                <TableColumn
+                                  className={
+                                    FORWARD_GROUPED_TABLE_COLUMN_CLASS.inbound
+                                  }
+                                >
+                                  入口
+                                </TableColumn>
+                                <TableColumn
+                                  className={FORWARD_GROUPED_TABLE_COLUMN_CLASS.target}
+                                >
+                                  目标
+                                </TableColumn>
+                                <TableColumn
+                                  className={
+                                    FORWARD_GROUPED_TABLE_COLUMN_CLASS.strategy
+                                  }
+                                >
+                                  策略
+                                </TableColumn>
+                                <TableColumn
+                                  className={
+                                    FORWARD_GROUPED_TABLE_COLUMN_CLASS.totalFlow
+                                  }
+                                >
+                                  总流量
+                                </TableColumn>
+                                <TableColumn
+                                  className={FORWARD_GROUPED_TABLE_COLUMN_CLASS.status}
+                                >
+                                  状态
+                                </TableColumn>
+                                <TableColumn
+                                  className={
+                                    FORWARD_GROUPED_TABLE_COLUMN_CLASS.actions
+                                  }
+                                >
+                                  操作
+                                </TableColumn>
                               </TableHeader>
                               <TableBody
                                 emptyContent="暂无转发配置"
