@@ -1,23 +1,66 @@
-# GO-GOST/X CONFIG KNOWLEDGE BASE
+# Config Agent Instructions
 
-## OVERVIEW
-Config model + parsing/loading pipeline for the `go-gost/x` runtime. This is the bridge between `gost.json`/`gost.yaml` and in-memory registries/services.
+## Build Commands
 
-## WHERE TO LOOK
-| Task | Location | Notes |
-|------|----------|-------|
-| Config structs + global state | `go-gost/x/config/config.go` | `Global()`, `Set()`, `OnUpdate()` |
-| Default config file search | `go-gost/x/config/config.go` | Viper `SetConfigName("gost")` + paths `/etc/gost/`, `$HOME/.gost/`, `.` |
-| Registry wiring | `go-gost/x/config/loader/loader.go` | Parses config sections and registers into registries |
-| Metadata keys | `go-gost/x/config/parsing/parse.go` | `MDKey*` constants used by parsers |
-| Config parser behavior | `go-gost/x/config/parsing/parser/parser.go` | CLI/env overrides; loads `gost.*` when empty |
-
-## CONVENTIONS
-- Default config file is named `gost` (e.g. `gost.json`) and is discovered via viper search paths.
-- Runtime config mutations should go through `config.OnUpdate(...)` so changes are applied under the global mutex.
-
-## COMMANDS
 ```bash
-cd go-gost/x
-go test ./...
+cd go-gost/x && go build ./config/...
 ```
+
+## Test Commands
+
+```bash
+cd go-gost/x && go test ./config/...
+```
+
+## Code Style - Go
+
+### Config Access
+```go
+// Get global config
+cfg := config.Global()
+
+// Set config
+config.Set(cfg)
+
+// Register update callback
+config.OnUpdate(func(cfg *config.Config) error {
+    // Handle config change
+    return nil
+})
+```
+
+## Project Structure
+
+```
+config/
+├── config.go         # Config structs + Global()/Set()/OnUpdate()
+├── loader/
+│   └── loader.go     # Parses config sections into registries
+└── parsing/
+    └── parse.go      # MDKey* constants, parser behavior
+```
+
+## Critical Conventions
+
+### Default Config File
+Named `gost` (e.g., `gost.json`), discovered via viper search paths:
+- `/etc/gost/`
+- `$HOME/.gost/`
+- `.` (current directory)
+
+### Runtime Mutations
+Use `config.OnUpdate(...)` for thread-safe changes:
+```go
+config.OnUpdate(func(cfg *Config) error {
+    cfg.Services = append(cfg.Services, newService)
+    return nil
+})
+```
+
+### Metadata Keys
+Use `MDKey*` constants from `parsing/parse.go` for consistency.
+
+## Anti-Patterns
+
+- DO NOT mutate config directly without `OnUpdate`
+- DO NOT edit generated protobuf files

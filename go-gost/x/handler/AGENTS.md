@@ -1,32 +1,65 @@
-# GO-GOST/X HANDLERS KNOWLEDGE BASE
+# Handler Agent Instructions
 
-## OVERVIEW
-Protocol handlers (server-side request handling) used by services defined in the GOST config.
+## Build Commands
 
-## STRUCTURE
+```bash
+cd go-gost/x && go build ./handler/...
 ```
-go-gost/x/handler/
-├── http/     # handler.go + metadata.go (+ udp.go)
-├── socks/    # SOCKS variants
-├── tunnel/   # Tunnel forwarding
-├── relay/    # Relay forwarding
-├── redirect/ # TCP/UDP redirect handlers
-├── router/   # Routing/association entrypoints
+
+## Test Commands
+
+```bash
+cd go-gost/x && go test ./handler/...
+```
+
+## Code Style - Go
+
+### File Pattern
+Each protocol has a subdirectory with:
+- `handler.go` - main implementation
+- `metadata.go` - configuration metadata
+
+### Implementation Pattern
+```go
+type httpHandler struct {
+    options *Options
+}
+
+func (h *httpHandler) Init(md md.MD) error {
+    // Initialize from metadata
+}
+
+func (h *httpHandler) Handle(ctx context.Context, conn net.Conn) {
+    // Handle incoming connection
+}
+```
+
+## Project Structure
+
+```
+handler/
+├── http/      # HTTP proxy handler
+├── socks/     # SOCKS v4/v5 handlers
+├── tunnel/    # Tunnel forwarding
+├── relay/     # Relay forwarding
+├── redirect/  # TCP/UDP redirect
+├── router/    # Routing entrypoints
 └── ...
 ```
 
-## WHERE TO LOOK
-| Task | Location | Notes |
-|------|----------|-------|
-| Find a protocol handler | `go-gost/x/handler/` | Subdir per protocol (`http`, `socks`, `tunnel`, ...) |
-| HTTP specifics | `go-gost/x/handler/http/handler.go` | Implements HTTP proxy behavior |
-| SOCKS specifics | `go-gost/x/handler/socks/` | v4/v5 implementations |
+## Critical Conventions
 
-## CONVENTIONS
-- Handler implementations typically live in `handler.go` with a paired `metadata.go` (e.g. `go-gost/x/handler/http/`).
-
-## COMMANDS
-```bash
-cd go-gost/x
-go test ./...
+### Registration
+Each handler registers itself in `init()`:
+```go
+func init() {
+    registry.RegisterHandler("http", NewHandler)
+}
 ```
+
+### Protocol Handling
+Handlers implement the `Handler` interface from `github.com/go-gost/core`.
+
+## Anti-Patterns
+
+- DO NOT edit generated protobuf files

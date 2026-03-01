@@ -1,35 +1,70 @@
-# GO-GOST/X LISTENERS KNOWLEDGE BASE
+# Listener Agent Instructions
 
-## OVERVIEW
-Inbound listeners (transport-level accept loops) used by services defined in the GOST config.
+## Build Commands
 
-## STRUCTURE
+```bash
+cd go-gost/x && go build ./listener/...
 ```
-go-gost/x/listener/
-├── tcp/      # listener.go + metadata.go
-├── udp/
-├── tls/
-├── ws/
-├── quic/
-├── redirect/ # tcp/ + udp/
-├── tun/      # TUN device listener
-├── tap/      # TAP device listener
+
+## Test Commands
+
+```bash
+cd go-gost/x && go test ./listener/...
+```
+
+## Code Style - Go
+
+### File Pattern
+Each transport has a subdirectory with:
+- `listener.go` - main implementation
+- `metadata.go` - configuration metadata
+
+### Implementation Pattern
+```go
+type tcpListener struct {
+    addr net.Addr
+    // ...
+}
+
+func (l *tcpListener) Init(md md.MD) error {
+    // Initialize from metadata
+}
+
+func (l *tcpListener) Accept() (net.Conn, error) {
+    // Accept incoming connections
+}
+```
+
+## Project Structure
+
+```
+listener/
+├── tcp/       # TCP listener
+├── udp/       # UDP listener
+├── tls/       # TLS listener
+├── ws/        # WebSocket listener
+├── quic/      # QUIC listener
+├── redirect/  # Transparent redirect
+├── tun/       # TUN device
+├── tap/       # TAP device
 └── ...
 ```
 
-## WHERE TO LOOK
-| Task | Location | Notes |
-|------|----------|-------|
-| Listener registry | `go-gost/x/listener/` | One subdir per transport |
-| TCP baseline | `go-gost/x/listener/tcp/listener.go` | Reference for other transports |
-| Redirect listeners | `go-gost/x/listener/redirect/` | Per-protocol accept + redirect |
-| TUN/TAP | `go-gost/x/listener/tun/`, `go-gost/x/listener/tap/` | Virtual interface listeners |
+## Critical Conventions
 
-## CONVENTIONS
-- Listener implementations typically live in `listener.go` with a paired `metadata.go` (e.g. `go-gost/x/listener/tcp/`).
-
-## COMMANDS
-```bash
-cd go-gost/x
-go test ./...
+### Registration
+Each listener registers itself in `init()`:
+```go
+func init() {
+    registry.RegisterListener("tcp", NewListener)
+}
 ```
+
+### OS-Specific Code
+Use build tags for OS-specific implementations:
+- `tun_linux.go`
+- `tun_darwin.go`
+
+## Anti-Patterns
+
+- DO NOT edit generated protobuf files

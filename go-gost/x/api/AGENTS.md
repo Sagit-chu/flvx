@@ -1,23 +1,64 @@
-# GO-GOST/X API KNOWLEDGE BASE
+# API Agent Instructions
 
-## OVERVIEW
-Gin-based management API for reading/writing config and controlling services at runtime.
+## Build Commands
 
-## WHERE TO LOOK
-| Task | Location | Notes |
-|------|----------|-------|
-| Route registration | `go-gost/x/api/api.go` | `Register(*gin.Engine, *Options)` |
-| Auth gating | `go-gost/x/api/middleware.go` | Drops non-BasicAuth requests; optional auther check |
-| Service CRUD + pause/resume | `go-gost/x/api/config_service.go` | Uses registry + `config.OnUpdate(...)` |
-| Swagger spec | `go-gost/x/api/swagger.yaml` | Served at `/docs` via embedded FS |
-
-## CONVENTIONS
-- CORS is `AllowAllOrigins: true` (see `go-gost/x/api/api.go`).
-- Requests without a valid Basic `Authorization` header are silently dropped (connection hijack + close) by `GlobalInterceptor()`.
-- Many operations mutate the in-memory config via `config.OnUpdate(...)` after starting/stopping services.
-
-## COMMANDS
 ```bash
-cd go-gost/x
-go test ./...
+cd go-gost/x && go build ./api/...
 ```
+
+## Test Commands
+
+```bash
+cd go-gost/x && go test ./api/...
+```
+
+## Code Style - Go
+
+### Route Registration
+```go
+func Register(r *gin.Engine, opts *Options) {
+    r.GET("/config", getConfig)
+    r.POST("/config/services", createService)
+    // ...
+}
+```
+
+## Project Structure
+
+```
+api/
+├── api.go              # Route registration
+├── middleware.go       # BasicAuth + interceptor
+├── config.go           # Config endpoints
+├── config_service.go   # Service CRUD + pause/resume
+└── swagger.yaml        # OpenAPI spec (served at /docs)
+```
+
+## Critical Conventions
+
+### Authentication
+Requests without valid Basic `Authorization` header are dropped:
+```go
+// GlobalInterceptor drops non-BasicAuth requests
+func GlobalInterceptor() gin.HandlerFunc { ... }
+```
+
+### CORS
+`AllowAllOrigins: true` - see `api.go`.
+
+### Config Mutations
+Use `config.OnUpdate(...)` after starting/stopping services:
+```go
+config.OnUpdate(func(cfg *config.Config) error {
+    // Apply changes
+    return nil
+})
+```
+
+### Swagger
+Served at `/docs` via embedded FS.
+
+## Anti-Patterns
+
+- DO NOT bypass BasicAuth for management endpoints
+- DO NOT edit generated protobuf files

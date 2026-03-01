@@ -1,44 +1,76 @@
-# GO-GOST SERVICE KNOWLEDGE BASE
+# Go-Gost Agent Instructions
 
-**Generated:** Thu Feb 26 2026
+## Build Commands
 
-## OVERVIEW
-Forwarding agent built on GOST v3 with a local fork of `github.com/go-gost/x` under `x/`.
-**Stack:** Go 1.23, github.com/go-gost/core v0.3.1, local `go-gost/x` module.
+```bash
+cd go-gost && go build .
+cd go-gost && go run .
+```
 
-## STRUCTURE
+## Test Commands
+
+```bash
+# All tests
+cd go-gost && go test ./...
+
+# Single test by name
+cd go-gost && go test . -run TestSpecificName -v
+
+# Test specific package
+cd go-gost && go test ./x/socket/...
+```
+
+## Lint Commands
+
+```bash
+cd go-gost && go vet ./...
+```
+
+## Code Style - Go
+
+### Imports
+Standard library first, external packages second, local packages third. Blank lines between groups.
+
+### Error Handling
+Return errors up the stack. Wrap with context using `fmt.Errorf`:
+```go
+if err := svc.Start(); err != nil {
+    return fmt.Errorf("start service: %w", err)
+}
+```
+
+### Config Files
+- Panel integration: `config.json` (address, secret, ports)
+- GOST services: `gost.json` or `gost.yaml` (via viper)
+
+## Project Structure
+
 ```
 go-gost/
-├── main.go           # Entry; reads panel config.json; starts svc.Run(program)
-├── config.go         # Panel config.json loader (addr/secret + ports)
-├── program.go        # GOST runtime: parse config, run/reload services
-├── x/                # Local fork of github.com/go-gost/x (has its own go.mod)
-└── go.mod            # replace github.com/go-gost/x => ./x
+├── main.go           # Entry; reads config.json, starts svc.Run
+├── config.go         # Panel config loader
+├── program.go        # GOST runtime: parse config, run/reload
+├── go.mod            # replace github.com/go-gost/x => ./x
+└── x/                # Local fork of github.com/go-gost/x
 ```
 
-## WHERE TO LOOK
-| Task | Location | Notes |
-|------|----------|-------|
-| **Panel integration config** | `go-gost/config.go` | Expects `config.json` in cwd by default |
-| **Service lifecycle/reload** | `go-gost/program.go` | Parses config; handles SIGHUP reload |
-| **WebSocket reporting** | `go-gost/main.go` | Starts reporter + sets HTTP report URL |
-| **Protocol behaviors** | `go-gost/x/` | Handlers/listeners/dialers live here |
-| **Build** | `go-gost/Makefile` | Cross-compile targets for amd64/arm64 |
+## Critical Conventions
 
-## CONVENTIONS
-- Two configs exist: panel integration uses `config.json`; forwarding services use GOST config (defaults to `gost.{json,yaml}` via viper search paths).
-- `go-gost/x/` is the primary extension surface; avoid editing vendored deps.
-- Agent communicates with panel via WebSocket (real-time commands) + HTTP (batch traffic reports).
-- All panel communication uses AES encryption with node `secret` as PSK.
-- CI builds with `CGO_ENABLED=0` for static binaries, then compresses with UPX.
+### Module Replacement
+`go.mod` uses `replace github.com/go-gost/x => ./x`. The `x/` directory is its own Go module.
 
-## ANTI-PATTERNS
-- **DO NOT EDIT** generated protobuf in `x/internal/util/grpc/proto/`.
+### Panel Communication
+- WebSocket for real-time commands
+- HTTP for batch traffic reports
+- AES encryption with node `secret` as PSK
 
-## COMMANDS
-```bash
-cd go-gost
-go run .
-go test ./...
-go build .
-```
+### Config Reload
+SIGHUP triggers config reload via `program.go`.
+
+### CI Build
+`CGO_ENABLED=0` for static binaries, UPX compression.
+
+## Anti-Patterns
+
+- DO NOT edit generated protobuf in `x/internal/util/grpc/proto/`
+- DO NOT edit vendored dependencies in `x/`

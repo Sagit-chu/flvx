@@ -1,67 +1,131 @@
-# GO BACKEND KNOWLEDGE BASE
+# Go Backend Agent Instructions
 
-## OVERVIEW
-Go-based Admin API for FLVX. Replaced legacy Spring Boot backend.
-**Stack:** Go 1.24, net/http (std lib), GORM + SQLite/PostgreSQL (glebarez/sqlite - CGO-free).
+## Build Commands
 
-## STRUCTURE
+```bash
+cd go-backend && go build ./cmd/paneld
+cd go-backend && go run ./cmd/paneld          # SERVER_ADDR=:6365
+cd go-backend && make build
+cd go-backend && make run
+```
+
+## Test Commands
+
+```bash
+# All tests
+cd go-backend && go test ./...
+
+# Contract tests only
+cd go-backend && go test ./tests/contract/...
+
+# Single test by name
+cd go-backend && go test ./tests/contract -run TestJWTMiddlewareContracts -v
+
+# Single test by pattern
+cd go-backend && go test ./tests/contract -run TestAuthContract -v
+
+# Run with coverage
+cd go-backend && go test -cover ./...
+```
+
+## Lint Commands
+
+```bash
+cd go-backend && go vet ./...
+```
+
+## Code Style - Go
+
+### Imports
+Standard library first, external packages second, local packages third. Blank lines between groups:
+```go
+import (
+    "context"
+    "net/http"
+
+    "gorm.io/gorm"
+
+    "go-backend/internal/store/model"
+)
+```
+
+### Error Handling
+Return errors up the stack. Wrap with context using `fmt.Errorf`:
+```go
+if err := db.Save(&item); err != nil {
+    return fmt.Errorf("save item: %w", err)
+}
+```
+
+### GORM Models
+Always define `TableName()` returning singular snake_case:
+```go
+type User struct {
+    ID   int64  `gorm:"primaryKey;autoIncrement"`
+    Name string `gorm:"type:varchar(100);not null"`
+}
+
+func (User) TableName() string { return "user" }
+```
+
+Use `sql.NullString` / `sql.NullInt64` for nullable fields.
+
+### Repository Pattern
+Handlers NEVER call `repo.DB()` directly. Add Repository methods:
+```go
+// In repository.go
+func (r *Repository) GetUserByID(id int64) (*User, error) { ... }
+
+// In handler
+user, err := h.repo.GetUserByID(id)
+```
+
+### API Response Envelope
+All responses use `response.R{code, msg, data, ts}`:
+```go
+response.WriteJSON(w, response.OK(data))        // Success (code 0)
+response.WriteJSON(w, response.Err(401, "msg")) // Error
+```
+
+## Project Structure
+
 ```
 go-backend/
-├── cmd/paneld/main.go        # Entry point; starts HTTP server + WebSocket
+├── cmd/paneld/main.go        # Entry point
 ├── internal/
-│   ├── http/                 # HTTP layer
-│   │   ├── router.go         # Routes (NewServeMux) + Middleware chain
-│   │   ├── handler/          # API Handlers (User, Tunnel, Node, etc.)
-│   │   ├── middleware/       # JWT, CORS, Logging, Recover
-│   │   └── response/         # JSON response helpers
+│   ├── http/
+│   │   ├── router.go         # Routes (NewServeMux)
+│   │   ├── handler/          # API handlers
+│   │   ├── middleware/       # JWT, CORS, Logging
+│   │   └── response/         # JSON helpers (r.go)
 │   ├── store/
-│   │   ├── model/model.go    # GORM model structs (single source of truth)
-│   │   └── repo/             # Data Access Layer (Repository pattern, GORM)
-│   │       ├── repository.go           # Core queries, Open/OpenPostgres, AutoMigrate (83k LOC)
-│   │       ├── repository_mutations.go # Mutation helpers (user/node/tunnel/forward CRUD, 43k LOC)
-│   │       ├── repository_federation.go # Federation-specific queries
-│   │       ├── repository_flow.go      # Flow/forward status queries
-│   │       ├── repository_control.go   # Control plane queries
-│   │       └── repository_groups.go    # Group management queries
-│   └── auth/                 # Auth logic
-├── tests/contract/            # Integration/contract tests (14 tests)
-├── Dockerfile                # Multi-stage build (golang:1.24-bookworm → debian:bookworm-slim)
-└── Makefile                  # Build commands
+│   │   ├── model/model.go    # GORM structs
+│   │   └── repo/             # Repository pattern
+│   └── auth/                 # JWT logic
+└── tests/contract/           # Integration tests
 ```
 
-## WHERE TO LOOK
-| Task | Location | Notes |
-|------|----------|-------|
-| **API Routes** | `go-backend/internal/http/router.go` | Registers handlers to `http.ServeMux` |
-| **DB Models** | `go-backend/internal/store/model/model.go` | GORM structs with `TableName()` methods |
-| **Repository** | `go-backend/internal/store/repo/` | GORM-based queries, all DB ops encapsulated |
-| **Auth Middleware** | `go-backend/internal/http/middleware/jwt.go` | Extracts `Authorization` header |
-| **WebSocket** | `go-backend/internal/ws/` | Real-time updates (traffic, status) |
-| **Contract Tests** | `go-backend/tests/contract/` | Integration tests for auth, federation, tunnels |
+## Critical Conventions
 
-## CONVENTIONS
-- **GORM ORM**: Uses GORM with `glebarez/sqlite` (CGO-free) and `gorm.io/driver/postgres`.
-- **AutoMigrate**: Schema created at startup via `autoMigrateAll()` — no hand-written DDL.
-- **TableName()**: All models define explicit `TableName()` returning singular snake_case names.
-- **Repository Pattern**: Handlers never access `*gorm.DB` directly — all queries go through `repo.Repository` methods.
-- **Standard Lib**: Uses `net/http` for routing (Go 1.22+ patterns).
-- **Auth**: Expects raw JWT in `Authorization` header (no `Bearer` prefix).
-- **API Envelope**: All responses use `response.R{code, msg, data, ts}` structure.
-- **Config**: Loaded from environment variables (see `cmd/paneld/main.go`).
-- **SQLite Constraints**: `MaxOpenConns(1)`, WAL mode, busy_timeout=5000.
-- **PostgreSQL**: Supported via `DB_TYPE=postgres` and `DATABASE_URL` env vars.
-
-## ANTI-PATTERNS
-- **DO NOT** let handlers call `repo.DB()` directly — add a Repository method instead.
-- **DO NOT CHANGE** handler signatures without updating `router.go`.
-- **DO NOT** use `type:jsonb` or `type:serial` in GORM tags (SQLite incompatible).
-- **DO NOT** omit `TableName()` on new models — GORM pluralizes by default.
-
-## COMMANDS
-```bash
-cd go-backend
-go run ./cmd/paneld       # Default: SERVER_ADDR=:6365
-go test ./...             # Unit tests
-go test ./tests/contract/... # Contract tests
-make build
+### Authentication Header
+Raw JWT token, NO "Bearer" prefix:
+```go
+// Middleware extracts raw header
+token := r.Header.Get("Authorization")
 ```
+
+### SQLite Constraints
+- `MaxOpenConns(1)` required
+- WAL mode, busy_timeout=5000
+- No `type:jsonb` or `type:serial` in GORM tags
+
+### PostgreSQL Support
+Set `DB_TYPE=postgres` and `DATABASE_URL` env vars.
+
+## Anti-Patterns
+
+- DO NOT let handlers call `repo.DB()` directly
+- DO NOT add `Bearer` prefix to Authorization header
+- DO NOT omit `TableName()` on new models
+- DO NOT use `type:jsonb` or `type:serial` in GORM tags
+- DO NOT change handler signatures without updating router.go
