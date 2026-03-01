@@ -58,6 +58,55 @@ type diagnosisProgress struct {
 
 type diagnosisItemEmitter func(index int, item map[string]interface{}, progress diagnosisProgress)
 
+func (h *Handler) buildDiagnosisStreamStartItems(workItems []diagnosisWorkItem) []map[string]interface{} {
+	if len(workItems) == 0 {
+		return []map[string]interface{}{}
+	}
+
+	nodeCache := map[int64]*nodeRecord{}
+	items := make([]map[string]interface{}, 0, len(workItems))
+	for _, workItem := range workItems {
+		targetIP := strings.TrimSpace(workItem.targetIP)
+		targetPort := workItem.targetPort
+		if workItem.hasChainHop {
+			fromNode, _ := h.cachedNode(nodeCache, workItem.fromNodeID)
+			targetNode, err := h.cachedNode(nodeCache, workItem.toNode.NodeID)
+			if err == nil {
+				resolvedIP, resolvedPort, resolveErr := resolveChainProbeTarget(fromNode, targetNode, workItem.toNode.Port, workItem.ipPreference)
+				if resolveErr == nil {
+					targetIP = resolvedIP
+					targetPort = resolvedPort
+				}
+			}
+		}
+		if targetPort <= 0 {
+			targetPort = 443
+		}
+
+		nodeName := fmt.Sprintf("node_%d", workItem.fromNodeID)
+		if node, err := h.cachedNode(nodeCache, workItem.fromNodeID); err == nil && strings.TrimSpace(node.Name) != "" {
+			nodeName = node.Name
+		}
+
+		item := map[string]interface{}{
+			"success":     false,
+			"diagnosing":  true,
+			"description": workItem.description,
+			"nodeName":    nodeName,
+			"nodeId":      strconv.FormatInt(workItem.fromNodeID, 10),
+			"targetIp":    targetIP,
+			"targetPort":  targetPort,
+			"message":     "诊断中...",
+		}
+		for key, value := range workItem.metadata {
+			item[key] = value
+		}
+		items = append(items, item)
+	}
+
+	return items
+}
+
 const diagnosisMaxConcurrency = 8
 
 const (

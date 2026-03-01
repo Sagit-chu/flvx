@@ -81,6 +81,7 @@ func (h *Handler) streamDiagnosisRuntime(ctx context.Context, cancel context.Can
 	payload := map[string]interface{}{
 		"total":     len(workItems),
 		"timestamp": time.Now().UnixMilli(),
+		"items":     h.buildDiagnosisStreamStartItems(workItems),
 	}
 	for key, value := range startPayload {
 		payload[key] = value

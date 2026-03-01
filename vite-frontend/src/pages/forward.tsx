@@ -890,10 +890,13 @@ export default function ForwardPage() {
                 ? payload.forwardName
                 : forward.name;
             const startTotal = Number(payload.total);
+            const startItems = Array.isArray(payload.items)
+              ? (payload.items as ForwardDiagnosisResult["results"])
+              : [];
             setDiagnosisResult((prev) => ({
               forwardName: startForwardName,
               timestamp: Date.now(),
-              results: prev?.results || [],
+              results: startItems.length > 0 ? startItems : prev?.results || [],
             }));
             if (Number.isFinite(startTotal) && startTotal >= 0) {
               setDiagnosisProgress((prev) => ({
@@ -919,9 +922,15 @@ export default function ForwardPage() {
               );
 
               if (existingIndex >= 0) {
-                nextResults[existingIndex] = result;
+                nextResults[existingIndex] = {
+                  ...result,
+                  diagnosing: false,
+                };
               } else {
-                nextResults.push(result);
+                nextResults.push({
+                  ...result,
+                  diagnosing: false,
+                });
               }
               return {
                 ...base,
@@ -3460,15 +3469,7 @@ export default function ForwardPage() {
                 )}
               </ModalHeader>
               <ModalBody className="bg-content1">
-                {diagnosisLoading &&
-                (!diagnosisResult || diagnosisResult.results.length === 0) ? (
-                  <div className="flex items-center justify-center py-16">
-                    <div className="flex items-center gap-3">
-                      <Spinner size="sm" />
-                      <span className="text-default-600">正在诊断...</span>
-                    </div>
-                  </div>
-                ) : diagnosisResult ? (
+                {diagnosisResult ? (
                   <div className="space-y-4">
                     {diagnosisLoading && (
                       <div className="flex items-center justify-between rounded-lg border border-primary/20 bg-primary/5 px-3 py-2">
@@ -3599,6 +3600,10 @@ export default function ForwardPage() {
                                 </thead>
                                 <tbody className="divide-y divide-divider bg-white dark:bg-gray-800">
                                   {results.map((result, index) => {
+                                    const isDiagnosing = Boolean(
+                                      result.diagnosing,
+                                    );
+                                    const isSuccess = result.success === true;
                                     const quality =
                                       getForwardDiagnosisQualityDisplay(
                                         result.averageTime,
@@ -3609,22 +3614,28 @@ export default function ForwardPage() {
                                       <tr
                                         key={index}
                                         className={`hover:bg-default-50 dark:hover:bg-gray-700/50 ${
-                                          result.success
+                                          isDiagnosing
+                                            ? "bg-warning-50 dark:bg-warning-900/20"
+                                            : isSuccess
                                             ? "bg-white dark:bg-gray-800"
                                             : "bg-danger-50 dark:bg-danger-900/30"
                                         }`}
                                       >
                                         <td className="px-3 py-2">
                                           <div className="flex items-center gap-2">
-                                            <span
-                                              className={`w-5 h-5 rounded-full flex items-center justify-center text-xs ${
-                                                result.success
-                                                  ? "bg-success text-white"
-                                                  : "bg-danger text-white"
-                                              }`}
-                                            >
-                                              {result.success ? "✓" : "✗"}
-                                            </span>
+                                            {isDiagnosing ? (
+                                              <Spinner size="sm" />
+                                            ) : (
+                                              <span
+                                                className={`w-5 h-5 rounded-full flex items-center justify-center text-xs ${
+                                                  isSuccess
+                                                    ? "bg-success text-white"
+                                                    : "bg-danger text-white"
+                                                }`}
+                                              >
+                                                {isSuccess ? "✓" : "✗"}
+                                              </span>
+                                            )}
                                             <div className="flex-1 min-w-0">
                                               <div className="font-medium text-foreground truncate">
                                                 {result.description}
@@ -3639,18 +3650,24 @@ export default function ForwardPage() {
                                         <td className="px-3 py-2 text-center">
                                           <Chip
                                             color={
-                                              result.success
+                                              isDiagnosing
+                                                ? "warning"
+                                                : isSuccess
                                                 ? "success"
                                                 : "danger"
                                             }
                                             size="sm"
                                             variant="flat"
                                           >
-                                            {result.success ? "成功" : "失败"}
+                                            {isDiagnosing
+                                              ? "诊断中"
+                                              : isSuccess
+                                                ? "成功"
+                                                : "失败"}
                                           </Chip>
                                         </td>
                                         <td className="px-3 py-2 text-center">
-                                          {result.success ? (
+                                          {isSuccess ? (
                                             <span className="font-semibold text-primary">
                                               {result.averageTime?.toFixed(0)}
                                             </span>
@@ -3661,7 +3678,7 @@ export default function ForwardPage() {
                                           )}
                                         </td>
                                         <td className="px-3 py-2 text-center">
-                                          {result.success ? (
+                                          {isSuccess ? (
                                             <span
                                               className={`font-semibold ${
                                                 (result.packetLoss || 0) > 0
@@ -3678,7 +3695,7 @@ export default function ForwardPage() {
                                           )}
                                         </td>
                                         <td className="px-3 py-2 text-center">
-                                          {result.success && quality ? (
+                                          {isSuccess && quality ? (
                                             <Chip
                                               className="text-xs whitespace-nowrap"
                                               color={quality.color as any}
@@ -3772,6 +3789,8 @@ export default function ForwardPage() {
                                 </h3>
                               </div>
                               {results.map((result, index) => {
+                                const isDiagnosing = Boolean(result.diagnosing);
+                                const isSuccess = result.success === true;
                                 const quality =
                                   getForwardDiagnosisQualityDisplay(
                                     result.averageTime,
@@ -3782,21 +3801,27 @@ export default function ForwardPage() {
                                   <div
                                     key={index}
                                     className={`border rounded-lg p-3 ${
-                                      result.success
+                                      isDiagnosing
+                                        ? "border-warning-200 dark:border-warning-300/30 bg-warning-50 dark:bg-warning-900/20"
+                                        : isSuccess
                                         ? "border-divider bg-white dark:bg-gray-800"
                                         : "border-danger-200 dark:border-danger-300/30 bg-danger-50 dark:bg-danger-900/30"
                                     }`}
                                   >
                                     <div className="flex items-start gap-2 mb-2">
-                                      <span
-                                        className={`w-6 h-6 rounded-full flex items-center justify-center text-xs flex-shrink-0 ${
-                                          result.success
-                                            ? "bg-success text-white"
-                                            : "bg-danger text-white"
-                                        }`}
-                                      >
-                                        {result.success ? "✓" : "✗"}
-                                      </span>
+                                      {isDiagnosing ? (
+                                        <Spinner size="sm" />
+                                      ) : (
+                                        <span
+                                          className={`w-6 h-6 rounded-full flex items-center justify-center text-xs flex-shrink-0 ${
+                                            isSuccess
+                                              ? "bg-success text-white"
+                                              : "bg-danger text-white"
+                                          }`}
+                                        >
+                                          {isSuccess ? "✓" : "✗"}
+                                        </span>
+                                      )}
                                       <div className="flex-1 min-w-0">
                                         <div className="font-semibold text-sm text-foreground break-words">
                                           {result.description}
@@ -3808,16 +3833,24 @@ export default function ForwardPage() {
                                       <Chip
                                         className="flex-shrink-0"
                                         color={
-                                          result.success ? "success" : "danger"
+                                          isDiagnosing
+                                            ? "warning"
+                                            : isSuccess
+                                              ? "success"
+                                              : "danger"
                                         }
                                         size="sm"
                                         variant="flat"
                                       >
-                                        {result.success ? "成功" : "失败"}
+                                        {isDiagnosing
+                                          ? "诊断中"
+                                          : isSuccess
+                                            ? "成功"
+                                            : "失败"}
                                       </Chip>
                                     </div>
 
-                                    {result.success ? (
+                                    {isSuccess ? (
                                       <div className="grid grid-cols-3 gap-2 mt-2 pt-2 border-t border-divider">
                                         <div className="text-center">
                                           <div className="text-lg font-bold text-primary">
@@ -3861,8 +3894,16 @@ export default function ForwardPage() {
                                       </div>
                                     ) : (
                                       <div className="mt-2 pt-2 border-t border-divider">
-                                        <div className="text-xs text-danger">
-                                          {result.message || "连接失败"}
+                                        <div
+                                          className={`text-xs ${
+                                            isDiagnosing
+                                              ? "text-warning"
+                                              : "text-danger"
+                                          }`}
+                                        >
+                                          {isDiagnosing
+                                            ? result.message || "诊断中..."
+                                            : result.message || "连接失败"}
                                         </div>
                                       </div>
                                     )}
@@ -3903,14 +3944,16 @@ export default function ForwardPage() {
                     </div>
 
                     {/* 失败详情（仅桌面端显示，移动端已在卡片中显示） */}
-                    {diagnosisResult.results.some((r) => !r.success) && (
+                    {diagnosisResult.results.some(
+                      (r) => r.success === false && !r.diagnosing,
+                    ) && (
                       <div className="space-y-2 hidden md:block">
                         <h4 className="text-sm font-semibold text-danger">
                           失败详情
                         </h4>
                         <div className="space-y-2">
                           {diagnosisResult.results
-                            .filter((r) => !r.success)
+                            .filter((r) => r.success === false && !r.diagnosing)
                             .map((result, index) => (
                               <Alert
                                 key={index}

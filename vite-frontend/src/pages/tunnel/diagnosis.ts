@@ -1,5 +1,6 @@
 export interface DiagnosisEntry {
-  success: boolean;
+  success?: boolean;
+  diagnosing?: boolean;
   description: string;
   nodeName: string;
   nodeId: string;
