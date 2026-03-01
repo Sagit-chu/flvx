@@ -37,6 +37,7 @@ func (r *Repository) ListActiveForwardsByUser(userID int64) ([]model.ForwardReco
 			TunnelID:   f.TunnelID,
 			RemoteAddr: f.RemoteAddr,
 			Strategy:   f.Strategy,
+			UDPMode:    f.UDPMode,
 			Status:     f.Status,
 			SpeedID:    f.SpeedID,
 		})
@@ -44,6 +45,9 @@ func (r *Repository) ListActiveForwardsByUser(userID int64) ([]model.ForwardReco
 	for i := range rows {
 		if strings.TrimSpace(rows[i].Strategy) == "" {
 			rows[i].Strategy = "fifo"
+		}
+		if strings.TrimSpace(rows[i].UDPMode) == "" {
+			rows[i].UDPMode = "normal"
 		}
 	}
 	return rows, nil
@@ -68,6 +72,7 @@ func (r *Repository) ListActiveForwardsByUserTunnel(userID, tunnelID int64) ([]m
 			TunnelID:   f.TunnelID,
 			RemoteAddr: f.RemoteAddr,
 			Strategy:   f.Strategy,
+			UDPMode:    f.UDPMode,
 			Status:     f.Status,
 			SpeedID:    f.SpeedID,
 		})
@@ -75,6 +80,9 @@ func (r *Repository) ListActiveForwardsByUserTunnel(userID, tunnelID int64) ([]m
 	for i := range rows {
 		if strings.TrimSpace(rows[i].Strategy) == "" {
 			rows[i].Strategy = "fifo"
+		}
+		if strings.TrimSpace(rows[i].UDPMode) == "" {
+			rows[i].UDPMode = "normal"
 		}
 	}
 	return rows, nil
@@ -100,11 +108,15 @@ func (r *Repository) GetForwardRecord(forwardID int64) (*model.ForwardRecord, er
 		TunnelID:   f.TunnelID,
 		RemoteAddr: f.RemoteAddr,
 		Strategy:   f.Strategy,
+		UDPMode:    f.UDPMode,
 		Status:     f.Status,
 		SpeedID:    f.SpeedID,
 	}
 	if strings.TrimSpace(fr.Strategy) == "" {
 		fr.Strategy = "fifo"
+	}
+	if strings.TrimSpace(fr.UDPMode) == "" {
+		fr.UDPMode = "normal"
 	}
 	return &fr, nil
 }

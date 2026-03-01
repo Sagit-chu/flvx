@@ -152,6 +152,11 @@ This fork (FLVX) is no longer a light patch on top of the upstream project. It h
 - **Updated**: Release installation scripts (`install.sh`, `panel_install.sh`) and supporting automation.
 - **Added/Updated**: Project-level engineering documentation (for example `AGENTS.md`).
 
+### 6. UDP Transparent TPROXY Docs
+- **Plan**: `UDP_TRANSPARENT_TPROXY_PLAN.md`
+- **Validation**: `docs/udp-transparent-tproxy-validation.md`
+- **Rollout/Operations**: `docs/udp-transparent-tproxy-rollout.md`
+
 ---
 
 

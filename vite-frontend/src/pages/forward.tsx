@@ -100,6 +100,7 @@ interface Forward {
   remoteAddr: string;
   interfaceName?: string;
   strategy: string;
+  udpMode?: "normal" | "transparent";
   status: number;
   inFlow: number;
   outFlow: number;
@@ -129,6 +130,7 @@ interface ForwardForm {
   interfaceName?: string;
   strategy: string;
   speedId: number | null;
+  udpMode: "normal" | "transparent";
 }
 
 interface ForwardUserGroup {
@@ -285,6 +287,7 @@ export default function ForwardPage() {
     interfaceName: "",
     strategy: "fifo",
     speedId: null,
+    udpMode: "normal",
   });
 
   // 表单验证错误
@@ -673,6 +676,7 @@ export default function ForwardPage() {
       interfaceName: "",
       strategy: "fifo",
       speedId: null,
+      udpMode: "normal",
     });
     setErrors({});
     setModalOpen(true);
@@ -691,6 +695,7 @@ export default function ForwardPage() {
       interfaceName: forward.interfaceName || "",
       strategy: forward.strategy || "fifo",
       speedId: normalizeSpeedId(forward.speedId),
+      udpMode: forward.udpMode === "transparent" ? "transparent" : "normal",
     });
     setErrors({});
     setModalOpen(true);
@@ -771,6 +776,7 @@ export default function ForwardPage() {
           remoteAddr: processedRemoteAddr,
           strategy: addressCount > 1 ? form.strategy : "fifo",
           speedId: normalizeSpeedId(form.speedId),
+          udpMode: form.udpMode,
         };
 
         res = await updateForward(updateData);
@@ -783,6 +789,7 @@ export default function ForwardPage() {
           remoteAddr: processedRemoteAddr,
           strategy: addressCount > 1 ? form.strategy : "fifo",
           speedId: normalizeSpeedId(form.speedId),
+          udpMode: form.udpMode,
         };
 
         res = await createForward(createData);
@@ -2904,6 +2911,31 @@ export default function ForwardPage() {
                         {speedLimit.name}
                       </SelectItem>
                     ))}
+                  </Select>
+
+                  <Select
+                    description="transparent 为 UDP 源进源出模式"
+                    label="UDP 模式"
+                    placeholder="请选择 UDP 模式"
+                    selectedKeys={[form.udpMode]}
+                    variant="bordered"
+                    onSelectionChange={(keys) => {
+                      const selectedKey =
+                        (Array.from(keys)[0] as "normal" | "transparent" | undefined) ||
+                        "normal";
+
+                      setForm((prev) => ({
+                        ...prev,
+                        udpMode: selectedKey,
+                      }));
+                    }}
+                  >
+                    <SelectItem key="normal" textValue="normal">
+                      normal
+                    </SelectItem>
+                    <SelectItem key="transparent" textValue="transparent">
+                      transparent
+                    </SelectItem>
                   </Select>
 
                   <Select

@@ -268,11 +268,37 @@ func (h *Handler) syncForwardServices(forward *forwardRecord, method string, all
 		return err
 	}
 
+	type tproxyRollbackEntry struct {
+		nodeID int64
+		port   int
+	}
+	rollbackEntries := make([]tproxyRollbackEntry, 0, len(ports))
+	rollbackEnabled := false
+	defer func() {
+		if !rollbackEnabled {
+			return
+		}
+		for _, entry := range rollbackEntries {
+			fmt.Printf("tproxy rollback: node=%d port=%d\n", entry.nodeID, entry.port)
+			_ = h.deleteForwardTProxyPolicy(entry.nodeID, entry.port)
+		}
+	}()
+
 	for _, fp := range ports {
 		if limiterID != nil && speed != nil {
 			if err := h.ensureLimiterOnNode(fp.NodeID, *limiterID, *speed); err != nil {
 				return err
 			}
+		}
+
+		if h.shouldEnsureForwardTProxyPolicy(forward) {
+			if err := h.ensureForwardTProxyPolicy(fp.NodeID, fp.Port); err != nil {
+				fmt.Printf("tproxy ensure failed: forward=%d node=%d port=%d err=%v\n", forward.ID, fp.NodeID, fp.Port, err)
+				return fmt.Errorf("节点 %d 应用透明UDP策略失败: %w", fp.NodeID, err)
+			}
+			fmt.Printf("tproxy ensure ok: forward=%d node=%d port=%d\n", forward.ID, fp.NodeID, fp.Port)
+			rollbackEntries = append(rollbackEntries, tproxyRollbackEntry{nodeID: fp.NodeID, port: fp.Port})
+			rollbackEnabled = true
 		}
 
 		node, err := h.getNodeRecord(fp.NodeID)
@@ -288,6 +314,7 @@ func (h *Handler) syncForwardServices(forward *forwardRecord, method string, all
 			return fmt.Errorf("节点 %s 下发失败: %w", node.Name, err)
 		}
 	}
+	rollbackEnabled = false
 	return nil
 }
 
@@ -357,9 +384,17 @@ func (h *Handler) controlForwardServices(forward *forwardRecord, commandType str
 		}
 
 		if nodeHandled {
+			if strings.EqualFold(strings.TrimSpace(commandType), "DeleteService") && h.shouldEnsureForwardTProxyPolicy(forward) {
+				fmt.Printf("tproxy delete on service delete: forward=%d node=%d port=%d\n", forward.ID, fp.NodeID, fp.Port)
+				_ = h.deleteForwardTProxyPolicy(fp.NodeID, fp.Port)
+			}
 			continue
 		}
 		if tolerateNotFound {
+			if strings.EqualFold(strings.TrimSpace(commandType), "DeleteService") && h.shouldEnsureForwardTProxyPolicy(forward) {
+				fmt.Printf("tproxy delete on tolerant service delete: forward=%d node=%d port=%d\n", forward.ID, fp.NodeID, fp.Port)
+				_ = h.deleteForwardTProxyPolicy(fp.NodeID, fp.Port)
+			}
 			continue
 		}
 		if lastNotFoundErr != nil {
@@ -368,6 +403,129 @@ func (h *Handler) controlForwardServices(forward *forwardRecord, commandType str
 		return errors.New("service control failed")
 	}
 	return nil
+}
+
+func (h *Handler) shouldEnsureForwardTProxyPolicy(forward *forwardRecord) bool {
+	if forward == nil {
+		return false
+	}
+	return strings.EqualFold(strings.TrimSpace(forward.UDPMode), "transparent")
+}
+
+func (h *Handler) ensureForwardTProxyPolicy(nodeID int64, port int) error {
+	if err := h.probeForwardTProxyCapability(nodeID); err != nil {
+		fmt.Printf("tproxy capability check failed: node=%d port=%d err=%v\n", nodeID, port, err)
+		return err
+	}
+
+	node, err := h.getNodeRecord(nodeID)
+	if err != nil {
+		return err
+	}
+	excludePorts := collectNodeTProxyExcludePorts(node)
+
+	_, err = h.sendNodeCommand(nodeID, "EnsureTProxyPolicy", map[string]interface{}{
+		"port":         port,
+		"mark":         11,
+		"table":        111,
+		"excludePorts": excludePorts,
+	}, false, false)
+	if err != nil {
+		fmt.Printf("tproxy command EnsureTProxyPolicy failed: node=%d port=%d excludePorts=%v err=%v\n", nodeID, port, excludePorts, err)
+	}
+	return err
+}
+
+func (h *Handler) probeForwardTProxyCapability(nodeID int64) error {
+	res, err := h.sendNodeCommand(nodeID, "ProbeTProxyCapability", map[string]interface{}{}, false, false)
+	if err != nil {
+		return err
+	}
+	if res.Data == nil {
+		return nil
+	}
+
+	raw, ok := res.Data["supported"]
+	if !ok {
+		return nil
+	}
+	if !asBoolValue(raw) {
+		return errors.New("节点不支持透明UDP/TPROXY")
+	}
+	fmt.Printf("tproxy capability check ok: node=%d supported=true\n", nodeID)
+	return nil
+}
+
+func (h *Handler) deleteForwardTProxyPolicy(nodeID int64, port int) error {
+	_, err := h.sendNodeCommand(nodeID, "DeleteTProxyPolicy", map[string]interface{}{
+		"port":  port,
+		"mark":  11,
+		"table": 111,
+	}, false, true)
+	if err != nil {
+		fmt.Printf("tproxy command DeleteTProxyPolicy failed: node=%d port=%d err=%v\n", nodeID, port, err)
+	}
+	return err
+}
+
+func collectNodeTProxyExcludePorts(node *nodeRecord) []int {
+	if node == nil {
+		return nil
+	}
+
+	set := map[int]struct{}{}
+	appendPort := func(port int) {
+		if port <= 0 || port > 65535 {
+			return
+		}
+		set[port] = struct{}{}
+	}
+
+	parseListenAddr := func(addr string) {
+		_, portStr, err := net.SplitHostPort(strings.TrimSpace(addr))
+		if err != nil {
+			return
+		}
+		port, convErr := strconv.Atoi(portStr)
+		if convErr != nil {
+			return
+		}
+		appendPort(port)
+	}
+
+	parseListenAddr(node.TCPListenAddr)
+	parseListenAddr(node.UDPListenAddr)
+
+	appendPort(firstPortFromRange(node.PortRange))
+
+	out := make([]int, 0, len(set))
+	for p := range set {
+		out = append(out, p)
+	}
+	sort.Ints(out)
+	return out
+}
+
+func asBoolValue(v interface{}) bool {
+	switch x := v.(type) {
+	case bool:
+		return x
+	case string:
+		s := strings.ToLower(strings.TrimSpace(x))
+		return s == "1" || s == "t" || s == "true" || s == "yes" || s == "y"
+	case float64:
+		return x != 0
+	case float32:
+		return x != 0
+	case int:
+		return x != 0
+	case int64:
+		return x != 0
+	case int32:
+		return x != 0
+	default:
+		return false
+	}
 }
 
 func (h *Handler) applyNodeProtocolChange(nodeID int64, httpVal, tlsVal, socksVal int) error {
@@ -470,13 +628,71 @@ func (h *Handler) diagnoseForwardRuntime(ctx context.Context, forward *forwardRe
 	}
 
 	results := h.runDiagnosisWorkItems(ctx, workItems, nil)
+	tproxyDiagnostics := h.collectForwardTProxyDiagnostics(forward)
 
 	payload := map[string]interface{}{
 		"forwardName": forwardName,
 		"timestamp":   time.Now().UnixMilli(),
 		"results":     results,
 	}
+	if tproxyDiagnostics != nil {
+		payload["tproxy"] = tproxyDiagnostics
+	}
 	return payload, nil
+}
+
+func (h *Handler) collectForwardTProxyDiagnostics(forward *forwardRecord) map[string]interface{} {
+	if h == nil || forward == nil {
+		return nil
+	}
+	if !h.shouldEnsureForwardTProxyPolicy(forward) {
+		return nil
+	}
+
+	ports, err := h.listForwardPorts(forward.ID)
+	if err != nil {
+		return map[string]interface{}{
+			"enabled": false,
+			"error":   err.Error(),
+		}
+	}
+
+	nodes := make([]map[string]interface{}, 0, len(ports))
+	for _, fp := range ports {
+		item := map[string]interface{}{
+			"nodeId": fp.NodeID,
+			"port":   fp.Port,
+		}
+
+		capRes, capErr := h.sendNodeCommand(fp.NodeID, "ProbeTProxyCapability", map[string]interface{}{}, false, false)
+		if capErr != nil {
+			item["supported"] = false
+			item["capabilityError"] = capErr.Error()
+			nodes = append(nodes, item)
+			continue
+		}
+		if capRes.Data != nil {
+			item["capability"] = capRes.Data
+			item["supported"] = asBool(capRes.Data["supported"], false)
+		}
+
+		stateRes, stateErr := h.sendNodeCommand(fp.NodeID, "GetTProxyPolicyState", map[string]interface{}{}, false, false)
+		if stateErr != nil {
+			item["stateError"] = stateErr.Error()
+			nodes = append(nodes, item)
+			continue
+		}
+		if stateRes.Data != nil {
+			item["state"] = stateRes.Data
+		}
+		nodes = append(nodes, item)
+	}
+
+	return map[string]interface{}{
+		"enabled": true,
+		"mode":    "transparent",
+		"nodes":   nodes,
+	}
 }
 
 func (h *Handler) prepareForwardDiagnosis(forward *forwardRecord) (string, []diagnosisWorkItem, error) {
@@ -1240,6 +1456,53 @@ func parseTargetAddress(addr string) (string, int, error) {
 	return host, port, nil
 }
 
+func (h *Handler) validateForwardTransparentMode(node *nodeRecord, listenPort int, remoteAddr string) error {
+	if node == nil {
+		return errors.New("节点不存在")
+	}
+	if listenPort <= 0 {
+		return errors.New("监听端口无效")
+	}
+	if strings.TrimSpace(remoteAddr) == "" {
+		return errors.New("目标地址不能为空")
+	}
+
+	targets := splitRemoteTargets(remoteAddr)
+	for _, target := range targets {
+		host, port, err := parseTargetAddress(target)
+		if err != nil {
+			continue
+		}
+		if port != listenPort {
+			continue
+		}
+		if isLocalAddressForNode(node, host) {
+			return fmt.Errorf("透明UDP防环路: 目标地址 %s 与节点本地监听端口 %d 冲突", target, listenPort)
+		}
+	}
+	return nil
+}
+
+func isLocalAddressForNode(node *nodeRecord, host string) bool {
+	h := strings.ToLower(strings.Trim(strings.TrimSpace(host), "[]"))
+	if h == "" {
+		return false
+	}
+	if h == "localhost" || h == "0.0.0.0" || h == "::" || h == "::1" || h == "127.0.0.1" {
+		return true
+	}
+
+	candidates := []string{node.ServerIP, node.ServerIPv4, node.ServerIPv6}
+	for _, candidate := range candidates {
+		c := strings.ToLower(strings.Trim(strings.TrimSpace(candidate), "[]"))
+		if c != "" && c == h {
+			return true
+		}
+	}
+
+	return false
+}
+
 func buildForwardServiceBase(forwardID, userID, userTunnelID int64) string {
 	return fmt.Sprintf("%d_%d_%d", forwardID, userID, userTunnelID)
 }
@@ -1306,6 +1569,10 @@ func buildForwardServiceConfigs(baseName string, forward *forwardRecord, tunnel 
 	services := make([]map[string]interface{}, 0, 2)
 	targets := splitRemoteTargets(forward.RemoteAddr)
 	strategy := strings.TrimSpace(forward.Strategy)
+	udpMode := strings.ToLower(strings.TrimSpace(forward.UDPMode))
+	if udpMode == "" {
+		udpMode = "normal"
+	}
 	if strategy == "" {
 		strategy = "fifo"
 	}
@@ -1334,6 +1601,10 @@ func buildForwardServiceConfigs(baseName string, forward *forwardRecord, tunnel 
 			},
 		}
 		if protocol == "udp" {
+			if udpMode == "transparent" {
+				service["handler"].(map[string]interface{})["type"] = "redu"
+				service["listener"].(map[string]interface{})["type"] = "redu"
+			}
 			listenerMetadata := map[string]interface{}{"keepAlive": true}
 			if tunnelTLSProtocol {
 				listenerMetadata["ttl"] = "10s"

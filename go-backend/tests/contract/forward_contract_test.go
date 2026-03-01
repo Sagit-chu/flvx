@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strconv"
+	"sync"
 	"testing"
 	"time"
 
@@ -547,6 +548,7 @@ func TestForwardSpeedIDWriteAndClearContracts(t *testing.T) {
 		"remoteAddr": "1.1.1.1:443",
 		"strategy":   "fifo",
 		"speedId":    speedIDA,
+		"udpMode":    "normal",
 	}
 	createBody, err := json.Marshal(createPayload)
 	if err != nil {
@@ -568,10 +570,15 @@ func TestForwardSpeedIDWriteAndClearContracts(t *testing.T) {
 	if !createdSpeed.Valid || createdSpeed.Int64 != speedIDA {
 		t.Fatalf("expected created speed_id=%d, got valid=%v value=%d", speedIDA, createdSpeed.Valid, createdSpeed.Int64)
 	}
+	createdUDPMode := mustQueryString(t, repo, `SELECT udp_mode FROM forward WHERE id = ?`, forwardID)
+	if createdUDPMode != "normal" {
+		t.Fatalf("expected created udp_mode=normal, got %s", createdUDPMode)
+	}
 
 	updateToBPayload := map[string]interface{}{
 		"id":      forwardID,
 		"speedId": speedIDB,
+		"udpMode": "transparent",
 	}
 	updateToBBody, err := json.Marshal(updateToBPayload)
 	if err != nil {
@@ -591,6 +598,10 @@ func TestForwardSpeedIDWriteAndClearContracts(t *testing.T) {
 	}
 	if !updatedSpeed.Valid || updatedSpeed.Int64 != speedIDB {
 		t.Fatalf("expected updated speed_id=%d, got valid=%v value=%d", speedIDB, updatedSpeed.Valid, updatedSpeed.Int64)
+	}
+	updatedUDPMode := mustQueryString(t, repo, `SELECT udp_mode FROM forward WHERE id = ?`, forwardID)
+	if updatedUDPMode != "transparent" {
+		t.Fatalf("expected updated udp_mode=transparent, got %s", updatedUDPMode)
 	}
 
 	clearPayload := map[string]interface{}{
@@ -615,6 +626,45 @@ func TestForwardSpeedIDWriteAndClearContracts(t *testing.T) {
 	}
 	if clearedSpeed.Valid {
 		t.Fatalf("expected cleared speed_id to be NULL, got %d", clearedSpeed.Int64)
+	}
+
+	listReq := httptest.NewRequest(http.MethodPost, "/api/v1/forward/list", bytes.NewBufferString(`{}`))
+	listReq.Header.Set("Authorization", adminToken)
+	listRes := httptest.NewRecorder()
+	router.ServeHTTP(listRes, listReq)
+
+	var out response.R
+	if err := json.NewDecoder(listRes.Body).Decode(&out); err != nil {
+		t.Fatalf("decode list response: %v", err)
+	}
+	if out.Code != 0 {
+		t.Fatalf("expected list code 0, got %d (%s)", out.Code, out.Msg)
+	}
+	arr, ok := out.Data.([]interface{})
+	if !ok {
+		t.Fatalf("expected list data array, got %T", out.Data)
+	}
+	var matched map[string]interface{}
+	for _, item := range arr {
+		row, ok := item.(map[string]interface{})
+		if !ok {
+			continue
+		}
+		idFloat, ok := row["id"].(float64)
+		if ok && int64(idFloat) == forwardID {
+			matched = row
+			break
+		}
+	}
+	if matched == nil {
+		t.Fatalf("expected forward %d in list", forwardID)
+	}
+	udpMode, ok := matched["udpMode"].(string)
+	if !ok {
+		t.Fatalf("expected udpMode in list item, got %T", matched["udpMode"])
+	}
+	if udpMode != "transparent" {
+		t.Fatalf("expected list udpMode=transparent, got %s", udpMode)
 	}
 }
 
@@ -705,6 +755,156 @@ func TestForwardCreateThenPauseResumeContract(t *testing.T) {
 	resumedStatus := mustQueryInt(t, repo, `SELECT status FROM forward WHERE id = ?`, forwardID)
 	if resumedStatus != 1 {
 		t.Fatalf("expected status=1 after resume, got %d", resumedStatus)
+	}
+}
+
+func TestForwardTransparentUDPControlFlowContract(t *testing.T) {
+	secret := "contract-jwt-secret"
+	router, repo := setupContractRouter(t, secret)
+
+	adminToken, err := auth.GenerateToken(1, "admin_user", 0, secret)
+	if err != nil {
+		t.Fatalf("generate admin token: %v", err)
+	}
+
+	now := time.Now().UnixMilli()
+	if err := repo.DB().Exec(`
+		INSERT INTO tunnel(name, traffic_ratio, type, protocol, flow, created_time, updated_time, status, in_ip, inx)
+		VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+	`, "forward-transparent-control-tunnel", 1.0, 1, "tls", 99999, now, now, 1, nil, 0).Error; err != nil {
+		t.Fatalf("insert tunnel: %v", err)
+	}
+	tunnelID := mustLastInsertID(t, repo, "forward-transparent-control-tunnel")
+
+	if err := repo.DB().Exec(`
+		INSERT INTO node(name, secret, server_ip, server_ip_v4, server_ip_v6, port, interface_name, version, http, tls, socks, created_time, updated_time, status, tcp_listen_addr, udp_listen_addr, inx)
+		VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+	`, "forward-transparent-control-node", "forward-transparent-control-secret", "10.41.0.1", "10.41.0.1", "", "51000-51010", "", "v1", 1, 1, 1, now, now, 1, "[::]", "[::]", 0).Error; err != nil {
+		t.Fatalf("insert node: %v", err)
+	}
+	nodeID := mustLastInsertID(t, repo, "forward-transparent-control-node")
+
+	if err := repo.DB().Exec(`
+		INSERT INTO chain_tunnel(tunnel_id, chain_type, node_id, port, strategy, inx, protocol)
+		VALUES(?, 1, ?, 51001, 'round', 1, 'tls')
+	`, tunnelID, nodeID).Error; err != nil {
+		t.Fatalf("insert chain_tunnel: %v", err)
+	}
+
+	server := httptest.NewServer(router)
+	defer server.Close()
+
+	var (
+		mu       sync.Mutex
+		commands []string
+	)
+	stopNode := startMockNodeSessionWithHook(t, server.URL, "forward-transparent-control-secret", func(cmdType string) {
+		mu.Lock()
+		commands = append(commands, cmdType)
+		mu.Unlock()
+	})
+	defer stopNode()
+
+	createPayload := map[string]interface{}{
+		"name":       "forward-transparent-control-target",
+		"tunnelId":   tunnelID,
+		"remoteAddr": "1.1.1.1:443",
+		"strategy":   "fifo",
+		"udpMode":    "transparent",
+	}
+	createBody, err := json.Marshal(createPayload)
+	if err != nil {
+		t.Fatalf("marshal create payload: %v", err)
+	}
+	createReq := httptest.NewRequest(http.MethodPost, "/api/v1/forward/create", bytes.NewReader(createBody))
+	createReq.Header.Set("Authorization", adminToken)
+	createReq.Header.Set("Content-Type", "application/json")
+	createRes := httptest.NewRecorder()
+	router.ServeHTTP(createRes, createReq)
+	assertCode(t, createRes, 0)
+
+	forwardID := mustLastInsertID(t, repo, "forward-transparent-control-target")
+
+	diagBody, _ := json.Marshal(map[string]interface{}{"forwardId": forwardID})
+	diagReq := httptest.NewRequest(http.MethodPost, "/api/v1/forward/diagnose", bytes.NewReader(diagBody))
+	diagReq.Header.Set("Authorization", adminToken)
+	diagReq.Header.Set("Content-Type", "application/json")
+	diagRes := httptest.NewRecorder()
+	router.ServeHTTP(diagRes, diagReq)
+
+	var diagOut response.R
+	if err := json.NewDecoder(diagRes.Body).Decode(&diagOut); err != nil {
+		t.Fatalf("decode diagnose response: %v", err)
+	}
+	if diagOut.Code != 0 {
+		t.Fatalf("expected diagnose code 0, got %d (%s)", diagOut.Code, diagOut.Msg)
+	}
+	diagPayload, ok := diagOut.Data.(map[string]interface{})
+	if !ok {
+		t.Fatalf("expected diagnose payload object, got %T", diagOut.Data)
+	}
+	tproxy, ok := diagPayload["tproxy"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("expected tproxy payload, got %T", diagPayload["tproxy"])
+	}
+	if !valueAsBool(tproxy["enabled"]) {
+		t.Fatalf("expected tproxy.enabled=true, got %v", tproxy["enabled"])
+	}
+
+	pauseBody, _ := json.Marshal(map[string]interface{}{"id": forwardID})
+	pauseReq := httptest.NewRequest(http.MethodPost, "/api/v1/forward/pause", bytes.NewReader(pauseBody))
+	pauseReq.Header.Set("Authorization", adminToken)
+	pauseReq.Header.Set("Content-Type", "application/json")
+	pauseRes := httptest.NewRecorder()
+	router.ServeHTTP(pauseRes, pauseReq)
+	assertCode(t, pauseRes, 0)
+
+	resumeBody, _ := json.Marshal(map[string]interface{}{"id": forwardID})
+	resumeReq := httptest.NewRequest(http.MethodPost, "/api/v1/forward/resume", bytes.NewReader(resumeBody))
+	resumeReq.Header.Set("Authorization", adminToken)
+	resumeReq.Header.Set("Content-Type", "application/json")
+	resumeRes := httptest.NewRecorder()
+	router.ServeHTTP(resumeRes, resumeReq)
+	assertCode(t, resumeRes, 0)
+
+	redeployBody, _ := json.Marshal(map[string]interface{}{"ids": []int64{forwardID}})
+	redeployReq := httptest.NewRequest(http.MethodPost, "/api/v1/forward/batch-redeploy", bytes.NewReader(redeployBody))
+	redeployReq.Header.Set("Authorization", adminToken)
+	redeployReq.Header.Set("Content-Type", "application/json")
+	redeployRes := httptest.NewRecorder()
+	router.ServeHTTP(redeployRes, redeployReq)
+	assertCode(t, redeployRes, 0)
+
+	deleteBody, _ := json.Marshal(map[string]interface{}{"id": forwardID})
+	deleteReq := httptest.NewRequest(http.MethodPost, "/api/v1/forward/delete", bytes.NewReader(deleteBody))
+	deleteReq.Header.Set("Authorization", adminToken)
+	deleteReq.Header.Set("Content-Type", "application/json")
+	deleteRes := httptest.NewRecorder()
+	router.ServeHTTP(deleteRes, deleteReq)
+	assertCode(t, deleteRes, 0)
+
+	remaining := mustQueryInt(t, repo, `SELECT COUNT(1) FROM forward WHERE id = ?`, forwardID)
+	if remaining != 0 {
+		t.Fatalf("expected forward deleted, got count=%d", remaining)
+	}
+
+	mu.Lock()
+	seen := append([]string(nil), commands...)
+	mu.Unlock()
+
+	hasCommand := func(want string) bool {
+		for _, got := range seen {
+			if got == want {
+				return true
+			}
+		}
+		return false
+	}
+
+	for _, cmd := range []string{"ProbeTProxyCapability", "EnsureTProxyPolicy", "UpdateService", "PauseService", "ResumeService", "DeleteService", "DeleteTProxyPolicy"} {
+		if !hasCommand(cmd) {
+			t.Fatalf("expected command %s in node command stream, got %v", cmd, seen)
+		}
 	}
 }
 

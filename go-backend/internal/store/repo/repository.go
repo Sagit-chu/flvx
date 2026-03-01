@@ -707,6 +707,7 @@ func (r *Repository) ListForwards() ([]map[string]interface{}, error) {
 		TunnelName  string
 		RemoteAddr  string
 		Strategy    string
+		UDPMode     string
 		InFlow      int64
 		OutFlow     int64
 		CreatedTime int64
@@ -717,7 +718,7 @@ func (r *Repository) ListForwards() ([]map[string]interface{}, error) {
 
 	var rows []fwdRow
 	err := r.db.Model(&model.Forward{}).
-		Select("forward.id, forward.user_id, forward.user_name, forward.name, forward.tunnel_id, COALESCE(tunnel.name, '') AS tunnel_name, forward.remote_addr, COALESCE(forward.strategy, 'fifo') AS strategy, forward.in_flow, forward.out_flow, forward.created_time, forward.status, forward.inx, forward.speed_id").
+		Select("forward.id, forward.user_id, forward.user_name, forward.name, forward.tunnel_id, COALESCE(tunnel.name, '') AS tunnel_name, forward.remote_addr, COALESCE(forward.strategy, 'fifo') AS strategy, COALESCE(forward.udp_mode, 'normal') AS udp_mode, forward.in_flow, forward.out_flow, forward.created_time, forward.status, forward.inx, forward.speed_id").
 		Joins("LEFT JOIN tunnel ON tunnel.id = forward.tunnel_id").
 		Order("forward.inx ASC, forward.id ASC").
 		Find(&rows).Error
@@ -736,7 +737,8 @@ func (r *Repository) ListForwards() ([]map[string]interface{}, error) {
 			"name": row.Name, "tunnelId": row.TunnelID, "tunnelName": row.TunnelName,
 			"inIp": nullableForwardIngress(inIP), "inPort": nullableInt64(inPort),
 			"remoteAddr": row.RemoteAddr, "strategy": row.Strategy,
-			"inFlow": row.InFlow, "outFlow": row.OutFlow,
+			"udpMode": nonEmptyString(row.UDPMode, "normal"),
+			"inFlow":  row.InFlow, "outFlow": row.OutFlow,
 			"createdTime": row.CreatedTime, "status": row.Status, "inx": int64(row.Inx),
 		}
 		if row.SpeedID.Valid {
@@ -1762,7 +1764,8 @@ func (r *Repository) exportForwards() ([]model.ForwardBackup, error) {
 		b := model.ForwardBackup{
 			ID: f.ID, UserID: f.UserID, UserName: f.UserName, Name: f.Name,
 			TunnelID: f.TunnelID, RemoteAddr: f.RemoteAddr, Strategy: f.Strategy,
-			InFlow: f.InFlow, OutFlow: f.OutFlow, CreatedTime: f.CreatedTime,
+			UDPMode: nonEmptyString(f.UDPMode, "normal"),
+			InFlow:  f.InFlow, OutFlow: f.OutFlow, CreatedTime: f.CreatedTime,
 			UpdatedTime: f.UpdatedTime, Status: f.Status, Inx: f.Inx,
 		}
 		ports, err := r.exportForwardPorts(f.ID)
@@ -2119,6 +2122,7 @@ func importForwards(tx *gorm.DB, forwards []model.ForwardBackup, now int64) (int
 			TunnelID:    f.TunnelID,
 			RemoteAddr:  f.RemoteAddr,
 			Strategy:    f.Strategy,
+			UDPMode:     nonEmptyString(f.UDPMode, "normal"),
 			InFlow:      f.InFlow,
 			OutFlow:     f.OutFlow,
 			CreatedTime: f.CreatedTime,
@@ -2130,7 +2134,7 @@ func importForwards(tx *gorm.DB, forwards []model.ForwardBackup, now int64) (int
 			Columns: []clause.Column{{Name: "id"}},
 			DoUpdates: clause.AssignmentColumns([]string{
 				"user_id", "user_name", "name", "tunnel_id", "remote_addr", "strategy",
-				"in_flow", "out_flow", "updated_time", "status", "inx",
+				"udp_mode", "in_flow", "out_flow", "updated_time", "status", "inx",
 			}),
 		}).Create(&item).Error
 		if err != nil {
@@ -2806,6 +2810,14 @@ func nullableForwardIngress(v string) interface{} {
 	v = strings.TrimSpace(v)
 	if v == "" {
 		return nil
+	}
+	return v
+}
+
+func nonEmptyString(v, fallback string) string {
+	v = strings.TrimSpace(v)
+	if v == "" {
+		return fallback
 	}
 	return v
 }
