@@ -923,8 +923,10 @@ enqueueLoop:
 		}
 	}
 	close(jobs)
-	wg.Wait()
-	close(resultCh)
+	go func() {
+		wg.Wait()
+		close(resultCh)
+	}()
 
 	progress := diagnosisProgress{Total: len(workItems)}
 	for result := range resultCh {

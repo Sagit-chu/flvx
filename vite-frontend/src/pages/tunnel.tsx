@@ -970,6 +970,10 @@ export default function TunnelPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4">
               {sortedTunnels.map((tunnel) => {
                 const typeDisplay = getTunnelTypeDisplay(tunnel.type);
+                const tunnelTypeChipClassName =
+                  tunnel.type === 1
+                    ? "text-xs bg-primary-100 text-primary-800 border-primary-300 dark:bg-primary-900/45 dark:text-primary-200 dark:border-primary-700"
+                    : "text-xs bg-success-100 text-success-800 border-success-300 dark:bg-success-900/35 dark:text-success-200 dark:border-success-700";
 
                 return (
                   <SortableItem key={tunnel.id} id={tunnel.id}>
@@ -993,7 +997,7 @@ export default function TunnelPage() {
                               </h3>
                               <div className="flex items-center gap-1.5 mt-1">
                                 <Chip
-                                  className="text-xs"
+                                  className={tunnelTypeChipClassName}
                                   color={typeDisplay.color as any}
                                   size="sm"
                                   variant="flat"
