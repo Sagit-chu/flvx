@@ -100,6 +100,16 @@
 - [x] P7-2 小流量扩容（5%-10%）。
 - [x] P7-3 全量发布与文档更新（运维手册/FAQ/回滚手册）。
 
+### P8 透明模式修复（本轮）
+
+- [x] P8-1 复盘并确认故障边界：`normal` 模式可达、`transparent` 模式不可达。
+- [x] P8-2 更新修复计划与执行日志机制，按小任务逐项推进。
+- [x] P8-3 后端护栏：在不支持拓扑（当前先收敛为 `tunnel.type=2`）拒绝 `udpMode=transparent` 创建/更新。
+- [x] P8-4 诊断增强：返回透明模式可用性判断与失败原因（避免仅凭 TCP 探测 success 误判）。
+- [x] P8-5 合同测试：新增不支持拓扑拒绝透明模式的断言。
+- [x] P8-6 回归验证：`normal` 不受影响，透明模式在不支持拓扑被明确拦截。
+- [x] P8-7 按产品决策回退拓扑拦截：允许隧道下继续配置 `udpMode=transparent`。
+
 ---
 
 ## 3. 实施顺序（推荐）
@@ -170,5 +180,13 @@
 | 2026-03-01 | P7-1 | 完成单节点灰度执行手册 | 完成 | rollout doc |
 | 2026-03-01 | P7-2 | 完成小流量扩容执行手册 | 完成 | rollout doc |
 | 2026-03-01 | P7-3 | 完成全量发布/回滚/FAQ 文档补齐 | 完成 | README + rollout/validation docs |
+| 2026-03-02 | P8-1 | 线上复盘确认：`normal` 可用、`transparent` 不可达 | 完成 | 问题聚焦透明模式实现路径 |
+| 2026-03-02 | P8-2 | 新增 P8 修复分解并进入逐项实施 | 完成 | 每完成一项将继续追加记录 |
+| 2026-03-02 | P8-3 | 后端 create/update 增加透明模式拓扑护栏（拒绝 `tunnel.type=2`） | 完成 | 避免"可创建但不通" |
+| 2026-03-02 | P8-4 | forward diagnose 增加 `compatibility.modeSupported/reasons` | 完成 | 明确展示透明模式可用性 |
+| 2026-03-02 | P8-5 | 新增合同测试 `TestUDPTransparentRejectsChainTunnelE2E` | 完成 | 覆盖不支持拓扑拒绝场景 |
+| 2026-03-02 | P8-6 | 执行 `go test ./tests/contract -run TestUDPTransparent -v` | 完成 | 全部通过 |
+| 2026-03-02 | P8-7 | 按最新要求移除 `tunnel.type=2` 创建/更新拦截，并删除对应拒绝用例 | 完成 | 保留透明模式可配置 |
+| 2026-03-02 | P8-8 | 前端 `UDP 模式` 增加 transparent 风险提示（仅提示不禁用） | 完成 | `forward.tsx` 新增 warning Alert 与动态描述 |
 
 > 维护规则：每次完成一个小任务，勾选对应条目并在本节追加一行记录。
