@@ -76,7 +76,7 @@ interface Tunnel {
   id: number;
   inx?: number;
   name: string;
-  type: number; // 1: 端口转发, 2: 隧道转发
+  type: number; // 1: 端口转发, 2: 隧道转发, 3: TUN隧道
   inNodeId: ChainTunnel[]; // 入口节点列表
   outNodeId?: ChainTunnel[]; // 出口节点列表
   chainNodes?: ChainTunnel[][]; // 转发链节点列表，二维数组
@@ -466,7 +466,12 @@ export default function TunnelPage() {
     });
     setDiagnosisResult({
       tunnelName: tunnel.name,
-      tunnelType: tunnel.type === 1 ? "端口转发" : "隧道转发",
+      tunnelType:
+        tunnel.type === 1
+          ? "端口转发"
+          : tunnel.type === 2
+            ? "隧道转发"
+            : "TUN隧道",
       timestamp: Date.now(),
       results: [],
     });
@@ -488,7 +493,9 @@ export default function TunnelPage() {
                 ? payload.tunnelType
                 : tunnel.type === 1
                   ? "端口转发"
-                  : "隧道转发";
+                  : tunnel.type === 2
+                    ? "隧道转发"
+                    : "TUN隧道";
             const startTotal = Number(payload.total);
             const startItems = Array.isArray(payload.items)
               ? (payload.items as DiagnosisResult["results"])
@@ -510,7 +517,12 @@ export default function TunnelPage() {
             setDiagnosisResult((prev) => {
               const base: DiagnosisResult = prev || {
                 tunnelName: tunnel.name,
-                tunnelType: tunnel.type === 1 ? "端口转发" : "隧道转发",
+                tunnelType:
+                  tunnel.type === 1
+                    ? "端口转发"
+                    : tunnel.type === 2
+                      ? "隧道转发"
+                      : "TUN隧道",
                 timestamp: Date.now(),
                 results: [],
               };
@@ -1320,6 +1332,7 @@ export default function TunnelPage() {
                   >
                     <SelectItem key="1">端口转发</SelectItem>
                     <SelectItem key="2">隧道转发</SelectItem>
+                    <SelectItem key="3">TUN隧道</SelectItem>
                   </Select>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -2113,7 +2126,9 @@ export default function TunnelPage() {
                     >
                       {currentDiagnosisTunnel.type === 1
                         ? "端口转发"
-                        : "隧道转发"}
+                        : currentDiagnosisTunnel.type === 2
+                          ? "隧道转发"
+                          : "TUN隧道"}
                     </Chip>
                   </div>
                 )}

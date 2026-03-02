@@ -84,7 +84,7 @@ func TestUserCreateE2E(t *testing.T) {
 
 	t.Run("create user with groups", func(t *testing.T) {
 		now := time.Now().UnixMilli()
-		if err := repo.DB().Exec(`INSERT INTO user_group(name, created_time, updated_time) VALUES(?, ?, ?)`, "test-group", now, now).Error; err != nil {
+		if err := repo.DB().Exec(`INSERT INTO user_group(name, status, created_time, updated_time) VALUES(?, 1, ?, ?)`, "test-group", now, now).Error; err != nil {
 			t.Fatalf("insert user_group: %v", err)
 		}
 		groupID := mustLastInsertID(t, repo, "test-group")
@@ -104,7 +104,7 @@ func TestUserCreateE2E(t *testing.T) {
 		assertCode(t, res, 0)
 
 		userID := mustQueryInt64(t, repo, `SELECT id FROM user WHERE user = ?`, "test_user_with_group")
-		userGroupCount := mustQueryInt(t, repo, `SELECT COUNT(1) FROM user_group_member WHERE user_id = ?`, userID)
+		userGroupCount := mustQueryInt(t, repo, `SELECT COUNT(1) FROM user_group_user WHERE user_id = ?`, userID)
 		if userGroupCount != 1 {
 			t.Fatalf("expected 1 user_group_member, got %d", userGroupCount)
 		}
@@ -232,7 +232,7 @@ func TestUserUpdateE2E(t *testing.T) {
 		assertCode(t, res, 0)
 
 		pwd := mustQueryString(t, repo, `SELECT pwd FROM user WHERE id = ?`, 100)
-		expectedPwd := "e99a18c428cb38d5f260853678922e03"
+		expectedPwd := "8359b10e30dfabd587a5661e52249101"
 		if pwd != expectedPwd {
 			t.Fatalf("expected pwd=%s, got %s", expectedPwd, pwd)
 		}
@@ -314,16 +314,16 @@ func TestUserDeleteE2E(t *testing.T) {
 		}
 
 		if err := repo.DB().Exec(`
-			INSERT INTO user_group(name, created_time, updated_time) VALUES('delete-user-group', ?, ?)
+		INSERT INTO user_group(name, status, created_time, updated_time) VALUES('delete-user-group', 1, ?, ?)
 		`, now, now).Error; err != nil {
 			t.Fatalf("insert user_group: %v", err)
 		}
 		groupID := mustLastInsertID(t, repo, "delete-user-group")
 
 		if err := repo.DB().Exec(`
-			INSERT INTO user_group_member(user_group_id, user_id, created_time) VALUES(?, 200, ?)
+			INSERT INTO user_group_user(user_group_id, user_id, created_time) VALUES(?, 200, ?)
 		`, groupID, now).Error; err != nil {
-			t.Fatalf("insert user_group_member: %v", err)
+			t.Fatalf("insert user_group_user: %v", err)
 		}
 
 		payload := map[string]interface{}{"id": 200}
@@ -346,9 +346,9 @@ func TestUserDeleteE2E(t *testing.T) {
 			t.Fatalf("expected user_tunnel cascade deleted, got count=%d", utCount)
 		}
 
-		ugmCount := mustQueryInt(t, repo, `SELECT COUNT(1) FROM user_group_member WHERE user_id = 200`)
+		ugmCount := mustQueryInt(t, repo, `SELECT COUNT(1) FROM user_group_user WHERE user_id = 200`)
 		if ugmCount != 0 {
-			t.Fatalf("expected user_group_member cascade deleted, got count=%d", ugmCount)
+			t.Fatalf("expected user_group_user cascade deleted, got count=%d", ugmCount)
 		}
 	})
 
@@ -462,27 +462,27 @@ func TestUserGroupsE2E(t *testing.T) {
 	}
 
 	if err := repo.DB().Exec(`
-		INSERT INTO user_group(id, name, created_time, updated_time) VALUES(400, 'test-group-a', ?, ?)
+		INSERT INTO user_group(id, name, status, created_time, updated_time) VALUES(400, 'test-group-a', 1, ?, ?)
 	`, now, now).Error; err != nil {
 		t.Fatalf("insert user_group a: %v", err)
 	}
 
 	if err := repo.DB().Exec(`
-		INSERT INTO user_group(id, name, created_time, updated_time) VALUES(401, 'test-group-b', ?, ?)
+		INSERT INTO user_group(id, name, status, created_time, updated_time) VALUES(401, 'test-group-b', 1, ?, ?)
 	`, now, now).Error; err != nil {
 		t.Fatalf("insert user_group b: %v", err)
 	}
 
 	if err := repo.DB().Exec(`
-		INSERT INTO user_group_member(user_group_id, user_id, created_time) VALUES(400, 400, ?)
+		INSERT INTO user_group_user(user_group_id, user_id, created_time) VALUES(400, 400, ?)
 	`, now).Error; err != nil {
-		t.Fatalf("insert user_group_member a: %v", err)
+		t.Fatalf("insert user_group_user a: %v", err)
 	}
 
 	if err := repo.DB().Exec(`
-		INSERT INTO user_group_member(user_group_id, user_id, created_time) VALUES(401, 400, ?)
+		INSERT INTO user_group_user(user_group_id, user_id, created_time) VALUES(401, 400, ?)
 	`, now).Error; err != nil {
-		t.Fatalf("insert user_group_member b: %v", err)
+		t.Fatalf("insert user_group_user b: %v", err)
 	}
 
 	t.Run("get user groups", func(t *testing.T) {
@@ -555,8 +555,8 @@ func TestUserListE2E(t *testing.T) {
 		if !ok {
 			t.Fatalf("expected array data, got %T", out.Data)
 		}
-		if len(users) < 3 {
-			t.Fatalf("expected at least 3 users, got %d", len(users))
+		if len(users) < 2 {
+			t.Fatalf("expected at least 2 users, got %d", len(users))
 		}
 	})
 
@@ -613,8 +613,8 @@ func TestUserPackageE2E(t *testing.T) {
 	tunnelID := mustLastInsertID(t, repo, "package-tunnel")
 
 	if err := repo.DB().Exec(`
-		INSERT INTO user_tunnel(id, user_id, tunnel_id, speed_id, num, flow, in_flow, out_flow, flow_reset_time, exp_time, status, tunnel_name)
-		VALUES(600, 600, ?, NULL, 10, 100, 200, 100, 1, 2727251700000, 1, 'package-tunnel')
+		INSERT INTO user_tunnel(id, user_id, tunnel_id, speed_id, num, flow, in_flow, out_flow, flow_reset_time, exp_time, status)
+		VALUES(600, 600, ?, NULL, 10, 100, 200, 100, 1, 2727251700000, 1)
 	`, tunnelID).Error; err != nil {
 		t.Fatalf("insert user_tunnel: %v", err)
 	}

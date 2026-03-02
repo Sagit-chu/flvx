@@ -470,6 +470,10 @@ func (h *Handler) tunnelCreate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	typeVal := asInt(req["type"], 1)
+	if typeVal != 1 && typeVal != 2 && typeVal != 3 {
+		response.WriteJSON(w, response.ErrDefault("隧道类型不支持"))
+		return
+	}
 	flow := asInt64(req["flow"], 1)
 	status := asInt(req["status"], 1)
 	trafficRatio := asFloat(req["trafficRatio"], 1.0)
@@ -672,6 +676,10 @@ func (h *Handler) tunnelUpdate(w http.ResponseWriter, r *http.Request) {
 
 	now := time.Now().UnixMilli()
 	typeVal := asInt(req["type"], 1)
+	if typeVal != 1 && typeVal != 2 && typeVal != 3 {
+		response.WriteJSON(w, response.ErrDefault("隧道类型不支持"))
+		return
+	}
 	ipPreference := asString(req["ipPreference"])
 	localDomain := h.federationLocalDomain()
 
