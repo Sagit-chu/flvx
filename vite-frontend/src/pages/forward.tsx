@@ -2914,7 +2914,11 @@ export default function ForwardPage() {
                   </Select>
 
                   <Select
-                    description="transparent 为 UDP 源进源出模式"
+                    description={
+                      form.udpMode === "transparent"
+                        ? "transparent 为 UDP 源进源出模式（高风险，依赖透明劫持与网络路径）"
+                        : "normal 为常规 UDP 转发模式"
+                    }
                     label="UDP 模式"
                     placeholder="请选择 UDP 模式"
                     selectedKeys={[form.udpMode]}
@@ -2937,6 +2941,15 @@ export default function ForwardPage() {
                       transparent
                     </SelectItem>
                   </Select>
+
+                  {form.udpMode === "transparent" && (
+                    <Alert
+                      color="warning"
+                      description="transparent 模式在中继隧道或复杂公网路径下可能出现不通、回环或源地址保持失败。建议发布后务必做抓包验证（客户端/入口/出口/目标四点）。"
+                      title="风险提示"
+                      variant="flat"
+                    />
+                  )}
 
                   <Select
                     description={
