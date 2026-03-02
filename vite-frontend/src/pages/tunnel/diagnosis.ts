@@ -37,7 +37,12 @@ export const buildDiagnosisFallbackResult = ({
 }: DiagnosisFallbackInput): DiagnosisResult => {
   return {
     tunnelName,
-    tunnelType: tunnelType === 1 ? "端口转发" : "隧道转发",
+    tunnelType:
+      tunnelType === 1
+        ? "端口转发"
+        : tunnelType === 2
+          ? "隧道转发"
+          : "TUN隧道",
     timestamp: Date.now(),
     results: [
       {

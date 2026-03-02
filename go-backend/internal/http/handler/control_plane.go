@@ -1027,7 +1027,15 @@ func (h *Handler) prepareTunnelDiagnosis(tunnelID int64) (string, string, []diag
 		}
 	}
 
-	tunnelType := map[bool]string{true: "端口转发", false: "隧道转发"}[tunnel.Type == 1]
+	tunnelType := "未知"
+	switch tunnel.Type {
+	case 1:
+		tunnelType = "端口转发"
+	case 2:
+		tunnelType = "隧道转发"
+	case 3:
+		tunnelType = "TUN隧道"
+	}
 	return tunnelName, tunnelType, workItems, nil
 }
 

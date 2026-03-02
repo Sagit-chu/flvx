@@ -447,7 +447,7 @@ func (r *Repository) GetUserPackageTunnels(userID int64) ([]model.UserTunnelDeta
 	}
 	var items []model.UserTunnelDetail
 	err := r.db.Model(&model.UserTunnel{}).
-		Select("user_tunnel.id, user_tunnel.user_id, user_tunnel.tunnel_id, tunnel.name AS tunnel_name, tunnel.flow AS tunnel_flow, user_tunnel.flow, user_tunnel.in_flow, user_tunnel.out_flow, user_tunnel.num, user_tunnel.flow_reset_time, user_tunnel.exp_time, user_tunnel.speed_id, speed_limit.name AS speed_limit, speed_limit.speed").
+		Select("user_tunnel.id, user_tunnel.user_id, user_tunnel.tunnel_id, tunnel.name AS tunnel_name, tunnel.type AS tunnel_type, tunnel.flow AS tunnel_flow, user_tunnel.flow, user_tunnel.in_flow, user_tunnel.out_flow, user_tunnel.num, user_tunnel.flow_reset_time, user_tunnel.exp_time, user_tunnel.speed_id, speed_limit.name AS speed_limit, speed_limit.speed").
 		Joins("LEFT JOIN tunnel ON tunnel.id = user_tunnel.tunnel_id").
 		Joins("LEFT JOIN speed_limit ON speed_limit.id = user_tunnel.speed_id").
 		Where("user_tunnel.user_id = ?", userID).

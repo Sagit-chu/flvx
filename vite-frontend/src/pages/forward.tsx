@@ -116,6 +116,7 @@ interface Forward {
 interface Tunnel {
   id: number;
   name: string;
+  tunnelType?: number;
   inNodePortSta?: number;
   inNodePortEnd?: number;
 }
@@ -608,6 +609,13 @@ export default function ForwardPage() {
   };
 
   const selectedSpeedId = normalizeSpeedId(form.speedId);
+  const selectedTunnel = useMemo(() => {
+    if (!form.tunnelId) {
+      return null;
+    }
+
+    return tunnels.find((tunnel) => tunnel.id === form.tunnelId) || null;
+  }, [form.tunnelId, tunnels]);
 
   const validateForm = (): boolean => {
     const newErrors: { [key: string]: string } = {};
@@ -2970,7 +2978,11 @@ export default function ForwardPage() {
                   {form.udpMode === "transparent" && (
                     <Alert
                       color="warning"
-                      description="transparent 模式在中继隧道或复杂公网路径下可能出现不通、回环或源地址保持失败。建议发布后务必做抓包验证（客户端/入口/出口/目标四点）。"
+                      description={
+                        selectedTunnel?.tunnelType === 3
+                          ? "当前已选择 TUN 隧道，可用于源进源出场景。仍建议发布后进行客户端/入口/出口/目标四点抓包验证。"
+                          : "源进源出仅支持 TUN 类型隧道。当前隧道类型下 transparent 可能不通或无法保持源地址，请优先切换到 TUN 隧道。"
+                      }
                       title="风险提示"
                       variant="flat"
                     />

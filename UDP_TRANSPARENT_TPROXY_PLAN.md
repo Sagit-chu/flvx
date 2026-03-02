@@ -109,6 +109,17 @@
 - [x] P8-5 合同测试：新增不支持拓扑拒绝透明模式的断言。
 - [x] P8-6 回归验证：`normal` 不受影响，透明模式在不支持拓扑被明确拦截。
 - [x] P8-7 按产品决策回退拓扑拦截：允许隧道下继续配置 `udpMode=transparent`。
+- [x] P8-8 前端 `UDP 模式` 增加 transparent 风险提示（仅提示不禁用）。
+- [-] P8-9 修复 `redu` 处理器目标选择（已回退，方向错误，改用 P9 方案）。
+
+### P9 源进源出仅支持 tun 隧道（当前）
+
+- [x] P9-1 方案切换：撤销"在 `redu` 上继续修数据面"的方向，明确产品策略为"源进源出仅支持 `tun` 类型隧道"。
+- [x] P9-2 后端：隧道类型扩展，新增 `tun` 分类（`type=3`）。
+- [x] P9-3 后端：`/api/v1/tunnel/user/list` 返回 `tunnelType`，供前端判断。
+- [x] P9-4 前端：转发页 `udpMode=transparent` 时增加提示"仅 `tun` 隧道支持源进源出"，不禁用提交。
+- [x] P9-5 回归：后端 contract + 前端 lint/build（环境允许）并记录结果。
+- [x] P9-6 文档：在本计划进度表持续追加每一步完成记录。
 
 ---
 
@@ -188,5 +199,16 @@
 | 2026-03-02 | P8-6 | 执行 `go test ./tests/contract -run TestUDPTransparent -v` | 完成 | 全部通过 |
 | 2026-03-02 | P8-7 | 按最新要求移除 `tunnel.type=2` 创建/更新拦截，并删除对应拒绝用例 | 完成 | 保留透明模式可配置 |
 | 2026-03-02 | P8-8 | 前端 `UDP 模式` 增加 transparent 风险提示（仅提示不禁用） | 完成 | `forward.tsx` 新增 warning Alert 与动态描述 |
+| 2026-03-02 | P8-9 | 修复 `redu` 处理器目标选择：存在 forwarder/hop 时优先使用 hop 节点目标（UDP） | 完成 | 避免透明模式在转发隧道下仍回打原始目的地址 |
+| 2026-03-02 | P8-9 | 执行 `go test ./handler/redirect/...` 与 `go build ./...`（go-gost/x） | 完成 | 测试通过，构建通过（仅第三方库告警） |
+| 2026-03-02 | P9-1 | 回退 `redu` 处理器目标改动，切换为“源进源出仅支持 tun 隧道”策略 | 完成 | 已撤销方向错误改动 |
+| 2026-03-02 | P9-2 | 后端支持隧道类型 `type=3 (tun)`，并补充类型文案映射 | 完成 | create/update 校验 + diagnose 文案 |
+| 2026-03-02 | P9-3 | `userTunnelList` 返回 `tunnelType` 字段 | 完成 | forward 页面可据此判断 |
+| 2026-03-02 | P9-4 | 前端 transparent 提示改为“仅 tun 隧道支持源进源出”，不禁用提交 | 完成 | `forward.tsx` 条件提示已生效 |
+| 2026-03-02 | P9-5 | 执行后端测试（handler + UDP transparent contract） | 完成 | 全部通过 |
+| 2026-03-02 | P9-5 | 前端构建尝试失败（依赖缺失） | 完成 | 当前环境缺少 React/axios 等依赖 |
+| 2026-03-02 | P9-5 | 安装前端依赖并重新执行 `npm run build` | 完成 | 构建通过 |
+| 2026-03-02 | P9-5 | 新增 contract：`TestUserTunnelListIncludesTunnelTypeContract` | 完成 | 覆盖 `/api/v1/tunnel/user/list` 返回 `tunnelType=3` |
+| 2026-03-02 | P9-5 | 修正并回归 `user_e2e_test.go`（表名/状态字段/期望值） | 完成 | `go test ./tests/contract/...` 全绿 |
 
 > 维护规则：每次完成一个小任务，勾选对应条目并在本节追加一行记录。

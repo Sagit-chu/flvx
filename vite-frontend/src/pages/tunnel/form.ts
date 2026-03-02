@@ -93,6 +93,8 @@ export const getTunnelTypeDisplay = (type: number) => {
       return { text: "端口转发", color: "primary" };
     case 2:
       return { text: "隧道转发", color: "secondary" };
+    case 3:
+      return { text: "TUN隧道", color: "warning" };
     default:
       return { text: "未知", color: "default" };
   }
