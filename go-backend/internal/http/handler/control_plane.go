@@ -651,26 +651,11 @@ func (h *Handler) collectForwardTProxyDiagnostics(forward *forwardRecord) map[st
 		return nil
 	}
 
-	compatibility := map[string]interface{}{
-		"modeSupported": true,
-		"reasons":       []string{},
-	}
-	if tunnel, err := h.getTunnelRecord(forward.TunnelID); err == nil {
-		if topoErr := validateForwardTransparentTopology(tunnel); topoErr != nil {
-			compatibility["modeSupported"] = false
-			compatibility["reasons"] = []string{topoErr.Error()}
-		}
-	} else {
-		compatibility["modeSupported"] = false
-		compatibility["reasons"] = []string{err.Error()}
-	}
-
 	ports, err := h.listForwardPorts(forward.ID)
 	if err != nil {
 		return map[string]interface{}{
-			"enabled":       false,
-			"error":         err.Error(),
-			"compatibility": compatibility,
+			"enabled": false,
+			"error":   err.Error(),
 		}
 	}
 
@@ -706,10 +691,9 @@ func (h *Handler) collectForwardTProxyDiagnostics(forward *forwardRecord) map[st
 	}
 
 	return map[string]interface{}{
-		"enabled":       true,
-		"mode":          "transparent",
-		"compatibility": compatibility,
-		"nodes":         nodes,
+		"enabled": true,
+		"mode":    "transparent",
+		"nodes":   nodes,
 	}
 }
 
@@ -1497,13 +1481,6 @@ func (h *Handler) validateForwardTransparentMode(node *nodeRecord, listenPort in
 		if isLocalAddressForNode(node, host) {
 			return fmt.Errorf("透明UDP防环路: 目标地址 %s 与节点本地监听端口 %d 冲突", target, listenPort)
 		}
-	}
-	return nil
-}
-
-func validateForwardTransparentTopology(tunnel *tunnelRecord) error {
-	if tunnel == nil {
-		return errors.New("隧道不存在")
 	}
 	return nil
 }

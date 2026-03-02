@@ -2914,6 +2914,31 @@ export default function ForwardPage() {
                   </Select>
 
                   <Select
+                    description="transparent 为 UDP 源进源出模式"
+                    label="UDP 模式"
+                    placeholder="请选择 UDP 模式"
+                    selectedKeys={[form.udpMode]}
+                    variant="bordered"
+                    onSelectionChange={(keys) => {
+                      const selectedKey =
+                        (Array.from(keys)[0] as "normal" | "transparent" | undefined) ||
+                        "normal";
+
+                      setForm((prev) => ({
+                        ...prev,
+                        udpMode: selectedKey,
+                      }));
+                    }}
+                  >
+                    <SelectItem key="normal" textValue="normal">
+                      normal
+                    </SelectItem>
+                    <SelectItem key="transparent" textValue="transparent">
+                      transparent
+                    </SelectItem>
+                  </Select>
+
+                  <Select
                     description={
                       form.udpMode === "transparent"
                         ? "transparent 为 UDP 源进源出模式（高风险，依赖透明劫持与网络路径）"
