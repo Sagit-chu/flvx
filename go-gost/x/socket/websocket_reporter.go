@@ -141,6 +141,9 @@ func NewWebSocketReporter(serverURL string, secret string) *WebSocketReporter {
 
 // Start 启动WebSocket报告器
 func (w *WebSocketReporter) Start() {
+	if err := restoreTProxyPolicies(); err != nil {
+		fmt.Printf("⚠️ 恢复 TPROXY 策略失败: %v\n", err)
+	}
 	go w.run()
 }
 
@@ -596,6 +599,26 @@ func (w *WebSocketReporter) routeCommand(cmd CommandMessage) {
 		response.Type = "SetProtocolResponse"
 		needSaveConfig = true
 
+	case "ProbeTProxyCapability":
+		var capability map[string]interface{}
+		capability, err = w.handleProbeTProxyCapability()
+		response.Type = "ProbeTProxyCapabilityResponse"
+		response.Data = capability
+
+	case "EnsureTProxyPolicy":
+		err = w.handleEnsureTProxyPolicy(cmd.Data)
+		response.Type = "EnsureTProxyPolicyResponse"
+
+	case "DeleteTProxyPolicy":
+		err = w.handleDeleteTProxyPolicy(cmd.Data)
+		response.Type = "DeleteTProxyPolicyResponse"
+
+	case "GetTProxyPolicyState":
+		var state map[string]interface{}
+		state, err = w.handleGetTProxyPolicyState()
+		response.Type = "GetTProxyPolicyStateResponse"
+		response.Data = state
+
 	// 升级 Agent 命令（异步执行，不需要保存配置）
 	case "UpgradeAgent":
 		err = w.handleUpgradeAgent(cmd.Data)
@@ -908,6 +931,48 @@ func (w *WebSocketReporter) handleSetProtocol(data interface{}) error {
 		return fmt.Errorf("写入config.json失败: %v", err)
 	}
 	return nil
+}
+
+func (w *WebSocketReporter) handleProbeTProxyCapability() (map[string]interface{}, error) {
+	return probeTProxyCapability()
+}
+
+func (w *WebSocketReporter) handleEnsureTProxyPolicy(data interface{}) error {
+	jsonData, err := json.Marshal(data)
+	if err != nil {
+		return fmt.Errorf("序列化策略路由数据失败: %v", err)
+	}
+
+	var req tproxyPolicyRequest
+	if err := json.Unmarshal(jsonData, &req); err != nil {
+		return fmt.Errorf("解析策略路由数据失败: %v", err)
+	}
+	if err := req.normalize(); err != nil {
+		return err
+	}
+
+	return ensureTProxyPolicy(req)
+}
+
+func (w *WebSocketReporter) handleDeleteTProxyPolicy(data interface{}) error {
+	jsonData, err := json.Marshal(data)
+	if err != nil {
+		return fmt.Errorf("序列化策略路由数据失败: %v", err)
+	}
+
+	var req tproxyPolicyRequest
+	if err := json.Unmarshal(jsonData, &req); err != nil {
+		return fmt.Errorf("解析策略路由数据失败: %v", err)
+	}
+	if err := req.normalize(); err != nil {
+		return err
+	}
+
+	return deleteTProxyPolicy(req)
+}
+
+func (w *WebSocketReporter) handleGetTProxyPolicyState() (map[string]interface{}, error) {
+	return getTProxyPolicyStateSummary()
 }
 
 // sendUpgradeProgress 通过 WS 发送升级进度消息

@@ -260,6 +260,7 @@ doraemon.jks
 device.id
 commit.sh
 .opencode/
+.entire/
 analysis/
 sql/
 !go-backend/internal/store/sqlite/sql/

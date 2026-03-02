@@ -1476,7 +1476,7 @@ func (h *Handler) releasePeerShareForwardRuntimeServices(share *repo.PeerShare, 
 
 func isFederationRuntimeCommandAllowed(commandType string) bool {
 	switch strings.ToLower(strings.TrimSpace(commandType)) {
-	case "addservice", "updateservice", "deleteservice", "pauseservice", "resumeservice", "addchains", "deletechains", "addlimiters", "updatelimiters", "deletelimiters", "tcpping", "reload":
+	case "addservice", "updateservice", "deleteservice", "pauseservice", "resumeservice", "addchains", "deletechains", "addlimiters", "updatelimiters", "deletelimiters", "tcpping", "reload", "probetproxycapability", "ensuretproxypolicy", "deletetproxypolicy", "gettproxypolicystate":
 		return true
 	default:
 		return false

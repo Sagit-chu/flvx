@@ -1,46 +1,89 @@
-# BACKEND HTTP HANDLER KNOWLEDGE BASE
+# Handler Agent Instructions
 
-**Generated:** Thu Feb 26 2026
+## Build Commands
 
-## OVERVIEW
-HTTP request handlers for FLVX Admin API. Core business logic layer.
-**Stack:** Go 1.24, net/http, GORM via Repository pattern.
+```bash
+cd go-backend && go build ./internal/http/handler/...
+```
 
-## STRUCTURE
+## Test Commands
+
+```bash
+cd go-backend && go test ./internal/http/handler/...
+```
+
+## Code Style - Go
+
+### Imports
+Standard library first, external second, local third:
+```go
+import (
+    "context"
+    "net/http"
+
+    "go-backend/internal/http/response"
+    "go-backend/internal/store/repo"
+)
+```
+
+### Handler Pattern
+```go
+func (h *Handler) userList(w http.ResponseWriter, r *http.Request) {
+    users, err := h.repo.ListUsers()
+    if err != nil {
+        response.WriteJSON(w, response.ErrDefault("获取用户列表失败"))
+        return
+    }
+    response.WriteJSON(w, response.OK(users))
+}
+```
+
+### Request Structs
+Define request structs at package level:
+```go
+type loginRequest struct {
+    Username string `json:"username"`
+    Password string `json:"password"`
+}
+```
+
+## Project Structure
+
 ```
 handler/
-├── handler.go        # Main Handler struct, login/captcha, job scheduling
-├── control_plane.go  # Node control plane API (add/delete/list)
-├── federation.go     # Federation/cluster sync API
+├── handler.go        # Main Handler struct, login/captcha
+├── mutations.go      # CRUD for users, tunnels, forwards
+├── control_plane.go  # Node control plane API
+├── federation.go     # Federation/cluster sync
 ├── flow_policy.go    # Traffic policy API
-├── jobs.go           # Background job management (sync, cleanup)
-├── mutations.go      # CRUD for users, tunnels, forwards (~3700 LOC)
+├── jobs.go           # Background job management
 └── upgrade.go        # System upgrade API
 ```
 
-## WHERE TO LOOK
-| Task | Location | Notes |
-|------|----------|-------|
-| **User/Tunnel CRUD** | `mutations.go` | Largest file; all create/update/delete ops |
-| **Login/Captcha** | `handler.go` | Login flow, captcha verification |
-| **Federation Sync** | `federation.go` | Panel-to-panel sync |
-| **Traffic Policies** | `flow_policy.go` | Flow limiting, quota management |
-| **Background Jobs** | `jobs.go` | Scheduled sync/cleanup tasks |
-| **Node Control** | `control_plane.go` | Node add/delete/list operations |
+## Critical Conventions
 
-## CONVENTIONS
-- Inherits from parent: GORM via Repository pattern, JWT in Authorization header.
-- Large files expected (`mutations.go` ~3700 LOC - central mutation hub).
-- Uses `repo.Repository` for DB access via `h.repo.XXX()` methods.
-- Handlers never call `repo.DB()` directly — all queries go through Repository methods.
-- Domain-driven file split: one file per functional area (federation, jobs, etc.).
+### Repository Pattern
+Never call `repo.DB()` directly. Use Repository methods:
+```go
+// Correct
+user, err := h.repo.GetUserByID(id)
 
-## ANTI-PATTERNS
-- Do NOT let handlers call `repo.DB()` directly — add a Repository method instead.
-- Do NOT change handler signatures without updating router.go.
-
-## COMMANDS
-```bash
-cd go-backend
-go test ./internal/http/handler/...
+// Wrong
+var user model.User
+h.repo.DB().First(&user, id)
 ```
+
+### Response Envelope
+All responses use `response.R`:
+```go
+response.WriteJSON(w, response.OK(data))        // Success
+response.WriteJSON(w, response.Err(401, "msg")) // Error
+```
+
+### Domain-Driven Split
+One file per functional area (federation, jobs, flow policy, etc.)
+
+## Anti-Patterns
+
+- DO NOT call `repo.DB()` directly
+- DO NOT change handler signatures without updating router.go

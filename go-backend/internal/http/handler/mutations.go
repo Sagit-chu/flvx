@@ -1140,6 +1140,11 @@ func (h *Handler) forwardCreate(w http.ResponseWriter, r *http.Request) {
 		response.WriteJSON(w, response.ErrDefault("转发名称和目标地址不能为空"))
 		return
 	}
+	udpMode := normalizeForwardUDPMode(asString(req["udpMode"]))
+	if udpMode == "" {
+		response.WriteJSON(w, response.ErrDefault("udpMode 仅支持 normal 或 transparent"))
+		return
+	}
 	speedID := asAnyToInt64Ptr(req["speedId"])
 	if speedID != nil {
 		exists, speedErr := h.repo.SpeedLimitExists(*speedID)
@@ -1169,6 +1174,12 @@ func (h *Handler) forwardCreate(w http.ResponseWriter, r *http.Request) {
 			response.WriteJSON(w, response.ErrDefault(err.Error()))
 			return
 		}
+		if udpMode == "transparent" {
+			if err := h.validateForwardTransparentMode(node, port, remoteAddr); err != nil {
+				response.WriteJSON(w, response.ErrDefault(err.Error()))
+				return
+			}
+		}
 	}
 	now := time.Now().UnixMilli()
 	inx := h.repo.NextIndex("forward")
@@ -1176,7 +1187,7 @@ func (h *Handler) forwardCreate(w http.ResponseWriter, r *http.Request) {
 	if userName == "" {
 		userName = "user"
 	}
-	forwardID, err := h.repo.CreateForwardTx(userID, userName, name, tunnelID, remoteAddr, defaultString(asString(req["strategy"]), "fifo"), now, inx, entryNodes, port, nullableInt(speedID))
+	forwardID, err := h.repo.CreateForwardTx(userID, userName, name, tunnelID, remoteAddr, defaultString(asString(req["strategy"]), "fifo"), udpMode, now, inx, entryNodes, port, nullableInt(speedID))
 	if err != nil {
 		response.WriteJSON(w, response.Err(-2, err.Error()))
 		return
@@ -1251,6 +1262,14 @@ func (h *Handler) forwardUpdate(w http.ResponseWriter, r *http.Request) {
 	if strategy == "" {
 		strategy = forward.Strategy
 	}
+	udpMode := normalizeForwardUDPMode(asString(req["udpMode"]))
+	if udpMode == "" {
+		response.WriteJSON(w, response.ErrDefault("udpMode 仅支持 normal 或 transparent"))
+		return
+	}
+	if _, ok := req["udpMode"]; !ok {
+		udpMode = normalizeForwardUDPMode(forward.UDPMode)
+	}
 	speedID := asAnyToInt64Ptr(req["speedId"])
 	if speedID != nil {
 		exists, speedErr := h.repo.SpeedLimitExists(*speedID)
@@ -1290,9 +1309,15 @@ func (h *Handler) forwardUpdate(w http.ResponseWriter, r *http.Request) {
 			response.WriteJSON(w, response.ErrDefault(err.Error()))
 			return
 		}
+		if udpMode == "transparent" {
+			if err := h.validateForwardTransparentMode(node, port, remoteAddr); err != nil {
+				response.WriteJSON(w, response.ErrDefault(err.Error()))
+				return
+			}
+		}
 	}
 	now := time.Now().UnixMilli()
-	if err := h.repo.UpdateForward(id, name, tunnelID, remoteAddr, strategy, now, newSpeedID); err != nil {
+	if err := h.repo.UpdateForward(id, name, tunnelID, remoteAddr, strategy, udpMode, now, newSpeedID); err != nil {
 		response.WriteJSON(w, response.Err(-2, err.Error()))
 		return
 	}
@@ -3038,7 +3063,7 @@ func (h *Handler) rollbackForwardMutation(oldForward *forwardRecord, oldPorts []
 
 	h.repo.RollbackForwardFields(
 		oldForward.ID, oldForward.UserID, oldForward.UserName, oldForward.Name,
-		oldForward.TunnelID, oldForward.RemoteAddr, oldForward.Strategy, oldForward.Status,
+		oldForward.TunnelID, oldForward.RemoteAddr, oldForward.Strategy, oldForward.UDPMode, oldForward.Status,
 		oldForward.SpeedID,
 		time.Now().UnixMilli(),
 	)
@@ -3375,6 +3400,17 @@ func defaultString(v, def string) string {
 		return def
 	}
 	return v
+}
+
+func normalizeForwardUDPMode(v string) string {
+	switch strings.ToLower(strings.TrimSpace(v)) {
+	case "", "normal":
+		return "normal"
+	case "transparent":
+		return "transparent"
+	default:
+		return ""
+	}
 }
 
 func randomToken(n int) string {

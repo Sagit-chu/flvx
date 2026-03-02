@@ -45,6 +45,7 @@ func (r *Repository) ListForwardsByTunnel(tunnelID int64) ([]model.ForwardRecord
 			TunnelID:   f.TunnelID,
 			RemoteAddr: f.RemoteAddr,
 			Strategy:   f.Strategy,
+			UDPMode:    f.UDPMode,
 			Status:     f.Status,
 			SpeedID:    f.SpeedID,
 		})
@@ -52,6 +53,9 @@ func (r *Repository) ListForwardsByTunnel(tunnelID int64) ([]model.ForwardRecord
 	for i := range rows {
 		if strings.TrimSpace(rows[i].Strategy) == "" {
 			rows[i].Strategy = "fifo"
+		}
+		if strings.TrimSpace(rows[i].UDPMode) == "" {
+			rows[i].UDPMode = "normal"
 		}
 	}
 	return rows, nil

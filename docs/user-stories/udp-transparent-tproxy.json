@@ -1,0 +1,54 @@
+[
+  {
+    "category": "functional",
+    "description": "Forward supports udpMode with normal and transparent values",
+    "steps": [
+      "Call forward create API with udpMode=normal and verify it is persisted",
+      "Call forward update API with udpMode=transparent and verify it is persisted",
+      "Call forward list API and verify udpMode is returned for every forward"
+    ],
+    "passes": true
+  },
+  {
+    "category": "functional",
+    "description": "Control plane emits transparent UDP service config for udpMode=transparent",
+    "steps": [
+      "Create a forward with udpMode=transparent",
+      "Trigger service deployment",
+      "Verify UDP service uses transparent listener and handler type",
+      "Verify TCP service remains unchanged"
+    ],
+    "passes": true
+  },
+  {
+    "category": "integration",
+    "description": "Node can apply and remove TPROXY routing policy automatically",
+    "steps": [
+      "Send EnsureTProxyPolicy command to a Linux node",
+      "Verify iptables and policy routing entries are created idempotently",
+      "Send DeleteTProxyPolicy command",
+      "Verify matching entries are removed"
+    ],
+    "passes": true
+  },
+  {
+    "category": "edge-case",
+    "description": "Non-Linux node rejects transparent UDP mode with actionable error",
+    "steps": [
+      "Attempt to deploy transparent UDP to a non-Linux node",
+      "Verify deployment fails with a clear unsupported-platform error",
+      "Verify existing normal UDP service is not impacted"
+    ],
+    "passes": true
+  },
+  {
+    "category": "edge-case",
+    "description": "Loop prevention blocks self-capturing transparent UDP rules",
+    "steps": [
+      "Create a transparent UDP forward that targets local listen endpoint",
+      "Verify control plane rejects the configuration before deploy",
+      "Verify no TPROXY policy is applied"
+    ],
+    "passes": true
+  }
+]

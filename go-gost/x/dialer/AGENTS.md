@@ -1,35 +1,69 @@
-# GO-GOST/X DIALERS KNOWLEDGE BASE
+# Dialer Agent Instructions
 
-## OVERVIEW
-Outbound dialers (client-side connection establishment) used by connectors/handlers.
+## Build Commands
 
-## STRUCTURE
+```bash
+cd go-gost/x && go build ./dialer/...
 ```
-go-gost/x/dialer/
-├── direct/   # Baseline dialer
-├── tcp/
-├── udp/
-├── tls/
-├── ws/
-├── quic/
-├── http2/
-├── http3/
-├── ssh/
-├── wg/       # WireGuard dialer
+
+## Test Commands
+
+```bash
+cd go-gost/x && go test ./dialer/...
+```
+
+## Code Style - Go
+
+### File Pattern
+Each transport has a subdirectory with:
+- `dialer.go` - main implementation
+- `metadata.go` - configuration metadata
+
+### Implementation Pattern
+```go
+type tcpDialer struct {
+    options *Options
+}
+
+func (d *tcpDialer) Init(md md.MD) error {
+    // Initialize from metadata
+}
+
+func (d *tcpDialer) Dial(ctx context.Context, addr string) (net.Conn, error) {
+    // Establish outbound connection
+}
+```
+
+## Project Structure
+
+```
+dialer/
+├── direct/    # Direct connection
+├── tcp/       # TCP dialer
+├── udp/       # UDP dialer
+├── tls/       # TLS dialer
+├── ws/        # WebSocket dialer
+├── quic/      # QUIC dialer
+├── http2/     # HTTP/2 dialer
+├── http3/     # HTTP/3 dialer
+├── ssh/       # SSH dialer
+├── wg/        # WireGuard dialer
 └── ...
 ```
 
-## WHERE TO LOOK
-| Task | Location | Notes |
-|------|----------|-------|
-| Pick a dialer | `go-gost/x/dialer/` | One subdir per transport |
-| TCP baseline | `go-gost/x/dialer/tcp/dialer.go` | Reference implementation |
+## Critical Conventions
 
-## CONVENTIONS
-- Dialer implementations typically live in `dialer.go` with a paired `metadata.go` (e.g. `go-gost/x/dialer/tcp/`).
-
-## COMMANDS
-```bash
-cd go-gost/x
-go test ./...
+### Registration
+Each dialer registers itself in `init()`:
+```go
+func init() {
+    registry.RegisterDialer("tcp", NewDialer)
+}
 ```
+
+### Interface
+Dialers implement the `Dialer` interface from `github.com/go-gost/core`.
+
+## Anti-Patterns
+
+- DO NOT edit generated protobuf files

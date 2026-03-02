@@ -1,12 +1,41 @@
-# GOST CONNECTOR KNOWLEDGE BASE
+# Connector Agent Instructions
 
-**Generated:** Fri Feb 13 2026
+## Build Commands
 
-## OVERVIEW
-Connection initiators (clients) for various protocols in GOST forwarding.
-**Stack:** Go, GOST core.
+```bash
+cd go-gost/x && go build ./connector/...
+```
 
-## STRUCTURE
+## Test Commands
+
+```bash
+cd go-gost/x && go test ./connector/...
+```
+
+## Code Style - Go
+
+### File Pattern
+Each protocol has a subdirectory with:
+- `connector.go` - main implementation
+- `metadata.go` - configuration metadata
+
+### Implementation Pattern
+```go
+type httpConnector struct {
+    options *Options
+}
+
+func (c *httpConnector) Init(md md.MD) error {
+    // Initialize from metadata
+}
+
+func (c *httpConnector) Connect(ctx context.Context, conn net.Conn) (net.Conn, error) {
+    // Establish protocol-level connection
+}
+```
+
+## Project Structure
+
 ```
 connector/
 ├── direct/    # Direct connection
@@ -15,8 +44,6 @@ connector/
 ├── http2/     # HTTP/2 connector
 ├── relay/     # Relay protocol
 ├── router/    # Router connector
-├── serial/    # Serial port
-├── sni/       # SNI routing
 ├── socks/     # SOCKS4/5
 ├── ss/        # Shadowsocks
 ├── sshd/      # SSH daemon
@@ -25,15 +52,19 @@ connector/
 └── unix/      # Unix socket
 ```
 
-## CONVENTIONS
-- Inherits from parent `go-gost/x/` conventions.
-- Each subdir implements `Connector` interface from GOST core.
+## Critical Conventions
 
-## ANTI-PATTERNS
-- DO NOT EDIT generated protobuf in `go-gost/x/internal/util/grpc/proto/`.
-
-## COMMANDS
-```bash
-cd go-gost
-go test ./x/connector/...
+### Registration
+Each connector registers itself in `init()`:
+```go
+func init() {
+    registry.RegisterConnector("http", NewConnector)
+}
 ```
+
+### Interface
+Connectors implement the `Connector` interface from `github.com/go-gost/core`.
+
+## Anti-Patterns
+
+- DO NOT edit generated protobuf files

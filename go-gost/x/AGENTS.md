@@ -1,45 +1,79 @@
-# GO-GOST/X KNOWLEDGE BASE
+# Go-Gost/X Agent Instructions
 
-## OVERVIEW
-Local fork of `github.com/go-gost/x` used by `go-gost/` via `replace github.com/go-gost/x => ./x`. Most protocol/runtime behavior changes happen here. 30+ top-level packages - framework-style layout.
+## Build Commands
 
-## STRUCTURE
+```bash
+cd go-gost/x && go build ./...
+```
+
+## Test Commands
+
+```bash
+# All tests
+cd go-gost/x && go test ./...
+
+# Single test by name
+cd go-gost/x && go test ./socket -run TestSpecificName -v
+
+# Test specific package
+cd go-gost/x && go test ./handler/...
+```
+
+## Lint Commands
+
+```bash
+cd go-gost/x && go vet ./...
+```
+
+## Code Style - Go
+
+### Imports
+Standard library first, external packages second, local packages third. Blank lines between groups.
+
+### File Patterns
+Handlers/listeners/dialers follow consistent pattern:
+- `{type}.go` - main implementation
+- `metadata.go` - configuration metadata
+
+### OS-Specific Code
+Use `name_[os].go` suffix:
+- `tun_linux.go`
+- `tun_darwin.go`
+- `tun_windows.go`
+
+## Project Structure
+
 ```
 go-gost/x/
-├── api/        # Gin management API + embedded swagger docs (22 files)
+├── api/        # Gin management API + swagger docs
 ├── config/     # Config model + parsing/load/reload
 ├── connector/  # Outbound connect implementations
 ├── dialer/     # Outbound dialers (tcp/tls/ws/quic/...)
-├── handler/    # Protocol handlers (socks/http/tunnel/relay/...)
-├── listener/   # Inbound listeners (tcp/udp/tun/tap/redirect/...)
+├── handler/    # Protocol handlers (socks/http/tunnel/...)
+├── listener/   # Inbound listeners (tcp/udp/tun/tap/...)
 ├── limiter/    # Traffic/rate/conn limiters
-├── registry/   # Registries for services/handlers/listeners/etc (20 files)
+├── registry/   # Registries for pluggable components
 ├── service/    # Service wrappers + reporting hooks
-├── socket/     # WebSocket reporter / panel integration (6 files)
-└── internal/   # Shared internals (grpc proto, net utils, sniffing, tls, ...)
+├── socket/     # WebSocket reporter / panel integration
+└── internal/   # Shared internals (grpc proto, net utils)
 ```
 
-## WHERE TO LOOK
-| Task | Location | Notes |
-|------|----------|-------|
-| **Management API routes/auth** | `go-gost/x/api/api.go` | `/docs`, `/config/*`; BasicAuth + interceptor |
-| **Service config parsing** | `go-gost/x/config/parsing/` | Converts config to running services |
-| **Add a handler** | `go-gost/x/handler/` | Per-protocol subdirs |
-| **Add a listener/dialer** | `go-gost/x/listener/`, `go-gost/x/dialer/` | Transport variants |
-| **Panel reporting** | `go-gost/x/socket/` | WebSocket + HTTP report URL hooks |
-| **Register new component** | `go-gost/x/registry/` | `Register{Type}(name, creator)` |
+## Critical Conventions
 
-## CONVENTIONS
-- `go-gost/x/` is a standalone Go module (`go-gost/x/go.mod`); run go tooling from this dir when debugging module resolution.
-- Generated gRPC/proto code lives under `go-gost/x/internal/util/grpc/proto/`.
-- Handlers/listeners/dialers follow consistent pattern: `{type}.go` + `metadata.go` per protocol.
-- OS-specific code uses `name_[os].go` suffix (e.g., `tun_linux.go`, `tun_darwin.go`).
+### Module Independence
+`go-gost/x/` is a standalone Go module with its own `go.mod`.
 
-## ANTI-PATTERNS
-- Do not edit generated files in `go-gost/x/internal/util/grpc/proto/` (`*.pb.go`, `*_grpc.pb.go`).
-
-## COMMANDS
-```bash
-cd go-gost/x
-go test ./...
+### Component Registration
+Components register via `registry.Register{Type}(name, creator)`:
+```go
+registry.RegisterHandler("http", NewHandler)
+registry.RegisterListener("tcp", NewListener)
 ```
+
+### Panel Reporting
+`x/socket/websocket_reporter.go` handles agent-to-panel telemetry.
+
+## Anti-Patterns
+
+- DO NOT edit generated protobuf in `internal/util/grpc/proto/`
+- DO NOT edit `*.pb.go` or `*_grpc.pb.go` files

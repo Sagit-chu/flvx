@@ -52,6 +52,7 @@ export interface ForwardApiItem {
   userId?: number;
   tunnelId?: number;
   speedId?: number | null;
+  udpMode?: "normal" | "transparent";
   inx?: number;
   [key: string]: unknown;
 }
@@ -284,6 +285,7 @@ export interface ForwardMutationPayload {
   remoteAddr?: string;
   strategy?: string;
   speedId?: number | null;
+  udpMode?: "normal" | "transparent";
 }
 
 export interface SpeedLimitMutationPayload {

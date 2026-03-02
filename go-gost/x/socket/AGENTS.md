@@ -1,38 +1,54 @@
-# GOST SOCKET KNOWLEDGE BASE
+# Socket Agent Instructions
 
-**Generated:** Sun Feb 15 2026
+## Build Commands
 
-## OVERVIEW
-WebSocket reporter and socket utilities for panel integration.
-**Stack:** Go, GOST core, gorilla/websocket.
+```bash
+cd go-gost/x && go build ./socket/...
+```
 
-## STRUCTURE
+## Test Commands
+
+```bash
+cd go-gost/x && go test ./socket/...
+cd go-gost/x && go test ./socket -run TestSpecificName -v
+```
+
+## Code Style - Go
+
+### Imports
+Standard library first, external packages second, local packages third.
+
+### Error Handling
+Return errors up the stack with context:
+```go
+if err := conn.WriteMessage(websocket.TextMessage, data); err != nil {
+    return fmt.Errorf("write message: %w", err)
+}
+```
+
+## Project Structure
+
 ```
 socket/
-├── websocket_reporter.go  # Agent-to-panel telemetry (1504 LOC)
-├── service.go             # Socket service orchestration (534 LOC)
+├── websocket_reporter.go  # Agent-to-panel telemetry
+├── service.go             # Socket service orchestration
 ├── socket.go              # Core socket interface
 ├── udp.go                 # UDP socket handling
 ├── packet.go              # Packet framing
 └── packetconn.go          # Packet connection wrapper
 ```
 
-## WHERE TO LOOK
-| Task | Location | Notes |
-|------|----------|-------|
-| **Panel Reporting** | `websocket_reporter.go` | Real-time system info (CPU, mem, uptime) every 2s |
-| **Command Handling** | `websocket_reporter.go` | Processes `AddService`, `UpgradeAgent`, etc. |
+## Critical Conventions
 
-## CONVENTIONS
-- Inherits from parent `go-gost/x/` conventions.
-- Low-level network primitives.
-- All panel communication is AES-encrypted using node `secret`.
+### Panel Reporting
+`websocket_reporter.go` sends real-time system info (CPU, memory, uptime) every 2s.
 
-## ANTI-PATTERNS
-- DO NOT EDIT generated protobuf.
+### Command Handling
+Processes commands like `AddService`, `UpgradeAgent`, etc.
 
-## COMMANDS
-```bash
-cd go-gost
-go test ./x/socket/...
-```
+### Encryption
+All panel communication is AES-encrypted using node `secret`.
+
+## Anti-Patterns
+
+- DO NOT edit generated protobuf files

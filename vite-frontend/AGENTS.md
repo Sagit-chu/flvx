@@ -1,70 +1,91 @@
-# VITE FRONTEND KNOWLEDGE BASE
+# Vite Frontend Agent Instructions
 
-**Generated:** Thu Feb 26 2026
-**Commit:** 21008cc
-**Branch:** main
-**Tag:** 2.1.5-rc15
+## Build Commands
 
-## OVERVIEW
-Web management console for FLVX.
-**Stack:** React 18, rolldown-vite, TypeScript, Tailwind CSS v4, shadcn/radix primitives with HeroUI-compatible bridge.
+```bash
+cd vite-frontend && npm run dev
+cd vite-frontend && npm run build
+cd vite-frontend && npm run preview
+```
 
-## STRUCTURE
+## Lint Commands
+
+```bash
+cd vite-frontend && npm run lint
+```
+
+## Code Style - TypeScript/React
+
+### Import Order (ESLint enforced)
+Types first, then builtins, external, internal, parent/sibling/index. Blank lines between groups.
+
+### Component Style
+Functional components with hooks. No prop-types:
+```tsx
+export function MyComponent({ id, onSave }: Props) {
+  const [data, setData] = useState<Data | null>(null)
+  // ...
+}
+```
+
+### Naming Conventions
+- Components: PascalCase files and names (`UserList.tsx` → `UserList`)
+- Hooks: camelCase with `use` prefix (`useAuth.ts`)
+- Utils: camelCase files and functions
+
+### UI Components
+Import from `@/shadcn-bridge/heroui/*`, NOT from `@heroui/*`:
+```tsx
+import { Button } from "@/shadcn-bridge/heroui/button"
+import { Input } from "@/shadcn-bridge/heroui/input"
+```
+
+### TypeScript Config
+- Path alias: `@/*` → `./src/*`
+- Strict mode enabled
+- `noUnusedLocals: true`, `noUnusedParameters: true`
+
+## Project Structure
+
 ```
 vite-frontend/
 ├── src/
-│   ├── api/                      # Axios wrapper + typed endpoint helpers
-│   ├── components/ui/            # shadcn/radix primitive components
-│   ├── shadcn-bridge/heroui/     # HeroUI-compatible facade (23 components)
-│   ├── pages/                    # Route views + page modules (forward/node/tunnel)
-│   ├── hooks/                    # H5/WebView/mobile hooks
+│   ├── api/                      # Axios wrapper
+│   ├── components/ui/            # shadcn/radix primitives
+│   ├── shadcn-bridge/heroui/     # HeroUI-compatible facade
+│   ├── pages/                    # Route views
+│   ├── hooks/                    # Custom hooks
 │   ├── styles/
-│   │   ├── globals.css           # Base styles + imports tailwind-theme.pcss
-│   │   └── tailwind-theme.pcss   # Tailwind v4 @theme inline semantic token mapping
-│   ├── App.tsx                   # Routes + ProtectedRoute + H5 layout selection
-│   ├── main.tsx                  # ReactDOM + BrowserRouter + Provider
-│   └── provider.tsx              # Toast/theme/provider composition
-├── components.json               # shadcn/ui config
-├── tailwind.config.js            # Compatibility config for migration scaffolding
-├── vite.config.ts                # base '/', host 0.0.0.0:3000; minify/treeshake disabled
-└── package.json
+│   │   ├── globals.css           # Must import tailwind-theme.pcss
+│   │   └── tailwind-theme.pcss   # Semantic color tokens
+│   ├── App.tsx                   # Routes + ProtectedRoute
+│   └── main.tsx                  # Entry point
+├── tsconfig.json
+└── vite.config.ts                # rolldown-vite, minify: false
 ```
 
-## WHERE TO LOOK
-| Task | Location | Notes |
-|------|----------|-------|
-| **Route definitions** | `src/App.tsx` | React Router v6 + ProtectedRoute |
-| **API Client/Auth header** | `src/api/network.ts` | Sends raw JWT in `Authorization` header |
-| **Login Flow** | `src/pages/index.tsx` | Calls `login()`, stores `localStorage.token` |
-| **Auth helpers** | `src/utils/auth.ts`, `src/utils/jwt.ts` | Role checks + token expiration parsing |
-| **UI bridge usage** | `src/shadcn-bridge/heroui/` | Import from bridge, not `@heroui/*` |
-| **Button parity mapping** | `src/shadcn-bridge/heroui/button.tsx` | Legacy `color`/`variant` mapped to shadcn classes |
-| **Semantic theme tokens** | `src/styles/tailwind-theme.pcss` | Restores classes like `bg-primary`, `border-input` |
-| **Theme wiring** | `src/styles/globals.css` | Must import `./tailwind-theme.pcss` |
+## Critical Conventions
 
-## CONVENTIONS
-- **Auth Header**: Use raw JWT token (no `Bearer` prefix).
-- **API Envelope**: Responses follow `{code, msg, data, ts}`.
-- **UI Imports**: Use `src/shadcn-bridge/heroui/*` in app pages/layouts for compatibility.
-- **Semantic Colors**: Keep `globals.css -> tailwind-theme.pcss` import intact or semantic classes break.
-- **Build profile**: `minify: false`, `treeshake: false` for debugging.
-- **Layout mode**: H5/mobile mode controlled by existing route/query and hook logic.
-
-## ANTI-PATTERNS
-- **DO NOT ADD** `Bearer` to auth header in frontend requests.
-- **DO NOT REINTRODUCE** `@heroui/*` or `@nextui-org/*` dependencies.
-- **DO NOT REMOVE** `src/styles/tailwind-theme.pcss` import from `src/styles/globals.css`.
-- **DO NOT ADD** frontend tests; no Vitest/Jest setup exists.
-
-## NOTES
-- Uses `rolldown-vite` (experimental Rust bundler) instead of standard Vite.
-- Build outputs are non-minified (debugging mode).
-- No test infrastructure exists (Vitest/Jest not configured).
-
-## COMMANDS
-```bash
-cd vite-frontend
-npm run dev
-npm run build
-npm run lint
+### Authentication Header
+Raw JWT token, NO "Bearer" prefix:
+```typescript
+// network.ts
+axios.defaults.headers.common["Authorization"] = token
 ```
+
+### API Response Envelope
+All responses follow `{code, msg, data, ts}`. Code 0 = success.
+
+### Theme Tokens
+`globals.css` must import `./tailwind-theme.pcss` or semantic classes like `bg-primary` break.
+
+### Build Profile
+- Uses `rolldown-vite` (Rust bundler)
+- `minify: false`, `treeshake: false` for debugging
+
+## Anti-Patterns
+
+- DO NOT add `Bearer` prefix to auth header
+- DO NOT import from `@heroui/*` or `@nextui-org/*`
+- DO NOT remove `tailwind-theme.pcss` import from `globals.css`
+- DO NOT add frontend tests (no Vitest/Jest setup)
