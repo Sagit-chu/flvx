@@ -8,6 +8,8 @@ import (
 	gsqlite "github.com/glebarez/sqlite"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
+
+	"go-backend/internal/store/model"
 )
 
 func TestMigrateSchemaRunsPostgresIDRepairEvenAtCurrentVersion(t *testing.T) {
@@ -240,6 +242,68 @@ func TestMigrateSchemaClearsSpeedLimitTunnelBinding(t *testing.T) {
 	}
 	if tunnelName.Valid {
 		t.Fatalf("expected tunnel_name cleared to NULL, got %q", tunnelName.String)
+	}
+
+	var schemaVersion int
+	if err := db.Raw(`SELECT version FROM schema_version LIMIT 1`).Row().Scan(&schemaVersion); err != nil {
+		t.Fatalf("query schema_version: %v", err)
+	}
+	if schemaVersion != currentSchemaVersion {
+		t.Fatalf("expected schema version %d, got %d", currentSchemaVersion, schemaVersion)
+	}
+}
+
+func TestMigrateSchemaAddsTunnelTunConfigColumn(t *testing.T) {
+	db, err := gorm.Open(gsqlite.Open(":memory:"), &gorm.Config{
+		Logger: logger.Default.LogMode(logger.Silent),
+	})
+	if err != nil {
+		t.Fatalf("open sqlite: %v", err)
+	}
+	t.Cleanup(func() {
+		sqlDB, _ := db.DB()
+		if sqlDB != nil {
+			_ = sqlDB.Close()
+		}
+	})
+
+	if err := db.Exec(`CREATE TABLE schema_version (version INTEGER NOT NULL DEFAULT 0)`).Error; err != nil {
+		t.Fatalf("create schema_version: %v", err)
+	}
+	if err := db.Exec(`INSERT INTO schema_version(version) VALUES(?)`, 4).Error; err != nil {
+		t.Fatalf("seed schema_version: %v", err)
+	}
+	if err := db.Exec(`
+		CREATE TABLE tunnel (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			name VARCHAR(100) NOT NULL,
+			traffic_ratio REAL NOT NULL DEFAULT 1.0,
+			type INTEGER NOT NULL,
+			protocol VARCHAR(10) NOT NULL DEFAULT 'tls',
+			flow INTEGER NOT NULL,
+			created_time INTEGER NOT NULL,
+			updated_time INTEGER NOT NULL,
+			status INTEGER NOT NULL,
+			in_ip TEXT,
+			inx INTEGER NOT NULL DEFAULT 0,
+			ip_preference VARCHAR(10) NOT NULL DEFAULT ''
+		)
+	`).Error; err != nil {
+		t.Fatalf("create tunnel: %v", err)
+	}
+
+	originalIDRepair := ensurePostgresIDDefaultsFn
+	ensurePostgresIDDefaultsFn = func(db *gorm.DB) error { return nil }
+	t.Cleanup(func() {
+		ensurePostgresIDDefaultsFn = originalIDRepair
+	})
+
+	if err := migrateSchema(db); err != nil {
+		t.Fatalf("migrateSchema: %v", err)
+	}
+
+	if !db.Migrator().HasColumn(&model.Tunnel{}, "TunConfig") {
+		t.Fatalf("expected tunnel.tun_config column to be added")
 	}
 
 	var schemaVersion int

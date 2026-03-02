@@ -1,6 +1,7 @@
+import type { TunnelDiagnosisApiItem } from "@/api/types";
+
 import axios from "axios";
 
-import type { TunnelDiagnosisApiItem } from "@/api/types";
 import { clearSession, getToken } from "@/utils/session";
 
 const DIAGNOSIS_STREAM_TIMEOUT_MS = 2 * 60 * 1000;
@@ -106,13 +107,16 @@ const combineAbortSignals = (signals: AbortSignal[]): AbortSignal => {
       controller.abort();
     }
   };
+
   signals.forEach((signal) => {
     if (signal.aborted) {
       onAbort();
+
       return;
     }
     signal.addEventListener("abort", onAbort, { once: true });
   });
+
   return controller.signal;
 };
 
@@ -120,6 +124,7 @@ const parseMessage = (err: unknown, fallback: string): string => {
   if (err instanceof Error && err.message) {
     return err.message;
   }
+
   return fallback;
 };
 
@@ -133,7 +138,12 @@ const runDiagnosisStream = async ({
   onError,
 }: RunDiagnosisStreamOptions): Promise<DiagnosisStreamRunResult> => {
   if (!isStreamSupported()) {
-    return { fallback: true, completed: false, timedOut: false, receivedItems: 0 };
+    return {
+      fallback: true,
+      completed: false,
+      timedOut: false,
+      receivedItems: 0,
+    };
   }
 
   let receivedItems = 0;
@@ -170,27 +180,51 @@ const runDiagnosisStream = async ({
 
     if (response.status === 401) {
       handleTokenExpired();
-      return { fallback: false, completed: false, timedOut: false, receivedItems };
+
+      return {
+        fallback: false,
+        completed: false,
+        timedOut: false,
+        receivedItems,
+      };
     }
 
     if (response.status === 404) {
-      return { fallback: true, completed: false, timedOut: false, receivedItems };
+      return {
+        fallback: true,
+        completed: false,
+        timedOut: false,
+        receivedItems,
+      };
     }
 
     if (!response.ok || !response.body) {
       const fallbackMessage = `请求失败(${response.status})`;
       let message = fallbackMessage;
+
       try {
         const data = (await response.json()) as RawObject;
+
         if (typeof data.msg === "string" && data.msg.trim()) {
           message = data.msg;
         }
       } catch {}
       if (receivedItems === 0) {
-        return { fallback: true, completed: false, timedOut: false, receivedItems };
+        return {
+          fallback: true,
+          completed: false,
+          timedOut: false,
+          receivedItems,
+        };
       }
       onError?.(message);
-      return { fallback: false, completed: false, timedOut: false, receivedItems };
+
+      return {
+        fallback: false,
+        completed: false,
+        timedOut: false,
+        receivedItems,
+      };
     }
 
     const reader = response.body.getReader();
@@ -202,6 +236,7 @@ const runDiagnosisStream = async ({
         return;
       }
       let parsed: DiagnosisStreamRawEvent;
+
       try {
         parsed = JSON.parse(line) as DiagnosisStreamRawEvent;
       } catch {
@@ -209,15 +244,18 @@ const runDiagnosisStream = async ({
       }
 
       const eventType = (parsed.type || "").toLowerCase();
+
       if (eventType === "start") {
         if (parsed.data && typeof parsed.data === "object") {
           const startData = parsed.data as RawObject;
           const startTotal = Number(startData.total);
+
           if (Number.isFinite(startTotal) && startTotal >= 0) {
             currentProgress = { ...currentProgress, total: startTotal };
           }
           onStart?.(startData);
         }
+
         return;
       }
 
@@ -228,10 +266,12 @@ const runDiagnosisStream = async ({
         const itemData = parsed.data as RawObject;
         const index = Number(itemData.index);
         const result = itemData.result as TunnelDiagnosisApiItem | undefined;
+
         if (!Number.isFinite(index) || !result || typeof result !== "object") {
           return;
         }
         const progress = normalizeProgress(itemData.progress, currentProgress);
+
         currentProgress = progress;
         receivedItems += 1;
         onItem({
@@ -239,6 +279,7 @@ const runDiagnosisStream = async ({
           result,
           progress,
         });
+
         return;
       }
 
@@ -252,6 +293,7 @@ const runDiagnosisStream = async ({
           donePayload.progress ?? donePayload,
           currentProgress,
         );
+
         if (typeof donePayload.timedOut === "boolean") {
           doneProgress.timedOut = donePayload.timedOut;
           timedOut = donePayload.timedOut;
@@ -263,16 +305,19 @@ const runDiagnosisStream = async ({
 
     while (true) {
       const { value, done } = await reader.read();
+
       if (done) {
         break;
       }
       buffer += decoder.decode(value, { stream: true });
       const lines = buffer.split("\n");
+
       buffer = lines.pop() ?? "";
       lines.forEach((line) => processLine(line.trim()));
     }
 
     const tail = buffer.trim();
+
     if (tail) {
       processLine(tail);
     }
@@ -282,6 +327,7 @@ const runDiagnosisStream = async ({
         ...currentProgress,
         timedOut: true,
       };
+
       onDone?.(timeoutProgress);
     }
 
@@ -297,20 +343,43 @@ const runDiagnosisStream = async ({
         ...currentProgress,
         timedOut: true,
       };
+
       onDone?.(timeoutProgress);
-      return { fallback: false, completed: false, timedOut: true, receivedItems };
+
+      return {
+        fallback: false,
+        completed: false,
+        timedOut: true,
+        receivedItems,
+      };
     }
 
     if (signal?.aborted) {
-      return { fallback: false, completed: false, timedOut: false, receivedItems };
+      return {
+        fallback: false,
+        completed: false,
+        timedOut: false,
+        receivedItems,
+      };
     }
 
     if (receivedItems === 0) {
-      return { fallback: true, completed: false, timedOut: false, receivedItems };
+      return {
+        fallback: true,
+        completed: false,
+        timedOut: false,
+        receivedItems,
+      };
     }
 
     onError?.(parseMessage(error, "流式诊断中断"));
-    return { fallback: false, completed: false, timedOut: false, receivedItems };
+
+    return {
+      fallback: false,
+      completed: false,
+      timedOut: false,
+      receivedItems,
+    };
   } finally {
     clearTimeout(timeoutId);
   }

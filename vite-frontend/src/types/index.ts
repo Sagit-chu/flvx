@@ -83,6 +83,19 @@ export interface Tunnel {
   exitNodeName?: string;
   status?: number;
   flow?: number; // 流量计算类型
+  tunConfig?: {
+    net?: string;
+    mtu?: number;
+    routes?: string | string[];
+    dns?: string | string[];
+    peer?: string | string[];
+    gw?: string;
+    keepalive?: number;
+    ttl?: number;
+    passphrase?: string;
+    p2p?: boolean;
+    tunName?: string;
+  };
 }
 
 export interface SpeedLimit {

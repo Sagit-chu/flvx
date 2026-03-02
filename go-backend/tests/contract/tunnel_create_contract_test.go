@@ -128,6 +128,50 @@ func TestTunnelUpdateAssignsChainPortsContract(t *testing.T) {
 	}
 }
 
+func TestTunnelCreateType3RejectsMultiEntryTopologyContract(t *testing.T) {
+	secret := "contract-jwt-secret"
+	router, repo := setupContractRouter(t, secret)
+	now := time.Now().UnixMilli()
+
+	adminToken, err := auth.GenerateToken(1, "admin_user", 0, secret)
+	if err != nil {
+		t.Fatalf("generate admin token: %v", err)
+	}
+
+	insertNode := func(name, ip, portRange string) int64 {
+		if err := repo.DB().Exec(`
+			INSERT INTO node(name, secret, server_ip, server_ip_v4, server_ip_v6, port, interface_name, version, http, tls, socks, created_time, updated_time, status, tcp_listen_addr, udp_listen_addr, inx)
+			VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		`, name, name+"-secret", ip, ip, "", portRange, "", "v1", 1, 1, 1, now, now, 1, "[::]", "[::]", 0).Error; err != nil {
+			t.Fatalf("insert node %s: %v", name, err)
+		}
+		return mustLastInsertID(t, repo, name)
+	}
+
+	entry1 := insertNode("tun-e1", "10.40.0.1", "43000-43010")
+	entry2 := insertNode("tun-e2", "10.40.0.2", "43100-43110")
+	exitID := insertNode("tun-x1", "10.40.0.3", "43200-43210")
+
+	payload := `{"name":"tun-topology-invalid","type":3,"flow":99999,"status":1,"inNodeId":[{"nodeId":` + jsonInt(entry1) + `,"protocol":"tls"},{"nodeId":` + jsonInt(entry2) + `,"protocol":"tls"}],"chainNodes":[],"outNodeId":[{"nodeId":` + jsonInt(exitID) + `,"protocol":"tls"}]}`
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/tunnel/create", bytes.NewBufferString(payload))
+	req.Header.Set("Authorization", adminToken)
+	req.Header.Set("Content-Type", "application/json")
+	res := httptest.NewRecorder()
+
+	router.ServeHTTP(res, req)
+
+	var out response.R
+	if err := json.NewDecoder(res.Body).Decode(&out); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if out.Code == 0 {
+		t.Fatalf("expected topology validation failure")
+	}
+	if !strings.Contains(out.Msg, "仅允许单入口") {
+		t.Fatalf("expected clear topology error, got %q", out.Msg)
+	}
+}
+
 func jsonInt(v int64) string {
 	return strconv.FormatInt(v, 10)
 }

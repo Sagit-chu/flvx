@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -108,6 +109,86 @@ func TestApplyTunnelRuntimeSkipsRemoteChainAndOutNodes(t *testing.T) {
 	}
 	if len(services) != 0 {
 		t.Fatalf("expected no local services for remote-only nodes, got %d", len(services))
+	}
+}
+
+func TestBuildTunnelTunServiceConfigUsesTunHandlerAndListener(t *testing.T) {
+	node := &nodeRecord{TCPListenAddr: "[::]", UDPListenAddr: "[::]"}
+	inNode := tunnelRuntimeNode{NodeID: 1, ChainType: 1, Port: 30001}
+	tunCfg := map[string]interface{}{"net": "10.0.0.1/24", "name": "demo0", "mtu": 1380}
+
+	services := buildTunnelTunServiceConfig(99, inNode, node, tunCfg)
+	if len(services) != 1 {
+		t.Fatalf("expected one service, got %d", len(services))
+	}
+	svc := services[0]
+
+	h, ok := svc["handler"].(map[string]interface{})
+	if !ok || asString(h["type"]) != "tun" {
+		t.Fatalf("expected handler.type=tun, got %#v", svc["handler"])
+	}
+	if asString(h["chain"]) != "chains_99" {
+		t.Fatalf("expected handler.chain=chains_99, got %v", h["chain"])
+	}
+
+	l, ok := svc["listener"].(map[string]interface{})
+	if !ok || asString(l["type"]) != "tun" {
+		t.Fatalf("expected listener.type=tun, got %#v", svc["listener"])
+	}
+
+	lm, ok := l["metadata"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("expected listener metadata")
+	}
+	if _, ok := lm["tunConfig"]; !ok {
+		t.Fatalf("expected listener metadata to include tunConfig")
+	}
+}
+
+func TestPrepareTunnelCreateStateType3RequiresSingleEntryAndExit(t *testing.T) {
+	r, err := repo.Open(filepath.Join(t.TempDir(), "panel.db"))
+	if err != nil {
+		t.Fatalf("open repo: %v", err)
+	}
+	defer r.Close()
+
+	h := &Handler{repo: r}
+	now := time.Now().UnixMilli()
+
+	insertNode := func(name, ip, portRange string) int64 {
+		if execErr := r.DB().Exec(`
+			INSERT INTO node(name, secret, server_ip, server_ip_v4, server_ip_v6, port, interface_name, version, http, tls, socks, created_time, updated_time, status, tcp_listen_addr, udp_listen_addr, inx, is_remote, remote_url, remote_token, remote_config)
+			VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		`, name, name+"-secret", ip, ip, "", portRange, "", "v1", 1, 1, 1, now, now, 1, "[::]", "[::]", 0, 0, "", "", "").Error; execErr != nil {
+			t.Fatalf("insert node %s: %v", name, execErr)
+		}
+		return mustLastInsertID(t, r, name)
+	}
+
+	entry1 := insertNode("entry-1", "10.9.0.1", "30000-30010")
+	entry2 := insertNode("entry-2", "10.9.0.2", "30100-30110")
+	exit1 := insertNode("exit-1", "10.9.0.3", "30200-30210")
+
+	tx := r.DB().Begin()
+	if tx.Error != nil {
+		t.Fatalf("begin tx: %v", tx.Error)
+	}
+	defer tx.Rollback()
+
+	req := map[string]interface{}{
+		"name": "tun-topo-check",
+		"inNodeId": []interface{}{
+			map[string]interface{}{"nodeId": float64(entry1), "protocol": "tls", "strategy": "round"},
+			map[string]interface{}{"nodeId": float64(entry2), "protocol": "tls", "strategy": "round"},
+		},
+		"chainNodes": []interface{}{},
+		"outNodeId": []interface{}{
+			map[string]interface{}{"nodeId": float64(exit1), "protocol": "tls", "strategy": "round"},
+		},
+	}
+
+	if _, err := h.prepareTunnelCreateState(tx, req, 3, 0); err == nil || !strings.Contains(err.Error(), "仅允许单入口") {
+		t.Fatalf("expected single-entry topology error, got %v", err)
 	}
 }
 

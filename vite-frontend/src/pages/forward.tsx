@@ -875,6 +875,7 @@ export default function ForwardPage() {
   const handleDiagnose = async (forward: Forward) => {
     diagnosisAbortRef.current?.abort();
     const abortController = new AbortController();
+
     diagnosisAbortRef.current = abortController;
 
     setCurrentDiagnosisForward(forward);
@@ -908,6 +909,7 @@ export default function ForwardPage() {
             const startItems = Array.isArray(payload.items)
               ? (payload.items as ForwardDiagnosisResult["results"])
               : [];
+
             setDiagnosisResult((prev) => ({
               forwardName: startForwardName,
               timestamp: Date.now(),
@@ -947,6 +949,7 @@ export default function ForwardPage() {
                   diagnosing: false,
                 });
               }
+
               return {
                 ...base,
                 timestamp: Date.now(),
@@ -982,8 +985,11 @@ export default function ForwardPage() {
 
         if (response.code === 0) {
           const resultData = response.data as ForwardDiagnosisResult;
-          const successCount = resultData.results.filter((r) => r.success).length;
+          const successCount = resultData.results.filter(
+            (r) => r.success,
+          ).length;
           const failedCount = resultData.results.length - successCount;
+
           setDiagnosisResult(resultData);
           setDiagnosisProgress({
             total: resultData.results.length,
@@ -1385,10 +1391,15 @@ export default function ForwardPage() {
     const activeTunnelGroupKey = buildForwardTunnelGroupKey(
       activeForward?.tunnelName,
     );
-    const overTunnelGroupKey = buildForwardTunnelGroupKey(overForward?.tunnelName);
+    const overTunnelGroupKey = buildForwardTunnelGroupKey(
+      overForward?.tunnelName,
+    );
 
     // 仅允许在同一用户+隧道分组内拖拽，避免混排
-    if (activeUserId !== overUserId || activeTunnelGroupKey !== overTunnelGroupKey) {
+    if (
+      activeUserId !== overUserId ||
+      activeTunnelGroupKey !== overTunnelGroupKey
+    ) {
       return;
     }
 
@@ -1672,13 +1683,7 @@ export default function ForwardPage() {
     }
 
     return sortedByDb;
-  }, [
-    forwards,
-    forwardOrder,
-    filterUserId,
-    filterTunnelId,
-    searchKeyword,
-  ]);
+  }, [forwards, forwardOrder, filterUserId, filterTunnelId, searchKeyword]);
 
   const groupedForwards = useMemo((): ForwardUserGroup[] => {
     if (orderedForwards.length === 0) {
@@ -1750,7 +1755,10 @@ export default function ForwardPage() {
           return aIsUncategorized ? 1 : -1;
         }
 
-        const nameCompare = compareForwardTunnelNameAsc(a.tunnelName, b.tunnelName);
+        const nameCompare = compareForwardTunnelNameAsc(
+          a.tunnelName,
+          b.tunnelName,
+        );
 
         if (nameCompare !== 0) {
           return nameCompare;
@@ -1838,6 +1846,7 @@ export default function ForwardPage() {
 
       if (!existingUser) {
         userMap.set(uId, { id: uId, name: userName });
+
         return;
       }
 
@@ -2663,10 +2672,14 @@ export default function ForwardPage() {
                                   </TableColumn>
                                 )}
                                 <TableColumn
-                                  className={FORWARD_GROUPED_TABLE_COLUMN_CLASS.drag}
+                                  className={
+                                    FORWARD_GROUPED_TABLE_COLUMN_CLASS.drag
+                                  }
                                 />
                                 <TableColumn
-                                  className={FORWARD_GROUPED_TABLE_COLUMN_CLASS.name}
+                                  className={
+                                    FORWARD_GROUPED_TABLE_COLUMN_CLASS.name
+                                  }
                                 >
                                   名称
                                 </TableColumn>
@@ -2678,7 +2691,9 @@ export default function ForwardPage() {
                                   入口
                                 </TableColumn>
                                 <TableColumn
-                                  className={FORWARD_GROUPED_TABLE_COLUMN_CLASS.target}
+                                  className={
+                                    FORWARD_GROUPED_TABLE_COLUMN_CLASS.target
+                                  }
                                 >
                                   目标
                                 </TableColumn>
@@ -2697,7 +2712,9 @@ export default function ForwardPage() {
                                   总流量
                                 </TableColumn>
                                 <TableColumn
-                                  className={FORWARD_GROUPED_TABLE_COLUMN_CLASS.status}
+                                  className={
+                                    FORWARD_GROUPED_TABLE_COLUMN_CLASS.status
+                                  }
                                 >
                                   状态
                                 </TableColumn>
@@ -2729,7 +2746,9 @@ export default function ForwardPage() {
                                       handleDiagnose={handleDiagnose}
                                       handleEdit={handleEdit}
                                       handleServiceToggle={handleServiceToggle}
-                                      hasMultipleAddresses={hasMultipleAddresses}
+                                      hasMultipleAddresses={
+                                        hasMultipleAddresses
+                                      }
                                       selectMode={selectMode}
                                       selectedIds={selectedIds}
                                       showAddressModal={showAddressModal}
@@ -2786,7 +2805,7 @@ export default function ForwardPage() {
                       <Chip color="primary" size="sm" variant="flat">
                         管理员本人
                       </Chip>
-                      )}
+                    )}
                   </div>
                   <span className="text-xs text-default-600">
                     {groupForwardCount} 条转发
@@ -2922,31 +2941,6 @@ export default function ForwardPage() {
                   </Select>
 
                   <Select
-                    description="transparent 为 UDP 源进源出模式"
-                    label="UDP 模式"
-                    placeholder="请选择 UDP 模式"
-                    selectedKeys={[form.udpMode]}
-                    variant="bordered"
-                    onSelectionChange={(keys) => {
-                      const selectedKey =
-                        (Array.from(keys)[0] as "normal" | "transparent" | undefined) ||
-                        "normal";
-
-                      setForm((prev) => ({
-                        ...prev,
-                        udpMode: selectedKey,
-                      }));
-                    }}
-                  >
-                    <SelectItem key="normal" textValue="normal">
-                      normal
-                    </SelectItem>
-                    <SelectItem key="transparent" textValue="transparent">
-                      transparent
-                    </SelectItem>
-                  </Select>
-
-                  <Select
                     description={
                       form.udpMode === "transparent"
                         ? "transparent 为 UDP 源进源出模式（高风险，依赖透明劫持与网络路径）"
@@ -2958,8 +2952,10 @@ export default function ForwardPage() {
                     variant="bordered"
                     onSelectionChange={(keys) => {
                       const selectedKey =
-                        (Array.from(keys)[0] as "normal" | "transparent" | undefined) ||
-                        "normal";
+                        (Array.from(keys)[0] as
+                          | "normal"
+                          | "transparent"
+                          | undefined) || "normal";
 
                       setForm((prev) => ({
                         ...prev,
@@ -3699,8 +3695,8 @@ export default function ForwardPage() {
                                           isDiagnosing
                                             ? "bg-warning-50 dark:bg-warning-900/20"
                                             : isSuccess
-                                            ? "bg-white dark:bg-gray-800"
-                                            : "bg-danger-50 dark:bg-danger-900/30"
+                                              ? "bg-white dark:bg-gray-800"
+                                              : "bg-danger-50 dark:bg-danger-900/30"
                                         }`}
                                       >
                                         <td className="px-3 py-2">
@@ -3735,8 +3731,8 @@ export default function ForwardPage() {
                                               isDiagnosing
                                                 ? "warning"
                                                 : isSuccess
-                                                ? "success"
-                                                : "danger"
+                                                  ? "success"
+                                                  : "danger"
                                             }
                                             size="sm"
                                             variant="flat"
@@ -3886,8 +3882,8 @@ export default function ForwardPage() {
                                       isDiagnosing
                                         ? "border-warning-200 dark:border-warning-300/30 bg-warning-50 dark:bg-warning-900/20"
                                         : isSuccess
-                                        ? "border-divider bg-white dark:bg-gray-800"
-                                        : "border-danger-200 dark:border-danger-300/30 bg-danger-50 dark:bg-danger-900/30"
+                                          ? "border-divider bg-white dark:bg-gray-800"
+                                          : "border-danger-200 dark:border-danger-300/30 bg-danger-50 dark:bg-danger-900/30"
                                     }`}
                                   >
                                     <div className="flex items-start gap-2 mb-2">

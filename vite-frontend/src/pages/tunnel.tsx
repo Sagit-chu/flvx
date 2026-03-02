@@ -72,6 +72,20 @@ interface ChainTunnel {
   inx?: number; // 转发链序号
 }
 
+interface TunConfig {
+  net: string;
+  mtu?: number;
+  routes?: string;
+  dns?: string;
+  peer?: string;
+  gw?: string;
+  keepalive?: number;
+  ttl?: number;
+  passphrase?: string;
+  p2p?: boolean;
+  tunName?: string;
+}
+
 interface Tunnel {
   id: number;
   inx?: number;
@@ -86,6 +100,7 @@ interface Tunnel {
   flow: number; // 1: 单向, 2: 双向
   trafficRatio: number;
   ipPreference?: string;
+  tunConfig?: TunConfig;
   status: number;
   createdTime: string;
 }
@@ -107,6 +122,19 @@ interface TunnelForm {
   trafficRatio: number;
   inIp: string; // 入口IP
   ipPreference: string;
+  tunConfig: {
+    net: string;
+    mtu: number | null;
+    routes: string;
+    dns: string;
+    peer: string;
+    gw: string;
+    keepalive: number | null;
+    ttl: number | null;
+    passphrase: string;
+    p2p: boolean;
+    tunName: string;
+  };
   status: number;
 }
 
@@ -255,6 +283,19 @@ export default function TunnelPage() {
             .join("\n")
         : "",
       ipPreference: tunnel.ipPreference || "",
+      tunConfig: {
+        net: tunnel.tunConfig?.net || "",
+        mtu: tunnel.tunConfig?.mtu ?? 1420,
+        routes: normalizeListInput(tunnel.tunConfig?.routes),
+        dns: normalizeListInput(tunnel.tunConfig?.dns),
+        peer: normalizeListInput(tunnel.tunConfig?.peer),
+        gw: tunnel.tunConfig?.gw || "",
+        keepalive: tunnel.tunConfig?.keepalive ?? null,
+        ttl: tunnel.tunConfig?.ttl ?? null,
+        passphrase: tunnel.tunConfig?.passphrase || "",
+        p2p: tunnel.tunConfig?.p2p ?? false,
+        tunName: tunnel.tunConfig?.tunName || "",
+      },
       status: tunnel.status,
     });
     setErrors({});
@@ -313,6 +354,32 @@ export default function TunnelPage() {
     return Array.from(keys)
       .map((key) => Number.parseInt(String(key), 10))
       .filter((nodeId) => Number.isFinite(nodeId));
+  };
+
+  const normalizeListInput = (value: unknown): string => {
+    if (Array.isArray(value)) {
+      return value
+        .map((item) => String(item).trim())
+        .filter((item) => item)
+        .join("\n");
+    }
+    if (typeof value === "string") {
+      return value
+        .split(",")
+        .map((item) => item.trim())
+        .filter((item) => item)
+        .join("\n");
+    }
+
+    return "";
+  };
+
+  const toCommaList = (value: string): string => {
+    return value
+      .split("\n")
+      .map((item) => item.trim())
+      .filter((item) => item)
+      .join(",");
   };
 
   // 更新某一跳的所有节点的协议
@@ -428,6 +495,22 @@ export default function TunnelPage() {
         inIp: inIpString,
         outNodeId: cleanedOutNodeId,
         chainNodes: cleanedChainNodes,
+        tunConfig:
+          form.type === 3
+            ? {
+                net: form.tunConfig.net.trim(),
+                mtu: form.tunConfig.mtu || undefined,
+                routes: toCommaList(form.tunConfig.routes),
+                dns: toCommaList(form.tunConfig.dns),
+                peer: toCommaList(form.tunConfig.peer),
+                gw: form.tunConfig.gw.trim() || undefined,
+                keepalive: form.tunConfig.keepalive || undefined,
+                ttl: form.tunConfig.ttl || undefined,
+                passphrase: form.tunConfig.passphrase || undefined,
+                p2p: Boolean(form.tunConfig.p2p),
+                tunName: form.tunConfig.tunName.trim() || undefined,
+              }
+            : undefined,
       };
 
       const response = isEdit
@@ -452,6 +535,7 @@ export default function TunnelPage() {
   const handleDiagnose = async (tunnel: Tunnel) => {
     diagnosisAbortRef.current?.abort();
     const abortController = new AbortController();
+
     diagnosisAbortRef.current = abortController;
 
     setCurrentDiagnosisTunnel(tunnel);
@@ -500,6 +584,7 @@ export default function TunnelPage() {
             const startItems = Array.isArray(payload.items)
               ? (payload.items as DiagnosisResult["results"])
               : [];
+
             setDiagnosisResult((prev) => ({
               tunnelName: startTunnelName,
               tunnelType: startTunnelType,
@@ -546,6 +631,7 @@ export default function TunnelPage() {
                   diagnosing: false,
                 });
               }
+
               return {
                 ...base,
                 timestamp: Date.now(),
@@ -581,8 +667,11 @@ export default function TunnelPage() {
 
         if (response.code === 0) {
           const resultData = response.data as DiagnosisResult;
-          const successCount = resultData.results.filter((r) => r.success).length;
+          const successCount = resultData.results.filter(
+            (r) => r.success,
+          ).length;
           const failedCount = resultData.results.length - successCount;
+
           setDiagnosisResult(resultData);
           setDiagnosisProgress({
             total: resultData.results.length,
@@ -1100,7 +1189,7 @@ export default function TunnelPage() {
                                     />
                                   </svg>
                                   <span className="font-semibold text-secondary-700 dark:text-secondary-400">
-                                    {tunnel.type === 2
+                                    {tunnel.type !== 1
                                       ? tunnel.chainNodes?.length || 0
                                       : 0}
                                     跳
@@ -1138,7 +1227,7 @@ export default function TunnelPage() {
                                     />
                                   </svg>
                                   <span className="font-semibold text-success-700 dark:text-success-400">
-                                    {tunnel.type === 2
+                                    {tunnel.type !== 1
                                       ? tunnel.outNodeId?.length || 0
                                       : tunnel.inNodeId?.length || 0}
                                     出口
@@ -1149,7 +1238,7 @@ export default function TunnelPage() {
 
                             {/* 流量配置 */}
                             <div
-                              className={`grid gap-2 ${tunnel.type === 2 && tunnel.ipPreference ? "grid-cols-3" : "grid-cols-2"}`}
+                              className={`grid gap-2 ${tunnel.type !== 1 && tunnel.ipPreference ? "grid-cols-3" : "grid-cols-2"}`}
                             >
                               <div className="text-center p-1.5 bg-default-50 dark:bg-default-100/30 rounded">
                                 <div className="text-xs text-default-500">
@@ -1167,7 +1256,7 @@ export default function TunnelPage() {
                                   {tunnel.trafficRatio}x
                                 </div>
                               </div>
-                              {tunnel.type === 2 && tunnel.ipPreference && (
+                              {tunnel.type !== 1 && tunnel.ipPreference && (
                                 <div className="text-center p-1.5 bg-default-50 dark:bg-default-100/30 rounded">
                                   <div className="text-xs text-default-500">
                                     连接偏好
@@ -1180,6 +1269,46 @@ export default function TunnelPage() {
                                 </div>
                               )}
                             </div>
+
+                            {tunnel.type === 3 && tunnel.tunConfig && (
+                              <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mt-2">
+                                <div className="text-center p-1.5 bg-warning-50 dark:bg-warning-100/20 rounded">
+                                  <div className="text-xs text-default-500">
+                                    TUN 网段
+                                  </div>
+                                  <div className="text-sm font-semibold text-foreground mt-0.5 truncate">
+                                    {tunnel.tunConfig.net || "-"}
+                                  </div>
+                                </div>
+                                <div className="text-center p-1.5 bg-warning-50 dark:bg-warning-100/20 rounded">
+                                  <div className="text-xs text-default-500">
+                                    MTU
+                                  </div>
+                                  <div className="text-sm font-semibold text-foreground mt-0.5">
+                                    {tunnel.tunConfig.mtu || "-"}
+                                  </div>
+                                </div>
+                                <div className="text-center p-1.5 bg-warning-50 dark:bg-warning-100/20 rounded">
+                                  <div className="text-xs text-default-500">
+                                    Peer
+                                  </div>
+                                  <div className="text-sm font-semibold text-foreground mt-0.5">
+                                    {normalizeListInput(tunnel.tunConfig.peer)
+                                      .split("\n")
+                                      .filter((item) => item).length || 0}
+                                    个
+                                  </div>
+                                </div>
+                                <div className="text-center p-1.5 bg-warning-50 dark:bg-warning-100/20 rounded">
+                                  <div className="text-xs text-default-500">
+                                    P2P
+                                  </div>
+                                  <div className="text-sm font-semibold text-foreground mt-0.5">
+                                    {tunnel.tunConfig.p2p ? "开启" : "关闭"}
+                                  </div>
+                                </div>
+                              </div>
+                            )}
                           </div>
 
                           <div className="flex gap-1.5 mt-3">
@@ -1393,7 +1522,7 @@ export default function TunnelPage() {
                     }
                   />
 
-                  {form.type === 2 && (
+                  {form.type !== 1 && (
                     <Select
                       description="当节点同时拥有IPv4和IPv6地址时，选择隧道连接使用的地址类型"
                       label="隧道连接地址偏好"
@@ -1414,11 +1543,242 @@ export default function TunnelPage() {
                     </Select>
                   )}
 
+                  {form.type === 3 && (
+                    <>
+                      <Divider />
+                      <h3 className="text-lg font-semibold">TUN配置</h3>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <Input
+                          description="必填，例如 10.10.0.0/24"
+                          errorMessage={errors.tunConfigNet}
+                          isInvalid={!!errors.tunConfigNet}
+                          label="网段 (net)"
+                          placeholder="10.10.0.0/24"
+                          value={form.tunConfig.net}
+                          variant="bordered"
+                          onChange={(e) =>
+                            setForm((prev) => ({
+                              ...prev,
+                              tunConfig: {
+                                ...prev.tunConfig,
+                                net: e.target.value,
+                              },
+                            }))
+                          }
+                        />
+                        <Input
+                          description="范围 576-9000"
+                          errorMessage={errors.tunConfigMtu}
+                          isInvalid={!!errors.tunConfigMtu}
+                          label="MTU"
+                          max={9000}
+                          min={576}
+                          placeholder="1420"
+                          type="number"
+                          value={
+                            form.tunConfig.mtu == null
+                              ? ""
+                              : String(form.tunConfig.mtu)
+                          }
+                          variant="bordered"
+                          onChange={(e) =>
+                            setForm((prev) => ({
+                              ...prev,
+                              tunConfig: {
+                                ...prev.tunConfig,
+                                mtu: e.target.value
+                                  ? Number.parseInt(e.target.value, 10)
+                                  : null,
+                              },
+                            }))
+                          }
+                        />
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <Textarea
+                          description="每行一个路由网段"
+                          label="路由 (routes)"
+                          maxRows={4}
+                          minRows={2}
+                          placeholder="0.0.0.0/0"
+                          value={form.tunConfig.routes}
+                          variant="bordered"
+                          onChange={(e) =>
+                            setForm((prev) => ({
+                              ...prev,
+                              tunConfig: {
+                                ...prev.tunConfig,
+                                routes: e.target.value,
+                              },
+                            }))
+                          }
+                        />
+                        <Textarea
+                          description="每行一个 DNS 地址"
+                          label="DNS"
+                          maxRows={4}
+                          minRows={2}
+                          placeholder="8.8.8.8"
+                          value={form.tunConfig.dns}
+                          variant="bordered"
+                          onChange={(e) =>
+                            setForm((prev) => ({
+                              ...prev,
+                              tunConfig: {
+                                ...prev.tunConfig,
+                                dns: e.target.value,
+                              },
+                            }))
+                          }
+                        />
+                      </div>
+
+                      <Textarea
+                        description="每行一个 peer 地址，支持 ip:port"
+                        label="Peer"
+                        maxRows={4}
+                        minRows={2}
+                        placeholder="203.0.113.10:51820"
+                        value={form.tunConfig.peer}
+                        variant="bordered"
+                        onChange={(e) =>
+                          setForm((prev) => ({
+                            ...prev,
+                            tunConfig: {
+                              ...prev.tunConfig,
+                              peer: e.target.value,
+                            },
+                          }))
+                        }
+                      />
+
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <Input
+                          label="网关 (gw)"
+                          placeholder="10.10.0.1"
+                          value={form.tunConfig.gw}
+                          variant="bordered"
+                          onChange={(e) =>
+                            setForm((prev) => ({
+                              ...prev,
+                              tunConfig: {
+                                ...prev.tunConfig,
+                                gw: e.target.value,
+                              },
+                            }))
+                          }
+                        />
+                        <Input
+                          label="保活 (keepalive)"
+                          min={0}
+                          placeholder="25"
+                          type="number"
+                          value={
+                            form.tunConfig.keepalive == null
+                              ? ""
+                              : String(form.tunConfig.keepalive)
+                          }
+                          variant="bordered"
+                          onChange={(e) =>
+                            setForm((prev) => ({
+                              ...prev,
+                              tunConfig: {
+                                ...prev.tunConfig,
+                                keepalive: e.target.value
+                                  ? Number.parseInt(e.target.value, 10)
+                                  : null,
+                              },
+                            }))
+                          }
+                        />
+                        <Input
+                          label="TTL"
+                          min={1}
+                          placeholder="64"
+                          type="number"
+                          value={
+                            form.tunConfig.ttl == null
+                              ? ""
+                              : String(form.tunConfig.ttl)
+                          }
+                          variant="bordered"
+                          onChange={(e) =>
+                            setForm((prev) => ({
+                              ...prev,
+                              tunConfig: {
+                                ...prev.tunConfig,
+                                ttl: e.target.value
+                                  ? Number.parseInt(e.target.value, 10)
+                                  : null,
+                              },
+                            }))
+                          }
+                        />
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <Input
+                          label="TUN 名称 (tunName)"
+                          placeholder="tun0"
+                          value={form.tunConfig.tunName}
+                          variant="bordered"
+                          onChange={(e) =>
+                            setForm((prev) => ({
+                              ...prev,
+                              tunConfig: {
+                                ...prev.tunConfig,
+                                tunName: e.target.value,
+                              },
+                            }))
+                          }
+                        />
+                        <Input
+                          label="密钥短语 (passphrase)"
+                          placeholder="可选"
+                          type="password"
+                          value={form.tunConfig.passphrase}
+                          variant="bordered"
+                          onChange={(e) =>
+                            setForm((prev) => ({
+                              ...prev,
+                              tunConfig: {
+                                ...prev.tunConfig,
+                                passphrase: e.target.value,
+                              },
+                            }))
+                          }
+                        />
+                      </div>
+
+                      <Checkbox
+                        isSelected={form.tunConfig.p2p}
+                        onValueChange={(value) =>
+                          setForm((prev) => ({
+                            ...prev,
+                            tunConfig: {
+                              ...prev.tunConfig,
+                              p2p: value,
+                            },
+                          }))
+                        }
+                      >
+                        启用 P2P 模式
+                      </Checkbox>
+                    </>
+                  )}
+
                   <Divider />
                   <h3 className="text-lg font-semibold">入口配置</h3>
 
                   <div className="space-y-2">
                     <Select
+                      description={
+                        form.type === 3
+                          ? "TUN 模式要求单入口：请选择 1 个入口节点"
+                          : undefined
+                      }
                       disabledKeys={[
                         ...nodes
                           .filter((node) => node.status !== 1)
@@ -1431,11 +1791,15 @@ export default function TunnelPage() {
                       errorMessage={errors.inNodeId}
                       isInvalid={!!errors.inNodeId}
                       label="入口节点"
-                      placeholder="请选择入口节点（可多选）"
+                      placeholder={
+                        form.type === 3
+                          ? "请选择入口节点（仅 1 个）"
+                          : "请选择入口节点（可多选）"
+                      }
                       selectedKeys={form.inNodeId.map((ct) =>
                         ct.nodeId.toString(),
                       )}
-                      selectionMode="multiple"
+                      selectionMode={form.type === 3 ? "single" : "multiple"}
                       variant="bordered"
                       onSelectionChange={(keys) => {
                         const selectedIds = toSelectedNodeIds(keys);
@@ -1484,8 +1848,8 @@ export default function TunnelPage() {
                     </Select>
                   </div>
 
-                  {/* 隧道转发时显示转发链配置 */}
-                  {form.type === 2 && (
+                  {/* 链路型隧道时显示转发链配置 */}
+                  {form.type !== 1 && (
                     <>
                       <Divider />
                       <div className="flex items-center justify-between">
@@ -1770,8 +2134,8 @@ export default function TunnelPage() {
                     </>
                   )}
 
-                  {/* 隧道转发时显示出口配置 */}
-                  {form.type === 2 && (
+                  {/* 链路型隧道时显示出口配置 */}
+                  {form.type !== 1 && (
                     <>
                       <Divider />
                       <h3 className="text-lg font-semibold">出口配置</h3>
@@ -1784,6 +2148,11 @@ export default function TunnelPage() {
                               label: "text-xs",
                               value: "text-sm",
                             }}
+                            description={
+                              form.type === 3
+                                ? "TUN 模式要求单出口：请选择 1 个出口节点"
+                                : undefined
+                            }
                             disabledKeys={[
                               ...nodes
                                 .filter((node) => node.status !== 1)
@@ -1799,7 +2168,11 @@ export default function TunnelPage() {
                             errorMessage={errors.outNodeId}
                             isInvalid={!!errors.outNodeId}
                             label="节点"
-                            placeholder="请选择出口节点（可多选）"
+                            placeholder={
+                              form.type === 3
+                                ? "请选择出口节点（仅 1 个）"
+                                : "请选择出口节点（可多选）"
+                            }
                             selectedKeys={
                               form.outNodeId
                                 ? form.outNodeId
@@ -1807,7 +2180,9 @@ export default function TunnelPage() {
                                     .map((ct) => ct.nodeId.toString())
                                 : []
                             }
-                            selectionMode="multiple"
+                            selectionMode={
+                              form.type === 3 ? "single" : "multiple"
+                            }
                             variant="bordered"
                             onSelectionChange={(keys) => {
                               const selectedIds = toSelectedNodeIds(keys);
@@ -2281,8 +2656,8 @@ export default function TunnelPage() {
                                           isDiagnosing
                                             ? "bg-warning-50 dark:bg-warning-900/20"
                                             : isSuccess
-                                            ? "bg-white dark:bg-gray-800"
-                                            : "bg-danger-50 dark:bg-danger-900/30"
+                                              ? "bg-white dark:bg-gray-800"
+                                              : "bg-danger-50 dark:bg-danger-900/30"
                                         }`}
                                       >
                                         <td className="px-3 py-2">
@@ -2317,8 +2692,8 @@ export default function TunnelPage() {
                                               isDiagnosing
                                                 ? "warning"
                                                 : isSuccess
-                                                ? "success"
-                                                : "danger"
+                                                  ? "success"
+                                                  : "danger"
                                             }
                                             size="sm"
                                             variant="flat"
@@ -2467,8 +2842,8 @@ export default function TunnelPage() {
                                       isDiagnosing
                                         ? "border-warning-200 dark:border-warning-300/30 bg-warning-50 dark:bg-warning-900/20"
                                         : isSuccess
-                                        ? "border-divider bg-white dark:bg-gray-800"
-                                        : "border-danger-200 dark:border-danger-300/30 bg-danger-50 dark:bg-danger-900/30"
+                                          ? "border-divider bg-white dark:bg-gray-800"
+                                          : "border-danger-200 dark:border-danger-300/30 bg-danger-50 dark:bg-danger-900/30"
                                     }`}
                                   >
                                     <div className="flex items-start gap-2 mb-2">

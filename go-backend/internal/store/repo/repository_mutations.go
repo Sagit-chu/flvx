@@ -370,9 +370,13 @@ func (r *Repository) UpdateTunnelOrder(tunnelID int64, inx int, now int64) {
 		Updates(map[string]interface{}{"inx": inx, "updated_time": now}).Error
 }
 
-func (r *Repository) UpdateTunnelTx(tx *gorm.DB, tunnelID int64, name string, typeVal int, flow int64, trafficRatio float64, status int, inIP, ipPreference string, now int64) error {
+func (r *Repository) UpdateTunnelTx(tx *gorm.DB, tunnelID int64, name string, typeVal int, flow int64, trafficRatio float64, status int, inIP, ipPreference, tunConfig string, now int64) error {
 	if tx == nil {
 		return errors.New("database unavailable")
+	}
+	tunConfigValue := sql.NullString{}
+	if typeVal == 3 {
+		tunConfigValue = nullStringFromInterface(strings.TrimSpace(tunConfig))
 	}
 	return tx.Model(&model.Tunnel{}).
 		Where("id = ?", tunnelID).
@@ -384,6 +388,7 @@ func (r *Repository) UpdateTunnelTx(tx *gorm.DB, tunnelID int64, name string, ty
 			"status":        status,
 			"in_ip":         nullStringFromInterface(inIP),
 			"ip_preference": ipPreference,
+			"tun_config":    tunConfigValue,
 			"updated_time":  now,
 		}).Error
 }
@@ -1228,12 +1233,17 @@ func (r *Repository) BatchUpdateForwardStatus(ids []int64, status int) (int, int
 	return s, f
 }
 
-func (r *Repository) CreateTunnelTx(tx *gorm.DB, name string, trafficRatio float64, typeVal int, flow int64, now int64, status int, inIP interface{}, inx int, ipPreference string) (int64, error) {
+func (r *Repository) CreateTunnelTx(tx *gorm.DB, name string, trafficRatio float64, typeVal int, flow int64, now int64, status int, inIP interface{}, inx int, ipPreference, tunConfig string) (int64, error) {
 	inIPVal := nullStringFromInterface(inIP)
+	tunConfigVal := sql.NullString{}
+	if typeVal == 3 {
+		tunConfigVal = nullStringFromInterface(strings.TrimSpace(tunConfig))
+	}
 	tunnel := model.Tunnel{
 		Name:         name,
 		TrafficRatio: trafficRatio,
 		Type:         typeVal,
+		TunConfig:    tunConfigVal,
 		Protocol:     "tls",
 		Flow:         flow,
 		CreatedTime:  now,

@@ -757,94 +757,12 @@ func (h *Handler) prepareForwardDiagnosis(forward *forwardRecord) (string, []dia
 			}
 		}
 	case 2:
-		for _, inNode := range inNodes {
-			if len(chainHops) > 0 {
-				for _, firstNode := range chainHops[0] {
-					description := fmt.Sprintf("入口(%s)->第1跳(%s)", inNode.NodeName, firstNode.NodeName)
-					workItems = append(workItems, diagnosisWorkItem{
-						fromNodeID:   inNode.NodeID,
-						toNode:       firstNode,
-						hasChainHop:  true,
-						ipPreference: ipPreference,
-						description:  description,
-						metadata: map[string]interface{}{
-							"fromChainType": 1,
-							"toChainType":   2,
-							"toInx":         firstNode.Inx,
-						},
-					})
-				}
-			} else {
-				for _, outNode := range outNodes {
-					description := fmt.Sprintf("入口(%s)->出口(%s)", inNode.NodeName, outNode.NodeName)
-					workItems = append(workItems, diagnosisWorkItem{
-						fromNodeID:   inNode.NodeID,
-						toNode:       outNode,
-						hasChainHop:  true,
-						ipPreference: ipPreference,
-						description:  description,
-						metadata: map[string]interface{}{
-							"fromChainType": 1,
-							"toChainType":   3,
-						},
-					})
-				}
-			}
+		workItems = append(workItems, buildChainRuntimeDiagnosisWorkItems(inNodes, chainHops, outNodes, ipPreference, targets)...)
+	case 3:
+		if err := validateType3TunnelTopology(inNodes, outNodes); err != nil {
+			return "", nil, err
 		}
-
-		for i, hop := range chainHops {
-			for _, currentNode := range hop {
-				if i+1 < len(chainHops) {
-					for _, nextNode := range chainHops[i+1] {
-						description := fmt.Sprintf("第%d跳(%s)->第%d跳(%s)", i+1, currentNode.NodeName, i+2, nextNode.NodeName)
-						workItems = append(workItems, diagnosisWorkItem{
-							fromNodeID:   currentNode.NodeID,
-							toNode:       nextNode,
-							hasChainHop:  true,
-							ipPreference: ipPreference,
-							description:  description,
-							metadata: map[string]interface{}{
-								"fromChainType": 2,
-								"fromInx":       currentNode.Inx,
-								"toChainType":   2,
-								"toInx":         nextNode.Inx,
-							},
-						})
-					}
-				} else {
-					for _, outNode := range outNodes {
-						description := fmt.Sprintf("第%d跳(%s)->出口(%s)", i+1, currentNode.NodeName, outNode.NodeName)
-						workItems = append(workItems, diagnosisWorkItem{
-							fromNodeID:   currentNode.NodeID,
-							toNode:       outNode,
-							hasChainHop:  true,
-							ipPreference: ipPreference,
-							description:  description,
-							metadata: map[string]interface{}{
-								"fromChainType": 2,
-								"fromInx":       currentNode.Inx,
-								"toChainType":   3,
-							},
-						})
-					}
-				}
-			}
-		}
-
-		for _, outNode := range outNodes {
-			for _, target := range targets {
-				description := fmt.Sprintf("出口(%s)->目标(%s)", outNode.NodeName, target.Address)
-				workItems = append(workItems, diagnosisWorkItem{
-					fromNodeID:  outNode.NodeID,
-					targetIP:    target.IP,
-					targetPort:  target.Port,
-					description: description,
-					metadata: map[string]interface{}{
-						"fromChainType": 3,
-					},
-				})
-			}
-		}
+		workItems = append(workItems, buildChainRuntimeDiagnosisWorkItems(inNodes, chainHops, outNodes, ipPreference, targets)...)
 	default:
 		for _, inNode := range inNodes {
 			for _, target := range targets {
@@ -863,6 +781,110 @@ func (h *Handler) prepareForwardDiagnosis(forward *forwardRecord) (string, []dia
 	}
 
 	return forward.Name, workItems, nil
+}
+
+func buildChainRuntimeDiagnosisWorkItems(inNodes []chainNodeRecord, chainHops [][]chainNodeRecord, outNodes []chainNodeRecord, ipPreference string, targets []diagnosisTarget) []diagnosisWorkItem {
+	workItems := make([]diagnosisWorkItem, 0, len(inNodes)+len(outNodes)+len(chainHops)*2)
+	for _, inNode := range inNodes {
+		if len(chainHops) > 0 {
+			for _, firstNode := range chainHops[0] {
+				description := fmt.Sprintf("入口(%s)->第1跳(%s)", inNode.NodeName, firstNode.NodeName)
+				workItems = append(workItems, diagnosisWorkItem{
+					fromNodeID:   inNode.NodeID,
+					toNode:       firstNode,
+					hasChainHop:  true,
+					ipPreference: ipPreference,
+					description:  description,
+					metadata: map[string]interface{}{
+						"fromChainType": 1,
+						"toChainType":   2,
+						"toInx":         firstNode.Inx,
+					},
+				})
+			}
+		} else {
+			for _, outNode := range outNodes {
+				description := fmt.Sprintf("入口(%s)->出口(%s)", inNode.NodeName, outNode.NodeName)
+				workItems = append(workItems, diagnosisWorkItem{
+					fromNodeID:   inNode.NodeID,
+					toNode:       outNode,
+					hasChainHop:  true,
+					ipPreference: ipPreference,
+					description:  description,
+					metadata: map[string]interface{}{
+						"fromChainType": 1,
+						"toChainType":   3,
+					},
+				})
+			}
+		}
+	}
+
+	for i, hop := range chainHops {
+		for _, currentNode := range hop {
+			if i+1 < len(chainHops) {
+				for _, nextNode := range chainHops[i+1] {
+					description := fmt.Sprintf("第%d跳(%s)->第%d跳(%s)", i+1, currentNode.NodeName, i+2, nextNode.NodeName)
+					workItems = append(workItems, diagnosisWorkItem{
+						fromNodeID:   currentNode.NodeID,
+						toNode:       nextNode,
+						hasChainHop:  true,
+						ipPreference: ipPreference,
+						description:  description,
+						metadata: map[string]interface{}{
+							"fromChainType": 2,
+							"fromInx":       currentNode.Inx,
+							"toChainType":   2,
+							"toInx":         nextNode.Inx,
+						},
+					})
+				}
+			} else {
+				for _, outNode := range outNodes {
+					description := fmt.Sprintf("第%d跳(%s)->出口(%s)", i+1, currentNode.NodeName, outNode.NodeName)
+					workItems = append(workItems, diagnosisWorkItem{
+						fromNodeID:   currentNode.NodeID,
+						toNode:       outNode,
+						hasChainHop:  true,
+						ipPreference: ipPreference,
+						description:  description,
+						metadata: map[string]interface{}{
+							"fromChainType": 2,
+							"fromInx":       currentNode.Inx,
+							"toChainType":   3,
+						},
+					})
+				}
+			}
+		}
+	}
+
+	for _, outNode := range outNodes {
+		for _, target := range targets {
+			description := fmt.Sprintf("出口(%s)->目标(%s)", outNode.NodeName, target.Address)
+			workItems = append(workItems, diagnosisWorkItem{
+				fromNodeID:  outNode.NodeID,
+				targetIP:    target.IP,
+				targetPort:  target.Port,
+				description: description,
+				metadata: map[string]interface{}{
+					"fromChainType": 3,
+				},
+			})
+		}
+	}
+
+	return workItems
+}
+
+func validateType3TunnelTopology(inNodes []chainNodeRecord, outNodes []chainNodeRecord) error {
+	if len(inNodes) != 1 {
+		return fmt.Errorf("TUN隧道拓扑非法：仅允许单入口，当前 %d 个", len(inNodes))
+	}
+	if len(outNodes) != 1 {
+		return fmt.Errorf("TUN隧道拓扑非法：仅允许单出口，当前 %d 个", len(outNodes))
+	}
+	return nil
 }
 
 func (h *Handler) diagnoseTunnelRuntime(ctx context.Context, tunnelID int64) (map[string]interface{}, error) {
@@ -926,92 +948,14 @@ func (h *Handler) prepareTunnelDiagnosis(tunnelID int64) (string, string, []diag
 			})
 		}
 	case 2:
-		for _, inNode := range inNodes {
-			if len(chainHops) > 0 {
-				for _, firstNode := range chainHops[0] {
-					description := fmt.Sprintf("入口(%s)->第1跳(%s)", inNode.NodeName, firstNode.NodeName)
-					workItems = append(workItems, diagnosisWorkItem{
-						fromNodeID:   inNode.NodeID,
-						toNode:       firstNode,
-						hasChainHop:  true,
-						ipPreference: ipPreference,
-						description:  description,
-						metadata: map[string]interface{}{
-							"fromChainType": 1,
-							"toChainType":   2,
-							"toInx":         firstNode.Inx,
-						},
-					})
-				}
-			} else {
-				for _, outNode := range outNodes {
-					description := fmt.Sprintf("入口(%s)->出口(%s)", inNode.NodeName, outNode.NodeName)
-					workItems = append(workItems, diagnosisWorkItem{
-						fromNodeID:   inNode.NodeID,
-						toNode:       outNode,
-						hasChainHop:  true,
-						ipPreference: ipPreference,
-						description:  description,
-						metadata: map[string]interface{}{
-							"fromChainType": 1,
-							"toChainType":   3,
-						},
-					})
-				}
-			}
+		defaultTargets := []diagnosisTarget{{Address: "外网", IP: "www.bing.com", Port: 443}}
+		workItems = append(workItems, buildChainRuntimeDiagnosisWorkItems(inNodes, chainHops, outNodes, ipPreference, defaultTargets)...)
+	case 3:
+		if err := validateType3TunnelTopology(inNodes, outNodes); err != nil {
+			return "", "", nil, err
 		}
-
-		for i, hop := range chainHops {
-			for _, currentNode := range hop {
-				if i+1 < len(chainHops) {
-					for _, nextNode := range chainHops[i+1] {
-						description := fmt.Sprintf("第%d跳(%s)->第%d跳(%s)", i+1, currentNode.NodeName, i+2, nextNode.NodeName)
-						workItems = append(workItems, diagnosisWorkItem{
-							fromNodeID:   currentNode.NodeID,
-							toNode:       nextNode,
-							hasChainHop:  true,
-							ipPreference: ipPreference,
-							description:  description,
-							metadata: map[string]interface{}{
-								"fromChainType": 2,
-								"fromInx":       currentNode.Inx,
-								"toChainType":   2,
-								"toInx":         nextNode.Inx,
-							},
-						})
-					}
-				} else {
-					for _, outNode := range outNodes {
-						description := fmt.Sprintf("第%d跳(%s)->出口(%s)", i+1, currentNode.NodeName, outNode.NodeName)
-						workItems = append(workItems, diagnosisWorkItem{
-							fromNodeID:   currentNode.NodeID,
-							toNode:       outNode,
-							hasChainHop:  true,
-							ipPreference: ipPreference,
-							description:  description,
-							metadata: map[string]interface{}{
-								"fromChainType": 2,
-								"fromInx":       currentNode.Inx,
-								"toChainType":   3,
-							},
-						})
-					}
-				}
-			}
-		}
-
-		for _, outNode := range outNodes {
-			description := fmt.Sprintf("出口(%s)->外网", outNode.NodeName)
-			workItems = append(workItems, diagnosisWorkItem{
-				fromNodeID:  outNode.NodeID,
-				targetIP:    "www.bing.com",
-				targetPort:  443,
-				description: description,
-				metadata: map[string]interface{}{
-					"fromChainType": 3,
-				},
-			})
-		}
+		defaultTargets := []diagnosisTarget{{Address: "外网", IP: "www.bing.com", Port: 443}}
+		workItems = append(workItems, buildChainRuntimeDiagnosisWorkItems(inNodes, chainHops, outNodes, ipPreference, defaultTargets)...)
 	default:
 		for _, inNode := range inNodes {
 			description := fmt.Sprintf("入口(%s)->外网", inNode.NodeName)
@@ -1644,7 +1588,7 @@ func buildForwardServiceConfigs(baseName string, forward *forwardRecord, tunnel 
 			}
 			service["listener"].(map[string]interface{})["metadata"] = listenerMetadata
 		}
-		if tunnel != nil && tunnel.Type == 2 {
+		if tunnel != nil && (tunnel.Type == 2 || tunnel.Type == 3) {
 			service["handler"].(map[string]interface{})["chain"] = fmt.Sprintf("chains_%d", forward.TunnelID)
 		}
 		if tunnel != nil && tunnel.Type == 1 && strings.TrimSpace(node.InterfaceName) != "" {

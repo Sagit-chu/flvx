@@ -195,6 +195,7 @@ export default function LimitPage() {
           speed: payload.speed,
           status: payload.status,
         };
+
         res = await createSpeedLimit(createData);
       }
 

@@ -8,6 +8,10 @@ interface TunnelFormInput {
   inNodeId: TunnelChainNode[];
   outNodeId?: TunnelChainNode[];
   trafficRatio: number;
+  tunConfig?: {
+    net: string;
+    mtu: number | null;
+  };
 }
 
 interface TunnelNodeInput {
@@ -26,6 +30,19 @@ export const createTunnelFormDefaults = () => {
     trafficRatio: 1.0,
     inIp: "",
     ipPreference: "",
+    tunConfig: {
+      net: "",
+      mtu: 1420,
+      routes: "",
+      dns: "",
+      peer: "",
+      gw: "",
+      keepalive: null,
+      ttl: null,
+      passphrase: "",
+      p2p: false,
+      tunName: "",
+    },
     status: 1,
   };
 };
@@ -60,7 +77,7 @@ export const validateTunnelForm = (
     errors.trafficRatio = "流量倍率须大于0，支持小数（如 0.5）";
   }
 
-  if (form.type === 2) {
+  if (form.type !== 1) {
     if (!form.outNodeId || form.outNodeId.length === 0) {
       errors.outNodeId = "请至少选择一个出口节点";
     } else {
@@ -79,8 +96,26 @@ export const validateTunnelForm = (
       const overlap = inNodeIds.filter((id) => outNodeIds.includes(id));
 
       if (overlap.length > 0) {
-        errors.outNodeId = "隧道转发模式下，入口和出口不能有相同节点";
+        errors.outNodeId = "链路型隧道模式下，入口和出口不能有相同节点";
       }
+    }
+  }
+
+  if (form.type === 3) {
+    if (!form.tunConfig?.net?.trim()) {
+      errors.tunConfigNet = "TUN 配置的网段(net)不能为空";
+    }
+    if (
+      form.tunConfig?.mtu != null &&
+      (form.tunConfig.mtu < 576 || form.tunConfig.mtu > 9000)
+    ) {
+      errors.tunConfigMtu = "MTU 范围应为 576-9000";
+    }
+    if (!form.inNodeId || form.inNodeId.length !== 1) {
+      errors.inNodeId = "TUN 隧道要求单入口，入口节点数量必须为 1";
+    }
+    if (!form.outNodeId || form.outNodeId.length !== 1) {
+      errors.outNodeId = "TUN 隧道要求单出口，出口节点数量必须为 1";
     }
   }
 

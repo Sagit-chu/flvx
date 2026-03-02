@@ -479,6 +479,10 @@ func (h *Handler) tunnelCreate(w http.ResponseWriter, r *http.Request) {
 	trafficRatio := asFloat(req["trafficRatio"], 1.0)
 	inIP := asString(req["inIp"])
 	ipPreference := asString(req["ipPreference"])
+	tunConfig := strings.TrimSpace(asString(req["tunConfig"]))
+	if typeVal != 3 {
+		tunConfig = ""
+	}
 	now := time.Now().UnixMilli()
 	inx := h.repo.NextIndex("tunnel")
 	localDomain := h.federationLocalDomain()
@@ -556,6 +560,7 @@ func (h *Handler) tunnelCreate(w http.ResponseWriter, r *http.Request) {
 		Name:         name,
 		TrafficRatio: trafficRatio,
 		Type:         typeVal,
+		TunConfig:    sql.NullString{String: tunConfig, Valid: tunConfig != ""},
 		Protocol:     "tls",
 		Flow:         flow,
 		CreatedTime:  now,
@@ -594,7 +599,7 @@ func (h *Handler) tunnelCreate(w http.ResponseWriter, r *http.Request) {
 		response.WriteJSON(w, response.Err(-2, err.Error()))
 		return
 	}
-	if typeVal == 2 {
+	if typeVal == 2 || typeVal == 3 {
 		createdChains, createdServices, applyErr := h.applyTunnelRuntime(runtimeState)
 		if applyErr != nil {
 			h.rollbackTunnelRuntime(createdChains, createdServices, tunnelID)
@@ -609,7 +614,7 @@ func (h *Handler) tunnelCreate(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) cleanupTunnelRuntime(tunnelID int64) {
 	tunnel, err := h.getTunnelRecord(tunnelID)
-	if err != nil || tunnel.Type != 2 {
+	if err != nil || (tunnel.Type != 2 && tunnel.Type != 3) {
 		return
 	}
 	chainRows, err := h.listChainNodesForTunnel(tunnelID)
@@ -623,6 +628,9 @@ func (h *Handler) cleanupTunnelRuntime(tunnelID int64) {
 	for _, row := range chainRows {
 		if row.ChainType == 1 {
 			_, _ = h.sendNodeCommand(row.NodeID, "DeleteChains", map[string]interface{}{"chain": chainName}, false, true)
+			if tunnel.Type == 3 {
+				_, _ = h.sendNodeCommand(row.NodeID, "DeleteService", map[string]interface{}{"services": []string{serviceName}}, false, true)
+			}
 		} else if row.ChainType == 2 {
 			_, _ = h.sendNodeCommand(row.NodeID, "DeleteChains", map[string]interface{}{"chain": chainName}, false, true)
 			_, _ = h.sendNodeCommand(row.NodeID, "DeleteService", map[string]interface{}{"services": []string{serviceName}}, false, true)
@@ -681,6 +689,10 @@ func (h *Handler) tunnelUpdate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	ipPreference := asString(req["ipPreference"])
+	tunConfig := strings.TrimSpace(asString(req["tunConfig"]))
+	if typeVal != 3 {
+		tunConfig = ""
+	}
 	localDomain := h.federationLocalDomain()
 
 	tx := h.repo.BeginTx()
@@ -719,6 +731,7 @@ func (h *Handler) tunnelUpdate(w http.ResponseWriter, r *http.Request) {
 		asInt(req["status"], 1),
 		inIp,
 		ipPreference,
+		tunConfig,
 		now,
 	); err != nil {
 		response.WriteJSON(w, response.Err(-2, err.Error()))
@@ -745,7 +758,7 @@ func (h *Handler) tunnelUpdate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if typeVal == 2 {
+	if typeVal == 2 || typeVal == 3 {
 		createdChains, createdServices, applyErr := h.applyTunnelRuntime(runtimeState)
 		if applyErr != nil {
 			h.rollbackTunnelRuntime(createdChains, createdServices, id)
@@ -867,6 +880,7 @@ func (h *Handler) reconstructTunnelState(tunnelID int64) (*tunnelCreateState, er
 		TunnelID:     tunnelID,
 		Type:         tunnel.Type,
 		IPPreference: ipPreference,
+		TunConfig:    map[string]interface{}{},
 		InNodes:      make([]tunnelRuntimeNode, 0),
 		ChainHops:    make([][]tunnelRuntimeNode, 0),
 		OutNodes:     make([]tunnelRuntimeNode, 0),
@@ -882,6 +896,7 @@ func (h *Handler) reconstructTunnelState(tunnelID int64) (*tunnelCreateState, er
 			Protocol:  r.Protocol,
 			Strategy:  r.Strategy,
 			ChainType: 1,
+			Port:      r.Port,
 		})
 		state.NodeIDList = append(state.NodeIDList, r.NodeID)
 	}
@@ -935,7 +950,7 @@ func (h *Handler) redeployTunnelAndForwards(tunnelID int64) error {
 		return err
 	}
 
-	if tunnel.Type == 2 {
+	if tunnel.Type == 2 || tunnel.Type == 3 {
 		h.cleanupTunnelRuntime(tunnelID)
 		h.cleanupFederationRuntime(tunnelID)
 		state, err := h.reconstructTunnelState(tunnelID)
@@ -1993,6 +2008,7 @@ type tunnelCreateState struct {
 	TunnelID     int64
 	Type         int
 	IPPreference string // "" = auto, "v4" = prefer IPv4, "v6" = prefer IPv6
+	TunConfig    map[string]interface{}
 	InNodes      []tunnelRuntimeNode
 	ChainHops    [][]tunnelRuntimeNode
 	OutNodes     []tunnelRuntimeNode
@@ -2003,17 +2019,34 @@ type tunnelCreateState struct {
 func (h *Handler) prepareTunnelCreateState(tx *gorm.DB, req map[string]interface{}, tunnelType int, excludeTunnelID int64) (*tunnelCreateState, error) {
 	state := &tunnelCreateState{
 		Type:      tunnelType,
+		TunConfig: normalizeTunnelTunConfig(req["tunConfig"]),
 		InNodes:   make([]tunnelRuntimeNode, 0),
 		ChainHops: make([][]tunnelRuntimeNode, 0),
 		OutNodes:  make([]tunnelRuntimeNode, 0),
 		Nodes:     make(map[int64]*nodeRecord),
 	}
 	nodeIDs := make([]int64, 0)
+	allocated := map[int64]int{}
 
 	for _, item := range asMapSlice(req["inNodeId"]) {
 		nodeID := asInt64(item["nodeId"], 0)
 		if nodeID <= 0 {
 			continue
+		}
+		port := asInt(item["port"], 0)
+		if tunnelType == 3 && port <= 0 {
+			isRemote, remoteErr := h.repo.IsRemoteNodeTx(tx, nodeID)
+			if remoteErr != nil {
+				return nil, remoteErr
+			}
+			if isRemote {
+				return nil, errors.New("TUN入口节点端口不能为空")
+			}
+			var pickErr error
+			port, pickErr = h.repo.PickNodePortTx(tx, nodeID, allocated, excludeTunnelID)
+			if pickErr != nil {
+				return nil, pickErr
+			}
 		}
 		nodeIDs = append(nodeIDs, nodeID)
 		state.InNodes = append(state.InNodes, tunnelRuntimeNode{
@@ -2021,19 +2054,19 @@ func (h *Handler) prepareTunnelCreateState(tx *gorm.DB, req map[string]interface
 			Protocol:  defaultString(asString(item["protocol"]), "tls"),
 			Strategy:  defaultString(asString(item["strategy"]), "round"),
 			ChainType: 1,
+			Port:      port,
 		})
 	}
 	if len(state.InNodes) == 0 {
 		return nil, errors.New("入口不能为空")
 	}
 
-	if tunnelType == 2 {
+	if tunnelType == 2 || tunnelType == 3 {
 		outNodesRaw := asMapSlice(req["outNodeId"])
 		if len(outNodesRaw) == 0 {
 			return nil, errors.New("出口不能为空")
 		}
 
-		allocated := map[int64]int{}
 		for _, item := range outNodesRaw {
 			nodeID := asInt64(item["nodeId"], 0)
 			if nodeID <= 0 {
@@ -2138,8 +2171,61 @@ func (h *Handler) prepareTunnelCreateState(tx *gorm.DB, req map[string]interface
 			}
 		}
 	}
+	if tunnelType == 3 {
+		for _, inNode := range state.InNodes {
+			if err := validateRemoteNodePort(state.Nodes[inNode.NodeID], inNode.Port); err != nil {
+				return nil, err
+			}
+		}
+	}
+
+	if tunnelType == 3 {
+		if len(state.InNodes) != 1 {
+			return nil, fmt.Errorf("TUN隧道拓扑非法：仅允许单入口，当前 %d 个", len(state.InNodes))
+		}
+		if len(state.OutNodes) != 1 {
+			return nil, fmt.Errorf("TUN隧道拓扑非法：仅允许单出口，当前 %d 个", len(state.OutNodes))
+		}
+	}
 
 	return state, nil
+}
+
+func normalizeTunnelTunConfig(raw interface{}) map[string]interface{} {
+	m, ok := raw.(map[string]interface{})
+	if !ok || len(m) == 0 {
+		return map[string]interface{}{}
+	}
+	out := make(map[string]interface{}, len(m))
+	for k, v := range m {
+		key := strings.TrimSpace(k)
+		if key == "" {
+			continue
+		}
+		out[key] = v
+	}
+	if len(out) == 0 {
+		return map[string]interface{}{}
+	}
+	return out
+}
+
+func ensureTunnelTunConfig(state *tunnelCreateState) {
+	if state == nil || state.Type != 3 {
+		return
+	}
+	cfg := normalizeTunnelTunConfig(state.TunConfig)
+	if strings.TrimSpace(asString(cfg["name"])) == "" {
+		if state.TunnelID > 0 {
+			cfg["name"] = fmt.Sprintf("tun_%d", state.TunnelID)
+		} else {
+			cfg["name"] = "tun_runtime"
+		}
+	}
+	if asInt(cfg["mtu"], 0) <= 0 {
+		cfg["mtu"] = 1420
+	}
+	state.TunConfig = cfg
 }
 
 func buildTunnelInIP(inNodes []tunnelRuntimeNode, nodes map[int64]*nodeRecord, ipPreference string) string {
@@ -2188,6 +2274,17 @@ func applyTunnelPortsToRequest(req map[string]interface{}, state *tunnelCreateSt
 	if req == nil || state == nil {
 		return
 	}
+	inPorts := make(map[int64]int)
+	for _, n := range state.InNodes {
+		inPorts[n.NodeID] = n.Port
+	}
+	for _, item := range asMapSlice(req["inNodeId"]) {
+		nodeID := asInt64(item["nodeId"], 0)
+		if port, ok := inPorts[nodeID]; ok && port > 0 {
+			item["port"] = port
+		}
+	}
+
 	outPorts := make(map[int64]int)
 	for _, n := range state.OutNodes {
 		outPorts[n.NodeID] = n.Port
@@ -2490,8 +2587,18 @@ func (h *Handler) applyTunnelRuntime(state *tunnelCreateState) ([]int64, []int64
 	}
 	createdChains := make([]int64, 0)
 	createdServices := make([]int64, 0)
-	if state.Type != 2 {
+	if state.Type != 2 && state.Type != 3 {
 		return createdChains, createdServices, nil
+	}
+	if state.Type == 2 {
+		return h.applyTunnelChainRuntime(state, createdChains, createdServices)
+	}
+	return h.applyTunnelTunRuntime(state, createdChains, createdServices)
+}
+
+func (h *Handler) applyTunnelChainRuntime(state *tunnelCreateState, createdChains []int64, createdServices []int64) ([]int64, []int64, error) {
+	if state == nil {
+		return createdChains, createdServices, errors.New("invalid tunnel runtime state")
 	}
 
 	for _, inNode := range state.InNodes {
@@ -2512,6 +2619,82 @@ func (h *Handler) applyTunnelRuntime(state *tunnelCreateState) ([]int64, []int64
 		}
 		createdChains = append(createdChains, inNode.NodeID)
 	}
+
+	for i, hop := range state.ChainHops {
+		nextTargets := state.OutNodes
+		if i+1 < len(state.ChainHops) {
+			nextTargets = state.ChainHops[i+1]
+		}
+		for _, chainNode := range hop {
+			if node := state.Nodes[chainNode.NodeID]; node != nil && node.IsRemote == 1 {
+				continue
+			}
+			chainData, err := buildTunnelChainConfig(state.TunnelID, chainNode.NodeID, nextTargets, state.Nodes, state.IPPreference)
+			if err != nil {
+				return createdChains, createdServices, err
+			}
+			if _, err := h.sendNodeCommand(chainNode.NodeID, "AddChains", chainData, true, false); err != nil {
+				return createdChains, createdServices, fmt.Errorf("转发链节点 %s 下发转发链失败: %w", nodeDisplayName(state.Nodes[chainNode.NodeID]), err)
+			}
+			createdChains = append(createdChains, chainNode.NodeID)
+
+			serviceData := buildTunnelChainServiceConfig(state.TunnelID, chainNode, state.Nodes[chainNode.NodeID])
+			if _, err := h.sendNodeCommand(chainNode.NodeID, "AddService", serviceData, true, false); err != nil {
+				return createdChains, createdServices, fmt.Errorf("转发链节点 %s 下发服务失败: %w", nodeDisplayName(state.Nodes[chainNode.NodeID]), err)
+			}
+			createdServices = append(createdServices, chainNode.NodeID)
+		}
+	}
+
+	for _, outNode := range state.OutNodes {
+		if node := state.Nodes[outNode.NodeID]; node != nil && node.IsRemote == 1 {
+			continue
+		}
+		serviceData := buildTunnelChainServiceConfig(state.TunnelID, outNode, state.Nodes[outNode.NodeID])
+		if _, err := h.sendNodeCommand(outNode.NodeID, "AddService", serviceData, true, false); err != nil {
+			return createdChains, createdServices, fmt.Errorf("出口节点 %s 下发服务失败: %w", nodeDisplayName(state.Nodes[outNode.NodeID]), err)
+		}
+		createdServices = append(createdServices, outNode.NodeID)
+	}
+
+	return createdChains, createdServices, nil
+}
+
+func (h *Handler) applyTunnelTunRuntime(state *tunnelCreateState, createdChains []int64, createdServices []int64) ([]int64, []int64, error) {
+	if state == nil {
+		return createdChains, createdServices, errors.New("invalid tunnel runtime state")
+	}
+	if len(state.InNodes) != 1 {
+		return createdChains, createdServices, fmt.Errorf("TUN隧道拓扑非法：仅允许单入口，当前 %d 个", len(state.InNodes))
+	}
+	if len(state.OutNodes) != 1 {
+		return createdChains, createdServices, fmt.Errorf("TUN隧道拓扑非法：仅允许单出口，当前 %d 个", len(state.OutNodes))
+	}
+	ensureTunnelTunConfig(state)
+
+	inNode := state.InNodes[0]
+	targets := state.OutNodes
+	if len(state.ChainHops) > 0 {
+		targets = state.ChainHops[0]
+	}
+	chainData, err := buildTunnelChainConfig(state.TunnelID, inNode.NodeID, targets, state.Nodes, state.IPPreference)
+	if err != nil {
+		return createdChains, createdServices, err
+	}
+	if _, err := h.sendNodeCommand(inNode.NodeID, "AddChains", chainData, true, false); err != nil {
+		node := state.Nodes[inNode.NodeID]
+		if node != nil && node.IsRemote == 1 && shouldDeferTunnelRuntimeApplyError(err) {
+			return createdChains, createdServices, nil
+		}
+		return createdChains, createdServices, fmt.Errorf("TUN入口节点 %s 下发转发链失败: %w", nodeDisplayName(node), err)
+	}
+	createdChains = append(createdChains, inNode.NodeID)
+
+	serviceData := buildTunnelTunServiceConfig(state.TunnelID, inNode, state.Nodes[inNode.NodeID], state.TunConfig)
+	if _, err := h.sendNodeCommand(inNode.NodeID, "AddService", serviceData, true, false); err != nil {
+		return createdChains, createdServices, fmt.Errorf("TUN入口节点 %s 下发服务失败: %w", nodeDisplayName(state.Nodes[inNode.NodeID]), err)
+	}
+	createdServices = append(createdServices, inNode.NodeID)
 
 	for i, hop := range state.ChainHops {
 		nextTargets := state.OutNodes
@@ -2684,6 +2867,55 @@ func buildTunnelChainServiceConfig(tunnelID int64, chainNode tunnelRuntimeNode, 
 	return []map[string]interface{}{service}
 }
 
+func buildTunnelTunServiceConfig(tunnelID int64, inNode tunnelRuntimeNode, node *nodeRecord, tunConfig map[string]interface{}) []map[string]interface{} {
+	if node == nil {
+		return nil
+	}
+	tunCfg := normalizeTunnelTunConfig(tunConfig)
+	if strings.TrimSpace(asString(tunCfg["name"])) == "" {
+		tunCfg["name"] = fmt.Sprintf("tun_%d", tunnelID)
+	}
+	if asInt(tunCfg["mtu"], 0) <= 0 {
+		tunCfg["mtu"] = 1420
+	}
+
+	listenerMetadata := map[string]interface{}{
+		"tunConfig": tunCfg,
+	}
+	for _, key := range []string{"name", "net", "route", "routes", "gw", "dns", "peer", "mtu", "router"} {
+		if v, ok := tunCfg[key]; ok {
+			listenerMetadata[key] = v
+		}
+	}
+
+	listenHost := strings.TrimSpace(node.UDPListenAddr)
+	if listenHost == "" {
+		listenHost = strings.TrimSpace(node.TCPListenAddr)
+	}
+	if listenHost == "" {
+		listenHost = "[::]"
+	}
+
+	service := map[string]interface{}{
+		"name": fmt.Sprintf("%d_tls", tunnelID),
+		"addr": fmt.Sprintf("%s:%d", listenHost, inNode.Port),
+		"handler": map[string]interface{}{
+			"type":     "tun",
+			"chain":    fmt.Sprintf("chains_%d", tunnelID),
+			"metadata": map[string]interface{}{"tunConfig": tunCfg},
+		},
+		"listener": map[string]interface{}{
+			"type":     "tun",
+			"metadata": listenerMetadata,
+		},
+		"metadata": map[string]interface{}{
+			"tunConfig": tunCfg,
+		},
+	}
+
+	return []map[string]interface{}{service}
+}
+
 func selectTunnelDialHost(fromNode, toNode *nodeRecord, ipPreference string) (string, error) {
 	if fromNode == nil || toNode == nil {
 		return "", errors.New("节点不存在")
@@ -2813,12 +3045,17 @@ func (h *Handler) replaceTunnelChainsTx(tx *gorm.DB, tunnelID int64, req map[str
 		if nodeID <= 0 {
 			continue
 		}
+		entryPort := asInt(n["port"], 0)
+		entryPortNull := sql.NullInt64{}
+		if entryPort > 0 {
+			entryPortNull = sql.NullInt64{Int64: int64(entryPort), Valid: true}
+		}
 		if err := h.repo.CreateChainTunnelTx(
 			tx,
 			tunnelID,
 			"1",
 			nodeID,
-			sql.NullInt64{},
+			entryPortNull,
 			defaultString(asString(n["strategy"]), "round"),
 			i+1,
 			defaultString(asString(n["protocol"]), "tls"),

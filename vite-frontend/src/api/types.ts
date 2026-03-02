@@ -35,6 +35,19 @@ export interface TunnelApiItem {
   status: number;
   entryNodeId: number;
   exitNodeId: number;
+  tunConfig?: {
+    net?: string;
+    mtu?: number;
+    routes?: string | string[];
+    dns?: string | string[];
+    peer?: string | string[];
+    gw?: string;
+    keepalive?: number;
+    ttl?: number;
+    passphrase?: string;
+    p2p?: boolean;
+    tunName?: string;
+  };
   inx?: number;
   [key: string]: unknown;
 }
@@ -247,6 +260,19 @@ export interface TunnelMutationPayload {
   inNodeId?: TunnelChainNodePayload[];
   outNodeId?: TunnelChainNodePayload[];
   chainNodes?: TunnelChainNodePayload[][];
+  tunConfig?: {
+    net: string;
+    mtu?: number;
+    routes?: string;
+    dns?: string;
+    peer?: string;
+    gw?: string;
+    keepalive?: number;
+    ttl?: number;
+    passphrase?: string;
+    p2p?: boolean;
+    tunName?: string;
+  };
 }
 
 export interface UserTunnelAssignPayload {

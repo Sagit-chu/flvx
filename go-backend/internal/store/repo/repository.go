@@ -271,7 +271,7 @@ func prepareSQLiteLegacyColumns(db *gorm.DB) error {
 	}
 
 	if m.HasTable(&model.Tunnel{}) {
-		for _, field := range []string{"Inx", "IPPreference"} {
+		for _, field := range []string{"Inx", "IPPreference", "TunConfig"} {
 			if m.HasColumn(&model.Tunnel{}, field) {
 				continue
 			}
@@ -816,6 +816,7 @@ func (r *Repository) ListTunnels() ([]map[string]interface{}, error) {
 			"status": t.Status, "createdTime": t.CreatedTime,
 			"inIp":         nullableString(t.InIP),
 			"ipPreference": t.IPPreference,
+			"tunConfig":    nullableString(t.TunConfig),
 			"inNodeId":     make([]map[string]interface{}, 0),
 			"outNodeId":    make([]map[string]interface{}, 0),
 			"chainNodes":   make([][]map[string]interface{}, 0),
@@ -1717,6 +1718,9 @@ func (r *Repository) exportTunnels() ([]model.TunnelBackup, error) {
 		if t.InIP.Valid {
 			b.InIP = t.InIP.String
 		}
+		if t.TunConfig.Valid {
+			b.TunConfig = t.TunConfig.String
+		}
 		chains, err := r.exportChainTunnels(t.ID)
 		if err != nil {
 			return nil, err
@@ -2067,6 +2071,7 @@ func importTunnels(tx *gorm.DB, tunnels []model.TunnelBackup, now int64) (int, e
 			Name:         t.Name,
 			TrafficRatio: t.TrafficRatio,
 			Type:         t.Type,
+			TunConfig:    sql.NullString{},
 			Protocol:     t.Protocol,
 			Flow:         t.Flow,
 			CreatedTime:  t.CreatedTime,
@@ -2076,10 +2081,14 @@ func importTunnels(tx *gorm.DB, tunnels []model.TunnelBackup, now int64) (int, e
 			Inx:          t.Inx,
 			IPPreference: t.IPPreference,
 		}
+		if t.Type == 3 {
+			trimmedTunConfig := strings.TrimSpace(t.TunConfig)
+			item.TunConfig = sql.NullString{String: trimmedTunConfig, Valid: trimmedTunConfig != ""}
+		}
 		err := tx.Clauses(clause.OnConflict{
 			Columns: []clause.Column{{Name: "id"}},
 			DoUpdates: clause.AssignmentColumns([]string{
-				"name", "traffic_ratio", "type", "protocol", "flow", "updated_time", "status", "in_ip", "inx", "ip_preference",
+				"name", "traffic_ratio", "type", "tun_config", "protocol", "flow", "updated_time", "status", "in_ip", "inx", "ip_preference",
 			}),
 		}).Create(&item).Error
 		if err != nil {
@@ -2467,11 +2476,12 @@ func (r *Repository) GetUserTunnelByID(id int64) (*model.UserTunnel, error) {
 
 // ─── Migration ───────────────────────────────────────────────────────
 
-const currentSchemaVersion = 4
+const currentSchemaVersion = 5
 
 var ensurePostgresIDDefaultsFn = ensurePostgresIDDefaults
 var migrateViteConfigValueColumnTypeFn = migrateViteConfigValueColumnType
 var migrateSpeedLimitTunnelBindingFn = migrateSpeedLimitTunnelBinding
+var migrateTunnelTunConfigFn = migrateTunnelTunConfig
 
 func getSchemaVersion(db *gorm.DB) int {
 	var v model.SchemaVersion
@@ -2535,6 +2545,12 @@ func migrateSchema(db *gorm.DB) error {
 		}
 	}
 
+	if ver < 5 {
+		if err := migrateTunnelTunConfigFn(db); err != nil {
+			return err
+		}
+	}
+
 	setSchemaVersion(db, currentSchemaVersion)
 	return nil
 }
@@ -2594,6 +2610,30 @@ func migrateSpeedLimitTunnelBinding(db *gorm.DB) error {
 			"tunnel_name": nil,
 		}).Error; err != nil {
 		return fmt.Errorf("clear speed_limit tunnel binding: %w", err)
+	}
+
+	return nil
+}
+
+func migrateTunnelTunConfig(db *gorm.DB) error {
+	if db == nil {
+		return errors.New("nil db")
+	}
+
+	m := db.Migrator()
+	if !m.HasTable(&model.Tunnel{}) {
+		return nil
+	}
+	if !m.HasColumn(&model.Tunnel{}, "TunConfig") {
+		if err := m.AddColumn(&model.Tunnel{}, "TunConfig"); err != nil {
+			return fmt.Errorf("add tunnel.tun_config column: %w", err)
+		}
+	}
+
+	if err := db.Model(&model.Tunnel{}).
+		Where("type <> 3").
+		Update("tun_config", nil).Error; err != nil {
+		return fmt.Errorf("normalize tunnel.tun_config: %w", err)
 	}
 
 	return nil

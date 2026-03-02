@@ -113,6 +113,7 @@ type Tunnel struct {
 	Name         string         `gorm:"type:varchar(100);not null"`
 	TrafficRatio float64        `gorm:"column:traffic_ratio;not null;default:1.0"`
 	Type         int            `gorm:"not null"`
+	TunConfig    sql.NullString `gorm:"column:tun_config;type:text"`
 	Protocol     string         `gorm:"type:varchar(10);not null;default:'tls'"`
 	Flow         int64          `gorm:"not null"`
 	CreatedTime  int64          `gorm:"column:created_time;not null"`
@@ -361,6 +362,7 @@ type TunnelBackup struct {
 	Name         string              `json:"name"`
 	TrafficRatio float64             `json:"trafficRatio"`
 	Type         int                 `json:"type"`
+	TunConfig    string              `json:"tunConfig,omitempty"`
 	Protocol     string              `json:"protocol"`
 	Flow         int64               `json:"flow"`
 	CreatedTime  int64               `json:"createdTime"`
