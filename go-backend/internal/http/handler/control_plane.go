@@ -110,9 +110,11 @@ func (h *Handler) buildDiagnosisStreamStartItems(workItems []diagnosisWorkItem) 
 const diagnosisMaxConcurrency = 8
 
 const (
-	defaultNodeCommandTimeout = 6 * time.Second
-	diagnosisCommandTimeout   = 2 * time.Minute
-	diagnosisRequestTimeout   = 2 * time.Minute
+	defaultNodeCommandTimeout  = 6 * time.Second
+	diagnosisCommandTimeout    = 30 * time.Second
+	diagnosisRequestTimeout    = 2 * time.Minute
+	diagnosisCommandTimeoutMsg = "诊断超时（30秒）"
+	diagnosisRequestTimeoutMsg = "诊断超时（2分钟）"
 )
 
 func (h *Handler) resolveForwardAccess(r *http.Request, forwardID int64) (*forwardRecord, int64, int, error) {
@@ -1064,15 +1066,15 @@ func resolveDiagnosisTargets(remoteAddr string) ([]diagnosisTarget, error) {
 
 func diagnosisContextMessage(ctx context.Context) string {
 	if ctx == nil {
-		return "诊断超时（2分钟）"
+		return diagnosisRequestTimeoutMsg
 	}
 	switch ctx.Err() {
 	case context.DeadlineExceeded:
-		return "诊断超时（2分钟）"
+		return diagnosisRequestTimeoutMsg
 	case context.Canceled:
 		return "诊断已取消"
 	default:
-		return "诊断超时（2分钟）"
+		return diagnosisRequestTimeoutMsg
 	}
 }
 
@@ -1111,7 +1113,7 @@ func newDiagnosisTimeoutItem(workItem diagnosisWorkItem, message string) map[str
 	item := newDiagnosisResultItem(workItem.fromNodeID, workItem.targetIP, targetPort, workItem.description, workItem.metadata)
 	item["success"] = false
 	if strings.TrimSpace(message) == "" {
-		message = "诊断超时（2分钟）"
+		message = diagnosisCommandTimeoutMsg
 	}
 	item["message"] = message
 	return item
@@ -1209,7 +1211,7 @@ enqueueLoop:
 
 	for i := range results {
 		if results[i] == nil {
-			results[i] = newDiagnosisTimeoutItem(workItems[i], "诊断超时（2分钟）")
+			results[i] = newDiagnosisTimeoutItem(workItems[i], diagnosisCommandTimeoutMsg)
 		}
 	}
 	return results

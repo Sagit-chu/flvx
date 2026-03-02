@@ -605,7 +605,7 @@ export default function TunnelPage() {
         toast.error(streamErrorMessage);
       }
       if (streamResult.timedOut) {
-        toast.error("诊断达到2分钟超时，已返回当前结果");
+        toast.error("诊断超时（单条30秒 / 整体2分钟），已返回当前结果");
       }
     } catch {
       if (abortController.signal.aborted) {
@@ -2141,7 +2141,7 @@ export default function TunnelPage() {
                     {diagnosisProgress.timedOut && (
                       <Alert
                         color="warning"
-                        description="诊断已达到2分钟超时，以下为当前已完成结果。"
+                        description="诊断超时（单条30秒 / 整体2分钟），以下为当前已完成结果。"
                         title="诊断超时"
                         variant="flat"
                       />
