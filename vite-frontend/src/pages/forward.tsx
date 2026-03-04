@@ -2187,15 +2187,27 @@ export default function ForwardPage() {
       }
     }
 
-    const oldIndex = forwardOrder.indexOf(activeId);
-    const newIndex = forwardOrder.indexOf(overId);
+    let oldIndex: number;
+    let newIndex: number;
+    let currentOrder: number[];
+
+    if (compactMode) {
+      currentOrder = sortedForwards.map((f) => f.id);
+      oldIndex = currentOrder.indexOf(activeId);
+      newIndex = currentOrder.indexOf(overId);
+    } else {
+      currentOrder = forwardOrder;
+      oldIndex = forwardOrder.indexOf(activeId);
+      newIndex = forwardOrder.indexOf(overId);
+    }
 
     if (oldIndex !== -1 && newIndex !== -1 && oldIndex !== newIndex) {
-      const newOrder = arrayMove(forwardOrder, oldIndex, newIndex);
+      const newOrder = arrayMove(currentOrder, oldIndex, newIndex);
 
-      setForwardOrder(newOrder);
-
-      saveOrder(FORWARD_ORDER_KEY, newOrder);
+      if (!compactMode) {
+        setForwardOrder(newOrder);
+        saveOrder(FORWARD_ORDER_KEY, newOrder);
+      }
 
       // 持久化到数据库
       try {
