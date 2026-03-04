@@ -1,4 +1,4 @@
-import type { SpeedLimitApiItem, ForwardMutationPayload } from "@/api/types";
+import type { SpeedLimitApiItem } from "@/api/types";
 
 import { useState, useEffect, useMemo, useRef } from "react";
 import toast from "react-hot-toast";
