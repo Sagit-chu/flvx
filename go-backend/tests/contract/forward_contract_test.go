@@ -917,3 +917,184 @@ func TestForwardCreateThenPauseResumeContract(t *testing.T) {
 func jsonNumber(v int64) string {
 	return strconv.FormatInt(v, 10)
 }
+
+func TestNonAdminCannotSetSpeedIdOrPort(t *testing.T) {
+	secret := "contract-jwt-secret-perm"
+	router, repo := setupContractRouter(t, secret)
+	server := httptest.NewServer(router)
+	defer server.Close()
+	now := time.Now().UnixMilli()
+
+	if err := repo.DB().Exec(`
+		INSERT INTO user(id, user, pwd, role_id, exp_time, flow, in_flow, out_flow, flow_reset_time, num, created_time, updated_time, status)
+		VALUES(2, 'normal_user_perm', '3c85cdebade1c51cf64ca9f3c09d182d', 1, 2727251700000, 99999, 0, 0, 1, 99999, ?, ?, 1)
+	`, now, now).Error; err != nil {
+		t.Fatalf("insert user: %v", err)
+	}
+
+	if err := repo.DB().Exec(`
+		INSERT INTO tunnel(name, traffic_ratio, type, protocol, flow, created_time, updated_time, status, in_ip, inx)
+		VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+	`, "perm-tunnel", 1.0, 1, "tls", 99999, now, now, 1, nil, 0).Error; err != nil {
+		t.Fatalf("insert tunnel: %v", err)
+	}
+	tunnelID := mustLastInsertID(t, repo, "perm-tunnel")
+
+	if err := repo.DB().Exec(`
+		INSERT INTO node(name, secret, server_ip, server_ip_v4, server_ip_v6, port, interface_name, version, http, tls, socks, created_time, updated_time, status, tcp_listen_addr, udp_listen_addr, inx)
+		VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+	`, "perm-node", "perm-secret", "10.0.0.20", "10.0.0.20", "", "30000-30010", "", "v1", 1, 1, 1, now, now, 1, "[::]", "[::]", 0).Error; err != nil {
+		t.Fatalf("insert node: %v", err)
+	}
+	entryNodeID := mustLastInsertID(t, repo, "perm-node")
+
+	if err := repo.DB().Exec(`
+		INSERT INTO chain_tunnel(tunnel_id, chain_type, node_id, port, strategy, inx, protocol)
+		VALUES(?, 1, ?, 30001, 'round', 1, 'tls')
+	`, tunnelID, entryNodeID).Error; err != nil {
+		t.Fatalf("insert chain_tunnel: %v", err)
+	}
+
+	if err := repo.DB().Exec(`
+		INSERT INTO user_tunnel(user_id, tunnel_id, speed_id, num, flow, in_flow, out_flow, flow_reset_time, exp_time, status)
+		VALUES(?, ?, NULL, 10, 99999, 0, 0, 1, 2727251700000, 1)
+	`, 2, tunnelID).Error; err != nil {
+		t.Fatalf("insert user_tunnel: %v", err)
+	}
+
+	if err := repo.DB().Exec(`
+		INSERT INTO speed_limit(name, speed, tunnel_id, tunnel_name, created_time, updated_time, status)
+		VALUES(?, ?, ?, ?, ?, ?, 1)
+	`, "perm-speed-limit", 2048, tunnelID, "perm-tunnel", now, now).Error; err != nil {
+		t.Fatalf("insert speed limit: %v", err)
+	}
+	speedID := mustLastInsertID(t, repo, "perm-speed-limit")
+
+	userToken, err := auth.GenerateToken(2, "normal_user_perm", 1, secret)
+	if err != nil {
+		t.Fatalf("generate user token: %v", err)
+	}
+
+	stopNode := startMockNodeSession(t, server.URL, "perm-secret")
+	defer stopNode()
+
+	t.Run("non-admin cannot set speedId on create", func(t *testing.T) {
+		createPayload := map[string]interface{}{
+			"name":       "perm-forward-speed",
+			"tunnelId":   tunnelID,
+			"remoteAddr": "1.2.3.4:443",
+			"strategy":   "fifo",
+			"speedId":    speedID,
+		}
+		createBody, err := json.Marshal(createPayload)
+		if err != nil {
+			t.Fatalf("marshal create payload: %v", err)
+		}
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/forward/create", bytes.NewReader(createBody))
+		req.Header.Set("Authorization", userToken)
+		req.Header.Set("Content-Type", "application/json")
+		res := httptest.NewRecorder()
+		router.ServeHTTP(res, req)
+		assertCodeMsg(t, res, -1, "普通用户无法设置限速规则")
+	})
+
+	t.Run("non-admin cannot set inPort on create", func(t *testing.T) {
+		createPayload := map[string]interface{}{
+			"name":       "perm-forward-port",
+			"tunnelId":   tunnelID,
+			"remoteAddr": "1.2.3.4:443",
+			"strategy":   "fifo",
+			"inPort":     12345,
+		}
+		createBody, err := json.Marshal(createPayload)
+		if err != nil {
+			t.Fatalf("marshal create payload: %v", err)
+		}
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/forward/create", bytes.NewReader(createBody))
+		req.Header.Set("Authorization", userToken)
+		req.Header.Set("Content-Type", "application/json")
+		res := httptest.NewRecorder()
+		router.ServeHTTP(res, req)
+		assertCodeMsg(t, res, -1, "普通用户无法设置自定义端口")
+	})
+
+	t.Run("non-admin can create without speedId and inPort", func(t *testing.T) {
+		createPayload := map[string]interface{}{
+			"name":       "perm-forward-ok",
+			"tunnelId":   tunnelID,
+			"remoteAddr": "1.2.3.4:443",
+			"strategy":   "fifo",
+		}
+		createBody, err := json.Marshal(createPayload)
+		if err != nil {
+			t.Fatalf("marshal create payload: %v", err)
+		}
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/forward/create", bytes.NewReader(createBody))
+		req.Header.Set("Authorization", userToken)
+		req.Header.Set("Content-Type", "application/json")
+		res := httptest.NewRecorder()
+		router.ServeHTTP(res, req)
+		assertCode(t, res, 0)
+	})
+
+	forwardID := mustLastInsertID(t, repo, "perm-forward-ok")
+
+	t.Run("non-admin cannot update speedId", func(t *testing.T) {
+		updatePayload := map[string]interface{}{
+			"id":         forwardID,
+			"name":       "perm-forward-updated",
+			"tunnelId":   tunnelID,
+			"remoteAddr": "5.6.7.8:443",
+			"speedId":    speedID,
+		}
+		updateBody, err := json.Marshal(updatePayload)
+		if err != nil {
+			t.Fatalf("marshal update payload: %v", err)
+		}
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/forward/update", bytes.NewReader(updateBody))
+		req.Header.Set("Authorization", userToken)
+		req.Header.Set("Content-Type", "application/json")
+		res := httptest.NewRecorder()
+		router.ServeHTTP(res, req)
+		assertCodeMsg(t, res, -1, "普通用户无法修改限速规则")
+	})
+
+	t.Run("non-admin cannot update inPort", func(t *testing.T) {
+		updatePayload := map[string]interface{}{
+			"id":         forwardID,
+			"name":       "perm-forward-updated2",
+			"tunnelId":   tunnelID,
+			"remoteAddr": "5.6.7.8:443",
+			"inPort":     54321,
+		}
+		updateBody, err := json.Marshal(updatePayload)
+		if err != nil {
+			t.Fatalf("marshal update payload: %v", err)
+		}
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/forward/update", bytes.NewReader(updateBody))
+		req.Header.Set("Authorization", userToken)
+		req.Header.Set("Content-Type", "application/json")
+		res := httptest.NewRecorder()
+		router.ServeHTTP(res, req)
+		assertCodeMsg(t, res, -1, "普通用户无法修改自定义端口")
+	})
+
+	t.Run("non-admin can update without speedId and inPort", func(t *testing.T) {
+		updatePayload := map[string]interface{}{
+			"id":         forwardID,
+			"name":       "perm-forward-updated-ok",
+			"tunnelId":   tunnelID,
+			"remoteAddr": "9.10.11.12:443",
+		}
+		updateBody, err := json.Marshal(updatePayload)
+		if err != nil {
+			t.Fatalf("marshal update payload: %v", err)
+		}
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/forward/update", bytes.NewReader(updateBody))
+		req.Header.Set("Authorization", userToken)
+		req.Header.Set("Content-Type", "application/json")
+		res := httptest.NewRecorder()
+		router.ServeHTTP(res, req)
+		assertCode(t, res, 0)
+	})
+}

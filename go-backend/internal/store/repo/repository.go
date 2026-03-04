@@ -2753,18 +2753,6 @@ func resolveForwardIngress(db *gorm.DB, forwardID int64, tunnelID int64) (string
 	seenPorts := make(map[int64]struct{})
 	seenPairs := make(map[string]struct{})
 
-	var tunnelFirstIP string
-	if tunnelInIP.Valid && strings.TrimSpace(tunnelInIP.String) != "" {
-		tunnelIPs := strings.Split(tunnelInIP.String, ",")
-		for _, ip := range tunnelIPs {
-			ip = strings.TrimSpace(ip)
-			if ip != "" {
-				tunnelFirstIP = ip
-				break
-			}
-		}
-	}
-
 	for _, row := range fpRows {
 		if !row.Port.Valid {
 			continue
@@ -2777,8 +2765,6 @@ func resolveForwardIngress(db *gorm.DB, forwardID int64, tunnelID int64) (string
 		var ip string
 		if row.InIP.Valid && strings.TrimSpace(row.InIP.String) != "" {
 			ip = strings.TrimSpace(row.InIP.String)
-		} else if tunnelFirstIP != "" {
-			ip = tunnelFirstIP
 		} else if row.ServerIP.Valid && strings.TrimSpace(row.ServerIP.String) != "" {
 			ip = strings.TrimSpace(row.ServerIP.String)
 		}

@@ -670,6 +670,16 @@ export default function ForwardPage() {
     return tunnelInIpOptionMap.get(form.tunnelId) || [];
   }, [form.tunnelId, tunnelInIpOptionMap]);
 
+  const isCurrentTunnelMultiEntrance = useMemo(() => {
+    if (!form.tunnelId) {
+      return false;
+    }
+
+    const currentTunnel = allTunnels.find((tunnel) => tunnel.id === form.tunnelId);
+
+    return (currentTunnel?.inNodeId?.length || 0) > 1;
+  }, [allTunnels, form.tunnelId]);
+
   useEffect(() => {
     return () => {
       diagnosisAbortRef.current?.abort();
@@ -4249,35 +4259,37 @@ export default function ForwardPage() {
                     }
                   />
 
-                  <Select
-                    label="限速规则"
-                    placeholder="不限速"
-                    selectedKeys={
-                      selectedSpeedId !== null
-                        ? [selectedSpeedId.toString()]
-                        : []
-                    }
-                    variant="bordered"
-                    onSelectionChange={(keys) => {
-                      const selectedKey = Array.from(keys)[0] as
-                        | string
-                        | undefined;
+                  {isAdmin && (
+                    <Select
+                      label="限速规则"
+                      placeholder="不限速"
+                      selectedKeys={
+                        selectedSpeedId !== null
+                          ? [selectedSpeedId.toString()]
+                          : []
+                      }
+                      variant="bordered"
+                      onSelectionChange={(keys) => {
+                        const selectedKey = Array.from(keys)[0] as
+                          | string
+                          | undefined;
 
-                      setForm((prev) => ({
-                        ...prev,
-                        speedId: selectedKey ? Number(selectedKey) : null,
-                      }));
-                    }}
-                  >
-                    {availableSpeedLimits.map((speedLimit) => (
-                      <SelectItem
-                        key={speedLimit.id.toString()}
-                        textValue={speedLimit.name}
-                      >
-                        {speedLimit.name}
-                      </SelectItem>
-                    ))}
-                  </Select>
+                        setForm((prev) => ({
+                          ...prev,
+                          speedId: selectedKey ? Number(selectedKey) : null,
+                        }));
+                      }}
+                    >
+                      {availableSpeedLimits.map((speedLimit) => (
+                        <SelectItem
+                          key={speedLimit.id.toString()}
+                          textValue={speedLimit.name}
+                        >
+                          {speedLimit.name}
+                        </SelectItem>
+                      ))}
+                    </Select>
+                  )}
 
                   <Select
                     description={
@@ -4306,33 +4318,43 @@ export default function ForwardPage() {
                     ))}
                   </Select>
 
-                  <Input
-                    description="指定入口端口，留空则从节点可用端口中自动分配"
-                    errorMessage={errors.inPort}
-                    isInvalid={!!errors.inPort}
-                    label="入口端口"
-                    placeholder="留空则自动分配可用端口"
-                    type="number"
-                    value={form.inPort !== null ? form.inPort.toString() : ""}
-                    variant="bordered"
-                    onChange={(e) => {
-                      const value = e.target.value;
+                  {isAdmin && (
+                    <Input
+                      description="指定入口端口，留空则从节点可用端口中自动分配"
+                      errorMessage={errors.inPort}
+                      isInvalid={!!errors.inPort}
+                      label="入口端口"
+                      placeholder="留空则自动分配可用端口"
+                      type="number"
+                      value={form.inPort !== null ? form.inPort.toString() : ""}
+                      variant="bordered"
+                      onChange={(e) => {
+                        const value = e.target.value;
 
-                      setForm((prev) => ({
-                        ...prev,
-                        inPort: value ? parseInt(value) : null,
-                      }));
-                    }}
-                  />
+                        setForm((prev) => ({
+                          ...prev,
+                          inPort: value ? parseInt(value) : null,
+                        }));
+                      }}
+                    />
+                  )}
 
                   <Select
-                    description="从入口节点IP中选择，留空使用默认"
+                    description={
+                      isCurrentTunnelMultiEntrance
+                        ? "多入口隧道不支持自定义监听IP，使用各节点默认IP"
+                        : "从入口节点IP中选择，留空使用默认"
+                    }
                     isDisabled={
-                      !form.tunnelId || currentTunnelIpOptions.length === 0
+                      !form.tunnelId ||
+                      currentTunnelIpOptions.length === 0 ||
+                      isCurrentTunnelMultiEntrance
                     }
                     label="监听IP"
                     placeholder={
-                      form.tunnelId
+                      isCurrentTunnelMultiEntrance
+                        ? "多入口隧道使用节点默认IP"
+                        : form.tunnelId
                         ? currentTunnelIpOptions.length > 0
                           ? "选择入口监听IP"
                           : "当前隧道入口节点暂无可选IP"

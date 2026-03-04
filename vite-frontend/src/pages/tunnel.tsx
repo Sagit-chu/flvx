@@ -1604,6 +1604,8 @@ export default function TunnelPage() {
                               .map((ct) => ct.nodeId);
                             const groupIpOptions =
                               getCommonIpOptions(groupSelectedNodeIds);
+                            const isMultiNodeGroup =
+                              groupSelectedNodeIds.length > 1;
                             const selectedGroupConnectIp =
                               groupNodes.length > 0
                                 ? groupNodes[0].connectIp || ""
@@ -1826,14 +1828,21 @@ export default function TunnelPage() {
                                     label: "text-xs",
                                     value: "text-sm",
                                   }}
-                                  description="按当前跳所选节点的共有IP进行选择，留空使用默认"
+                                  description={
+                                    isMultiNodeGroup
+                                      ? "多节点跳不支持设置自定义连接IP，使用各节点默认IP"
+                                      : "按当前跳所选节点的共有IP进行选择，留空使用默认"
+                                  }
                                   isDisabled={
                                     groupSelectedNodeIds.length === 0 ||
-                                    groupIpOptions.length === 0
+                                    groupIpOptions.length === 0 ||
+                                    isMultiNodeGroup
                                   }
                                   label="连接IP"
                                   placeholder={
-                                    groupSelectedNodeIds.length === 0
+                                    isMultiNodeGroup
+                                      ? "多节点跳使用节点默认IP"
+                                      : groupSelectedNodeIds.length === 0
                                       ? "请先选择节点"
                                       : groupIpOptions.length > 0
                                         ? "选择连接IP"
@@ -1886,7 +1895,17 @@ export default function TunnelPage() {
                       <Divider />
                       <h3 className="text-lg font-semibold">出口配置</h3>
 
-                      <div className="grid grid-cols-1 md:grid-cols-4 gap-2">
+                      {(() => {
+                        const selectedOutNodeIds = (form.outNodeId || [])
+                          .filter((ct) => ct.nodeId !== -1)
+                          .map((ct) => ct.nodeId);
+                        const isMultiExit = selectedOutNodeIds.length > 1;
+                        const commonOutIpOptions =
+                          getCommonIpOptions(selectedOutNodeIds);
+
+                        return (
+                          <>
+                            <div className="grid grid-cols-1 md:grid-cols-4 gap-2">
                         {/* 节点选择 - 移动端100%，桌面端50% */}
                         <div className="col-span-1 md:col-span-2">
                           <Select
@@ -2124,88 +2143,82 @@ export default function TunnelPage() {
                           <SelectItem key="round">轮询</SelectItem>
                           <SelectItem key="rand">随机</SelectItem>
                         </Select>
-                      </div>
+                            </div>
 
-                      {/* 连接IP - 出口节点 */}
-                      <Select
-                        classNames={{
-                          label: "text-xs",
-                          value: "text-sm",
-                        }}
-                        description="按出口节点共同可用IP选择，留空使用默认"
-                        isDisabled={
-                          (form.outNodeId || []).filter(
-                            (ct) => ct.nodeId !== -1,
-                          ).length === 0 ||
-                          getCommonIpOptions(
-                            (form.outNodeId || [])
-                              .filter((ct) => ct.nodeId !== -1)
-                              .map((ct) => ct.nodeId),
-                          ).length === 0
-                        }
-                        label="连接IP"
-                        placeholder={
-                          (form.outNodeId || []).filter(
-                            (ct) => ct.nodeId !== -1,
-                          ).length === 0
-                            ? "请先选择出口节点"
-                            : getCommonIpOptions(
-                                  (form.outNodeId || [])
-                                    .filter((ct) => ct.nodeId !== -1)
-                                    .map((ct) => ct.nodeId),
-                                ).length > 0
-                              ? "选择连接IP"
-                              : "所选节点无共同可选IP"
-                        }
-                        selectedKeys={[
-                          form.outNodeId && form.outNodeId.length > 0
-                            ? form.outNodeId[0].connectIp || "__default__"
-                            : "__default__",
-                        ]}
-                        size="sm"
-                        variant="bordered"
-                        onSelectionChange={(keys) => {
-                          const selectedKey = Array.from(keys)[0] as string;
-                          const value =
-                            selectedKey === "__default__" ? "" : selectedKey;
+                            {/* 连接IP - 出口节点 */}
+                            <Select
+                              classNames={{
+                                label: "text-xs",
+                                value: "text-sm",
+                              }}
+                              description={
+                                isMultiExit
+                                  ? "多出口隧道不支持设置自定义连接IP，使用各节点默认IP"
+                                  : "按出口节点共同可用IP选择，留空使用默认"
+                              }
+                              isDisabled={
+                                selectedOutNodeIds.length === 0 ||
+                                commonOutIpOptions.length === 0 ||
+                                isMultiExit
+                              }
+                              label="连接IP"
+                              placeholder={
+                                isMultiExit
+                                  ? "多出口隧道使用节点默认IP"
+                                  : selectedOutNodeIds.length === 0
+                                    ? "请先选择出口节点"
+                                    : commonOutIpOptions.length > 0
+                                      ? "选择连接IP"
+                                      : "所选节点无共同可选IP"
+                              }
+                              selectedKeys={[
+                                form.outNodeId && form.outNodeId.length > 0
+                                  ? form.outNodeId[0].connectIp || "__default__"
+                                  : "__default__",
+                              ]}
+                              size="sm"
+                              variant="bordered"
+                              onSelectionChange={(keys) => {
+                                const selectedKey = Array.from(keys)[0] as string;
+                                const value =
+                                  selectedKey === "__default__" ? "" : selectedKey;
 
-                          setForm((prev) => {
-                            const currentOutNodes = prev.outNodeId || [];
+                                setForm((prev) => {
+                                  const currentOutNodes = prev.outNodeId || [];
 
-                            if (currentOutNodes.length === 0) {
-                              return {
-                                ...prev,
-                                outNodeId: [
-                                  {
-                                    nodeId: -1,
-                                    chainType: 3,
-                                    protocol: "tls",
-                                    strategy: "round",
-                                    connectIp: value,
-                                  },
-                                ],
-                              };
-                            }
+                                  if (currentOutNodes.length === 0) {
+                                    return {
+                                      ...prev,
+                                      outNodeId: [
+                                        {
+                                          nodeId: -1,
+                                          chainType: 3,
+                                          protocol: "tls",
+                                          strategy: "round",
+                                          connectIp: value,
+                                        },
+                                      ],
+                                    };
+                                  }
 
-                            return {
-                              ...prev,
-                              outNodeId: currentOutNodes.map((ct) => ({
-                                ...ct,
-                                connectIp: value,
-                              })),
-                            };
-                          });
-                        }}
-                      >
-                        <SelectItem key="__default__">默认连接IP</SelectItem>
-                        {getCommonIpOptions(
-                          (form.outNodeId || [])
-                            .filter((ct) => ct.nodeId !== -1)
-                            .map((ct) => ct.nodeId),
-                        ).map((ip) => (
-                          <SelectItem key={ip}>{ip}</SelectItem>
-                        ))}
-                      </Select>
+                                  return {
+                                    ...prev,
+                                    outNodeId: currentOutNodes.map((ct) => ({
+                                      ...ct,
+                                      connectIp: value,
+                                    })),
+                                  };
+                                });
+                              }}
+                            >
+                              <SelectItem key="__default__">默认连接IP</SelectItem>
+                              {commonOutIpOptions.map((ip) => (
+                                <SelectItem key={ip}>{ip}</SelectItem>
+                              ))}
+                            </Select>
+                          </>
+                        );
+                      })()}
                     </>
                   )}
                 </div>

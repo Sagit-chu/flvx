@@ -456,6 +456,10 @@ func (h *Handler) tunnelCreate(w http.ResponseWriter, r *http.Request) {
 		response.WriteJSON(w, response.ErrDefault("请求参数错误"))
 		return
 	}
+	if err := validateTunnelConnectIPConstraints(req); err != nil {
+		response.WriteJSON(w, response.ErrDefault(err.Error()))
+		return
+	}
 	name := asString(req["name"])
 	if name == "" {
 		response.WriteJSON(w, response.ErrDefault("隧道名称不能为空"))
@@ -661,6 +665,10 @@ func (h *Handler) tunnelUpdate(w http.ResponseWriter, r *http.Request) {
 	var req map[string]interface{}
 	if err := decodeJSON(r.Body, &req); err != nil {
 		response.WriteJSON(w, response.ErrDefault("请求参数错误"))
+		return
+	}
+	if err := validateTunnelConnectIPConstraints(req); err != nil {
+		response.WriteJSON(w, response.ErrDefault(err.Error()))
 		return
 	}
 	id := asInt64(req["id"], 0)
@@ -1145,6 +1153,16 @@ func (h *Handler) forwardCreate(w http.ResponseWriter, r *http.Request) {
 		response.WriteJSON(w, response.ErrDefault("转发名称和目标地址不能为空"))
 		return
 	}
+	if roleID != 0 {
+		if _, ok := req["speedId"]; ok {
+			response.WriteJSON(w, response.Err(-1, "普通用户无法设置限速规则"))
+			return
+		}
+		if _, ok := req["inPort"]; ok {
+			response.WriteJSON(w, response.Err(-1, "普通用户无法设置自定义端口"))
+			return
+		}
+	}
 	speedID := asAnyToInt64Ptr(req["speedId"])
 	speedID, err = h.normalizeSpeedLimitReference(speedID)
 	if err != nil {
@@ -1159,6 +1177,11 @@ func (h *Handler) forwardCreate(w http.ResponseWriter, r *http.Request) {
 		port = 10000
 	}
 	entryNodes, _ := h.tunnelEntryNodeIDs(tunnelID)
+	inIp := strings.TrimSpace(asString(req["inIp"]))
+	if inIp != "" && len(entryNodes) > 1 {
+		response.WriteJSON(w, response.ErrDefault("多入口隧道的转发不支持自定义监听IP"))
+		return
+	}
 	for _, nodeID := range entryNodes {
 		node, nodeErr := h.getNodeRecord(nodeID)
 		if nodeErr != nil {
@@ -1175,7 +1198,6 @@ func (h *Handler) forwardCreate(w http.ResponseWriter, r *http.Request) {
 	if userName == "" {
 		userName = "user"
 	}
-	inIp := strings.TrimSpace(asString(req["inIp"]))
 	forwardID, err := h.repo.CreateForwardTx(userID, userName, name, tunnelID, remoteAddr, defaultString(asString(req["strategy"]), "fifo"), now, inx, entryNodes, port, inIp, nullableInt(speedID))
 	if err != nil {
 		response.WriteJSON(w, response.Err(-2, err.Error()))
@@ -1251,6 +1273,16 @@ func (h *Handler) forwardUpdate(w http.ResponseWriter, r *http.Request) {
 	if strategy == "" {
 		strategy = forward.Strategy
 	}
+	if actorRole != 0 {
+		if _, ok := req["speedId"]; ok {
+			response.WriteJSON(w, response.Err(-1, "普通用户无法修改限速规则"))
+			return
+		}
+		if _, ok := req["inPort"]; ok {
+			response.WriteJSON(w, response.Err(-1, "普通用户无法修改自定义端口"))
+			return
+		}
+	}
 	speedID := asAnyToInt64Ptr(req["speedId"])
 	speedID, err = h.normalizeSpeedLimitReference(speedID)
 	if err != nil {
@@ -1281,6 +1313,10 @@ func (h *Handler) forwardUpdate(w http.ResponseWriter, r *http.Request) {
 		inIp = asString(rawInIP)
 	}
 	fwdEntryNodes, _ := h.tunnelEntryNodeIDs(tunnelID)
+	if hasInIP && strings.TrimSpace(inIp) != "" && len(fwdEntryNodes) > 1 {
+		response.WriteJSON(w, response.ErrDefault("多入口隧道的转发不支持自定义监听IP"))
+		return
+	}
 	for _, nodeID := range fwdEntryNodes {
 		node, nodeErr := h.getNodeRecord(nodeID)
 		if nodeErr != nil {
@@ -2164,6 +2200,32 @@ func buildTunnelInIP(inNodes []tunnelRuntimeNode, nodes map[int64]*nodeRecord, i
 		}
 	}
 	return strings.Join(ordered, ",")
+}
+
+func validateTunnelConnectIPConstraints(req map[string]interface{}) error {
+	outNodes := asMapSlice(req["outNodeId"])
+	if len(outNodes) > 1 {
+		for _, item := range outNodes {
+			if strings.TrimSpace(asString(item["connectIp"])) != "" {
+				return fmt.Errorf("多出口隧道不支持设置自定义连接IP")
+			}
+		}
+	}
+
+	for hopIdx, hopRaw := range asAnySlice(req["chainNodes"]) {
+		hopNodes := asMapSlice(hopRaw)
+		if len(hopNodes) <= 1 {
+			continue
+		}
+
+		for _, item := range hopNodes {
+			if strings.TrimSpace(asString(item["connectIp"])) != "" {
+				return fmt.Errorf("转发链第%d跳有多个节点时不支持设置自定义连接IP", hopIdx+1)
+			}
+		}
+	}
+
+	return nil
 }
 
 func applyTunnelPortsToRequest(req map[string]interface{}, state *tunnelCreateState) {
@@ -3108,10 +3170,11 @@ func (h *Handler) upsertUserTunnel(req map[string]interface{}) error {
 		return fmt.Errorf("userId or tunnelId missing")
 	}
 
-	existingID, currentFlow, currentNum, currentExpTime, currentFlowReset, currentSpeedID, currentStatus, err :=
+	existingID, currentFlow, currentNum, currentExpTime, currentFlowReset, currentSpeedID, currentStatus, lookupErr :=
 		h.repo.GetExistingUserTunnel(userID, tunnelID)
 
 	speedID := asAnyToInt64Ptr(req["speedId"])
+	var err error
 	speedID, err = h.normalizeSpeedLimitReference(speedID)
 	if err != nil {
 		return err
@@ -3123,7 +3186,7 @@ func (h *Handler) upsertUserTunnel(req map[string]interface{}) error {
 	reqFlowReset := asInt64(req["flowResetTime"], -1)
 	reqStatus := asInt(req["status"], -1)
 
-	if err == sql.ErrNoRows {
+	if lookupErr == sql.ErrNoRows {
 		if reqFlow < 0 || reqNum < 0 || reqExpTime < 0 || reqFlowReset < 0 {
 			uFlow, uNum, uExp, uReset, uErr := h.repo.GetUserDefaultsForTunnel(userID)
 			if uErr == nil {
@@ -3176,8 +3239,8 @@ func (h *Handler) upsertUserTunnel(req map[string]interface{}) error {
 
 		return nil
 	}
-	if err != nil {
-		return err
+	if lookupErr != nil {
+		return lookupErr
 	}
 
 	newFlow := currentFlow
