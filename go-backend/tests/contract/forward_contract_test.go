@@ -1097,4 +1097,45 @@ func TestNonAdminCannotSetSpeedIdOrPort(t *testing.T) {
 		router.ServeHTTP(res, req)
 		assertCode(t, res, 0)
 	})
+
+	t.Run("non-admin can create with speedId null and inPort 0", func(t *testing.T) {
+		createPayload := map[string]interface{}{
+			"name":       "perm-forward-null-values",
+			"tunnelId":   tunnelID,
+			"remoteAddr": "1.2.3.4:443",
+			"strategy":   "fifo",
+			"speedId":    nil,
+			"inPort":     0,
+		}
+		createBody, err := json.Marshal(createPayload)
+		if err != nil {
+			t.Fatalf("marshal create payload: %v", err)
+		}
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/forward/create", bytes.NewReader(createBody))
+		req.Header.Set("Authorization", userToken)
+		req.Header.Set("Content-Type", "application/json")
+		res := httptest.NewRecorder()
+		router.ServeHTTP(res, req)
+		assertCode(t, res, 0)
+	})
+
+	t.Run("non-admin can update with speedId null", func(t *testing.T) {
+		updatePayload := map[string]interface{}{
+			"id":         forwardID,
+			"name":       "perm-forward-null-speed",
+			"tunnelId":   tunnelID,
+			"remoteAddr": "9.10.11.12:443",
+			"speedId":    nil,
+		}
+		updateBody, err := json.Marshal(updatePayload)
+		if err != nil {
+			t.Fatalf("marshal update payload: %v", err)
+		}
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/forward/update", bytes.NewReader(updateBody))
+		req.Header.Set("Authorization", userToken)
+		req.Header.Set("Content-Type", "application/json")
+		res := httptest.NewRecorder()
+		router.ServeHTTP(res, req)
+		assertCode(t, res, 0)
+	})
 }

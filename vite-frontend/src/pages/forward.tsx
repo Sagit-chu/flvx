@@ -1426,29 +1426,28 @@ export default function ForwardPage() {
       const speedLimitAutoCleared = isMissingSpeedLimit(form.speedId);
 
       if (isEdit) {
-        // 更新时确保包含必要字段
-        const updateData = {
+        const updateData: ForwardMutationPayload = {
           id: form.id,
           userId: form.userId,
           name: form.name,
           tunnelId: form.tunnelId,
-          inPort: form.inPort,
+          ...(isAdmin ? { inPort: form.inPort } : {}),
           ...(inIpTouched ? { inIp: form.inIp || "" } : {}),
           remoteAddr: processedRemoteAddr,
           strategy: addressCount > 1 ? form.strategy : "fifo",
-          speedId: normalizedSpeedId,
+          ...(isAdmin ? { speedId: normalizedSpeedId } : {}),
         };
 
         res = await updateForward(updateData);
       } else {
-        const createData = {
+        const createData: ForwardMutationPayload = {
           name: form.name,
           tunnelId: form.tunnelId,
-          inPort: form.inPort,
+          ...(isAdmin ? { inPort: form.inPort } : {}),
           inIp: form.inIp || undefined,
           remoteAddr: processedRemoteAddr,
           strategy: addressCount > 1 ? form.strategy : "fifo",
-          speedId: normalizedSpeedId,
+          ...(isAdmin ? { speedId: normalizedSpeedId } : {}),
         };
 
         res = await createForward(createData);

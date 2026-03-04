@@ -1154,13 +1154,16 @@ func (h *Handler) forwardCreate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if roleID != 0 {
-		if _, ok := req["speedId"]; ok {
+		if speedIDVal, ok := req["speedId"]; ok && speedIDVal != nil {
 			response.WriteJSON(w, response.Err(-1, "普通用户无法设置限速规则"))
 			return
 		}
-		if _, ok := req["inPort"]; ok {
-			response.WriteJSON(w, response.Err(-1, "普通用户无法设置自定义端口"))
-			return
+		if inPortVal, ok := req["inPort"]; ok {
+			port := asInt(inPortVal, 0)
+			if port > 0 {
+				response.WriteJSON(w, response.Err(-1, "普通用户无法设置自定义端口"))
+				return
+			}
 		}
 	}
 	speedID := asAnyToInt64Ptr(req["speedId"])
@@ -1274,13 +1277,16 @@ func (h *Handler) forwardUpdate(w http.ResponseWriter, r *http.Request) {
 		strategy = forward.Strategy
 	}
 	if actorRole != 0 {
-		if _, ok := req["speedId"]; ok {
+		if speedIDVal, ok := req["speedId"]; ok && speedIDVal != nil {
 			response.WriteJSON(w, response.Err(-1, "普通用户无法修改限速规则"))
 			return
 		}
-		if _, ok := req["inPort"]; ok {
-			response.WriteJSON(w, response.Err(-1, "普通用户无法修改自定义端口"))
-			return
+		if inPortVal, ok := req["inPort"]; ok {
+			port := asInt(inPortVal, 0)
+			if port > 0 {
+				response.WriteJSON(w, response.Err(-1, "普通用户无法修改自定义端口"))
+				return
+			}
 		}
 	}
 	speedID := asAnyToInt64Ptr(req["speedId"])
