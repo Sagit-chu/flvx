@@ -1,0 +1,17 @@
+转发编辑保存报错create service 3_1_0_tcp failed: listen tcp4 13.228.170.187:16765: bind: cannot assign requested address
+引发条件：当编辑选择入口IP原来是默认地址，选择成和默认地址一样的地址的时候报错
+
+
+---
+
+保持“只要用户选了IP就一定显式绑定”，如果选择的IP后发现端口占用，检测是否是当前转发占用的，如果是那就释放掉，避免原来是默认监听::所有地址后永远无法切换
+
+---
+
+按计划实现
+
+---
+
+节点 test-sg 下发失败: create service 3_1_0_tcp failed: listen tcp4 13.228.170.187:56025: bind: cannot assign requested address
+
+还是不行啊，由默认入口IP创建的转发，然后编辑选择了唯一的一个IP后报错了

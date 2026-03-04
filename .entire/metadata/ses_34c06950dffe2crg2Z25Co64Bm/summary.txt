@@ -1,0 +1,20 @@
+我已经定位到问题点了，确实在后端 `forward/update` 的限速校验会把“已被删除的限速ID”当成硬错误返回，导致你说的二次编辑报 `限速规则不存在`。
+
+**定位结果**
+- 触发点在 `go-backend/internal/http/handler/mutations.go:1259` 附近（`forwardUpdate`）和 `go-backend/internal/http/handler/mutations.go:1147` 附近（`forwardCreate`）。
+- 当前逻辑是：只要请求里带了 `speedId`，且 `SpeedLimitExists=false`，就直接 `ErrDefault("限速规则不存在")` 返回。
+- 前端编辑提交在 `vite-frontend/src/pages/forward.tsx:1403` 会一直带 `speedId`（包括编辑场景），所以很容易复现你说的问题。
+
+**实施计划（不改动其他业务）**
+- 新建计划文档：`plans/006-forward-save-missing-speed-limit-auto-clear.md`（按现有 001~005 递增）。
+- 后端仅改转发保存逻辑，不改用户隧道限速逻辑：
+  - `forwardCreate`：若 `speedId` 不存在，自动当成 `nil`（即“不限速”）继续保存，不返回“限速不存在”错误。
+  - `forwardUpdate`：按“最终要写入的 speed_id”做一次兜底校验；若不存在则自动清空为 `NULL` 再继续保存，确保编辑不阻断。
+- 不新增“限速不存在”阻断提示（符合你要求）。
+- 增加/更新合约测试：`go-backend/tests/contract/forward_contract_test.go`
+  - 覆盖场景：转发绑定限速后，删除该限速，再编辑转发保存，应返回成功且 `forward.speed_id` 被清空。
+- 验证命令（实施后执行）：
+  - `cd go-backend && go test ./tests/contract/... -run Forward`
+  - 如有必要再跑 `cd go-backend && go test ./...`
+
+如果你确认，我下一步就按这个方案进入实现。

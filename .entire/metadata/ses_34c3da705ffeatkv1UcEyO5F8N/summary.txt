@@ -1,0 +1,6 @@
+Tag `2.1.7-beta4` 已在 GitHub 远程创建成功。
+
+**完成摘要：**
+- 提交: `7efb49b` - fix: handle forward service rebind on self-occupied port
+- PR: https://github.com/Sagit-chu/flvx/pull/257 (已合并)
+- Tag: `2.1.7-beta4` 已推送到远程

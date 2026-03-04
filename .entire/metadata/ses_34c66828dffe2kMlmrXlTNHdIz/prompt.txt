@@ -1,0 +1,1 @@
+编辑转发后保存报错 下发失败: create service 3_1_0_tcp failed: listen tcp4 13.228.170.187:16765: bind: cannot assign requested address，这个bug是因为增加了自定义IP功能后导致的，监听IP 不选择就会报错，应该根据原来的监听状态保存

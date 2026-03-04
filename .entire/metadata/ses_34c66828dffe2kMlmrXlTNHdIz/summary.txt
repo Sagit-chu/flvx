@@ -1,0 +1,23 @@
+你这个判断是对的，我已经把链路看清了，确实是“新增自定义监听 IP 后，编辑保存把原监听状态覆盖掉”导致的。
+
+- 前端编辑表单会把 `forward.inIp` 直接回填到 `form.inIp`（`vite-frontend/src/pages/forward.tsx:1302`）。
+- 保存时会把 `form.inIp` 带到更新请求（`vite-frontend/src/pages/forward.tsx:1391`）。
+- 后端更新时无论是否真的改了监听 IP，都会用请求里的 `inIp` 全量重建 `forward_port`（`go-backend/internal/http/handler/mutations.go:1288`、`go-backend/internal/http/handler/mutations.go:1305`、`go-backend/internal/http/handler/mutations.go:3019`）。
+- 而列表里的 `forward.inIp` 可能是“展示回退值”（隧道 IP/节点 IP），不一定是原始 `forward_port.in_ip`（`go-backend/internal/store/repo/repository.go:731`、`go-backend/internal/store/repo/repository.go:2778`、`go-backend/internal/store/repo/repository.go:2780`）。
+- 这样就会在“没手动选监听 IP”时，把服务改成绑定不可用地址，触发 `bind: cannot assign requested address`。
+
+我建议的修复方案（实现时会做成双保险）：
+
+- 前端：编辑模式下仅当用户“主动改过监听 IP”时才提交 `inIp` 字段；未触碰则不传，保持原状态。
+- 后端：`forward/update` 中如果请求没带 `inIp`，就保留原 `forward_port.in_ip`（不清空、不覆盖）；若带了 `inIp`（包括空串），按用户意图更新。
+- 回归测试：
+  - 后端新增用例：未传 `inIp` 时更新不改变监听绑定。
+  - 后端新增用例：显式传空串时清空监听绑定。
+  - （可选）前端补充一个轻量逻辑测试/至少手工验证路径。
+
+另外按仓库规则，这次会新增计划文档为：`plans/003-forward-edit-bind-ip-preserve.md`（当前是只读 Plan Mode，我还没动文件）。
+
+一个需要你拍板的小点（我给默认建议）：
+- **推荐默认**：编辑时如果改了隧道但没有手动选“监听IP”，按“默认监听（空）”处理，不继承旧隧道的监听 IP。  
+  这样能避免把旧隧道的 IP 误带到新隧道。  
+  你是否同意按这个规则？

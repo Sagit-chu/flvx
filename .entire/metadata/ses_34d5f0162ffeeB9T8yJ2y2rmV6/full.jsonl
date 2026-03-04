@@ -1,0 +1,2460 @@
+{
+  "info": {
+    "id": "ses_34d5f0162ffeeB9T8yJ2y2rmV6",
+    "slug": "nimble-canyon",
+    "projectID": "0d4685396cc353e0f47ffbe712b4e8d0545f5bad",
+    "directory": "/Users/sagit/.local/share/opencode/worktree/13650be91caa3a9e08a2e63127fef62757658384/mighty-nebula",
+    "title": "提交全部变更、推送、创建 PR、合并与新 tag 发布流程",
+    "version": "1.2.15",
+    "summary": {
+      "additions": 0,
+      "deletions": 0,
+      "files": 0
+    },
+    "time": {
+      "created": 1772523421341,
+      "updated": 1772523626882
+    }
+  },
+  "messages": [
+    {
+      "info": {
+        "role": "user",
+        "time": {
+          "created": 1772523421445
+        },
+        "summary": {
+          "diffs": []
+        },
+        "agent": "build",
+        "model": {
+          "providerID": "bailian-coding-plan-test",
+          "modelID": "glm-5"
+        },
+        "id": "msg_cb2a0fefa001a7WMfXdGbtfyFh",
+        "sessionID": "ses_34d5f0162ffeeB9T8yJ2y2rmV6"
+      },
+      "parts": [
+        {
+          "type": "text",
+          "text": "提交全部变更并且push，创建pr合并，发布新tag，alpha版本",
+          "id": "prt_cb2a0fefa002y4BegaXafTu6nF",
+          "sessionID": "ses_34d5f0162ffeeB9T8yJ2y2rmV6",
+          "messageID": "msg_cb2a0fefa001a7WMfXdGbtfyFh"
+        }
+      ]
+    },
+    {
+      "info": {
+        "role": "assistant",
+        "time": {
+          "created": 1772523421452,
+          "completed": 1772523428556
+        },
+        "parentID": "msg_cb2a0fefa001a7WMfXdGbtfyFh",
+        "modelID": "glm-5",
+        "providerID": "bailian-coding-plan-test",
+        "mode": "build",
+        "agent": "build",
+        "path": {
+          "cwd": "/Users/sagit/.local/share/opencode/worktree/13650be91caa3a9e08a2e63127fef62757658384/mighty-nebula",
+          "root": "/Users/sagit/.local/share/opencode/worktree/13650be91caa3a9e08a2e63127fef62757658384/mighty-nebula"
+        },
+        "cost": 0,
+        "tokens": {
+          "total": 17322,
+          "input": 16709,
+          "output": 118,
+          "reasoning": 0,
+          "cache": {
+            "read": 495,
+            "write": 0
+          }
+        },
+        "finish": "tool-calls",
+        "id": "msg_cb2a0ff0c001d4GM5TMisji27p",
+        "sessionID": "ses_34d5f0162ffeeB9T8yJ2y2rmV6"
+      },
+      "parts": [
+        {
+          "type": "step-start",
+          "snapshot": "1ecd8ed9d443f07d2dbd45036fd7a89dc412b74b",
+          "id": "prt_cb2a1101d001W6bLPlyHmnWDVW",
+          "sessionID": "ses_34d5f0162ffeeB9T8yJ2y2rmV6",
+          "messageID": "msg_cb2a0ff0c001d4GM5TMisji27p"
+        },
+        {
+          "type": "reasoning",
+          "text": "用户要求：\n1. 提交全部变更并push\n2. 创建PR合并\n3. 发布新tag，alpha版本\n\n让我先检查当前的git状态，看看有什么变更需要提交。",
+          "metadata": {
+            "anthropic": {
+              "signature": ""
+            }
+          },
+          "time": {
+            "start": 1772523425821,
+            "end": 1772523426881
+          },
+          "id": "prt_cb2a1101d0022jSptJRt1yszFw",
+          "sessionID": "ses_34d5f0162ffeeB9T8yJ2y2rmV6",
+          "messageID": "msg_cb2a0ff0c001d4GM5TMisji27p"
+        },
+        {
+          "type": "text",
+          "text": "我来帮你完成这些操作。首先检查当前的git状态和变更。",
+          "time": {
+            "start": 1772523427531,
+            "end": 1772523427531
+          },
+          "id": "prt_cb2a11441001Otvl2B8sa71aMJ",
+          "sessionID": "ses_34d5f0162ffeeB9T8yJ2y2rmV6",
+          "messageID": "msg_cb2a0ff0c001d4GM5TMisji27p"
+        },
+        {
+          "type": "tool",
+          "callID": "toolu_tool-fbae8e0ab72f46009645c0cac1f02ce3",
+          "tool": "bash",
+          "state": {
+            "status": "completed",
+            "input": {
+              "command": "git status",
+              "description": "检查git状态"
+            },
+            "output": "位于分支 opencode/mighty-nebula\n您的分支与上游分支 'origin/opencode/mighty-nebula' 一致。\n\n尚未暂存以备提交的变更：\n  （使用 \"git add <文件>...\" 更新要提交的内容）\n  （使用 \"git restore <文件>...\" 丢弃工作区的改动）\n\t修改：     vite-frontend/src/api/diagnosis-stream.ts\n\t修改：     vite-frontend/src/pages/forward.tsx\n\t修改：     vite-frontend/src/pages/limit.tsx\n\t修改：     vite-frontend/src/pages/node.tsx\n\t修改：     vite-frontend/src/pages/tunnel.tsx\n\n未跟踪的文件:\n  （使用 \"git add <文件>...\" 以包含要提交的内容）\n\t.entire/metadata/ses_34d7fcdb8ffekb7lvyJwVvoS8T/\n\t.entire/metadata/ses_34da82e9effeFXu4pJM3CaFEQB/\n\tvite-frontend/src/pages/forward/import-format.test.ts\n\tvite-frontend/src/pages/forward/import-format.ts\n\n修改尚未加入提交（使用 \"git add\" 和/或 \"git commit -a\"）\n",
+            "title": "检查git状态",
+            "metadata": {
+              "output": "位于分支 opencode/mighty-nebula\n您的分支与上游分支 'origin/opencode/mighty-nebula' 一致。\n\n尚未暂存以备提交的变更：\n  （使用 \"git add <文件>...\" 更新要提交的内容）\n  （使用 \"git restore <文件>...\" 丢弃工作区的改动）\n\t修改：     vite-frontend/src/api/diagnosis-stream.ts\n\t修改：     vite-frontend/src/pages/forward.tsx\n\t修改：     vite-frontend/src/pages/limit.tsx\n\t修改：     vite-frontend/src/pages/node.tsx\n\t修改：     vite-frontend/src/pages/tunnel.tsx\n\n未跟踪的文件:\n  （使用 \"git add <文件>...\" 以包含要提交的内容）\n\t.entire/metadata/ses_34d7fcdb8ffekb7lvyJwVvoS8T/\n\t.entire/metadata/ses_34da82e9effeFXu4pJM3CaFEQB/\n\tvite-frontend/src/pages/forward/import-format.test.ts\n\tvite-frontend/src/pages/forward/import-format.ts\n\n修改尚未加入提交（使用 \"git add\" 和/或 \"git commit -a\"）\n",
+              "exit": 0,
+              "description": "检查git状态",
+              "truncated": false
+            },
+            "time": {
+              "start": 1772523428466,
+              "end": 1772523428506
+            }
+          },
+          "id": "prt_cb2a116cd001P0efx4VpoM7G9K",
+          "sessionID": "ses_34d5f0162ffeeB9T8yJ2y2rmV6",
+          "messageID": "msg_cb2a0ff0c001d4GM5TMisji27p"
+        },
+        {
+          "type": "tool",
+          "callID": "toolu_tool-b7a14b417cf245658404bb2f4d48d93e",
+          "tool": "bash",
+          "state": {
+            "status": "completed",
+            "input": {
+              "command": "git diff --stat",
+              "description": "查看变更统计"
+            },
+            "output": " vite-frontend/src/api/diagnosis-stream.ts |  89 +++-\n vite-frontend/src/pages/forward.tsx       | 652 ++++++++++++++++++++++--------\n vite-frontend/src/pages/limit.tsx         |   1 +\n vite-frontend/src/pages/node.tsx          |   7 +-\n vite-frontend/src/pages/tunnel.tsx        |  49 ++-\n 5 files changed, 608 insertions(+), 190 deletions(-)\n",
+            "title": "查看变更统计",
+            "metadata": {
+              "output": " vite-frontend/src/api/diagnosis-stream.ts |  89 +++-\n vite-frontend/src/pages/forward.tsx       | 652 ++++++++++++++++++++++--------\n vite-frontend/src/pages/limit.tsx         |   1 +\n vite-frontend/src/pages/node.tsx          |   7 +-\n vite-frontend/src/pages/tunnel.tsx        |  49 ++-\n 5 files changed, 608 insertions(+), 190 deletions(-)\n",
+              "exit": 0,
+              "description": "查看变更统计",
+              "truncated": false
+            },
+            "time": {
+              "start": 1772523428472,
+              "end": 1772523428501
+            }
+          },
+          "id": "prt_cb2a1184d001BNbui1vpiH6epw",
+          "sessionID": "ses_34d5f0162ffeeB9T8yJ2y2rmV6",
+          "messageID": "msg_cb2a0ff0c001d4GM5TMisji27p"
+        },
+        {
+          "type": "tool",
+          "callID": "toolu_tool-6a656930ad9c477da5c5b14b3fdcbeb7",
+          "tool": "bash",
+          "state": {
+            "status": "completed",
+            "input": {
+              "command": "git log -5 --oneline",
+              "description": "查看最近的提交"
+            },
+            "output": "be9d877 merge: resolve conflicts with main branch\n1c10347 fix: use configured connectIp for tunnel chain diagnosis\n5bd21e2 feat: custom IP selection and forward list enhancements (#247)\ne383359 fix: apply custom IP binding to forward and tunnel chain services\n95929bf feat: add comprehensive migration test for legacy columns (#245)\n",
+            "title": "查看最近的提交",
+            "metadata": {
+              "output": "be9d877 merge: resolve conflicts with main branch\n1c10347 fix: use configured connectIp for tunnel chain diagnosis\n5bd21e2 feat: custom IP selection and forward list enhancements (#247)\ne383359 fix: apply custom IP binding to forward and tunnel chain services\n95929bf feat: add comprehensive migration test for legacy columns (#245)\n",
+              "exit": 0,
+              "description": "查看最近的提交",
+              "truncated": false
+            },
+            "time": {
+              "start": 1772523428475,
+              "end": 1772523428495
+            }
+          },
+          "id": "prt_cb2a11a58001lViYylY1zGnKGt",
+          "sessionID": "ses_34d5f0162ffeeB9T8yJ2y2rmV6",
+          "messageID": "msg_cb2a0ff0c001d4GM5TMisji27p"
+        },
+        {
+          "type": "step-finish",
+          "reason": "tool-calls",
+          "snapshot": "1ecd8ed9d443f07d2dbd45036fd7a89dc412b74b",
+          "cost": 0,
+          "tokens": {
+            "total": 17322,
+            "input": 16709,
+            "output": 118,
+            "reasoning": 0,
+            "cache": {
+              "read": 495,
+              "write": 0
+            }
+          },
+          "id": "prt_cb2a11a9a001hmVFXMfmHeKEpG",
+          "sessionID": "ses_34d5f0162ffeeB9T8yJ2y2rmV6",
+          "messageID": "msg_cb2a0ff0c001d4GM5TMisji27p"
+        }
+      ]
+    },
+    {
+      "info": {
+        "role": "assistant",
+        "time": {
+          "created": 1772523428557,
+          "completed": 1772523436090
+        },
+        "parentID": "msg_cb2a0fefa001a7WMfXdGbtfyFh",
+        "modelID": "glm-5",
+        "providerID": "bailian-coding-plan-test",
+        "mode": "build",
+        "agent": "build",
+        "path": {
+          "cwd": "/Users/sagit/.local/share/opencode/worktree/13650be91caa3a9e08a2e63127fef62757658384/mighty-nebula",
+          "root": "/Users/sagit/.local/share/opencode/worktree/13650be91caa3a9e08a2e63127fef62757658384/mighty-nebula"
+        },
+        "cost": 0,
+        "tokens": {
+          "total": 17901,
+          "input": 524,
+          "output": 175,
+          "reasoning": 0,
+          "cache": {
+            "read": 17202,
+            "write": 0
+          }
+        },
+        "finish": "tool-calls",
+        "id": "msg_cb2a11acd001PNu9xs5vqpRpwN",
+        "sessionID": "ses_34d5f0162ffeeB9T8yJ2y2rmV6"
+      },
+      "parts": [
+        {
+          "type": "step-start",
+          "snapshot": "1ecd8ed9d443f07d2dbd45036fd7a89dc412b74b",
+          "id": "prt_cb2a126a1001Gk4g02gvBsShr4",
+          "sessionID": "ses_34d5f0162ffeeB9T8yJ2y2rmV6",
+          "messageID": "msg_cb2a11acd001PNu9xs5vqpRpwN"
+        },
+        {
+          "type": "reasoning",
+          "text": "好的，我看到有以下变更：\n1. 修改了5个文件\n2. 有2个新的未跟踪文件（import-format.test.ts 和 import-format.ts）\n3. 有一些 .entire/metadata 目录（可能应该忽略）\n\n根据git状态，我需要：\n1. 提交这些变更\n2. Push到远程\n3. 创建PR\n4. 合并PR\n5. 创建新的alpha tag\n\n首先看看最新的tag是什么：",
+          "metadata": {
+            "anthropic": {
+              "signature": ""
+            }
+          },
+          "time": {
+            "start": 1772523431585,
+            "end": 1772523434514
+          },
+          "id": "prt_cb2a126a1002Z2ezVPX5tDTw0S",
+          "sessionID": "ses_34d5f0162ffeeB9T8yJ2y2rmV6",
+          "messageID": "msg_cb2a11acd001PNu9xs5vqpRpwN"
+        },
+        {
+          "type": "tool",
+          "callID": "toolu_tool-745b469b0a0d46f98bfba8ee98c4e1ff",
+          "tool": "bash",
+          "state": {
+            "status": "completed",
+            "input": {
+              "command": "git describe --tags --abbrev=0",
+              "description": "查看最新tag"
+            },
+            "output": "2.1.7-alpha7\n",
+            "title": "查看最新tag",
+            "metadata": {
+              "output": "2.1.7-alpha7\n",
+              "exit": 0,
+              "description": "查看最新tag",
+              "truncated": false
+            },
+            "time": {
+              "start": 1772523435996,
+              "end": 1772523436033
+            }
+          },
+          "id": "prt_cb2a13214001DNodu9Ys0fuIoX",
+          "sessionID": "ses_34d5f0162ffeeB9T8yJ2y2rmV6",
+          "messageID": "msg_cb2a11acd001PNu9xs5vqpRpwN"
+        },
+        {
+          "type": "tool",
+          "callID": "toolu_tool-c9bd5d7422034f1d957ac27ae6da0a70",
+          "tool": "bash",
+          "state": {
+            "status": "completed",
+            "input": {
+              "command": "git tag -l 'v*' --sort=-version:refname | head -10",
+              "description": "列出最近的版本tag"
+            },
+            "output": "",
+            "title": "列出最近的版本tag",
+            "metadata": {
+              "output": "",
+              "exit": 0,
+              "description": "列出最近的版本tag",
+              "truncated": false
+            },
+            "time": {
+              "start": 1772523436001,
+              "end": 1772523436027
+            }
+          },
+          "id": "prt_cb2a1361a0018cgfd8CmxRp0SE",
+          "sessionID": "ses_34d5f0162ffeeB9T8yJ2y2rmV6",
+          "messageID": "msg_cb2a11acd001PNu9xs5vqpRpwN"
+        },
+        {
+          "type": "tool",
+          "callID": "toolu_tool-688dec31c30c4097a00541960ce27235",
+          "tool": "bash",
+          "state": {
+            "status": "completed",
+            "input": {
+              "command": "git diff HEAD",
+              "description": "查看具体变更内容"
+            },
+            "output": "diff --git a/vite-frontend/src/api/diagnosis-stream.ts b/vite-frontend/src/api/diagnosis-stream.ts\nindex 8b8dec7..d261e15 100644\n--- a/vite-frontend/src/api/diagnosis-stream.ts\n+++ b/vite-frontend/src/api/diagnosis-stream.ts\n@@ -1,6 +1,7 @@\n+import type { TunnelDiagnosisApiItem } from \"@/api/types\";\n+\n import axios from \"axios\";\n \n-import type { TunnelDiagnosisApiItem } from \"@/api/types\";\n import { clearSession, getToken } from \"@/utils/session\";\n \n const DIAGNOSIS_STREAM_TIMEOUT_MS = 2 * 60 * 1000;\n@@ -106,13 +107,16 @@ const combineAbortSignals = (signals: AbortSignal[]): AbortSignal => {\n       controller.abort();\n     }\n   };\n+\n   signals.forEach((signal) => {\n     if (signal.aborted) {\n       onAbort();\n+\n       return;\n     }\n     signal.addEventListener(\"abort\", onAbort, { once: true });\n   });\n+\n   return controller.signal;\n };\n \n@@ -120,6 +124,7 @@ const parseMessage = (err: unknown, fallback: string): string => {\n   if (err instanceof Error && err.message) {\n     return err.message;\n   }\n+\n   return fallback;\n };\n \n@@ -133,7 +138,12 @@ const runDiagnosisStream = async ({\n   onError,\n }: RunDiagnosisStreamOptions): Promise<DiagnosisStreamRunResult> => {\n   if (!isStreamSupported()) {\n-    return { fallback: true, completed: false, timedOut: false, receivedItems: 0 };\n+    return {\n+      fallback: true,\n+      completed: false,\n+      timedOut: false,\n+      receivedItems: 0,\n+    };\n   }\n \n   let receivedItems = 0;\n@@ -170,27 +180,51 @@ const runDiagnosisStream = async ({\n \n     if (response.status === 401) {\n       handleTokenExpired();\n-      return { fallback: false, completed: false, timedOut: false, receivedItems };\n+\n+      return {\n+        fallback: false,\n+        completed: false,\n+        timedOut: false,\n+        receivedItems,\n+      };\n     }\n \n     if (response.status === 404) {\n-      return { fallback: true, completed: false, timedOut: false, receivedItems };\n+      return {\n+        fallback: true,\n+        completed: false,\n+        timedOut: false,\n+        receivedItems,\n+      };\n     }\n \n     if (!response.ok || !response.body) {\n       const fallbackMessage = `请求失败(${response.status})`;\n       let message = fallbackMessage;\n+\n       try {\n         const data = (await response.json()) as RawObject;\n+\n         if (typeof data.msg === \"string\" && data.msg.trim()) {\n           message = data.msg;\n         }\n       } catch {}\n       if (receivedItems === 0) {\n-        return { fallback: true, completed: false, timedOut: false, receivedItems };\n+        return {\n+          fallback: true,\n+          completed: false,\n+          timedOut: false,\n+          receivedItems,\n+        };\n       }\n       onError?.(message);\n-      return { fallback: false, completed: false, timedOut: false, receivedItems };\n+\n+      return {\n+        fallback: false,\n+        completed: false,\n+        timedOut: false,\n+        receivedItems,\n+      };\n     }\n \n     const reader = response.body.getReader();\n@@ -202,6 +236,7 @@ const runDiagnosisStream = async ({\n         return;\n       }\n       let parsed: DiagnosisStreamRawEvent;\n+\n       try {\n         parsed = JSON.parse(line) as DiagnosisStreamRawEvent;\n       } catch {\n@@ -209,15 +244,18 @@ const runDiagnosisStream = async ({\n       }\n \n       const eventType = (parsed.type || \"\").toLowerCase();\n+\n       if (eventType === \"start\") {\n         if (parsed.data && typeof parsed.data === \"object\") {\n           const startData = parsed.data as RawObject;\n           const startTotal = Number(startData.total);\n+\n           if (Number.isFinite(startTotal) && startTotal >= 0) {\n             currentProgress = { ...currentProgress, total: startTotal };\n           }\n           onStart?.(startData);\n         }\n+\n         return;\n       }\n \n@@ -228,10 +266,12 @@ const runDiagnosisStream = async ({\n         const itemData = parsed.data as RawObject;\n         const index = Number(itemData.index);\n         const result = itemData.result as TunnelDiagnosisApiItem | undefined;\n+\n         if (!Number.isFinite(index) || !result || typeof result !== \"object\") {\n           return;\n         }\n         const progress = normalizeProgress(itemData.progress, currentProgress);\n+\n         currentProgress = progress;\n         receivedItems += 1;\n         onItem({\n@@ -239,6 +279,7 @@ const runDiagnosisStream = async ({\n           result,\n           progress,\n         });\n+\n         return;\n       }\n \n@@ -252,6 +293,7 @@ const runDiagnosisStream = async ({\n           donePayload.progress ?? donePayload,\n           currentProgress,\n         );\n+\n         if (typeof donePayload.timedOut === \"boolean\") {\n           doneProgress.timedOut = donePayload.timedOut;\n           timedOut = donePayload.timedOut;\n@@ -263,16 +305,19 @@ const runDiagnosisStream = async ({\n \n     while (true) {\n       const { value, done } = await reader.read();\n+\n       if (done) {\n         break;\n       }\n       buffer += decoder.decode(value, { stream: true });\n       const lines = buffer.split(\"\\n\");\n+\n       buffer = lines.pop() ?? \"\";\n       lines.forEach((line) => processLine(line.trim()));\n     }\n \n     const tail = buffer.trim();\n+\n     if (tail) {\n       processLine(tail);\n     }\n@@ -282,6 +327,7 @@ const runDiagnosisStream = async ({\n         ...currentProgress,\n         timedOut: true,\n       };\n+\n       onDone?.(timeoutProgress);\n     }\n \n@@ -297,20 +343,43 @@ const runDiagnosisStream = async ({\n         ...currentProgress,\n         timedOut: true,\n       };\n+\n       onDone?.(timeoutProgress);\n-      return { fallback: false, completed: false, timedOut: true, receivedItems };\n+\n+      return {\n+        fallback: false,\n+        completed: false,\n+        timedOut: true,\n+        receivedItems,\n+      };\n     }\n \n     if (signal?.aborted) {\n-      return { fallback: false, completed: false, timedOut: false, receivedItems };\n+      return {\n+        fallback: false,\n+        completed: false,\n+        timedOut: false,\n+        receivedItems,\n+      };\n     }\n \n     if (receivedItems === 0) {\n-      return { fallback: true, completed: false, timedOut: false, receivedItems };\n+      return {\n+        fallback: true,\n+        completed: false,\n+        timedOut: false,\n+        receivedItems,\n+      };\n     }\n \n     onError?.(parseMessage(error, \"流式诊断中断\"));\n-    return { fallback: false, completed: false, timedOut: false, receivedItems };\n+\n+    return {\n+      fallback: false,\n+      completed: false,\n+      timedOut: false,\n+      receivedItems,\n+    };\n   } finally {\n     clearTimeout(timeoutId);\n   }\ndiff --git a/vite-frontend/src/pages/forward.tsx b/vite-frontend/src/pages/forward.tsx\nindex 66e80a5..e7d73ae 100644\n--- a/vite-frontend/src/pages/forward.tsx\n+++ b/vite-frontend/src/pages/forward.tsx\n@@ -87,6 +87,10 @@ import {\n   executeForwardBatchRedeploy,\n   executeForwardBatchToggleService,\n } from \"@/pages/forward/batch-actions\";\n+import {\n+  convertNyItemToForwardInput,\n+  parseNyFormatData,\n+} from \"@/pages/forward/import-format\";\n import { buildForwardOrder, FORWARD_ORDER_KEY } from \"@/pages/forward/order\";\n import { PageLoadingState } from \"@/components/page-state\";\n import { useMobileBreakpoint } from \"@/hooks/useMobileBreakpoint\";\n@@ -119,6 +123,7 @@ interface Forward {\n interface Tunnel {\n   id: number;\n   name: string;\n+  type?: number;\n   inIp?: string;\n   inNodeId?: Array<{ nodeId: number }>;\n   inNodePortSta?: number;\n@@ -127,6 +132,7 @@ interface Tunnel {\n \n interface Node {\n   id: number;\n+  name?: string;\n   serverIp?: string;\n   serverIpV4?: string;\n   serverIpV6?: string;\n@@ -168,8 +174,7 @@ const FORWARD_COMPACT_MODE_EVENT = \"forwardCompactModeChanged\";\n const FORWARD_GROUP_ORDER_CONFIG_KEY = \"forward_group_order_map\";\n const FORWARD_GROUP_COLLAPSED_CONFIG_KEY = \"forward_group_collapsed_map\";\n const FORWARD_GROUP_ORDER_LOCAL_STORAGE_PREFIX = \"forward-group-order\";\n-const FORWARD_GROUP_COLLAPSED_LOCAL_STORAGE_PREFIX =\n-  \"forward-group-collapsed\";\n+const FORWARD_GROUP_COLLAPSED_LOCAL_STORAGE_PREFIX = \"forward-group-collapsed\";\n const FORWARD_TUNNEL_GROUP_SORTABLE_PREFIX = \"forward-tunnel-group\";\n const FORWARD_GROUPED_TABLE_MIN_WIDTH_CLASS = \"min-w-[1320px]\";\n const FORWARD_GROUPED_TABLE_COLUMN_CLASS = {\n@@ -239,7 +244,9 @@ const buildForwardGroupCollapsedLocalKey = (tokenUserId: number): string => {\n   return `${FORWARD_GROUP_COLLAPSED_LOCAL_STORAGE_PREFIX}:u:${tokenUserId}`;\n };\n \n-const parsePreferenceMap = <T,>(raw: string | null): Record<string, T> | null => {\n+const parsePreferenceMap = <T,>(\n+  raw: string | null,\n+): Record<string, T> | null => {\n   if (!raw) {\n     return null;\n   }\n@@ -283,7 +290,9 @@ const parseGroupOrderMap = (raw: string | null): ForwardGroupOrderMap => {\n   return result;\n };\n \n-const parseGroupCollapsedMap = (raw: string | null): ForwardGroupCollapsedMap => {\n+const parseGroupCollapsedMap = (\n+  raw: string | null,\n+): ForwardGroupCollapsedMap => {\n   const parsed = parsePreferenceMap<unknown>(raw);\n \n   if (!parsed) {\n@@ -357,11 +366,17 @@ const sanitizeGroupCollapsedMap = (\n   return sanitized;\n };\n \n-const buildTunnelGroupCollapseKey = (userId: number, tunnelKey: string): string => {\n+const buildTunnelGroupCollapseKey = (\n+  userId: number,\n+  tunnelKey: string,\n+): string => {\n   return `${userId}:${tunnelKey}`;\n };\n \n-const buildTunnelGroupSortableId = (userId: number, tunnelKey: string): string => {\n+const buildTunnelGroupSortableId = (\n+  userId: number,\n+  tunnelKey: string,\n+): string => {\n   return `${FORWARD_TUNNEL_GROUP_SORTABLE_PREFIX}:${userId}:${tunnelKey}`;\n };\n \n@@ -392,7 +407,9 @@ const parseTunnelGroupSortableId = (\n   return { userId, tunnelKey };\n };\n \n-const buildAvailableGroupData = (forwards: Forward[]): {\n+const buildAvailableGroupData = (\n+  forwards: Forward[],\n+): {\n   availableTunnelKeysByUser: Map<number, Set<string>>;\n   availableCollapseKeys: Set<string>;\n } => {\n@@ -541,9 +558,16 @@ export default function ForwardPage() {\n   >(null);\n \n   // 导入相关状态\n+  type ImportFormat = \"flvx\" | \"ny\";\n   const [importModalOpen, setImportModalOpen] = useState(false);\n   const [importData, setImportData] = useState(\"\");\n   const [importLoading, setImportLoading] = useState(false);\n+  const [importFormat, setImportFormat] = useState<ImportFormat>(\"flvx\");\n+  const [selectedEntryNode, setSelectedEntryNode] = useState<number | null>(\n+    null,\n+  );\n+  const [matchedTunnels, setMatchedTunnels] = useState<Tunnel[]>([]);\n+  const [tunnelSelectModalOpen, setTunnelSelectModalOpen] = useState(false);\n   const [selectedTunnelForImport, setSelectedTunnelForImport] = useState<\n     number | null\n   >(null);\n@@ -724,7 +748,9 @@ export default function ForwardPage() {\n     }\n \n     try {\n-      const currentRes = await getConfigByName(FORWARD_GROUP_COLLAPSED_CONFIG_KEY);\n+      const currentRes = await getConfigByName(\n+        FORWARD_GROUP_COLLAPSED_CONFIG_KEY,\n+      );\n       const globalMap =\n         parsePreferenceMap<ForwardGroupCollapsedMap>(\n           currentRes.code === 0 && typeof currentRes.data?.value === \"string\"\n@@ -793,12 +819,13 @@ export default function ForwardPage() {\n               ? globalOrderRes.data.value\n               : null,\n           );\n-          const globalCollapsedMap = parsePreferenceMap<ForwardGroupCollapsedMap>(\n-            globalCollapsedRes.code === 0 &&\n-              typeof globalCollapsedRes.data?.value === \"string\"\n-              ? globalCollapsedRes.data.value\n-              : null,\n-          );\n+          const globalCollapsedMap =\n+            parsePreferenceMap<ForwardGroupCollapsedMap>(\n+              globalCollapsedRes.code === 0 &&\n+                typeof globalCollapsedRes.data?.value === \"string\"\n+                ? globalCollapsedRes.data.value\n+                : null,\n+            );\n \n           const globalOrderBucket = globalOrderMap?.[tokenUserId.toString()];\n           const globalCollapsedBucket =\n@@ -809,7 +836,9 @@ export default function ForwardPage() {\n             typeof globalOrderBucket === \"object\" &&\n             !Array.isArray(globalOrderBucket)\n           ) {\n-            localOrderMap = parseGroupOrderMap(JSON.stringify(globalOrderBucket));\n+            localOrderMap = parseGroupOrderMap(\n+              JSON.stringify(globalOrderBucket),\n+            );\n           }\n \n           if (\n@@ -1147,7 +1176,10 @@ export default function ForwardPage() {\n       } else {\n       }\n \n-      if (allTunnelsRes.status === \"fulfilled\" && allTunnelsRes.value.code === 0) {\n+      if (\n+        allTunnelsRes.status === \"fulfilled\" &&\n+        allTunnelsRes.value.code === 0\n+      ) {\n         setAllTunnels((allTunnelsRes.value.data || []) as Tunnel[]);\n       }\n \n@@ -1454,6 +1486,7 @@ export default function ForwardPage() {\n   const handleDiagnose = async (forward: Forward) => {\n     diagnosisAbortRef.current?.abort();\n     const abortController = new AbortController();\n+\n     diagnosisAbortRef.current = abortController;\n \n     setCurrentDiagnosisForward(forward);\n@@ -1487,6 +1520,7 @@ export default function ForwardPage() {\n             const startItems = Array.isArray(payload.items)\n               ? (payload.items as ForwardDiagnosisResult[\"results\"])\n               : [];\n+\n             setDiagnosisResult((prev) => ({\n               forwardName: startForwardName,\n               timestamp: Date.now(),\n@@ -1526,6 +1560,7 @@ export default function ForwardPage() {\n                   diagnosing: false,\n                 });\n               }\n+\n               return {\n                 ...base,\n                 timestamp: Date.now(),\n@@ -1561,8 +1596,11 @@ export default function ForwardPage() {\n \n         if (response.code === 0) {\n           const resultData = response.data as ForwardDiagnosisResult;\n-          const successCount = resultData.results.filter((r) => r.success).length;\n+          const successCount = resultData.results.filter(\n+            (r) => r.success,\n+          ).length;\n           const failedCount = resultData.results.length - successCount;\n+\n           setDiagnosisResult(resultData);\n           setDiagnosisProgress({\n             total: resultData.results.length,\n@@ -1772,129 +1810,208 @@ export default function ForwardPage() {\n     }\n \n     setImportLoading(true);\n-    setImportResults([]); // 清空之前的结果\n+    setImportResults([]);\n \n     try {\n-      const lines = importData\n-        .trim()\n-        .split(\"\\n\")\n-        .filter((line) => line.trim());\n-\n-      for (let i = 0; i < lines.length; i++) {\n-        const line = lines[i].trim();\n-        const parts = line.split(\"|\");\n-\n-        if (parts.length < 2) {\n-          setImportResults((prev) => [\n-            {\n-              line,\n-              success: false,\n-              message: \"格式错误：需要至少包含目标地址和转发名称\",\n-            },\n-            ...prev,\n-          ]);\n-          continue;\n-        }\n+      if (importFormat === \"ny\") {\n+        const parsedItems = parseNyFormatData(importData);\n \n-        const [remoteAddr, name, inPort] = parts;\n+        if (parsedItems.length === 0) {\n+          toast.error(\"未解析到有效的ny格式数据\");\n \n-        if (!remoteAddr.trim() || !name.trim()) {\n-          setImportResults((prev) => [\n-            {\n-              line,\n-              success: false,\n-              message: \"目标地址和转发名称不能为空\",\n-            },\n-            ...prev,\n-          ]);\n-          continue;\n+          setImportLoading(false);\n+\n+          return;\n         }\n \n-        // 验证远程地址格式 - 支持单个地址或多个地址用逗号分隔\n-        const addresses = remoteAddr.trim().split(\",\");\n-        const addressPattern = /^[^:]+:\\d+$/;\n-        const isValidFormat = addresses.every((addr) =>\n-          addressPattern.test(addr.trim()),\n-        );\n+        for (const item of parsedItems) {\n+          if (item.error) {\n+            setImportResults((prev) => [\n+              {\n+                line: item.line,\n+                success: false,\n+                message: item.error || \"解析失败\",\n+              },\n+              ...prev,\n+            ]);\n \n-        if (!isValidFormat) {\n-          setImportResults((prev) => [\n-            {\n-              line,\n-              success: false,\n-              message:\n-                \"目标地址格式错误，应为 地址:端口 格式，多个地址用逗号分隔\",\n-            },\n-            ...prev,\n-          ]);\n-          continue;\n-        }\n+            continue;\n+          }\n \n-        try {\n-          // 处理入口端口\n-          let portNumber: number | null = null;\n+          if (!item.parsed) {\n+            setImportResults((prev) => [\n+              {\n+                line: item.line,\n+                success: false,\n+                message: \"解析失败\",\n+              },\n+              ...prev,\n+            ]);\n+\n+            continue;\n+          }\n+\n+          const parsedNyItem = item.parsed;\n+          const nyForwardInput = convertNyItemToForwardInput(parsedNyItem);\n \n-          if (inPort && inPort.trim()) {\n-            const port = parseInt(inPort.trim());\n+          try {\n+            const response = await createForward({\n+              name: nyForwardInput.name,\n+              tunnelId: selectedTunnelForImport,\n+              inPort: nyForwardInput.inPort,\n+              remoteAddr: nyForwardInput.remoteAddr,\n+              strategy: nyForwardInput.strategy,\n+            });\n \n-            if (isNaN(port) || port < 1 || port > 65535) {\n+            if (response.code === 0) {\n               setImportResults((prev) => [\n                 {\n-                  line,\n+                  line: item.line,\n+                  success: true,\n+                  message: `创建成功 (${parsedNyItem.dest.length}个目标)`,\n+                  forwardName: nyForwardInput.name,\n+                },\n+                ...prev,\n+              ]);\n+            } else {\n+              setImportResults((prev) => [\n+                {\n+                  line: item.line,\n                   success: false,\n-                  message: \"入口端口格式错误，应为1-65535之间的数字\",\n+                  message: response.msg || \"创建失败\",\n                 },\n                 ...prev,\n               ]);\n-              continue;\n             }\n-            portNumber = port;\n+          } catch {\n+            setImportResults((prev) => [\n+              {\n+                line: item.line,\n+                success: false,\n+                message: \"网络错误，创建失败\",\n+              },\n+              ...prev,\n+            ]);\n           }\n+        }\n+      } else {\n+        const lines = importData\n+          .trim()\n+          .split(\"\\n\")\n+          .filter((line) => line.trim());\n \n-          // 调用创建转发接口\n-          const response = await createForward({\n-            name: name.trim(),\n-            tunnelId: selectedTunnelForImport, // 使用用户选择的隧道\n-            inPort: portNumber, // 使用指定端口或自动分配\n-            remoteAddr: remoteAddr.trim(),\n-            strategy: \"fifo\",\n-          });\n+        for (let i = 0; i < lines.length; i++) {\n+          const line = lines[i].trim();\n+          const parts = line.split(\"|\");\n \n-          if (response.code === 0) {\n+          if (parts.length < 2) {\n             setImportResults((prev) => [\n               {\n                 line,\n-                success: true,\n-                message: \"创建成功\",\n-                forwardName: name.trim(),\n+                success: false,\n+                message: \"格式错误：需要至少包含目标地址和转发名称\",\n               },\n               ...prev,\n             ]);\n-          } else {\n+            continue;\n+          }\n+\n+          const [remoteAddr, name, inPort] = parts;\n+\n+          if (!remoteAddr.trim() || !name.trim()) {\n             setImportResults((prev) => [\n               {\n                 line,\n                 success: false,\n-                message: response.msg || \"创建失败\",\n+                message: \"目标地址和转发名称不能为空\",\n+              },\n+              ...prev,\n+            ]);\n+            continue;\n+          }\n+\n+          const addresses = remoteAddr.trim().split(\",\");\n+          const addressPattern = /^[^:]+:\\d+$/;\n+          const isValidFormat = addresses.every((addr) =>\n+            addressPattern.test(addr.trim()),\n+          );\n+\n+          if (!isValidFormat) {\n+            setImportResults((prev) => [\n+              {\n+                line,\n+                success: false,\n+                message:\n+                  \"目标地址格式错误，应为 地址:端口 格式，多个地址用逗号分隔\",\n+              },\n+              ...prev,\n+            ]);\n+            continue;\n+          }\n+\n+          try {\n+            let portNumber: number | null = null;\n+\n+            if (inPort && inPort.trim()) {\n+              const port = parseInt(inPort.trim());\n+\n+              if (isNaN(port) || port < 1 || port > 65535) {\n+                setImportResults((prev) => [\n+                  {\n+                    line,\n+                    success: false,\n+                    message: \"入口端口格式错误，应为1-65535之间的数字\",\n+                  },\n+                  ...prev,\n+                ]);\n+                continue;\n+              }\n+              portNumber = port;\n+            }\n+\n+            const response = await createForward({\n+              name: name.trim(),\n+              tunnelId: selectedTunnelForImport,\n+              inPort: portNumber,\n+              remoteAddr: remoteAddr.trim(),\n+              strategy: \"fifo\",\n+            });\n+\n+            if (response.code === 0) {\n+              setImportResults((prev) => [\n+                {\n+                  line,\n+                  success: true,\n+                  message: \"创建成功\",\n+                  forwardName: name.trim(),\n+                },\n+                ...prev,\n+              ]);\n+            } else {\n+              setImportResults((prev) => [\n+                {\n+                  line,\n+                  success: false,\n+                  message: response.msg || \"创建失败\",\n+                },\n+                ...prev,\n+              ]);\n+            }\n+          } catch {\n+            setImportResults((prev) => [\n+              {\n+                line,\n+                success: false,\n+                message: \"网络错误，创建失败\",\n               },\n               ...prev,\n             ]);\n           }\n-        } catch {\n-          setImportResults((prev) => [\n-            {\n-              line,\n-              success: false,\n-              message: \"网络错误，创建失败\",\n-            },\n-            ...prev,\n-          ]);\n         }\n       }\n \n-      toast.success(`导入执行完成`);\n+      toast.success(\"导入执行完成\");\n \n-      // 导入完成后刷新转发列表\n       await loadData(false);\n     } catch {\n       toast.error(\"导入过程中发生错误\");\n@@ -1998,7 +2115,9 @@ export default function ForwardPage() {\n     const activeTunnelGroupKey = buildForwardTunnelGroupKey(\n       activeForward?.tunnelName,\n     );\n-    const overTunnelGroupKey = buildForwardTunnelGroupKey(overForward?.tunnelName);\n+    const overTunnelGroupKey = buildForwardTunnelGroupKey(\n+      overForward?.tunnelName,\n+    );\n \n     // 非精简模式仅允许在同一用户+隧道分组内拖拽，避免混排\n     if (!compactMode) {\n@@ -2286,13 +2405,7 @@ export default function ForwardPage() {\n     }\n \n     return sortedByDb;\n-  }, [\n-    forwards,\n-    forwardOrder,\n-    filterUserId,\n-    filterTunnelId,\n-    searchKeyword,\n-  ]);\n+  }, [forwards, forwardOrder, filterUserId, filterTunnelId, searchKeyword]);\n \n   const availableGroupData = useMemo(\n     () => buildAvailableGroupData(forwards),\n@@ -2429,7 +2542,10 @@ export default function ForwardPage() {\n           return aIndex - bIndex;\n         }\n \n-        const nameCompare = compareForwardTunnelNameAsc(a.tunnelName, b.tunnelName);\n+        const nameCompare = compareForwardTunnelNameAsc(\n+          a.tunnelName,\n+          b.tunnelName,\n+        );\n \n         if (nameCompare !== 0) {\n           return nameCompare;\n@@ -2522,7 +2638,10 @@ export default function ForwardPage() {\n     bodyClassName: string;\n     children: React.ReactNode;\n   }) => {\n-    const sortableId = buildTunnelGroupSortableId(groupUserId, tunnel.tunnelKey);\n+    const sortableId = buildTunnelGroupSortableId(\n+      groupUserId,\n+      tunnel.tunnelKey,\n+    );\n     const {\n       attributes,\n       listeners,\n@@ -2639,6 +2758,7 @@ export default function ForwardPage() {\n \n       if (!existingUser) {\n         userMap.set(uId, { id: uId, name: userName });\n+\n         return;\n       }\n \n@@ -3620,7 +3740,9 @@ export default function ForwardPage() {\n                   }}\n                 >\n                   <TableHeader>\n-                    {selectMode && <TableColumn className=\"w-14\">选择</TableColumn>}\n+                    {selectMode && (\n+                      <TableColumn className=\"w-14\">选择</TableColumn>\n+                    )}\n                     <TableColumn className=\"w-10 pl-4\" />\n                     <TableColumn>用户</TableColumn>\n                     <TableColumn>名称</TableColumn>\n@@ -3680,7 +3802,10 @@ export default function ForwardPage() {\n             onDragEnd={handleDragEnd}\n             onDragStart={() => {}}\n           >\n-            <SortableContext items={sortableForwardIds} strategy={rectSortingStrategy}>\n+            <SortableContext\n+              items={sortableForwardIds}\n+              strategy={rectSortingStrategy}\n+            >\n               <div className=\"grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4\">\n                 {sortedForwards.map((forward) =>\n                   forward && forward.id ? (\n@@ -3742,7 +3867,10 @@ export default function ForwardPage() {\n                     >\n                       <SortableContext\n                         items={group.tunnels.map((tunnel) =>\n-                          buildTunnelGroupSortableId(group.userId, tunnel.tunnelKey),\n+                          buildTunnelGroupSortableId(\n+                            group.userId,\n+                            tunnel.tunnelKey,\n+                          ),\n                         )}\n                         strategy={verticalListSortingStrategy}\n                       >\n@@ -3801,10 +3929,14 @@ export default function ForwardPage() {\n                                       </TableColumn>\n                                     )}\n                                     <TableColumn\n-                                      className={FORWARD_GROUPED_TABLE_COLUMN_CLASS.drag}\n+                                      className={\n+                                        FORWARD_GROUPED_TABLE_COLUMN_CLASS.drag\n+                                      }\n                                     />\n                                     <TableColumn\n-                                      className={FORWARD_GROUPED_TABLE_COLUMN_CLASS.name}\n+                                      className={\n+                                        FORWARD_GROUPED_TABLE_COLUMN_CLASS.name\n+                                      }\n                                     >\n                                       名称\n                                     </TableColumn>\n@@ -3816,7 +3948,9 @@ export default function ForwardPage() {\n                                       入口\n                                     </TableColumn>\n                                     <TableColumn\n-                                      className={FORWARD_GROUPED_TABLE_COLUMN_CLASS.target}\n+                                      className={\n+                                        FORWARD_GROUPED_TABLE_COLUMN_CLASS.target\n+                                      }\n                                     >\n                                       目标\n                                     </TableColumn>\n@@ -3835,7 +3969,9 @@ export default function ForwardPage() {\n                                       总流量\n                                     </TableColumn>\n                                     <TableColumn\n-                                      className={FORWARD_GROUPED_TABLE_COLUMN_CLASS.status}\n+                                      className={\n+                                        FORWARD_GROUPED_TABLE_COLUMN_CLASS.status\n+                                      }\n                                     >\n                                       状态\n                                     </TableColumn>\n@@ -3860,14 +3996,22 @@ export default function ForwardPage() {\n                                         <SortableTableRow\n                                           formatFlow={formatFlow}\n                                           formatInAddress={formatInAddress}\n-                                          formatRemoteAddress={formatRemoteAddress}\n+                                          formatRemoteAddress={\n+                                            formatRemoteAddress\n+                                          }\n                                           forward={forward}\n-                                          getStrategyDisplay={getStrategyDisplay}\n+                                          getStrategyDisplay={\n+                                            getStrategyDisplay\n+                                          }\n                                           handleDelete={handleDelete}\n                                           handleDiagnose={handleDiagnose}\n                                           handleEdit={handleEdit}\n-                                          handleServiceToggle={handleServiceToggle}\n-                                          hasMultipleAddresses={hasMultipleAddresses}\n+                                          handleServiceToggle={\n+                                            handleServiceToggle\n+                                          }\n+                                          hasMultipleAddresses={\n+                                            hasMultipleAddresses\n+                                          }\n                                           selectMode={selectMode}\n                                           selectedIds={selectedIds}\n                                           showAddressModal={showAddressModal}\n@@ -3939,7 +4083,10 @@ export default function ForwardPage() {\n                   >\n                     <SortableContext\n                       items={group.tunnels.map((tunnel) =>\n-                        buildTunnelGroupSortableId(group.userId, tunnel.tunnelKey),\n+                        buildTunnelGroupSortableId(\n+                          group.userId,\n+                          tunnel.tunnelKey,\n+                        ),\n                       )}\n                       strategy={verticalListSortingStrategy}\n                     >\n@@ -3949,7 +4096,10 @@ export default function ForwardPage() {\n                           .filter((id) => id > 0);\n                         const collapsed =\n                           sanitizedCollapsedTunnelGroups[\n-                            buildTunnelGroupCollapseKey(group.userId, tunnel.tunnelKey)\n+                            buildTunnelGroupCollapseKey(\n+                              group.userId,\n+                              tunnel.tunnelKey,\n+                            )\n                           ] === true;\n \n                         return (\n@@ -3964,7 +4114,10 @@ export default function ForwardPage() {\n                             tunnel={tunnel}\n                             wrapperClassName=\"rounded-xl border border-secondary/20 bg-secondary/5 space-y-3\"\n                             onToggleCollapsed={() =>\n-                              toggleTunnelGroupCollapsed(group.userId, tunnel.tunnelKey)\n+                              toggleTunnelGroupCollapsed(\n+                                group.userId,\n+                                tunnel.tunnelKey,\n+                              )\n                             }\n                           >\n                             <DndContext\n@@ -4124,7 +4277,9 @@ export default function ForwardPage() {\n \n                   <Select\n                     description=\"从入口节点IP中选择，留空使用默认\"\n-                    isDisabled={!form.tunnelId || currentTunnelIpOptions.length === 0}\n+                    isDisabled={\n+                      !form.tunnelId || currentTunnelIpOptions.length === 0\n+                    }\n                     label=\"监听IP\"\n                     placeholder={\n                       form.tunnelId\n@@ -4458,17 +4613,58 @@ export default function ForwardPage() {\n         <ModalContent>\n           <ModalHeader className=\"flex flex-col gap-1\">\n             <h2 className=\"text-xl font-bold\">导入转发数据</h2>\n-            <p className=\"text-small text-default-500\">\n-              格式：目标地址|转发名称|入口端口，每行一个，入口端口留空将自动分配可用端口\n-            </p>\n-            <p className=\"text-small text-default-400\">\n-              目标地址支持单个地址(如：example.com:8080)或多个地址用逗号分隔(如：3.3.3.3:3,4.4.4.4:4)\n-            </p>\n+            {importFormat === \"flvx\" ? (\n+              <>\n+                <p className=\"text-small text-default-500\">\n+                  格式：目标地址|转发名称|入口端口，每行一个，入口端口留空将自动分配可用端口\n+                </p>\n+                <p className=\"text-small text-default-400\">\n+                  目标地址支持单个地址(如：example.com:8080)或多个地址用逗号分隔(如：3.3.3.3:3,4.4.4.4:4)\n+                </p>\n+              </>\n+            ) : (\n+              <>\n+                <p className=\"text-small text-default-500\">\n+                  ny格式：JSON对象，支持多个目标地址（负载均衡）\n+                </p>\n+                <p className=\"text-small text-default-400\">\n+                  格式：&#123;&quot;dest&quot;:[&quot;地址:端口&quot;],&quot;listen_port&quot;:端口,&quot;name&quot;:&quot;名称&quot;&#125;\n+                </p>\n+              </>\n+            )}\n           </ModalHeader>\n           <ModalBody className=\"pb-6\">\n             <div className=\"space-y-4\">\n-              {/* 隧道选择 */}\n-              <div>\n+              {/* 格式选择 */}\n+              <Select\n+                isRequired\n+                label=\"导入格式\"\n+                placeholder=\"请选择导入格式\"\n+                selectedKeys={[importFormat]}\n+                variant=\"bordered\"\n+                onSelectionChange={(keys) => {\n+                  const selectedKey = Array.from(keys)[0] as ImportFormat;\n+\n+                  if (selectedKey) {\n+                    setImportFormat(selectedKey);\n+                    setSelectedTunnelForImport(null);\n+                    setSelectedEntryNode(null);\n+                    setMatchedTunnels([]);\n+                    setImportData(\"\");\n+                    setImportResults([]);\n+                  }\n+                }}\n+              >\n+                <SelectItem key=\"flvx\" textValue=\"flvx格式\">\n+                  flvx格式（管道分隔）\n+                </SelectItem>\n+                <SelectItem key=\"ny\" textValue=\"ny格式\">\n+                  ny格式（JSON）\n+                </SelectItem>\n+              </Select>\n+\n+              {/* flvx格式：隧道选择 */}\n+              {importFormat === \"flvx\" && (\n                 <Select\n                   isRequired\n                   label=\"选择导入隧道\"\n@@ -4496,35 +4692,113 @@ export default function ForwardPage() {\n                     </SelectItem>\n                   ))}\n                 </Select>\n-              </div>\n+              )}\n \n-              {/* 输入区域 */}\n-              <div>\n-                <Textarea\n-                  classNames={{\n-                    input: \"font-mono text-sm\",\n+              {/* ny格式：入口节点选择 */}\n+              {importFormat === \"ny\" && (\n+                <Select\n+                  isRequired\n+                  label=\"选择入口节点\"\n+                  placeholder=\"请选择入口节点\"\n+                  selectedKeys={\n+                    selectedEntryNode ? [selectedEntryNode.toString()] : []\n+                  }\n+                  variant=\"bordered\"\n+                  onSelectionChange={(keys) => {\n+                    const selectedKey = Array.from(keys)[0] as string;\n+                    const nodeId = selectedKey ? parseInt(selectedKey) : null;\n+\n+                    setSelectedEntryNode(nodeId);\n+                    setSelectedTunnelForImport(null);\n+\n+                    if (nodeId) {\n+                      const matched = allTunnels.filter(\n+                        (t) =>\n+                          t.type === 1 &&\n+                          t.inNodeId?.some((n) => n.nodeId === nodeId),\n+                      );\n+\n+                      setMatchedTunnels(matched);\n+\n+                      if (matched.length === 0) {\n+                        toast.error(\n+                          \"该入口节点没有匹配的隧道，请先创建端口转发类型的隧道\",\n+                        );\n+                      } else if (matched.length === 1) {\n+                        setSelectedTunnelForImport(matched[0].id);\n+                      } else {\n+                        setTunnelSelectModalOpen(true);\n+                      }\n+                    } else {\n+                      setMatchedTunnels([]);\n+                    }\n                   }}\n-                  label=\"导入数据\"\n-                  maxRows={12}\n-                  minRows={8}\n-                  placeholder=\"请输入要导入的转发数据，格式：目标地址|转发名称|入口端口\"\n-                  value={importData}\n-                  variant=\"flat\"\n-                  onChange={(e) => setImportData(e.target.value)}\n-                />\n-              </div>\n+                >\n+                  {nodes.map((node) => (\n+                    <SelectItem key={node.id.toString()} textValue={node.name}>\n+                      {node.name}\n+                    </SelectItem>\n+                  ))}\n+                </Select>\n+              )}\n+\n+              {/* ny格式：显示匹配的隧道 */}\n+              {importFormat === \"ny\" && matchedTunnels.length > 0 && (\n+                <div className=\"text-xs text-default-500\">\n+                  {matchedTunnels.length === 1 ? (\n+                    <span>\n+                      已匹配隧道：<strong>{matchedTunnels[0].name}</strong>\n+                    </span>\n+                  ) : (\n+                    <span>\n+                      找到 {matchedTunnels.length}{\" \"}\n+                      个匹配隧道，请点击下方按钮选择\n+                    </span>\n+                  )}\n+                </div>\n+              )}\n+\n+              {/* ny格式：多隧道选择按钮 */}\n+              {importFormat === \"ny\" &&\n+                matchedTunnels.length > 1 &&\n+                !selectedTunnelForImport && (\n+                  <Button\n+                    color=\"primary\"\n+                    size=\"sm\"\n+                    variant=\"flat\"\n+                    onPress={() => setTunnelSelectModalOpen(true)}\n+                  >\n+                    选择隧道（{matchedTunnels.length}个可选）\n+                  </Button>\n+                )}\n+\n+              {/* 输入区域 */}\n+              <Textarea\n+                classNames={{\n+                  input: \"font-mono text-sm\",\n+                }}\n+                label=\"导入数据\"\n+                maxRows={12}\n+                minRows={8}\n+                placeholder={\n+                  importFormat === \"flvx\"\n+                    ? \"请输入要导入的转发数据，格式：目标地址|转发名称|入口端口\"\n+                    : '请输入ny格式数据，每行一个JSON对象，如：{\"dest\":[\"1.2.3.4:80\"],\"listen_port\":8080,\"name\":\"转发1\"}'\n+                }\n+                value={importData}\n+                variant=\"flat\"\n+                onChange={(e) => setImportData(e.target.value)}\n+              />\n \n               {/* 导入结果 */}\n               {importResults.length > 0 && (\n                 <div>\n                   <div className=\"flex items-center justify-between mb-2\">\n                     <h3 className=\"text-base font-semibold\">导入结果</h3>\n-                    <div className=\"flex items-center gap-2\">\n-                      <span className=\"text-xs text-default-500\">\n-                        成功：{importResults.filter((r) => r.success).length} /\n-                        总计：{importResults.length}\n-                      </span>\n-                    </div>\n+                    <span className=\"text-xs text-default-500\">\n+                      成功：{importResults.filter((r) => r.success).length} /\n+                      总计：{importResults.length}\n+                    </span>\n                   </div>\n \n                   <div\n@@ -4613,7 +4887,11 @@ export default function ForwardPage() {\n             </Button>\n             <Button\n               color=\"warning\"\n-              isDisabled={!importData.trim() || !selectedTunnelForImport}\n+              isDisabled={\n+                !importData.trim() ||\n+                !selectedTunnelForImport ||\n+                (importFormat === \"ny\" && !selectedEntryNode)\n+              }\n               isLoading={importLoading}\n               onPress={executeImport}\n             >\n@@ -4623,6 +4901,54 @@ export default function ForwardPage() {\n         </ModalContent>\n       </Modal>\n \n+      {/* 隧道选择模态框（ny格式多隧道匹配时使用） */}\n+      <Modal\n+        backdrop=\"blur\"\n+        isOpen={tunnelSelectModalOpen}\n+        placement=\"center\"\n+        size=\"md\"\n+        onClose={() => setTunnelSelectModalOpen(false)}\n+      >\n+        <ModalContent>\n+          <ModalHeader>选择隧道</ModalHeader>\n+          <ModalBody>\n+            <p className=\"text-sm text-default-500 mb-3\">\n+              找到多个使用该入口节点的隧道，请选择一个：\n+            </p>\n+            <div className=\"space-y-2\">\n+              {matchedTunnels.map((tunnel) => (\n+                <Button\n+                  key={tunnel.id}\n+                  className=\"w-full justify-start\"\n+                  color={\n+                    selectedTunnelForImport === tunnel.id\n+                      ? \"primary\"\n+                      : \"default\"\n+                  }\n+                  variant={\n+                    selectedTunnelForImport === tunnel.id ? \"solid\" : \"bordered\"\n+                  }\n+                  onPress={() => {\n+                    setSelectedTunnelForImport(tunnel.id);\n+                    setTunnelSelectModalOpen(false);\n+                  }}\n+                >\n+                  {tunnel.name}\n+                </Button>\n+              ))}\n+            </div>\n+          </ModalBody>\n+          <ModalFooter>\n+            <Button\n+              variant=\"light\"\n+              onPress={() => setTunnelSelectModalOpen(false)}\n+            >\n+              取消\n+            </Button>\n+          </ModalFooter>\n+        </ModalContent>\n+      </Modal>\n+\n       {/* 诊断结果模态框 */}\n       <Modal\n         backdrop=\"blur\"\n@@ -4815,8 +5141,8 @@ export default function ForwardPage() {\n                                           isDiagnosing\n                                             ? \"bg-warning-50 dark:bg-warning-900/20\"\n                                             : isSuccess\n-                                            ? \"bg-white dark:bg-gray-800\"\n-                                            : \"bg-danger-50 dark:bg-danger-900/30\"\n+                                              ? \"bg-white dark:bg-gray-800\"\n+                                              : \"bg-danger-50 dark:bg-danger-900/30\"\n                                         }`}\n                                       >\n                                         <td className=\"px-3 py-2\">\n@@ -4851,8 +5177,8 @@ export default function ForwardPage() {\n                                               isDiagnosing\n                                                 ? \"warning\"\n                                                 : isSuccess\n-                                                ? \"success\"\n-                                                : \"danger\"\n+                                                  ? \"success\"\n+                                                  : \"danger\"\n                                             }\n                                             size=\"sm\"\n                                             variant=\"flat\"\n@@ -5002,8 +5328,8 @@ export default function ForwardPage() {\n                                       isDiagnosing\n                                         ? \"border-warning-200 dark:border-warning-300/30 bg-warning-50 dark:bg-warning-900/20\"\n                                         : isSuccess\n-                                        ? \"border-divider bg-white dark:bg-gray-800\"\n-                                        : \"border-danger-200 dark:border-danger-300/30 bg-danger-50 dark:bg-danger-900/30\"\n+                                          ? \"border-divider bg-white dark:bg-gray-800\"\n+                                          : \"border-danger-200 dark:border-danger-300/30 bg-danger-50 dark:bg-danger-900/30\"\n                                     }`}\n                                   >\n                                     <div className=\"flex items-start gap-2 mb-2\">\ndiff --git a/vite-frontend/src/pages/limit.tsx b/vite-frontend/src/pages/limit.tsx\nindex 664ea3b..e47554d 100644\n--- a/vite-frontend/src/pages/limit.tsx\n+++ b/vite-frontend/src/pages/limit.tsx\n@@ -195,6 +195,7 @@ export default function LimitPage() {\n           speed: payload.speed,\n           status: payload.status,\n         };\n+\n         res = await createSpeedLimit(createData);\n       }\n \ndiff --git a/vite-frontend/src/pages/node.tsx b/vite-frontend/src/pages/node.tsx\nindex 5cd09a5..e1aa18f 100644\n--- a/vite-frontend/src/pages/node.tsx\n+++ b/vite-frontend/src/pages/node.tsx\n@@ -100,7 +100,7 @@ interface Node {\n   rollbackLoading?: boolean;\n }\n \n-  interface NodeForm {\n+interface NodeForm {\n   id: number | null;\n   name: string;\n   serverHost: string;\n@@ -1650,7 +1650,10 @@ export default function NodePage() {\n                       value={form.extraIPs}\n                       variant=\"bordered\"\n                       onChange={(e) =>\n-                        setForm((prev) => ({ ...prev, extraIPs: e.target.value }))\n+                        setForm((prev) => ({\n+                          ...prev,\n+                          extraIPs: e.target.value,\n+                        }))\n                       }\n                     />\n \ndiff --git a/vite-frontend/src/pages/tunnel.tsx b/vite-frontend/src/pages/tunnel.tsx\nindex 420ead1..8e0b771 100644\n--- a/vite-frontend/src/pages/tunnel.tsx\n+++ b/vite-frontend/src/pages/tunnel.tsx\n@@ -182,10 +182,14 @@ export default function TunnelPage() {\n       return [];\n     }\n \n-    const optionSets = nodeIds.map((nodeId) => new Set(getNodeIpOptions(nodeId)));\n+    const optionSets = nodeIds.map(\n+      (nodeId) => new Set(getNodeIpOptions(nodeId)),\n+    );\n     const base = optionSets[0];\n \n-    return Array.from(base).filter((ip) => optionSets.every((set) => set.has(ip)));\n+    return Array.from(base).filter((ip) =>\n+      optionSets.every((set) => set.has(ip)),\n+    );\n   };\n \n   // 表单状态\n@@ -511,6 +515,7 @@ export default function TunnelPage() {\n   const handleDiagnose = async (tunnel: Tunnel) => {\n     diagnosisAbortRef.current?.abort();\n     const abortController = new AbortController();\n+\n     diagnosisAbortRef.current = abortController;\n \n     setCurrentDiagnosisTunnel(tunnel);\n@@ -552,6 +557,7 @@ export default function TunnelPage() {\n             const startItems = Array.isArray(payload.items)\n               ? (payload.items as DiagnosisResult[\"results\"])\n               : [];\n+\n             setDiagnosisResult((prev) => ({\n               tunnelName: startTunnelName,\n               tunnelType: startTunnelType,\n@@ -593,6 +599,7 @@ export default function TunnelPage() {\n                   diagnosing: false,\n                 });\n               }\n+\n               return {\n                 ...base,\n                 timestamp: Date.now(),\n@@ -628,8 +635,11 @@ export default function TunnelPage() {\n \n         if (response.code === 0) {\n           const resultData = response.data as DiagnosisResult;\n-          const successCount = resultData.results.filter((r) => r.success).length;\n+          const successCount = resultData.results.filter(\n+            (r) => r.success,\n+          ).length;\n           const failedCount = resultData.results.length - successCount;\n+\n           setDiagnosisResult(resultData);\n           setDiagnosisProgress({\n             total: resultData.results.length,\n@@ -1835,7 +1845,9 @@ export default function TunnelPage() {\n                                   size=\"sm\"\n                                   variant=\"bordered\"\n                                   onSelectionChange={(keys) => {\n-                                    const selectedKey = Array.from(keys)[0] as string;\n+                                    const selectedKey = Array.from(\n+                                      keys,\n+                                    )[0] as string;\n \n                                     updateChainConnectIp(\n                                       groupIndex,\n@@ -1845,7 +1857,9 @@ export default function TunnelPage() {\n                                     );\n                                   }}\n                                 >\n-                                  <SelectItem key=\"__default__\">默认连接IP</SelectItem>\n+                                  <SelectItem key=\"__default__\">\n+                                    默认连接IP\n+                                  </SelectItem>\n                                   {groupIpOptions.map((ip) => (\n                                     <SelectItem key={ip}>{ip}</SelectItem>\n                                   ))}\n@@ -2120,8 +2134,9 @@ export default function TunnelPage() {\n                         }}\n                         description=\"按出口节点共同可用IP选择，留空使用默认\"\n                         isDisabled={\n-                          (form.outNodeId || []).filter((ct) => ct.nodeId !== -1)\n-                            .length === 0 ||\n+                          (form.outNodeId || []).filter(\n+                            (ct) => ct.nodeId !== -1,\n+                          ).length === 0 ||\n                           getCommonIpOptions(\n                             (form.outNodeId || [])\n                               .filter((ct) => ct.nodeId !== -1)\n@@ -2130,8 +2145,9 @@ export default function TunnelPage() {\n\n...3671 bytes truncated...\n\nThe tool call succeeded but the output was truncated. Full output saved to: /Users/sagit/.local/share/opencode/tool-output/tool_cb2a13803001kCdFTG6Thj2Ckx\nUse the Task tool to have explore agent process this file with Grep and Read (with offset/limit). Do NOT read the full file yourself - delegate to save context.",
+            "title": "查看具体变更内容",
+            "metadata": {
+              "output": "diff --git a/vite-frontend/src/api/diagnosis-stream.ts b/vite-frontend/src/api/diagnosis-stream.ts\nindex 8b8dec7..d261e15 100644\n--- a/vite-frontend/src/api/diagnosis-stream.ts\n+++ b/vite-frontend/src/api/diagnosis-stream.ts\n@@ -1,6 +1,7 @@\n+import type { TunnelDiagnosisApiItem } from \"@/api/types\";\n+\n import axios from \"axios\";\n \n-import type { TunnelDiagnosisApiItem } from \"@/api/types\";\n import { clearSession, getToken } from \"@/utils/session\";\n \n const DIAGNOSIS_STREAM_TIMEOUT_MS = 2 * 60 * 1000;\n@@ -106,13 +107,16 @@ const combineAbortSignals = (signals: AbortSignal[]): AbortSignal => {\n       controller.abort();\n     }\n   };\n+\n   signals.forEach((signal) => {\n     if (signal.aborted) {\n       onAbort();\n+\n       return;\n     }\n     signal.addEventListener(\"abort\", onAbort, { once: true });\n   });\n+\n   return controller.signal;\n };\n \n@@ -120,6 +124,7 @@ const parseMessage = (err: unknown, fallback: string): string => {\n   if (err instanceof Error && err.message) {\n     return err.message;\n   }\n+\n   return fallback;\n };\n \n@@ -133,7 +138,12 @@ const runDiagnosisStream = async ({\n   onError,\n }: RunDiagnosisStreamOptions): Promise<DiagnosisStreamRunResult> => {\n   if (!isStreamSupported()) {\n-    return { fallback: true, completed: false, timedOut: false, receivedItems: 0 };\n+    return {\n+      fallback: true,\n+      completed: false,\n+      timedOut: false,\n+      receivedItems: 0,\n+    };\n   }\n \n   let receivedItems = 0;\n@@ -170,27 +180,51 @@ const runDiagnosisStream = async ({\n \n     if (response.status === 401) {\n       handleTokenExpired();\n-      return { fallback: false, completed: false, timedOut: false, receivedItems };\n+\n+      return {\n+        fallback: false,\n+        completed: false,\n+        timedOut: false,\n+        receivedItems,\n+      };\n     }\n \n     if (response.status === 404) {\n-      return { fallback: true, completed: false, timedOut: false, receivedItems };\n+      return {\n+        fallback: true,\n+        completed: false,\n+        timedOut: false,\n+        receivedItems,\n+      };\n     }\n \n     if (!response.ok || !response.body) {\n       const fallbackMessage = `请求失败(${response.status})`;\n       let message = fallbackMessage;\n+\n       try {\n         const data = (await response.json()) as RawObject;\n+\n         if (typeof data.msg === \"string\" && data.msg.trim()) {\n           message = data.msg;\n         }\n       } catch {}\n       if (receivedItems === 0) {\n-        return { fallback: true, completed: false, timedOut: false, receivedItems };\n+        return {\n+          fallback: true,\n+          completed: false,\n+          timedOut: false,\n+          receivedItems,\n+        };\n       }\n       onError?.(message);\n-      return { fallback: false, completed: false, timedOut: false, receivedItems };\n+\n+      return {\n+        fallback: false,\n+        completed: false,\n+        timedOut: false,\n+        receivedItems,\n+      };\n     }\n \n     const reader = response.body.getReader();\n@@ -202,6 +236,7 @@ const runDiagnosisStream = async ({\n         return;\n       }\n       let parsed: DiagnosisStreamRawEvent;\n+\n       try {\n         parsed = JSON.parse(line) as DiagnosisStreamRawEvent;\n       } catch {\n@@ -209,15 +244,18 @@ const runDiagnosisStream = async ({\n       }\n \n       const eventType = (parsed.type || \"\").toLowerCase();\n+\n       if (eventType === \"start\") {\n         if (parsed.data && typeof parsed.data === \"object\") {\n           const startData = parsed.data as RawObject;\n           const startTotal = Number(startData.total);\n+\n           if (Number.isFinite(startTotal) && startTotal >= 0) {\n             currentProgress = { ...currentProgress, total: startTotal };\n           }\n           onStart?.(startData);\n         }\n+\n         return;\n       }\n \n@@ -228,10 +266,12 @@ const runDiagnosisStream = async ({\n         const itemData = parsed.data as RawObject;\n         const index = Number(itemData.index);\n         const result = itemData.result as TunnelDiagnosisApiItem | undefined;\n+\n         if (!Number.isFinite(index) || !result || typeof result !== \"object\") {\n           return;\n         }\n         const progress = normalizeProgress(itemData.progress, currentProgress);\n+\n         currentProgress = progress;\n         receivedItems += 1;\n         onItem({\n@@ -239,6 +279,7 @@ const runDiagnosisStream = async ({\n           result,\n           progress,\n         });\n+\n         return;\n       }\n \n@@ -252,6 +293,7 @@ const runDiagnosisStream = async ({\n           donePayload.progress ?? donePayload,\n           currentProgress,\n         );\n+\n         if (typeof donePayload.timedOut === \"boolean\") {\n           doneProgress.timedOut = donePayload.timedOut;\n           timedOut = donePayload.timedOut;\n@@ -263,16 +305,19 @@ const runDiagnosisStream = async ({\n \n     while (true) {\n       const { value, done } = await reader.read();\n+\n       if (done) {\n         break;\n       }\n       buffer += decoder.decode(value, { stream: true });\n       const lines = buffer.split(\"\\n\");\n+\n       buffer = lines.pop() ?? \"\";\n       lines.forEach((line) => processLine(line.trim()));\n     }\n \n     const tail = buffer.trim();\n+\n     if (tail) {\n       processLine(tail);\n     }\n@@ -282,6 +327,7 @@ const runDiagnosisStream = async ({\n         ...currentProgress,\n         timedOut: true,\n       };\n+\n       onDone?.(timeoutProgress);\n     }\n \n@@ -297,20 +343,43 @@ const runDiagnosisStream = async ({\n         ...currentProgress,\n         timedOut: true,\n       };\n+\n       onDone?.(timeoutProgress);\n-      return { fallback: false, completed: false, timedOut: true, receivedItems };\n+\n+      return {\n+        fallback: false,\n+        completed: false,\n+        timedOut: true,\n+        receivedItems,\n+      };\n     }\n \n     if (signal?.aborted) {\n-      return { fallback: false, completed: false, timedOut: false, receivedItems };\n+      return {\n+        fallback: false,\n+        completed: false,\n+        timedOut: false,\n+        receivedItems,\n+      };\n     }\n \n     if (receivedItems === 0) {\n-      return { fallback: true, completed: false, timedOut: false, receivedItems };\n+      return {\n+        fallback: true,\n+        completed: false,\n+        timedOut: false,\n+        receivedItems,\n+      };\n     }\n \n     onError?.(parseMessage(error, \"流式诊断中断\"));\n-    return { fallback: false, completed: false, timedOut: false, receivedItems };\n+\n+    return {\n+      fallback: false,\n+      completed: false,\n+      timedOut: false,\n+      receivedItems,\n+    };\n   } finally {\n     clearTimeout(timeoutId);\n   }\ndiff --git a/vite-frontend/src/pages/forward.tsx b/vite-frontend/src/pages/forward.tsx\nindex 66e80a5..e7d73ae 100644\n--- a/vite-frontend/src/pages/forward.tsx\n+++ b/vite-frontend/src/pages/forward.tsx\n@@ -87,6 +87,10 @@ import {\n   executeForwardBatchRedeploy,\n   executeForwardBatchToggleService,\n } from \"@/pages/forward/batch-actions\";\n+import {\n+  convertNyItemToForwardInput,\n+  parseNyFormatData,\n+} from \"@/pages/forward/import-format\";\n import { buildForwardOrder, FORWARD_ORDER_KEY } from \"@/pages/forward/order\";\n import { PageLoadingState } from \"@/components/page-state\";\n import { useMobileBreakpoint } from \"@/hooks/useMobileBreakpoint\";\n@@ -119,6 +123,7 @@ interface Forward {\n interface Tunnel {\n   id: number;\n   name: string;\n+  type?: number;\n   inIp?: string;\n   inNodeId?: Array<{ nodeId: number }>;\n   inNodePortSta?: number;\n@@ -127,6 +132,7 @@ interface Tunnel {\n \n interface Node {\n   id: number;\n+  name?: string;\n   serverIp?: string;\n   serverIpV4?: string;\n   serverIpV6?: string;\n@@ -168,8 +174,7 @@ const FORWARD_COMPACT_MODE_EVENT = \"forwardCompactModeChanged\";\n const FORWARD_GROUP_ORDER_CONFIG_KEY = \"forward_group_order_map\";\n const FORWARD_GROUP_COLLAPSED_CONFIG_KEY = \"forward_group_collapsed_map\";\n const FORWARD_GROUP_ORDER_LOCAL_STORAGE_PREFIX = \"forward-group-order\";\n-const FORWARD_GROUP_COLLAPSED_LOCAL_STORAGE_PREFIX =\n-  \"forward-group-collapsed\";\n+const FORWARD_GROUP_COLLAPSED_LOCAL_STORAGE_PREFIX = \"forward-group-collapsed\";\n const FORWARD_TUNNEL_GROUP_SORTABLE_PREFIX = \"forward-tunnel-group\";\n const FORWARD_GROUPED_TABLE_MIN_WIDTH_CLASS = \"min-w-[1320px]\";\n const FORWARD_GROUPED_TABLE_COLUMN_CLASS = {\n@@ -239,7 +244,9 @@ const buildForwardGroupCollapsedLocalKey = (tokenUserId: number): string => {\n   return `${FORWARD_GROUP_COLLAPSED_LOCAL_STORAGE_PREFIX}:u:${tokenUserId}`;\n };\n \n-const parsePreferenceMap = <T,>(raw: string | null): Record<string, T> | null => {\n+const parsePreferenceMap = <T,>(\n+  raw: string | null,\n+): Record<string, T> | null => {\n   if (!raw) {\n     return null;\n   }\n@@ -283,7 +290,9 @@ const parseGroupOrderMap = (raw: string | null): ForwardGroupOrderMap => {\n   return result;\n };\n \n-const parseGroupCollapsedMap = (raw: string | null): ForwardGroupCollapsedMap => {\n+const parseGroupCollapsedMap = (\n+  raw: string | null,\n+): ForwardGroupCollapsedMap => {\n   const parsed = parsePreferenceMap<unknown>(raw);\n \n   if (!parsed) {\n@@ -357,11 +366,17 @@ const sanitizeGroupCollapsedMap = (\n   return sanitized;\n };\n \n-const buildTunnelGroupCollapseKey = (userId: number, tunnelKey: string): string => {\n+const buildTunnelGroupCollapseKey = (\n+  userId: number,\n+  tunnelKey: string,\n+): string => {\n   return `${userId}:${tunnelKey}`;\n };\n \n-const buildTunnelGroupSortableId = (userId: number, tunnelKey: string): string => {\n+const buildTunnelGroupSortableId = (\n+  userId: number,\n+  tunnelKey: string,\n+): string => {\n   return `${FORWARD_TUNNEL_GROUP_SORTABLE_PREFIX}:${userId}:${tunnelKey}`;\n };\n \n@@ -392,7 +407,9 @@ const parseTunnelGroupSortableId = (\n   return { userId, tunnelKey };\n };\n \n-const buildAvailableGroupData = (forwards: Forward[]): {\n+const buildAvailableGroupData = (\n+  forwards: Forward[],\n+): {\n   availableTunnelKeysByUser: Map<number, Set<string>>;\n   availableCollapseKeys: Set<string>;\n } => {\n@@ -541,9 +558,16 @@ export default function ForwardPage() {\n   >(null);\n \n   // 导入相关状态\n+  type ImportFormat = \"flvx\" | \"ny\";\n   const [importModalOpen, setImportModalOpen] = useState(false);\n   const [importData, setImportData] = useState(\"\");\n   const [importLoading, setImportLoading] = useState(false);\n+  const [importFormat, setImportFormat] = useState<ImportFormat>(\"flvx\");\n+  const [selectedEntryNode, setSelectedEntryNode] = useState<number | null>(\n+    null,\n+  );\n+  const [matchedTunnels, setMatchedTunnels] = useState<Tunnel[]>([]);\n+  const [tunnelSelectModalOpen, setTunnelSelectModalOpen] = useState(false);\n   const [selectedTunnelForImport, setSelectedTunnelForImport] = useState<\n     number | null\n   >(null);\n@@ -724,7 +748,9 @@ export default function ForwardPage() {\n     }\n \n     try {\n-      const currentRes = await getConfigByName(FORWARD_GROUP_COLLAPSED_CONFIG_KEY);\n+      const currentRes = await getConfigByName(\n+        FORWARD_GROUP_COLLAPSED_CONFIG_KEY,\n+      );\n       const globalMap =\n         parsePreferenceMap<ForwardGroupCollapsedMap>(\n           currentRes.code === 0 && typeof currentRes.data?.value === \"string\"\n@@ -793,12 +819,13 @@ export default function ForwardPage() {\n               ? globalOrderRes.data.value\n               : null,\n           );\n-          const globalCollapsedMap = parsePreferenceMap<ForwardGroupCollapsedMap>(\n-            globalCollapsedRes.code === 0 &&\n-              typeof globalCollapsedRes.data?.value === \"string\"\n-              ? globalCollapsedRes.data.value\n-              : null,\n-          );\n+          const globalCollapsedMap =\n+            parsePreferenceMap<ForwardGroupCollapsedMap>(\n+              globalCollapsedRes.code === 0 &&\n+                typeof globalCollapsedRes.data?.value === \"string\"\n+                ? globalCollapsedRes.data.value\n+                : null,\n+            );\n \n           const globalOrderBucket = globalOrderMap?.[tokenUserId.toString()];\n           const globalCollapsedBucket =\n@@ -809,7 +836,9 @@ export default function ForwardPage() {\n             typeof globalOrderBucket === \"object\" &&\n             !Array.isArray(globalOrderBucket)\n           ) {\n-            localOrderMap = parseGroupOrderMap(JSON.stringify(globalOrderBucket));\n+            localOrderMap = parseGroupOrderMap(\n+              JSON.stringify(globalOrderBucket),\n+            );\n           }\n \n           if (\n@@ -1147,7 +1176,10 @@ export default function ForwardPage() {\n       } else {\n       }\n \n-      if (allTunnelsRes.status === \"fulfilled\" && allTunnelsRes.value.code === 0) {\n+      if (\n+        allTunnelsRes.status === \"fulfilled\" &&\n+        allTunnelsRes.value.code === 0\n+      ) {\n         setAllTunnels((allTunnelsRes.value.data || []) as Tunnel[]);\n       }\n \n@@ -1454,6 +1486,7 @@ export default function ForwardPage() {\n   const handleDiagnose = async (forward: Forward) => {\n     diagnosisAbortRef.current?.abort();\n     const abortController = new AbortController();\n+\n     diagnosisAbortRef.current = abortController;\n \n     setCurrentDiagnosisForward(forward);\n@@ -1487,6 +1520,7 @@ export default function ForwardPage() {\n             const startItems = Array.isArray(payload.items)\n               ? (payload.items as ForwardDiagnosisResult[\"results\"])\n               : [];\n+\n             setDiagnosisResult((prev) => ({\n               forwardName: startForwardName,\n               timestamp: Date.now(),\n@@ -1526,6 +1560,7 @@ export default function ForwardPage() {\n                   diagnosing: false,\n                 });\n               }\n+\n               return {\n                 ...base,\n                 timestamp: Date.now(),\n@@ -1561,8 +1596,11 @@ export default function ForwardPage() {\n \n         if (response.code === 0) {\n           const resultData = response.data as ForwardDiagnosisResult;\n-          const successCount = resultData.results.filter((r) => r.success).length;\n+          const successCount = resultData.results.filter(\n+            (r) => r.success,\n+          ).length;\n           const failedCount = resultData.results.length - successCount;\n+\n           setDiagnosisResult(resultData);\n           setDiagnosisProgress({\n             total: resultData.results.length,\n@@ -1772,129 +1810,208 @@ export default function ForwardPage() {\n     }\n \n     setImportLoading(true);\n-    setImportResults([]); // 清空之前的结果\n+    setImportResults([]);\n \n     try {\n-      const lines = importData\n-        .trim()\n-        .split(\"\\n\")\n-        .filter((line) => line.trim());\n-\n-      for (let i = 0; i < lines.length; i++) {\n-        const line = lines[i].trim();\n-        const parts = line.split(\"|\");\n-\n-        if (parts.length < 2) {\n-          setImportResults((prev) => [\n-            {\n-              line,\n-              success: false,\n-              message: \"格式错误：需要至少包含目标地址和转发名称\",\n-            },\n-            ...prev,\n-          ]);\n-          continue;\n-        }\n+      if (importFormat === \"ny\") {\n+        const parsedItems = parseNyFormatData(importData);\n \n-        const [remoteAddr, name, inPort] = parts;\n+        if (parsedItems.length === 0) {\n+          toast.error(\"未解析到有效的ny格式数据\");\n \n-        if (!remoteAddr.trim() || !name.trim()) {\n-          setImportResults((prev) => [\n-            {\n-              line,\n-              success: false,\n-              message: \"目标地址和转发名称不能为空\",\n-            },\n-            ...prev,\n-          ]);\n-          continue;\n+          setImportLoading(false);\n+\n+          return;\n         }\n \n-        // 验证远程地址格式 - 支持单个地址或多个地址用逗号分隔\n-        const addresses = remoteAddr.trim().split(\",\");\n-        const addressPattern = /^[^:]+:\\d+$/;\n-        const isValidFormat = addresses.every((addr) =>\n-          addressPattern.test(addr.trim()),\n-        );\n+        for (const item of parsedItems) {\n+          if (item.error) {\n+            setImportResults((prev) => [\n+              {\n+                line: item.line,\n+                success: false,\n+                message: item.error || \"解析失败\",\n+              },\n+              ...prev,\n+            ]);\n \n-        if (!isValidFormat) {\n-          setImportResults((prev) => [\n-            {\n-              line,\n-              success: false,\n-              message:\n-                \"目标地址格式错误，应为 地址:端口 格式，多个地址用逗号分隔\",\n-            },\n-            ...prev,\n-          ]);\n-          continue;\n-        }\n+            continue;\n+          }\n \n-        try {\n-          // 处理入口端口\n-          let portNumber: number | null = null;\n+          if (!item.parsed) {\n+            setImportResults((prev) => [\n+              {\n+                line: item.line,\n+                success: false,\n+                message: \"解析失败\",\n+              },\n+              ...prev,\n+            ]);\n+\n+            continue;\n+          }\n+\n+          const parsedNyItem = item.parsed;\n+          const nyForwardInput = convertNyItemToForwardInput(parsedNyItem);\n \n-          if (inPort && inPort.trim()) {\n-            const port = parseInt(inPort.trim());\n+          try {\n+            const response = await createForward({\n+              name: nyForwardInput.name,\n+              tunnelId: selectedTunnelForImport,\n+              inPort: nyForwardInput.inPort,\n+              remoteAddr: nyForwardInput.remoteAddr,\n+              strategy: nyForwardInput.strategy,\n+            });\n \n-            if (isNaN(port) || port < 1 || port > 65535) {\n+            if (response.code === 0) {\n               setImportResults((prev) => [\n                 {\n-                  line,\n+                  line: item.line,\n+                  success: true,\n+                  message: `创建成功 (${parsedNyItem.dest.length}个目标)`,\n+                  forwardName: nyForwardInput.name,\n+                },\n+                ...prev,\n+              ]);\n+            } else {\n+              setImportResults((prev) => [\n+                {\n+                  line: item.line,\n                   success: false,\n-                  message: \"入口端口格式错误，应为1-65535之间的数字\",\n+                  message: response.msg || \"创建失败\",\n                 },\n                 ...prev,\n               ]);\n-              continue;\n             }\n-            portNumber = port;\n+          } catch {\n+            setImportResults((prev) => [\n+              {\n+                line: item.line,\n+                success: false,\n+                message: \"网络错误，创建失败\",\n+              },\n+              ...prev,\n+            ]);\n           }\n+        }\n+      } else {\n+        const lines = importData\n+          .trim()\n+          .split(\"\\n\")\n+          .filter((line) => line.trim());\n \n-          // 调用创建转发接口\n-          const response = await createForward({\n-            name: name.trim(),\n-            tunnelId: selectedTunnelForImport, // 使用用户选择的隧道\n-            inPort: portNumber, // 使用指定端口或自动分配\n-            remoteAddr: remoteAddr.trim(),\n-            strategy: \"fifo\",\n-          });\n+        for (let i = 0; i < lines.length; i++) {\n+          const line = lines[i].trim();\n+          const parts = line.split(\"|\");\n \n-          if (response.code === 0) {\n+          if (parts.length < 2) {\n             setImportResults((prev) => [\n               {\n                 line,\n-                success: true,\n-                message: \"创建成功\",\n-                forwardName: name.trim(),\n+                success: false,\n+                message: \"格式错误：需要至少包含目标地址和转发名称\",\n               },\n               ...prev,\n             ]);\n-          } else {\n+            continue;\n+          }\n+\n+          const [remoteAddr, name, inPort] = parts;\n+\n+          if (!remoteAddr.trim() || !name.trim()) {\n             setImportResults((prev) => [\n               {\n                 line,\n                 success: false,\n-                message: response.msg || \"创建失败\",\n+                message: \"目标地址和转发名称不能为空\",\n+              },\n+              ...prev,\n+            ]);\n+            continue;\n+          }\n+\n+          const addresses = remoteAddr.trim().split(\",\");\n+          const addressPattern = /^[^:]+:\\d+$/;\n+          const isValidFormat = addresses.every((addr) =>\n+            addressPattern.test(addr.trim()),\n+          );\n+\n+          if (!isValidFormat) {\n+            setImportResults((prev) => [\n+              {\n+                line,\n+                success: false,\n+                message:\n+                  \"目标地址格式错误，应为 地址:端口 格式，多个地址用逗号分隔\",\n+              },\n+              ...prev,\n+            ]);\n+            continue;\n+          }\n+\n+          try {\n+            let portNumber: number | null = null;\n+\n+            if (inPort && inPort.trim()) {\n+              const port = parseInt(inPort.trim());\n+\n+              if (isNaN(port) || port < 1 || port > 65535) {\n+                setImportResults((prev) => [\n+                  {\n+                    line,\n+                    success: false,\n+                    message: \"入口端口格式错误，应为1-65535之间的数字\",\n+                  },\n+                  ...prev,\n+                ]);\n+                continue;\n+              }\n+              portNumber = port;\n+            }\n+\n+            const response = await createForward({\n+              name: name.trim(),\n+              tunnelId: selectedTunnelForImport,\n+              inPort: portNumber,\n+              remoteAddr: remoteAddr.trim(),\n+              strategy: \"fifo\",\n+            });\n+\n+            if (response.code === 0) {\n+              setImportResults((prev) => [\n+                {\n+                  line,\n+                  success: true,\n+                  message: \"创建成功\",\n+                  forwardName: name.trim(),\n+                },\n+                ...prev,\n+              ]);\n+            } else {\n+              setImportResults((prev) => [\n+                {\n+                  line,\n+                  success: false,\n+                  message: response.msg || \"创建失败\",\n+                },\n+                ...prev,\n+              ]);\n+            }\n+          } catch {\n+            setImportResults((prev) => [\n+              {\n+                line,\n+                success: false,\n+                message: \"网络错误，创建失败\",\n               },\n               ...prev,\n             ]);\n           }\n-        } catch {\n-          setImportResults((prev) => [\n-            {\n-              line,\n-              success: false,\n-              message: \"网络错误，创建失败\",\n-            },\n-            ...prev,\n-          ]);\n         }\n       }\n \n-      toast.success(`导入执行完成`);\n+      toast.success(\"导入执行完成\");\n \n-      // 导入完成后刷新转发列表\n       await loadData(false);\n     } catch {\n       toast.error(\"导入过程中发生错误\");\n@@ -1998,7 +2115,9 @@ export default function ForwardPage() {\n     const activeTunnelGroupKey = buildForwardTunnelGroupKey(\n       activeForward?.tunnelName,\n     );\n-    const overTunnelGroupKey = buildForwardTunnelGroupKey(overForward?.tunnelName);\n+    const overTunnelGroupKey = buildForwardTunnelGroupKey(\n+      overForward?.tunnelName,\n+    );\n \n     // 非精简模式仅允许在同一用户+隧道分组内拖拽，避免混排\n     if (!compactMode) {\n@@ -2286,13 +2405,7 @@ export default function ForwardPage() {\n     }\n \n     return sortedByDb;\n-  }, [\n-    forwards,\n-    forwardOrder,\n-    filterUserId,\n-    filterTunnelId,\n-    searchKeyword,\n-  ]);\n+  }, [forwards, forwardOrder, filterUserId, filterTunnelId, searchKeyword]);\n \n   const availableGroupData = useMemo(\n     () => buildAvailableGroupData(forwards),\n@@ -2429,7 +2542,10 @@ export default function ForwardPage() {\n           return aIndex - bIndex;\n         }\n \n-        const nameCompare = compareForwardTunnelNameAsc(a.tunnelName, b.tunnelName);\n+        const nameCompare = compareForwardTunnelNameAsc(\n+          a.tunnelName,\n+          b.tunnelName,\n+        );\n \n         if (nameCompare !== 0) {\n           return nameCompare;\n@@ -2522,7 +2638,10 @@ export default function ForwardPage() {\n     bodyClassName: string;\n     children: React.ReactNode;\n   }) => {\n-    const sortableId = buildTunnelGroupSortableId(groupUserId, tunnel.tunnelKey);\n+    const sortableId = buildTunnelGroupSortableId(\n+      groupUserId,\n+      tunnel.tunnelKey,\n+    );\n     const {\n       attributes,\n       listeners,\n@@ -2639,6 +2758,7 @@ export default function ForwardPage() {\n \n       if (!existingUser) {\n         userMap.set(uId, { id: uId, name: userName });\n+\n         return;\n       }\n \n@@ -3620,7 +3740,9 @@ export default function ForwardPage() {\n                   }}\n                 >\n                   <TableHeader>\n-                    {selectMode && <TableColumn className=\"w-14\">选择</TableColumn>}\n+                    {selectMode && (\n+                      <TableColumn className=\"w-14\">选择</TableColumn>\n+                    )}\n                     <TableColumn className=\"w-10 pl-4\" />\n                     <TableColumn>用户</TableColumn>\n                     <TableColumn>名称</TableColumn>\n@@ -3680,7 +3802,10 @@ export default function ForwardPage() {\n             onDragEnd={handleDragEnd}\n             onDragStart={() => {}}\n           >\n-            <SortableContext items={sortableForwardIds} strategy={rectSortingStrategy}>\n+            <SortableContext\n+              items={sortableForwardIds}\n+              strategy={rectSortingStrategy}\n+            >\n               <div className=\"grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4\">\n                 {sortedForwards.map((forward) =>\n                   forward && forward.id ? (\n@@ -3742,7 +3867,10 @@ export default function ForwardPage() {\n                     >\n                       <SortableContext\n                         items={group.tunnels.map((tunnel) =>\n-                          buildTunnelGroupSortableId(group.userId, tunnel.tunnelKey),\n+                          buildTunnelGroupSortableId(\n+                            group.userId,\n+                            tunnel.tunnelKey,\n+                          ),\n                         )}\n                         strategy={verticalListSortingStrategy}\n                       >\n@@ -3801,10 +3929,14 @@ export default function ForwardPage() {\n                                       </TableColumn>\n                                     )}\n                                     <TableColumn\n-                                      className={FORWARD_GROUPED_TABLE_COLUMN_CLASS.drag}\n+                                      className={\n+                                        FORWARD_GROUPED_TABLE_COLUMN_CLASS.drag\n+                                      }\n                                     />\n                                     <TableColumn\n-                                      className={FORWARD_GROUPED_TABLE_COLUMN_CLASS.name}\n+                                      className={\n+                                        FORWARD_GROUPED_TABLE_COLUMN_CLASS.name\n+                                      }\n                                     >\n                                       名称\n                                     </TableColumn>\n@@ -3816,7 +3948,9 @@ export default function ForwardPage() {\n                                       入口\n                                     </TableColumn>\n                                     <TableColumn\n-                                      className={FORWARD_GROUPED_TABLE_COLUMN_CLASS.target}\n+                                      className={\n+                                        FORWARD_GROUPED_TABLE_COLUMN_CLASS.target\n+                                      }\n                                     >\n                                       目标\n                                     </TableColumn>\n@@ -3835,7 +3969,9 @@ export default function ForwardPage() {\n                                       总流量\n                                     </TableColumn>\n                                     <TableColumn\n-                                      className={FORWARD_GROUPED_TABLE_COLUMN_CLASS.status}\n+                                      className={\n+                                        FORWARD_GROUPED_TABLE_COLUMN_CLASS.status\n+                                      }\n                                     >\n                                       状态\n                                     </TableColumn>\n@@ -3860,14 +3996,22 @@ export default function ForwardPage() {\n                                         <SortableTableRow\n                                           formatFlow={formatFlow}\n                                           formatInAddress={formatInAddress}\n-                                          formatRemoteAddress={formatRemoteAddress}\n+                                          formatRemoteAddress={\n+                                            formatRemoteAddress\n+                                          }\n                                           forward={forward}\n-                                          getStrategyDisplay={getStrategyDisplay}\n+                                          getStrategyDisplay={\n+                                            getStrategyDisplay\n+                                          }\n                                           handleDelete={handleDelete}\n                                           handleDiagnose={handleDiagnose}\n                                           handleEdit={handleEdit}\n-                                          handleServiceToggle={handleServiceToggle}\n-                                          hasMultipleAddresses={hasMultipleAddresses}\n+                                          handleServiceToggle={\n+                                            handleServiceToggle\n+                                          }\n+                                          hasMultipleAddresses={\n+                                            hasMultipleAddresses\n+                                          }\n                                           selectMode={selectMode}\n                                           selectedIds={selectedIds}\n                                           showAddressModal={showAddressModal}\n@@ -3939,7 +4083,10 @@ export default function ForwardPage() {\n                   >\n                     <SortableContext\n                       items={group.tunnels.map((tunnel) =>\n-                        buildTunnelGroupSortableId(group.userId, tunnel.tunnelKey),\n+   \n\n...",
+              "exit": 0,
+              "description": "查看具体变更内容",
+              "truncated": true,
+              "outputPath": "/Users/sagit/.local/share/opencode/tool-output/tool_cb2a13803001kCdFTG6Thj2Ckx"
+            },
+            "time": {
+              "start": 1772523436006,
+              "end": 1772523436036
+            }
+          },
+          "id": "prt_cb2a1378c001dZqSGabyJai0iY",
+          "sessionID": "ses_34d5f0162ffeeB9T8yJ2y2rmV6",
+          "messageID": "msg_cb2a11acd001PNu9xs5vqpRpwN"
+        },
+        {
+          "type": "step-finish",
+          "reason": "tool-calls",
+          "snapshot": "1ecd8ed9d443f07d2dbd45036fd7a89dc412b74b",
+          "cost": 0,
+          "tokens": {
+            "total": 17901,
+            "input": 524,
+            "output": 175,
+            "reasoning": 0,
+            "cache": {
+              "read": 17202,
+              "write": 0
+            }
+          },
+          "id": "prt_cb2a13805001rlN760niC0kxEz",
+          "sessionID": "ses_34d5f0162ffeeB9T8yJ2y2rmV6",
+          "messageID": "msg_cb2a11acd001PNu9xs5vqpRpwN"
+        }
+      ]
+    },
+    {
+      "info": {
+        "role": "assistant",
+        "time": {
+          "created": 1772523436091,
+          "completed": 1772523452818
+        },
+        "parentID": "msg_cb2a0fefa001a7WMfXdGbtfyFh",
+        "modelID": "glm-5",
+        "providerID": "bailian-coding-plan-test",
+        "mode": "build",
+        "agent": "build",
+        "path": {
+          "cwd": "/Users/sagit/.local/share/opencode/worktree/13650be91caa3a9e08a2e63127fef62757658384/mighty-nebula",
+          "root": "/Users/sagit/.local/share/opencode/worktree/13650be91caa3a9e08a2e63127fef62757658384/mighty-nebula"
+        },
+        "cost": 0,
+        "tokens": {
+          "total": 29266,
+          "input": 11073,
+          "output": 469,
+          "reasoning": 0,
+          "cache": {
+            "read": 17724,
+            "write": 0
+          }
+        },
+        "finish": "tool-calls",
+        "id": "msg_cb2a1383b001GnKgu7Sc3KogmP",
+        "sessionID": "ses_34d5f0162ffeeB9T8yJ2y2rmV6"
+      },
+      "parts": [
+        {
+          "type": "step-start",
+          "snapshot": "1ecd8ed9d443f07d2dbd45036fd7a89dc412b74b",
+          "id": "prt_cb2a1470b001kKvDKULm1Wx1oT",
+          "sessionID": "ses_34d5f0162ffeeB9T8yJ2y2rmV6",
+          "messageID": "msg_cb2a1383b001GnKgu7Sc3KogmP"
+        },
+        {
+          "type": "reasoning",
+          "text": "让我看看这个变更内容：\n\n主要变更：\n1. `diagnosis-stream.ts` - 代码格式化改进\n2. `forward.tsx` - 大量改动，包括：\n   - 添加了 ny 格式导入支持\n   - 新增了 import-format.ts 文件（新增的未跟踪文件）\n   - 导入功能的增强（支持 flvx 和 ny 两种格式）\n   - 代码格式化和优化\n\n3. `limit.tsx` - 小改动\n4. `node.tsx` - 小改动  \n5. `tunnel.tsx` - 小改动\n\n未跟踪文件：\n- `.entire/metadata/...` - 这些应该不需要提交\n- `vite-frontend/src/pages/forward/import-format.test.ts` - 测试文件\n- `vite-frontend/src/pages/forward/import-format.ts` - ny 格式解析模块\n\n用户要求：\n1. 提交全部变更\n2. push\n3. 创建 PR 并合并\n4. 发布新 tag（alpha 版本）\n\n当前最新 tag 是 `2.1.7-alpha7`，所以下一个应该是 `2.1.7-alpha8` 或者 `2.1.8-alpha1`？\n\n我需要先查看一下这些新文件的内容，然后提交并 push。\n\n但是我需要注意：\n1. `.entire/metadata/...` 这些文件看起来是临时文件，不应该提交\n2. 需要先添加相关文件到 git\n3. 提交并 push\n\n\n4. 准备创建 PR 并合并到主分支\n5. 发布新的 alpha 版本 tag\n\n接下来我将检查新文件的具体内容，确保符合项目规范，然后逐步执行提交流程。需要仔细处理每个步骤，避免引入不必要的文件或配置。",
+          "metadata": {
+            "anthropic": {
+              "signature": ""
+            }
+          },
+          "time": {
+            "start": 1772523439884,
+            "end": 1772523451735
+          },
+          "id": "prt_cb2a1470c001oJfHHVDVQVgmCp",
+          "sessionID": "ses_34d5f0162ffeeB9T8yJ2y2rmV6",
+          "messageID": "msg_cb2a1383b001GnKgu7Sc3KogmP"
+        },
+        {
+          "type": "tool",
+          "callID": "toolu_tool-7fa6241f9bb64248b4003267c47e5b0e",
+          "tool": "read",
+          "state": {
+            "status": "completed",
+            "input": {
+              "filePath": "/Users/sagit/.local/share/opencode/worktree/13650be91caa3a9e08a2e63127fef62757658384/mighty-nebula/vite-frontend/src/pages/forward/import-format.ts"
+            },
+            "output": "<path>/Users/sagit/.local/share/opencode/worktree/13650be91caa3a9e08a2e63127fef62757658384/mighty-nebula/vite-frontend/src/pages/forward/import-format.ts</path>\n<type>file</type>\n<content>1: export interface NyImportItem {\n2:   dest: string[];\n3:   listen_port: number;\n4:   name: string;\n5: }\n6: \n7: export interface ParsedNyImportLine {\n8:   line: string;\n9:   parsed?: NyImportItem;\n10:   error?: string;\n11: }\n12: \n13: const ADDRESS_PATTERN = /^[^:]+:\\d+$/;\n14: \n15: const isValidListenPort = (value: unknown): value is number => {\n16:   return (\n17:     typeof value === \"number\" &&\n18:     Number.isFinite(value) &&\n19:     value >= 1 &&\n20:     value <= 65535\n21:   );\n22: };\n23: \n24: const validateNyItem = (line: string, value: unknown): ParsedNyImportLine => {\n25:   if (!value || typeof value !== \"object\" || Array.isArray(value)) {\n26:     return { line, error: \"JSON结构错误\" };\n27:   }\n28: \n29:   const item = value as Record<string, unknown>;\n30:   const dest = item.dest;\n31:   const listenPort = item.listen_port;\n32:   const name = item.name;\n33: \n34:   if (!Array.isArray(dest) || dest.length === 0) {\n35:     return { line, error: \"dest数组为空或格式错误\" };\n36:   }\n37: \n38:   if (typeof name !== \"string\" || name.trim() === \"\") {\n39:     return { line, error: \"name不能为空\" };\n40:   }\n41: \n42:   if (!isValidListenPort(listenPort)) {\n43:     return { line, error: \"listen_port必须为1-65535之间的数字\" };\n44:   }\n45: \n46:   const normalizedDest = dest.map((itemValue) =>\n47:     typeof itemValue === \"string\" ? itemValue.trim() : \"\",\n48:   );\n49: \n50:   if (normalizedDest.some((itemValue) => itemValue === \"\")) {\n51:     return { line, error: \"dest中包含空地址\" };\n52:   }\n53: \n54:   const invalid = normalizedDest.find(\n55:     (itemValue) => !ADDRESS_PATTERN.test(itemValue),\n56:   );\n57: \n58:   if (invalid) {\n59:     return { line, error: `目标地址格式错误: ${invalid}` };\n60:   }\n61: \n62:   return {\n63:     line,\n64:     parsed: {\n65:       dest: normalizedDest,\n66:       listen_port: listenPort,\n67:       name: name.trim(),\n68:     },\n69:   };\n70: };\n71: \n72: const splitConcatenatedJsonObjects = (input: string): string[] => {\n73:   const result: string[] = [];\n74:   let depth = 0;\n75:   let start = -1;\n76:   let inString = false;\n77:   let escaping = false;\n78: \n79:   for (let i = 0; i < input.length; i += 1) {\n80:     const char = input[i];\n81: \n82:     if (escaping) {\n83:       escaping = false;\n84:       continue;\n85:     }\n86: \n87:     if (char === \"\\\\\") {\n88:       escaping = true;\n89:       continue;\n90:     }\n91: \n92:     if (char === '\"') {\n93:       inString = !inString;\n94:       continue;\n95:     }\n96: \n97:     if (inString) {\n98:       continue;\n99:     }\n100: \n101:     if (char === \"{\") {\n102:       if (depth === 0) {\n103:         start = i;\n104:       }\n105:       depth += 1;\n106:       continue;\n107:     }\n108: \n109:     if (char === \"}\") {\n110:       depth -= 1;\n111:       if (depth === 0 && start >= 0) {\n112:         result.push(input.slice(start, i + 1));\n113:         start = -1;\n114:       }\n115:     }\n116:   }\n117: \n118:   return result;\n119: };\n120: \n121: export const parseNyFormatData = (input: string): ParsedNyImportLine[] => {\n122:   const trimmed = input.trim();\n123: \n124:   if (!trimmed) {\n125:     return [];\n126:   }\n127: \n128:   const parsedResults: ParsedNyImportLine[] = [];\n129:   const objectChunks = splitConcatenatedJsonObjects(trimmed);\n130: \n131:   if (objectChunks.length > 0) {\n132:     objectChunks.forEach((chunk) => {\n133:       try {\n134:         const parsed = JSON.parse(chunk);\n135: \n136:         parsedResults.push(validateNyItem(chunk, parsed));\n137:       } catch {\n138:         parsedResults.push({ line: chunk, error: \"JSON解析失败\" });\n139:       }\n140:     });\n141: \n142:     return parsedResults;\n143:   }\n144: \n145:   trimmed\n146:     .split(\"\\n\")\n147:     .map((line) => line.trim())\n148:     .filter((line) => line !== \"\")\n149:     .forEach((line) => {\n150:       try {\n151:         const parsed = JSON.parse(line);\n152: \n153:         parsedResults.push(validateNyItem(line, parsed));\n154:       } catch {\n155:         parsedResults.push({ line, error: \"JSON解析失败\" });\n156:       }\n157:     });\n158: \n159:   return parsedResults;\n160: };\n161: \n162: export const convertNyItemToForwardInput = (item: NyImportItem) => {\n163:   return {\n164:     name: item.name.trim(),\n165:     inPort: item.listen_port,\n166:     remoteAddr: item.dest.join(\",\"),\n167:     strategy: \"fifo\" as const,\n168:   };\n169: };\n\n(End of file - total 169 lines)\n</content>\n\n<system-reminder>\nInstructions from: /Users/sagit/.local/share/opencode/worktree/13650be91caa3a9e08a2e63127fef62757658384/mighty-nebula/vite-frontend/AGENTS.md\n# VITE FRONTEND KNOWLEDGE BASE\n\n**Generated:** Thu Feb 26 2026\n**Commit:** 21008cc\n**Branch:** main\n**Tag:** 2.1.5-rc15\n\n## OVERVIEW\nWeb management console for FLVX.\n**Stack:** React 18, rolldown-vite, TypeScript, Tailwind CSS v4, shadcn/radix primitives with HeroUI-compatible bridge.\n\n## STRUCTURE\n```\nvite-frontend/\n├── src/\n│   ├── api/                      # Axios wrapper + typed endpoint helpers\n│   ├── components/ui/            # shadcn/radix primitive components\n│   ├── shadcn-bridge/heroui/     # HeroUI-compatible facade (23 components)\n│   ├── pages/                    # Route views + page modules (forward/node/tunnel)\n│   ├── hooks/                    # H5/WebView/mobile hooks\n│   ├── styles/\n│   │   ├── globals.css           # Base styles + imports tailwind-theme.pcss\n│   │   └── tailwind-theme.pcss   # Tailwind v4 @theme inline semantic token mapping\n│   ├── App.tsx                   # Routes + ProtectedRoute + H5 layout selection\n│   ├── main.tsx                  # ReactDOM + BrowserRouter + Provider\n│   └── provider.tsx              # Toast/theme/provider composition\n├── components.json               # shadcn/ui config\n├── tailwind.config.js            # Compatibility config for migration scaffolding\n├── vite.config.ts                # base '/', host 0.0.0.0:3000; minify/treeshake disabled\n└── package.json\n```\n\n## WHERE TO LOOK\n| Task | Location | Notes |\n|------|----------|-------|\n| **Route definitions** | `src/App.tsx` | React Router v6 + ProtectedRoute |\n| **API Client/Auth header** | `src/api/network.ts` | Sends raw JWT in `Authorization` header |\n| **Login Flow** | `src/pages/index.tsx` | Calls `login()`, stores `localStorage.token` |\n| **Auth helpers** | `src/utils/auth.ts`, `src/utils/jwt.ts` | Role checks + token expiration parsing |\n| **UI bridge usage** | `src/shadcn-bridge/heroui/` | Import from bridge, not `@heroui/*` |\n| **Button parity mapping** | `src/shadcn-bridge/heroui/button.tsx` | Legacy `color`/`variant` mapped to shadcn classes |\n| **Semantic theme tokens** | `src/styles/tailwind-theme.pcss` | Restores classes like `bg-primary`, `border-input` |\n| **Theme wiring** | `src/styles/globals.css` | Must import `./tailwind-theme.pcss` |\n\n## CONVENTIONS\n- **Auth Header**: Use raw JWT token (no `Bearer` prefix).\n- **API Envelope**: Responses follow `{code, msg, data, ts}`.\n- **UI Imports**: Use `src/shadcn-bridge/heroui/*` in app pages/layouts for compatibility.\n- **Semantic Colors**: Keep `globals.css -> tailwind-theme.pcss` import intact or semantic classes break.\n- **Build profile**: `minify: false`, `treeshake: false` for debugging.\n- **Layout mode**: H5/mobile mode controlled by existing route/query and hook logic.\n\n## ANTI-PATTERNS\n- **DO NOT ADD** `Bearer` to auth header in frontend requests.\n- **DO NOT REINTRODUCE** `@heroui/*` or `@nextui-org/*` dependencies.\n- **DO NOT REMOVE** `src/styles/tailwind-theme.pcss` import from `src/styles/globals.css`.\n- **DO NOT ADD** frontend tests; no Vitest/Jest setup exists.\n\n## NOTES\n- Uses `rolldown-vite` (experimental Rust bundler) instead of standard Vite.\n- Build outputs are non-minified (debugging mode).\n- No test infrastructure exists (Vitest/Jest not configured).\n\n## COMMANDS\n```bash\ncd vite-frontend\nnpm run dev\nnpm run build\nnpm run lint\n```\n\n</system-reminder>",
+            "title": "vite-frontend/src/pages/forward/import-format.ts",
+            "metadata": {
+              "preview": "export interface NyImportItem {\n  dest: string[];\n  listen_port: number;\n  name: string;\n}\n\nexport interface ParsedNyImportLine {\n  line: string;\n  parsed?: NyImportItem;\n  error?: string;\n}\n\nconst ADDRESS_PATTERN = /^[^:]+:\\d+$/;\n\nconst isValidListenPort = (value: unknown): value is number => {\n  return (\n    typeof value === \"number\" &&\n    Number.isFinite(value) &&\n    value >= 1 &&\n    value <= 65535",
+              "truncated": false,
+              "loaded": [
+                "/Users/sagit/.local/share/opencode/worktree/13650be91caa3a9e08a2e63127fef62757658384/mighty-nebula/vite-frontend/AGENTS.md"
+              ]
+            },
+            "time": {
+              "start": 1772523452735,
+              "end": 1772523452753
+            }
+          },
+          "id": "prt_cb2a17559001XJha5leMhW19ok",
+          "sessionID": "ses_34d5f0162ffeeB9T8yJ2y2rmV6",
+          "messageID": "msg_cb2a1383b001GnKgu7Sc3KogmP"
+        },
+        {
+          "type": "tool",
+          "callID": "toolu_tool-bc2bf2e906b943f9ad82f4a8fd6b497a",
+          "tool": "bash",
+          "state": {
+            "status": "completed",
+            "input": {
+              "command": "git remote -v",
+              "description": "查看远程仓库配置"
+            },
+            "output": "origin\tgit@github.com:Sagit-chu/flvx.git (fetch)\norigin\tgit@github.com:Sagit-chu/flvx.git (push)\n",
+            "title": "查看远程仓库配置",
+            "metadata": {
+              "output": "origin\tgit@github.com:Sagit-chu/flvx.git (fetch)\norigin\tgit@github.com:Sagit-chu/flvx.git (push)\n",
+              "exit": 0,
+              "description": "查看远程仓库配置",
+              "truncated": false
+            },
+            "time": {
+              "start": 1772523452739,
+              "end": 1772523452761
+            }
+          },
+          "id": "prt_cb2a177450011lvQwwDk2cZ31d",
+          "sessionID": "ses_34d5f0162ffeeB9T8yJ2y2rmV6",
+          "messageID": "msg_cb2a1383b001GnKgu7Sc3KogmP"
+        },
+        {
+          "type": "tool",
+          "callID": "toolu_tool-bddbbde5fe7b48d9944b3ab3ac81e12f",
+          "tool": "bash",
+          "state": {
+            "status": "completed",
+            "input": {
+              "command": "git branch -r",
+              "description": "查看远程分支"
+            },
+            "output": "  origin/HEAD -> origin/main\n  origin/entire/checkpoints/v1\n  origin/gh-pages\n  origin/main\n  origin/opencode/mighty-nebula\n  origin/ui\n",
+            "title": "查看远程分支",
+            "metadata": {
+              "output": "  origin/HEAD -> origin/main\n  origin/entire/checkpoints/v1\n  origin/gh-pages\n  origin/main\n  origin/opencode/mighty-nebula\n  origin/ui\n",
+              "exit": 0,
+              "description": "查看远程分支",
+              "truncated": false
+            },
+            "time": {
+              "start": 1772523452743,
+              "end": 1772523452762
+            }
+          },
+          "id": "prt_cb2a179240019qRGWeHgTSKisV",
+          "sessionID": "ses_34d5f0162ffeeB9T8yJ2y2rmV6",
+          "messageID": "msg_cb2a1383b001GnKgu7Sc3KogmP"
+        },
+        {
+          "type": "step-finish",
+          "reason": "tool-calls",
+          "snapshot": "1ecd8ed9d443f07d2dbd45036fd7a89dc412b74b",
+          "cost": 0,
+          "tokens": {
+            "total": 29266,
+            "input": 11073,
+            "output": 469,
+            "reasoning": 0,
+            "cache": {
+              "read": 17724,
+              "write": 0
+            }
+          },
+          "id": "prt_cb2a1795b001smg0nBSKIdti4N",
+          "sessionID": "ses_34d5f0162ffeeB9T8yJ2y2rmV6",
+          "messageID": "msg_cb2a1383b001GnKgu7Sc3KogmP"
+        }
+      ]
+    },
+    {
+      "info": {
+        "role": "assistant",
+        "time": {
+          "created": 1772523452819,
+          "completed": 1772523466477
+        },
+        "parentID": "msg_cb2a0fefa001a7WMfXdGbtfyFh",
+        "modelID": "glm-5",
+        "providerID": "bailian-coding-plan-test",
+        "mode": "build",
+        "agent": "build",
+        "path": {
+          "cwd": "/Users/sagit/.local/share/opencode/worktree/13650be91caa3a9e08a2e63127fef62757658384/mighty-nebula",
+          "root": "/Users/sagit/.local/share/opencode/worktree/13650be91caa3a9e08a2e63127fef62757658384/mighty-nebula"
+        },
+        "cost": 0,
+        "tokens": {
+          "total": 31739,
+          "input": 2551,
+          "output": 393,
+          "reasoning": 0,
+          "cache": {
+            "read": 28795,
+            "write": 0
+          }
+        },
+        "finish": "tool-calls",
+        "id": "msg_cb2a179930010aFajCPwryl0oO",
+        "sessionID": "ses_34d5f0162ffeeB9T8yJ2y2rmV6"
+      },
+      "parts": [
+        {
+          "type": "step-start",
+          "snapshot": "1ecd8ed9d443f07d2dbd45036fd7a89dc412b74b",
+          "id": "prt_cb2a186f6001uqKWlP4PZj65cl",
+          "sessionID": "ses_34d5f0162ffeeB9T8yJ2y2rmV6",
+          "messageID": "msg_cb2a179930010aFajCPwryl0oO"
+        },
+        {
+          "type": "reasoning",
+          "text": "现在我了解了情况：\n1. 当前分支是 `opencode/mighty-nebula`，已经与远程同步\n2. 有变更待提交：\n   - 修改的文件：`diagnosis-stream.ts`, `forward.tsx`, `limit.tsx`, `node.tsx`, `tunnel.tsx`\n   - 新文件：`import-format.test.ts`, `import-format.ts`（还有 `.entire` 目录）\n3. 最新tag是 `2.1.7-alpha7`\n4. 远程仓库是 `git@github.com:Sagit-chu/flvx.git`\n5. 主要分支有 `main` 和当前的 `opencode/mighty-nebula`\n\n用户要求：\n1. 提交全部变更\n2. push\n3. 创建PR合并\n4. 发布新tag，alpha版本\n\n步骤：\n1. 先忽略 `.entire` 目录（看起来是临时文件），提交代码变更\n2. push 到远程\n3. 创建 PR 从 `opencode/mighty-nebula` 到 `main`\n4. 合并 PR\n5. 创建新的 alpha tag（从 `2.1.7-alpha7` 递增到 `2.1.7-alpha8` 或 `2.1.8-alpha1`）\n\n首先提交变更。我需要先看看 `.entire` 是什么，可能是临时文件不应该提交。",
+          "metadata": {
+            "anthropic": {
+              "signature": ""
+            }
+          },
+          "time": {
+            "start": 1772523456246,
+            "end": 1772523466030
+          },
+          "id": "prt_cb2a186f6002v6Dt6O6P3XTYmy",
+          "sessionID": "ses_34d5f0162ffeeB9T8yJ2y2rmV6",
+          "messageID": "msg_cb2a179930010aFajCPwryl0oO"
+        },
+        {
+          "type": "tool",
+          "callID": "toolu_tool-d2dcc79f6cc24da988706e105e228983",
+          "tool": "bash",
+          "state": {
+            "status": "completed",
+            "input": {
+              "command": "git add vite-frontend/src/api/diagnosis-stream.ts vite-frontend/src/pages/forward.tsx vite-frontend/src/pages/limit.tsx vite-frontend/src/pages/node.tsx vite-frontend/src/pages/tunnel.tsx vite-frontend/src/pages/forward/import-format.ts vite-frontend/src/pages/forward/import-format.test.ts",
+              "description": "暂存代码变更"
+            },
+            "output": "",
+            "title": "暂存代码变更",
+            "metadata": {
+              "output": "",
+              "exit": 0,
+              "description": "暂存代码变更",
+              "truncated": false
+            },
+            "time": {
+              "start": 1772523466387,
+              "end": 1772523466423
+            }
+          },
+          "id": "prt_cb2a1ad300017gpldjnjRL209Y",
+          "sessionID": "ses_34d5f0162ffeeB9T8yJ2y2rmV6",
+          "messageID": "msg_cb2a179930010aFajCPwryl0oO"
+        },
+        {
+          "type": "tool",
+          "callID": "toolu_tool-4743d3075bc04c558fe4db15aed6b60a",
+          "tool": "bash",
+          "state": {
+            "status": "completed",
+            "input": {
+              "command": "git status",
+              "description": "确认暂存状态"
+            },
+            "output": "位于分支 opencode/mighty-nebula\n您的分支与上游分支 'origin/opencode/mighty-nebula' 一致。\n\n尚未暂存以备提交的变更：\n  （使用 \"git add <文件>...\" 更新要提交的内容）\n  （使用 \"git restore <文件>...\" 丢弃工作区的改动）\n\t修改：     vite-frontend/src/api/diagnosis-stream.ts\n\t修改：     vite-frontend/src/pages/forward.tsx\n\t修改：     vite-frontend/src/pages/limit.tsx\n\t修改：     vite-frontend/src/pages/node.tsx\n\t修改：     vite-frontend/src/pages/tunnel.tsx\n\n未跟踪的文件:\n  （使用 \"git add <文件>...\" 以包含要提交的内容）\n\t.entire/metadata/ses_34d7fcdb8ffekb7lvyJwVvoS8T/\n\t.entire/metadata/ses_34da82e9effeFXu4pJM3CaFEQB/\n\tvite-frontend/src/pages/forward/import-format.test.ts\n\tvite-frontend/src/pages/forward/import-format.ts\n\n修改尚未加入提交（使用 \"git add\" 和/或 \"git commit -a\"）\n",
+            "title": "确认暂存状态",
+            "metadata": {
+              "output": "位于分支 opencode/mighty-nebula\n您的分支与上游分支 'origin/opencode/mighty-nebula' 一致。\n\n尚未暂存以备提交的变更：\n  （使用 \"git add <文件>...\" 更新要提交的内容）\n  （使用 \"git restore <文件>...\" 丢弃工作区的改动）\n\t修改：     vite-frontend/src/api/diagnosis-stream.ts\n\t修改：     vite-frontend/src/pages/forward.tsx\n\t修改：     vite-frontend/src/pages/limit.tsx\n\t修改：     vite-frontend/src/pages/node.tsx\n\t修改：     vite-frontend/src/pages/tunnel.tsx\n\n未跟踪的文件:\n  （使用 \"git add <文件>...\" 以包含要提交的内容）\n\t.entire/metadata/ses_34d7fcdb8ffekb7lvyJwVvoS8T/\n\t.entire/metadata/ses_34da82e9effeFXu4pJM3CaFEQB/\n\tvite-frontend/src/pages/forward/import-format.test.ts\n\tvite-frontend/src/pages/forward/import-format.ts\n\n修改尚未加入提交（使用 \"git add\" 和/或 \"git commit -a\"）\n",
+              "exit": 0,
+              "description": "确认暂存状态",
+              "truncated": false
+            },
+            "time": {
+              "start": 1772523466391,
+              "end": 1772523466425
+            }
+          },
+          "id": "prt_cb2a1ae77001CgE3Mo0SQ9ndkE",
+          "sessionID": "ses_34d5f0162ffeeB9T8yJ2y2rmV6",
+          "messageID": "msg_cb2a179930010aFajCPwryl0oO"
+        },
+        {
+          "type": "step-finish",
+          "reason": "tool-calls",
+          "snapshot": "1ecd8ed9d443f07d2dbd45036fd7a89dc412b74b",
+          "cost": 0,
+          "tokens": {
+            "total": 31739,
+            "input": 2551,
+            "output": 393,
+            "reasoning": 0,
+            "cache": {
+              "read": 28795,
+              "write": 0
+            }
+          },
+          "id": "prt_cb2a1aeba001kKqcmaeJYuRkc7",
+          "sessionID": "ses_34d5f0162ffeeB9T8yJ2y2rmV6",
+          "messageID": "msg_cb2a179930010aFajCPwryl0oO"
+        }
+      ]
+    },
+    {
+      "info": {
+        "role": "assistant",
+        "time": {
+          "created": 1772523466478,
+          "completed": 1772523471738
+        },
+        "parentID": "msg_cb2a0fefa001a7WMfXdGbtfyFh",
+        "modelID": "glm-5",
+        "providerID": "bailian-coding-plan-test",
+        "mode": "build",
+        "agent": "build",
+        "path": {
+          "cwd": "/Users/sagit/.local/share/opencode/worktree/13650be91caa3a9e08a2e63127fef62757658384/mighty-nebula",
+          "root": "/Users/sagit/.local/share/opencode/worktree/13650be91caa3a9e08a2e63127fef62757658384/mighty-nebula"
+        },
+        "cost": 0,
+        "tokens": {
+          "total": 31818,
+          "input": 372,
+          "output": 102,
+          "reasoning": 0,
+          "cache": {
+            "read": 31344,
+            "write": 0
+          }
+        },
+        "finish": "tool-calls",
+        "id": "msg_cb2a1aeee001umpH4cvPGjkHA5",
+        "sessionID": "ses_34d5f0162ffeeB9T8yJ2y2rmV6"
+      },
+      "parts": [
+        {
+          "type": "step-start",
+          "snapshot": "1ecd8ed9d443f07d2dbd45036fd7a89dc412b74b",
+          "id": "prt_cb2a1b8a20013cI0GJyC9C6i3W",
+          "sessionID": "ses_34d5f0162ffeeB9T8yJ2y2rmV6",
+          "messageID": "msg_cb2a1aeee001umpH4cvPGjkHA5"
+        },
+        {
+          "type": "reasoning",
+          "text": "看起来文件还没有被暂存。让我再次尝试添加。可能是因为工作目录的问题。让我检查当前工作目录。",
+          "metadata": {
+            "anthropic": {
+              "signature": ""
+            }
+          },
+          "time": {
+            "start": 1772523468963,
+            "end": 1772523470273
+          },
+          "id": "prt_cb2a1b8a3001DMV34xWO1c3VcO",
+          "sessionID": "ses_34d5f0162ffeeB9T8yJ2y2rmV6",
+          "messageID": "msg_cb2a1aeee001umpH4cvPGjkHA5"
+        },
+        {
+          "type": "tool",
+          "callID": "toolu_tool-9b9373108bb64cc1b2fccf30725a1e92",
+          "tool": "bash",
+          "state": {
+            "status": "completed",
+            "input": {
+              "command": "pwd",
+              "description": "检查当前工作目录"
+            },
+            "output": "/Users/sagit/.local/share/opencode/worktree/13650be91caa3a9e08a2e63127fef62757658384/mighty-nebula\n",
+            "title": "检查当前工作目录",
+            "metadata": {
+              "output": "/Users/sagit/.local/share/opencode/worktree/13650be91caa3a9e08a2e63127fef62757658384/mighty-nebula\n",
+              "exit": 0,
+              "description": "检查当前工作目录",
+              "truncated": false
+            },
+            "time": {
+              "start": 1772523471643,
+              "end": 1772523471662
+            }
+          },
+          "id": "prt_cb2a1bdc200194JRDr4bZrVFnz",
+          "sessionID": "ses_34d5f0162ffeeB9T8yJ2y2rmV6",
+          "messageID": "msg_cb2a1aeee001umpH4cvPGjkHA5"
+        },
+        {
+          "type": "tool",
+          "callID": "toolu_tool-c3b8e1db986f452cbdac8103a53258cd",
+          "tool": "bash",
+          "state": {
+            "status": "completed",
+            "input": {
+              "command": "git add vite-frontend/src/pages/forward/import-format.ts vite-frontend/src/pages/forward/import-format.test.ts",
+              "description": "暂存新文件"
+            },
+            "output": "",
+            "title": "暂存新文件",
+            "metadata": {
+              "output": "",
+              "exit": 0,
+              "description": "暂存新文件",
+              "truncated": false
+            },
+            "time": {
+              "start": 1772523471647,
+              "end": 1772523471672
+            }
+          },
+          "id": "prt_cb2a1c19f001PKFNryNZAdEisl",
+          "sessionID": "ses_34d5f0162ffeeB9T8yJ2y2rmV6",
+          "messageID": "msg_cb2a1aeee001umpH4cvPGjkHA5"
+        },
+        {
+          "type": "tool",
+          "callID": "toolu_tool-4b651fcf0e704becb4e90e59b43ea44a",
+          "tool": "bash",
+          "state": {
+            "status": "completed",
+            "input": {
+              "command": "git status",
+              "description": "再次检查状态"
+            },
+            "output": "位于分支 opencode/mighty-nebula\n您的分支与上游分支 'origin/opencode/mighty-nebula' 一致。\n\n要提交的变更：\n  （使用 \"git restore --staged <文件>...\" 以取消暂存）\n\t修改：     vite-frontend/src/api/diagnosis-stream.ts\n\t修改：     vite-frontend/src/pages/forward.tsx\n\t新文件：   vite-frontend/src/pages/forward/import-format.test.ts\n\t新文件：   vite-frontend/src/pages/forward/import-format.ts\n\t修改：     vite-frontend/src/pages/limit.tsx\n\t修改：     vite-frontend/src/pages/node.tsx\n\t修改：     vite-frontend/src/pages/tunnel.tsx\n\n未跟踪的文件:\n  （使用 \"git add <文件>...\" 以包含要提交的内容）\n\t.entire/metadata/ses_34d7fcdb8ffekb7lvyJwVvoS8T/\n\t.entire/metadata/ses_34da82e9effeFXu4pJM3CaFEQB/\n\n",
+            "title": "再次检查状态",
+            "metadata": {
+              "output": "位于分支 opencode/mighty-nebula\n您的分支与上游分支 'origin/opencode/mighty-nebula' 一致。\n\n要提交的变更：\n  （使用 \"git restore --staged <文件>...\" 以取消暂存）\n\t修改：     vite-frontend/src/api/diagnosis-stream.ts\n\t修改：     vite-frontend/src/pages/forward.tsx\n\t新文件：   vite-frontend/src/pages/forward/import-format.test.ts\n\t新文件：   vite-frontend/src/pages/forward/import-format.ts\n\t修改：     vite-frontend/src/pages/limit.tsx\n\t修改：     vite-frontend/src/pages/node.tsx\n\t修改：     vite-frontend/src/pages/tunnel.tsx\n\n未跟踪的文件:\n  （使用 \"git add <文件>...\" 以包含要提交的内容）\n\t.entire/metadata/ses_34d7fcdb8ffekb7lvyJwVvoS8T/\n\t.entire/metadata/ses_34da82e9effeFXu4pJM3CaFEQB/\n\n",
+              "exit": 0,
+              "description": "再次检查状态",
+              "truncated": false
+            },
+            "time": {
+              "start": 1772523471653,
+              "end": 1772523471684
+            }
+          },
+          "id": "prt_cb2a1c2ff001VrNzhGWZ5AiB22",
+          "sessionID": "ses_34d5f0162ffeeB9T8yJ2y2rmV6",
+          "messageID": "msg_cb2a1aeee001umpH4cvPGjkHA5"
+        },
+        {
+          "type": "step-finish",
+          "reason": "tool-calls",
+          "snapshot": "1ecd8ed9d443f07d2dbd45036fd7a89dc412b74b",
+          "cost": 0,
+          "tokens": {
+            "total": 31818,
+            "input": 372,
+            "output": 102,
+            "reasoning": 0,
+            "cache": {
+              "read": 31344,
+              "write": 0
+            }
+          },
+          "id": "prt_cb2a1c345001OLV7tVi8Dnrgcn",
+          "sessionID": "ses_34d5f0162ffeeB9T8yJ2y2rmV6",
+          "messageID": "msg_cb2a1aeee001umpH4cvPGjkHA5"
+        }
+      ]
+    },
+    {
+      "info": {
+        "role": "assistant",
+        "time": {
+          "created": 1772523471739,
+          "completed": 1772523483806
+        },
+        "parentID": "msg_cb2a0fefa001a7WMfXdGbtfyFh",
+        "modelID": "glm-5",
+        "providerID": "bailian-coding-plan-test",
+        "mode": "build",
+        "agent": "build",
+        "path": {
+          "cwd": "/Users/sagit/.local/share/opencode/worktree/13650be91caa3a9e08a2e63127fef62757658384/mighty-nebula",
+          "root": "/Users/sagit/.local/share/opencode/worktree/13650be91caa3a9e08a2e63127fef62757658384/mighty-nebula"
+        },
+        "cost": 0,
+        "tokens": {
+          "total": 32240,
+          "input": 31689,
+          "output": 168,
+          "reasoning": 0,
+          "cache": {
+            "read": 383,
+            "write": 0
+          }
+        },
+        "finish": "tool-calls",
+        "id": "msg_cb2a1c37b001xcPekLzerm8esM",
+        "sessionID": "ses_34d5f0162ffeeB9T8yJ2y2rmV6"
+      },
+      "parts": [
+        {
+          "type": "step-start",
+          "snapshot": "1ecd8ed9d443f07d2dbd45036fd7a89dc412b74b",
+          "id": "prt_cb2a1d3f00017wZ3INSKGUbRCq",
+          "sessionID": "ses_34d5f0162ffeeB9T8yJ2y2rmV6",
+          "messageID": "msg_cb2a1c37b001xcPekLzerm8esM"
+        },
+        {
+          "type": "reasoning",
+          "text": "现在所有代码变更已经暂存。我需要：\n1. 提交变更\n2. 推送到远程\n3. 创建 PR 合并到 main\n4. 创建新的 alpha tag\n\n当前最新的 tag 是 2.1.7-alpha7，所以下一个应该是 2.1.7-alpha8 或者 2.1.8-alpha1。通常 alpha 版本是在同一个 minor 版本下递增 alpha 数字，所以应该是 2.1.7-alpha8。\n\n让我先提交代码，然后推送，创建 PR。",
+          "metadata": {
+            "anthropic": {
+              "signature": ""
+            }
+          },
+          "time": {
+            "start": 1772523475953,
+            "end": 1772523482255
+          },
+          "id": "prt_cb2a1d3f1001aAET4kzFwZxeWN",
+          "sessionID": "ses_34d5f0162ffeeB9T8yJ2y2rmV6",
+          "messageID": "msg_cb2a1c37b001xcPekLzerm8esM"
+        },
+        {
+          "type": "tool",
+          "callID": "toolu_tool-aa79abf7fdce45c4a2a3cf7ddd3d9ad7",
+          "tool": "bash",
+          "state": {
+            "status": "completed",
+            "input": {
+              "command": "git commit -m \"feat: add ny format support for forward import with node-based tunnel matching\"",
+              "description": "提交变更"
+            },
+            "output": "[opencode/mighty-nebula ef613c1] feat: add ny format support for forward import with node-based tunnel matching\n 7 files changed, 839 insertions(+), 190 deletions(-)\n create mode 100644 vite-frontend/src/pages/forward/import-format.test.ts\n create mode 100644 vite-frontend/src/pages/forward/import-format.ts\n",
+            "title": "提交变更",
+            "metadata": {
+              "output": "[opencode/mighty-nebula ef613c1] feat: add ny format support for forward import with node-based tunnel matching\n 7 files changed, 839 insertions(+), 190 deletions(-)\n create mode 100644 vite-frontend/src/pages/forward/import-format.test.ts\n create mode 100644 vite-frontend/src/pages/forward/import-format.ts\n",
+              "exit": 0,
+              "description": "提交变更",
+              "truncated": false
+            },
+            "time": {
+              "start": 1772523483133,
+              "end": 1772523483761
+            }
+          },
+          "id": "prt_cb2a1ec9100126DBaVr5Kricac",
+          "sessionID": "ses_34d5f0162ffeeB9T8yJ2y2rmV6",
+          "messageID": "msg_cb2a1c37b001xcPekLzerm8esM"
+        },
+        {
+          "type": "tool",
+          "callID": "toolu_tool-57d025afc9ea4154be359ac9fc6990ac",
+          "tool": "bash",
+          "state": {
+            "status": "completed",
+            "input": {
+              "command": "git status",
+              "description": "检查提交后状态"
+            },
+            "output": "位于分支 opencode/mighty-nebula\n您的分支与上游分支 'origin/opencode/mighty-nebula' 一致。\n\n要提交的变更：\n  （使用 \"git restore --staged <文件>...\" 以取消暂存）\n\t修改：     vite-frontend/src/api/diagnosis-stream.ts\n\t修改：     vite-frontend/src/pages/forward.tsx\n\t新文件：   vite-frontend/src/pages/forward/import-format.test.ts\n\t新文件：   vite-frontend/src/pages/forward/import-format.ts\n\t修改：     vite-frontend/src/pages/limit.tsx\n\t修改：     vite-frontend/src/pages/node.tsx\n\t修改：     vite-frontend/src/pages/tunnel.tsx\n\n未跟踪的文件:\n  （使用 \"git add <文件>...\" 以包含要提交的内容）\n\t.entire/metadata/ses_34d7fcdb8ffekb7lvyJwVvoS8T/\n\t.entire/metadata/ses_34da82e9effeFXu4pJM3CaFEQB/\n\n",
+            "title": "检查提交后状态",
+            "metadata": {
+              "output": "位于分支 opencode/mighty-nebula\n您的分支与上游分支 'origin/opencode/mighty-nebula' 一致。\n\n要提交的变更：\n  （使用 \"git restore --staged <文件>...\" 以取消暂存）\n\t修改：     vite-frontend/src/api/diagnosis-stream.ts\n\t修改：     vite-frontend/src/pages/forward.tsx\n\t新文件：   vite-frontend/src/pages/forward/import-format.test.ts\n\t新文件：   vite-frontend/src/pages/forward/import-format.ts\n\t修改：     vite-frontend/src/pages/limit.tsx\n\t修改：     vite-frontend/src/pages/node.tsx\n\t修改：     vite-frontend/src/pages/tunnel.tsx\n\n未跟踪的文件:\n  （使用 \"git add <文件>...\" 以包含要提交的内容）\n\t.entire/metadata/ses_34d7fcdb8ffekb7lvyJwVvoS8T/\n\t.entire/metadata/ses_34da82e9effeFXu4pJM3CaFEQB/\n\n",
+              "exit": 0,
+              "description": "检查提交后状态",
+              "truncated": false
+            },
+            "time": {
+              "start": 1772523483138,
+              "end": 1772523483173
+            }
+          },
+          "id": "prt_cb2a1efe9001DtpV3y3bSdce34",
+          "sessionID": "ses_34d5f0162ffeeB9T8yJ2y2rmV6",
+          "messageID": "msg_cb2a1c37b001xcPekLzerm8esM"
+        },
+        {
+          "type": "step-finish",
+          "reason": "tool-calls",
+          "snapshot": "1ecd8ed9d443f07d2dbd45036fd7a89dc412b74b",
+          "cost": 0,
+          "tokens": {
+            "total": 32240,
+            "input": 31689,
+            "output": 168,
+            "reasoning": 0,
+            "cache": {
+              "read": 383,
+              "write": 0
+            }
+          },
+          "id": "prt_cb2a1f272001ELH1DqWTM0hZxi",
+          "sessionID": "ses_34d5f0162ffeeB9T8yJ2y2rmV6",
+          "messageID": "msg_cb2a1c37b001xcPekLzerm8esM"
+        }
+      ]
+    },
+    {
+      "info": {
+        "role": "assistant",
+        "time": {
+          "created": 1772523483807,
+          "completed": 1772523492154
+        },
+        "parentID": "msg_cb2a0fefa001a7WMfXdGbtfyFh",
+        "modelID": "glm-5",
+        "providerID": "bailian-coding-plan-test",
+        "mode": "build",
+        "agent": "build",
+        "path": {
+          "cwd": "/Users/sagit/.local/share/opencode/worktree/13650be91caa3a9e08a2e63127fef62757658384/mighty-nebula",
+          "root": "/Users/sagit/.local/share/opencode/worktree/13650be91caa3a9e08a2e63127fef62757658384/mighty-nebula"
+        },
+        "cost": 0,
+        "tokens": {
+          "total": 32537,
+          "input": 445,
+          "output": 93,
+          "reasoning": 0,
+          "cache": {
+            "read": 31999,
+            "write": 0
+          }
+        },
+        "finish": "tool-calls",
+        "id": "msg_cb2a1f29f001ZO1oLYCP55XgtB",
+        "sessionID": "ses_34d5f0162ffeeB9T8yJ2y2rmV6"
+      },
+      "parts": [
+        {
+          "type": "step-start",
+          "snapshot": "1ecd8ed9d443f07d2dbd45036fd7a89dc412b74b",
+          "id": "prt_cb2a2039e001q9vsz4YoTyq3Db",
+          "sessionID": "ses_34d5f0162ffeeB9T8yJ2y2rmV6",
+          "messageID": "msg_cb2a1f29f001ZO1oLYCP55XgtB"
+        },
+        {
+          "type": "reasoning",
+          "text": "看起来之前的commit失败了。让我再次检查git状态，看看发生了什么。看起来文件还在暂存区。这很奇怪，commit命令显示成功了，但git status显示文件还在暂存区。\n\n让我再次运行git status看看实际情况。",
+          "metadata": {
+            "anthropic": {
+              "signature": ""
+            }
+          },
+          "time": {
+            "start": 1772523488159,
+            "end": 1772523491372
+          },
+          "id": "prt_cb2a2039f001dGLtMdj2nGt42q",
+          "sessionID": "ses_34d5f0162ffeeB9T8yJ2y2rmV6",
+          "messageID": "msg_cb2a1f29f001ZO1oLYCP55XgtB"
+        },
+        {
+          "type": "tool",
+          "callID": "toolu_tool-6e30c35c67994df28a44438b22904337",
+          "tool": "bash",
+          "state": {
+            "status": "completed",
+            "input": {
+              "command": "git log -1 --oneline",
+              "description": "查看最新提交"
+            },
+            "output": "ef613c1 feat: add ny format support for forward import with node-based tunnel matching\n",
+            "title": "查看最新提交",
+            "metadata": {
+              "output": "ef613c1 feat: add ny format support for forward import with node-based tunnel matching\n",
+              "exit": 0,
+              "description": "查看最新提交",
+              "truncated": false
+            },
+            "time": {
+              "start": 1772523492066,
+              "end": 1772523492092
+            }
+          },
+          "id": "prt_cb2a2102e001o8CLz8B4NYrfiX",
+          "sessionID": "ses_34d5f0162ffeeB9T8yJ2y2rmV6",
+          "messageID": "msg_cb2a1f29f001ZO1oLYCP55XgtB"
+        },
+        {
+          "type": "tool",
+          "callID": "toolu_tool-fffcd3ea1e4a43eab9fbe242463fa8f3",
+          "tool": "bash",
+          "state": {
+            "status": "completed",
+            "input": {
+              "command": "git status",
+              "description": "重新检查git状态"
+            },
+            "output": "位于分支 opencode/mighty-nebula\n您的分支领先 'origin/opencode/mighty-nebula' 共 1 个提交。\n  （使用 \"git push\" 来发布您的本地提交）\n\n未跟踪的文件:\n  （使用 \"git add <文件>...\" 以包含要提交的内容）\n\t.entire/metadata/ses_34d7fcdb8ffekb7lvyJwVvoS8T/\n\t.entire/metadata/ses_34da82e9effeFXu4pJM3CaFEQB/\n\n提交为空，但是存在尚未跟踪的文件（使用 \"git add\" 建立跟踪）\n",
+            "title": "重新检查git状态",
+            "metadata": {
+              "output": "位于分支 opencode/mighty-nebula\n您的分支领先 'origin/opencode/mighty-nebula' 共 1 个提交。\n  （使用 \"git push\" 来发布您的本地提交）\n\n未跟踪的文件:\n  （使用 \"git add <文件>...\" 以包含要提交的内容）\n\t.entire/metadata/ses_34d7fcdb8ffekb7lvyJwVvoS8T/\n\t.entire/metadata/ses_34da82e9effeFXu4pJM3CaFEQB/\n\n提交为空，但是存在尚未跟踪的文件（使用 \"git add\" 建立跟踪）\n",
+              "exit": 0,
+              "description": "重新检查git状态",
+              "truncated": false
+            },
+            "time": {
+              "start": 1772523492071,
+              "end": 1772523492102
+            }
+          },
+          "id": "prt_cb2a212d9001QOGX8s04tvCqQQ",
+          "sessionID": "ses_34d5f0162ffeeB9T8yJ2y2rmV6",
+          "messageID": "msg_cb2a1f29f001ZO1oLYCP55XgtB"
+        },
+        {
+          "type": "step-finish",
+          "reason": "tool-calls",
+          "snapshot": "1ecd8ed9d443f07d2dbd45036fd7a89dc412b74b",
+          "cost": 0,
+          "tokens": {
+            "total": 32537,
+            "input": 445,
+            "output": 93,
+            "reasoning": 0,
+            "cache": {
+              "read": 31999,
+              "write": 0
+            }
+          },
+          "id": "prt_cb2a21307001f8oGmT0WM0A2kN",
+          "sessionID": "ses_34d5f0162ffeeB9T8yJ2y2rmV6",
+          "messageID": "msg_cb2a1f29f001ZO1oLYCP55XgtB"
+        }
+      ]
+    },
+    {
+      "info": {
+        "role": "assistant",
+        "time": {
+          "created": 1772523492155,
+          "completed": 1772523506160
+        },
+        "parentID": "msg_cb2a0fefa001a7WMfXdGbtfyFh",
+        "modelID": "glm-5",
+        "providerID": "bailian-coding-plan-test",
+        "mode": "build",
+        "agent": "build",
+        "path": {
+          "cwd": "/Users/sagit/.local/share/opencode/worktree/13650be91caa3a9e08a2e63127fef62757658384/mighty-nebula",
+          "root": "/Users/sagit/.local/share/opencode/worktree/13650be91caa3a9e08a2e63127fef62757658384/mighty-nebula"
+        },
+        "cost": 0,
+        "tokens": {
+          "total": 32746,
+          "input": 333,
+          "output": 94,
+          "reasoning": 0,
+          "cache": {
+            "read": 32319,
+            "write": 0
+          }
+        },
+        "finish": "tool-calls",
+        "id": "msg_cb2a2133b001otZLV7LeICkoQA",
+        "sessionID": "ses_34d5f0162ffeeB9T8yJ2y2rmV6"
+      },
+      "parts": [
+        {
+          "type": "step-start",
+          "snapshot": "1ecd8ed9d443f07d2dbd45036fd7a89dc412b74b",
+          "id": "prt_cb2a22572001QBw37kT82bKvmc",
+          "sessionID": "ses_34d5f0162ffeeB9T8yJ2y2rmV6",
+          "messageID": "msg_cb2a2133b001otZLV7LeICkoQA"
+        },
+        {
+          "type": "reasoning",
+          "text": "好的，现在提交成功了。我需要：\n1. push到远程\n2. 创建PR合并到main\n3. 创建新的alpha tag\n\n当前最新tag是 2.1.7-alpha7，所以新的tag应该是 2.1.7-alpha8\n\n让我先push，然后创建PR。",
+          "metadata": {
+            "anthropic": {
+              "signature": ""
+            }
+          },
+          "time": {
+            "start": 1772523496818,
+            "end": 1772523500722
+          },
+          "id": "prt_cb2a22572002h160H0ToEOFX1A",
+          "sessionID": "ses_34d5f0162ffeeB9T8yJ2y2rmV6",
+          "messageID": "msg_cb2a2133b001otZLV7LeICkoQA"
+        },
+        {
+          "type": "tool",
+          "callID": "toolu_tool-c78d9ee70e6e4528823f4456e05eebad",
+          "tool": "bash",
+          "state": {
+            "status": "completed",
+            "input": {
+              "command": "git push origin opencode/mighty-nebula",
+              "description": "推送到远程分支"
+            },
+            "output": "To github.com:Sagit-chu/flvx.git\n   be9d877..ef613c1  opencode/mighty-nebula -> opencode/mighty-nebula\n",
+            "title": "推送到远程分支",
+            "metadata": {
+              "output": "To github.com:Sagit-chu/flvx.git\n   be9d877..ef613c1  opencode/mighty-nebula -> opencode/mighty-nebula\n",
+              "exit": 0,
+              "description": "推送到远程分支",
+              "truncated": false
+            },
+            "time": {
+              "start": 1772523500772,
+              "end": 1772523506093
+            }
+          },
+          "id": "prt_cb2a234b300120AykbC3OznUJs",
+          "sessionID": "ses_34d5f0162ffeeB9T8yJ2y2rmV6",
+          "messageID": "msg_cb2a2133b001otZLV7LeICkoQA"
+        },
+        {
+          "type": "step-finish",
+          "reason": "tool-calls",
+          "snapshot": "1ecd8ed9d443f07d2dbd45036fd7a89dc412b74b",
+          "cost": 0,
+          "tokens": {
+            "total": 32746,
+            "input": 333,
+            "output": 94,
+            "reasoning": 0,
+            "cache": {
+              "read": 32319,
+              "write": 0
+            }
+          },
+          "id": "prt_cb2a249ae0016aDVmUGK683L4Q",
+          "sessionID": "ses_34d5f0162ffeeB9T8yJ2y2rmV6",
+          "messageID": "msg_cb2a2133b001otZLV7LeICkoQA"
+        }
+      ]
+    },
+    {
+      "info": {
+        "role": "assistant",
+        "time": {
+          "created": 1772523506162,
+          "completed": 1772523522592
+        },
+        "parentID": "msg_cb2a0fefa001a7WMfXdGbtfyFh",
+        "modelID": "glm-5",
+        "providerID": "bailian-coding-plan-test",
+        "mode": "build",
+        "agent": "build",
+        "path": {
+          "cwd": "/Users/sagit/.local/share/opencode/worktree/13650be91caa3a9e08a2e63127fef62757658384/mighty-nebula",
+          "root": "/Users/sagit/.local/share/opencode/worktree/13650be91caa3a9e08a2e63127fef62757658384/mighty-nebula"
+        },
+        "cost": 0,
+        "tokens": {
+          "total": 32965,
+          "input": 151,
+          "output": 239,
+          "reasoning": 0,
+          "cache": {
+            "read": 32575,
+            "write": 0
+          }
+        },
+        "finish": "tool-calls",
+        "id": "msg_cb2a249f2001HsFUe1zIhxIfll",
+        "sessionID": "ses_34d5f0162ffeeB9T8yJ2y2rmV6"
+      },
+      "parts": [
+        {
+          "type": "step-start",
+          "snapshot": "1ecd8ed9d443f07d2dbd45036fd7a89dc412b74b",
+          "id": "prt_cb2a254dd0014i4SUV0Rd9p0UF",
+          "sessionID": "ses_34d5f0162ffeeB9T8yJ2y2rmV6",
+          "messageID": "msg_cb2a249f2001HsFUe1zIhxIfll"
+        },
+        {
+          "type": "reasoning",
+          "text": "现在我需要创建PR来合并到main分支。根据git历史，我看到当前分支是opencode/mighty-nebula，main是主分支。我需要创建一个PR。",
+          "metadata": {
+            "anthropic": {
+              "signature": ""
+            }
+          },
+          "time": {
+            "start": 1772523508958,
+            "end": 1772523512054
+          },
+          "id": "prt_cb2a254de001yCARAqr1Ru3z5n",
+          "sessionID": "ses_34d5f0162ffeeB9T8yJ2y2rmV6",
+          "messageID": "msg_cb2a249f2001HsFUe1zIhxIfll"
+        },
+        {
+          "type": "tool",
+          "callID": "toolu_tool-f5e39023e1a049a1b67e1a0624aa5ac6",
+          "tool": "bash",
+          "state": {
+            "status": "completed",
+            "input": {
+              "command": "git log main..opencode/mighty-nebula --oneline",
+              "description": "查看当前分支相对于main的提交"
+            },
+            "output": "ef613c1 feat: add ny format support for forward import with node-based tunnel matching\nbe9d877 merge: resolve conflicts with main branch\n1c10347 fix: use configured connectIp for tunnel chain diagnosis\n5bd21e2 feat: custom IP selection and forward list enhancements (#247)\ne383359 fix: apply custom IP binding to forward and tunnel chain services\n95929bf feat: add comprehensive migration test for legacy columns (#245)\n9cf9f4f feat: add comprehensive migration test for legacy columns\nae8dbdd feat: add custom IP selection for nodes, tunnels, and forwards (#244)\n05bd6a6 feat: add IP selection dropdown for tunnels and forwards\nb819341 feat: add custom IP selection for nodes, tunnels, and forwards\n15e4508 feat(forward): support tunnel-group collapse and ordering in full mode (#243)\n634c6cd feat(forward): add tunnel group collapse and drag sorting in full mode\n4eaecb2 fix(config): expose forward compact mode switch in settings (#241)\n98a9e5c fix(config): expose forward compact mode switch in settings\nd244920 feat(forward): add global compact mode with alpha8 list layout (#240)\n77e4387 feat(forward): add global compact mode with alpha8 list layout\n",
+            "title": "查看当前分支相对于main的提交",
+            "metadata": {
+              "output": "ef613c1 feat: add ny format support for forward import with node-based tunnel matching\nbe9d877 merge: resolve conflicts with main branch\n1c10347 fix: use configured connectIp for tunnel chain diagnosis\n5bd21e2 feat: custom IP selection and forward list enhancements (#247)\ne383359 fix: apply custom IP binding to forward and tunnel chain services\n95929bf feat: add comprehensive migration test for legacy columns (#245)\n9cf9f4f feat: add comprehensive migration test for legacy columns\nae8dbdd feat: add custom IP selection for nodes, tunnels, and forwards (#244)\n05bd6a6 feat: add IP selection dropdown for tunnels and forwards\nb819341 feat: add custom IP selection for nodes, tunnels, and forwards\n15e4508 feat(forward): support tunnel-group collapse and ordering in full mode (#243)\n634c6cd feat(forward): add tunnel group collapse and drag sorting in full mode\n4eaecb2 fix(config): expose forward compact mode switch in settings (#241)\n98a9e5c fix(config): expose forward compact mode switch in settings\nd244920 feat(forward): add global compact mode with alpha8 list layout (#240)\n77e4387 feat(forward): add global compact mode with alpha8 list layout\n",
+              "exit": 0,
+              "description": "查看当前分支相对于main的提交",
+              "truncated": false
+            },
+            "time": {
+              "start": 1772523518872,
+              "end": 1772523518906
+            }
+          },
+          "id": "prt_cb2a260f8001HezWtbSo6HmDpV",
+          "sessionID": "ses_34d5f0162ffeeB9T8yJ2y2rmV6",
+          "messageID": "msg_cb2a249f2001HsFUe1zIhxIfll"
+        },
+        {
+          "type": "tool",
+          "callID": "toolu_tool-e21a439bb13c461e8b6e04438c8d0219",
+          "tool": "bash",
+          "state": {
+            "status": "completed",
+            "input": {
+              "command": "gh pr create --title \"feat: add ny format support for forward import with node-based tunnel matching\" --body \"$(cat <<'EOF'\n## Summary\n- 新增 ny 格式转发数据导入支持，支持 JSON 格式的多目标地址配置\n- 新增入口节点选择功能，自动匹配使用该节点的端口转发类型隧道\n- 当匹配到多个隧道时，提供隧道选择界面\n- 添加 import-format.ts 模块处理 ny 格式解析和转换\n- 添加 import-format.test.ts 测试文件\n- 优化 diagnosis-stream.ts 代码格式\n- 修复多个页面代码格式问题（limit.tsx, node.tsx, tunnel.tsx）\nEOF\n)\" --base main",
+              "description": "创建PR"
+            },
+            "output": "Warning: 2 uncommitted changes\nhttps://github.com/Sagit-chu/flvx/pull/250\n",
+            "title": "创建PR",
+            "metadata": {
+              "output": "Warning: 2 uncommitted changes\nhttps://github.com/Sagit-chu/flvx/pull/250\n",
+              "exit": 0,
+              "description": "创建PR",
+              "truncated": false
+            },
+            "time": {
+              "start": 1772523518881,
+              "end": 1772523522519
+            }
+          },
+          "id": "prt_cb2a27b65001yKwjk7sz5QAlXU",
+          "sessionID": "ses_34d5f0162ffeeB9T8yJ2y2rmV6",
+          "messageID": "msg_cb2a249f2001HsFUe1zIhxIfll"
+        },
+        {
+          "type": "step-finish",
+          "reason": "tool-calls",
+          "snapshot": "1ecd8ed9d443f07d2dbd45036fd7a89dc412b74b",
+          "cost": 0,
+          "tokens": {
+            "total": 32965,
+            "input": 151,
+            "output": 239,
+            "reasoning": 0,
+            "cache": {
+              "read": 32575,
+              "write": 0
+            }
+          },
+          "id": "prt_cb2a289d9001e5JC0Wc4gb8YfD",
+          "sessionID": "ses_34d5f0162ffeeB9T8yJ2y2rmV6",
+          "messageID": "msg_cb2a249f2001HsFUe1zIhxIfll"
+        }
+      ]
+    },
+    {
+      "info": {
+        "role": "assistant",
+        "time": {
+          "created": 1772523522594,
+          "completed": 1772523535593
+        },
+        "parentID": "msg_cb2a0fefa001a7WMfXdGbtfyFh",
+        "modelID": "glm-5",
+        "providerID": "bailian-coding-plan-test",
+        "mode": "build",
+        "agent": "build",
+        "path": {
+          "cwd": "/Users/sagit/.local/share/opencode/worktree/13650be91caa3a9e08a2e63127fef62757658384/mighty-nebula",
+          "root": "/Users/sagit/.local/share/opencode/worktree/13650be91caa3a9e08a2e63127fef62757658384/mighty-nebula"
+        },
+        "cost": 0,
+        "tokens": {
+          "total": 33361,
+          "input": 32860,
+          "output": 118,
+          "reasoning": 0,
+          "cache": {
+            "read": 383,
+            "write": 0
+          }
+        },
+        "finish": "tool-calls",
+        "id": "msg_cb2a28a22001WCDZgsPOw1lmwv",
+        "sessionID": "ses_34d5f0162ffeeB9T8yJ2y2rmV6"
+      },
+      "parts": [
+        {
+          "type": "step-start",
+          "snapshot": "1ecd8ed9d443f07d2dbd45036fd7a89dc412b74b",
+          "id": "prt_cb2a2a1b1001rltc8zQOb2iLtk",
+          "sessionID": "ses_34d5f0162ffeeB9T8yJ2y2rmV6",
+          "messageID": "msg_cb2a28a22001WCDZgsPOw1lmwv"
+        },
+        {
+          "type": "reasoning",
+          "text": "PR已创建成功，链接是 https://github.com/Sagit-chu/flvx/pull/249\n\n现在需要：\n1. 合并PR\n2. 创建新的alpha版本tag\n\n首先查看当前的tag版本，最新的是 2.1.7-alpha7，所以下一个应该是 2.1.7-alpha8 或者 2.1.8-alpha1。\n\n让我查看一下现有的alpha tag。",
+          "metadata": {
+            "anthropic": {
+              "signature": ""
+            }
+          },
+          "time": {
+            "start": 1772523528626,
+            "end": 1772523533645
+          },
+          "id": "prt_cb2a2a1b2001dfutnK48jqPDfe",
+          "sessionID": "ses_34d5f0162ffeeB9T8yJ2y2rmV6",
+          "messageID": "msg_cb2a28a22001WCDZgsPOw1lmwv"
+        },
+        {
+          "type": "tool",
+          "callID": "toolu_tool-56c1b270671f4144ab294d6e37c33a8f",
+          "tool": "bash",
+          "state": {
+            "status": "completed",
+            "input": {
+              "command": "gh pr merge 249 --squash --delete-branch",
+              "description": "合并PR并删除分支"
+            },
+            "output": "GraphQL: Could not resolve to a PullRequest with the number of 249. (repository.pullRequest)\n",
+            "title": "合并PR并删除分支",
+            "metadata": {
+              "output": "GraphQL: Could not resolve to a PullRequest with the number of 249. (repository.pullRequest)\n",
+              "exit": 1,
+              "description": "合并PR并删除分支",
+              "truncated": false
+            },
+            "time": {
+              "start": 1772523533651,
+              "end": 1772523535516
+            }
+          },
+          "id": "prt_cb2a2b54f001RzLzpCaZ3vCaUd",
+          "sessionID": "ses_34d5f0162ffeeB9T8yJ2y2rmV6",
+          "messageID": "msg_cb2a28a22001WCDZgsPOw1lmwv"
+        },
+        {
+          "type": "step-finish",
+          "reason": "tool-calls",
+          "snapshot": "1ecd8ed9d443f07d2dbd45036fd7a89dc412b74b",
+          "cost": 0,
+          "tokens": {
+            "total": 33361,
+            "input": 32860,
+            "output": 118,
+            "reasoning": 0,
+            "cache": {
+              "read": 383,
+              "write": 0
+            }
+          },
+          "id": "prt_cb2a2bc9e001doAUQ5jEd8mJtq",
+          "sessionID": "ses_34d5f0162ffeeB9T8yJ2y2rmV6",
+          "messageID": "msg_cb2a28a22001WCDZgsPOw1lmwv"
+        }
+      ]
+    },
+    {
+      "info": {
+        "role": "assistant",
+        "time": {
+          "created": 1772523535594,
+          "completed": 1772523548474
+        },
+        "parentID": "msg_cb2a0fefa001a7WMfXdGbtfyFh",
+        "modelID": "glm-5",
+        "providerID": "bailian-coding-plan-test",
+        "mode": "build",
+        "agent": "build",
+        "path": {
+          "cwd": "/Users/sagit/.local/share/opencode/worktree/13650be91caa3a9e08a2e63127fef62757658384/mighty-nebula",
+          "root": "/Users/sagit/.local/share/opencode/worktree/13650be91caa3a9e08a2e63127fef62757658384/mighty-nebula"
+        },
+        "cost": 0,
+        "tokens": {
+          "total": 33369,
+          "input": 149,
+          "output": 69,
+          "reasoning": 0,
+          "cache": {
+            "read": 33151,
+            "write": 0
+          }
+        },
+        "finish": "tool-calls",
+        "id": "msg_cb2a2bcea001DaDhv1zrphmGtP",
+        "sessionID": "ses_34d5f0162ffeeB9T8yJ2y2rmV6"
+      },
+      "parts": [
+        {
+          "type": "step-start",
+          "snapshot": "1ecd8ed9d443f07d2dbd45036fd7a89dc412b74b",
+          "id": "prt_cb2a2d82e001aN9lLyF9cla1oU",
+          "sessionID": "ses_34d5f0162ffeeB9T8yJ2y2rmV6",
+          "messageID": "msg_cb2a2bcea001DaDhv1zrphmGtP"
+        },
+        {
+          "type": "reasoning",
+          "text": "看起来 PR 249 不存在或者已经合并了。让我检查一下刚刚创建的 PR 编号。根据输出，我刚创建的是 PR #250。让我合并 PR #250。",
+          "metadata": {
+            "anthropic": {
+              "signature": ""
+            }
+          },
+          "time": {
+            "start": 1772523542574,
+            "end": 1772523545439
+          },
+          "id": "prt_cb2a2d82e002IXcOK6ebd1y65S",
+          "sessionID": "ses_34d5f0162ffeeB9T8yJ2y2rmV6",
+          "messageID": "msg_cb2a2bcea001DaDhv1zrphmGtP"
+        },
+        {
+          "type": "tool",
+          "callID": "toolu_tool-7ea986253abf4724931966ca4601dfab",
+          "tool": "bash",
+          "state": {
+            "status": "completed",
+            "input": {
+              "command": "gh pr merge 250 --squash --delete-branch",
+              "description": "合并PR 250"
+            },
+            "output": "failed to run git: 致命错误：'main' 已经被工作区 '/Users/sagit/Documents/github/flvx' 使用\n\n",
+            "title": "合并PR 250",
+            "metadata": {
+              "output": "failed to run git: 致命错误：'main' 已经被工作区 '/Users/sagit/Documents/github/flvx' 使用\n\n",
+              "exit": 1,
+              "description": "合并PR 250",
+              "truncated": false
+            },
+            "time": {
+              "start": 1772523545455,
+              "end": 1772523548421
+            }
+          },
+          "id": "prt_cb2a2e3610017u9qmb93nW75p7",
+          "sessionID": "ses_34d5f0162ffeeB9T8yJ2y2rmV6",
+          "messageID": "msg_cb2a2bcea001DaDhv1zrphmGtP"
+        },
+        {
+          "type": "step-finish",
+          "reason": "tool-calls",
+          "snapshot": "1ecd8ed9d443f07d2dbd45036fd7a89dc412b74b",
+          "cost": 0,
+          "tokens": {
+            "total": 33369,
+            "input": 149,
+            "output": 69,
+            "reasoning": 0,
+            "cache": {
+              "read": 33151,
+              "write": 0
+            }
+          },
+          "id": "prt_cb2a2ef05001pJXg3mouqS7oIc",
+          "sessionID": "ses_34d5f0162ffeeB9T8yJ2y2rmV6",
+          "messageID": "msg_cb2a2bcea001DaDhv1zrphmGtP"
+        }
+      ]
+    },
+    {
+      "info": {
+        "role": "assistant",
+        "time": {
+          "created": 1772523548475,
+          "completed": 1772523556464
+        },
+        "parentID": "msg_cb2a0fefa001a7WMfXdGbtfyFh",
+        "modelID": "glm-5",
+        "providerID": "bailian-coding-plan-test",
+        "mode": "build",
+        "agent": "build",
+        "path": {
+          "cwd": "/Users/sagit/.local/share/opencode/worktree/13650be91caa3a9e08a2e63127fef62757658384/mighty-nebula",
+          "root": "/Users/sagit/.local/share/opencode/worktree/13650be91caa3a9e08a2e63127fef62757658384/mighty-nebula"
+        },
+        "cost": 0,
+        "tokens": {
+          "total": 33403,
+          "input": 33361,
+          "output": 42,
+          "reasoning": 0,
+          "cache": {
+            "read": 0,
+            "write": 0
+          }
+        },
+        "finish": "tool-calls",
+        "id": "msg_cb2a2ef3b001G2x540kAShLAGq",
+        "sessionID": "ses_34d5f0162ffeeB9T8yJ2y2rmV6"
+      },
+      "parts": [
+        {
+          "type": "step-start",
+          "snapshot": "1ecd8ed9d443f07d2dbd45036fd7a89dc412b74b",
+          "id": "prt_cb2a3074f001LdtEq95oSX2iS8",
+          "sessionID": "ses_34d5f0162ffeeB9T8yJ2y2rmV6",
+          "messageID": "msg_cb2a2ef3b001G2x540kAShLAGq"
+        },
+        {
+          "type": "reasoning",
+          "text": "需要先切换到main分支，然后合并PR。",
+          "metadata": {
+            "anthropic": {
+              "signature": ""
+            }
+          },
+          "time": {
+            "start": 1772523554640,
+            "end": 1772523556351
+          },
+          "id": "prt_cb2a307500018RJR2M053TLfzh",
+          "sessionID": "ses_34d5f0162ffeeB9T8yJ2y2rmV6",
+          "messageID": "msg_cb2a2ef3b001G2x540kAShLAGq"
+        },
+        {
+          "type": "tool",
+          "callID": "toolu_tool-f5011a0ad1514e3c924fa4d41a58bf33",
+          "tool": "bash",
+          "state": {
+            "status": "completed",
+            "input": {
+              "command": "git checkout main && git pull origin main",
+              "description": "切换到main分支并拉取最新"
+            },
+            "output": "致命错误：'main' 已经被工作区 '/Users/sagit/Documents/github/flvx' 使用\n",
+            "title": "切换到main分支并拉取最新",
+            "metadata": {
+              "output": "致命错误：'main' 已经被工作区 '/Users/sagit/Documents/github/flvx' 使用\n",
+              "exit": 128,
+              "description": "切换到main分支并拉取最新",
+              "truncated": false
+            },
+            "time": {
+              "start": 1772523556379,
+              "end": 1772523556409
+            }
+          },
+          "id": "prt_cb2a30e01001itmdx1Z14t3fLM",
+          "sessionID": "ses_34d5f0162ffeeB9T8yJ2y2rmV6",
+          "messageID": "msg_cb2a2ef3b001G2x540kAShLAGq"
+        },
+        {
+          "type": "step-finish",
+          "reason": "tool-calls",
+          "snapshot": "1ecd8ed9d443f07d2dbd45036fd7a89dc412b74b",
+          "cost": 0,
+          "tokens": {
+            "total": 33403,
+            "input": 33361,
+            "output": 42,
+            "reasoning": 0,
+            "cache": {
+              "read": 0,
+              "write": 0
+            }
+          },
+          "id": "prt_cb2a30e3a001jQOwe87qsgrBuU",
+          "sessionID": "ses_34d5f0162ffeeB9T8yJ2y2rmV6",
+          "messageID": "msg_cb2a2ef3b001G2x540kAShLAGq"
+        }
+      ]
+    },
+    {
+      "info": {
+        "role": "assistant",
+        "time": {
+          "created": 1772523556465,
+          "completed": 1772523566593
+        },
+        "parentID": "msg_cb2a0fefa001a7WMfXdGbtfyFh",
+        "modelID": "glm-5",
+        "providerID": "bailian-coding-plan-test",
+        "mode": "build",
+        "agent": "build",
+        "path": {
+          "cwd": "/Users/sagit/.local/share/opencode/worktree/13650be91caa3a9e08a2e63127fef62757658384/mighty-nebula",
+          "root": "/Users/sagit/.local/share/opencode/worktree/13650be91caa3a9e08a2e63127fef62757658384/mighty-nebula"
+        },
+        "cost": 0,
+        "tokens": {
+          "total": 33481,
+          "input": 200,
+          "output": 66,
+          "reasoning": 0,
+          "cache": {
+            "read": 33215,
+            "write": 0
+          }
+        },
+        "finish": "tool-calls",
+        "id": "msg_cb2a30e710017dnU44ql9n5UJV",
+        "sessionID": "ses_34d5f0162ffeeB9T8yJ2y2rmV6"
+      },
+      "parts": [
+        {
+          "type": "step-start",
+          "snapshot": "1ecd8ed9d443f07d2dbd45036fd7a89dc412b74b",
+          "id": "prt_cb2a3261a001JofCfKjBPqn1pX",
+          "sessionID": "ses_34d5f0162ffeeB9T8yJ2y2rmV6",
+          "messageID": "msg_cb2a30e710017dnU44ql9n5UJV"
+        },
+        {
+          "type": "reasoning",
+          "text": "看起来有另一个工作区已经检出了 main 分支。让我检查一下分支列表和当前状态。",
+          "metadata": {
+            "anthropic": {
+              "signature": ""
+            }
+          },
+          "time": {
+            "start": 1772523562522,
+            "end": 1772523564187
+          },
+          "id": "prt_cb2a3261a002k9RA5EGFb0wFEO",
+          "sessionID": "ses_34d5f0162ffeeB9T8yJ2y2rmV6",
+          "messageID": "msg_cb2a30e710017dnU44ql9n5UJV"
+        },
+        {
+          "type": "tool",
+          "callID": "toolu_tool-960778768e064a3b8faf175374f0353f",
+          "tool": "bash",
+          "state": {
+            "status": "completed",
+            "input": {
+              "command": "git branch -a",
+              "description": "查看所有分支"
+            },
+            "output": "  card-view\n  claude/dazzling-stonebraker\n  claude/focused-elgamal\n  claude/infallible-tu\n  claude/inspiring-agnesi\n  claude/reverent-burnell\n  claude/vibrant-pascal\n  entire/25a87e2-399b56\n  entire/94abbd8-399b56\n  entire/be9d877-b6e03f\n  entire/checkpoints/v1\n  feat/announcement-markdown-support\n  fix/android-batch-toolbar-scroll\n  fix/forward-grouped-list-view\n  fix/mobile-batch-toolbar-alignment\n  fix/shared-federation-forward-stability\n  fix/shared-federation-runtime-payload-compat\n+ main\n  opencode/cosmic-rocket\n  opencode/diagnosis-timeout-messages\n  opencode/jolly-otter\n* opencode/mighty-nebula\n  release/2.1.5-alpha5\n  release/2.1.5-alpha6\n  release/2.1.5-rc14\n  release/federation-forward-stability\n+ ui\n  remotes/origin/HEAD -> origin/main\n  remotes/origin/entire/checkpoints/v1\n  remotes/origin/gh-pages\n  remotes/origin/main\n  remotes/origin/opencode/mighty-nebula\n  remotes/origin/ui\n",
+            "title": "查看所有分支",
+            "metadata": {
+              "output": "  card-view\n  claude/dazzling-stonebraker\n  claude/focused-elgamal\n  claude/infallible-tu\n  claude/inspiring-agnesi\n  claude/reverent-burnell\n  claude/vibrant-pascal\n  entire/25a87e2-399b56\n  entire/94abbd8-399b56\n  entire/be9d877-b6e03f\n  entire/checkpoints/v1\n  feat/announcement-markdown-support\n  fix/android-batch-toolbar-scroll\n  fix/forward-grouped-list-view\n  fix/mobile-batch-toolbar-alignment\n  fix/shared-federation-forward-stability\n  fix/shared-federation-runtime-payload-compat\n+ main\n  opencode/cosmic-rocket\n  opencode/diagnosis-timeout-messages\n  opencode/jolly-otter\n* opencode/mighty-nebula\n  release/2.1.5-alpha5\n  release/2.1.5-alpha6\n  release/2.1.5-rc14\n  release/federation-forward-stability\n+ ui\n  remotes/origin/HEAD -> origin/main\n  remotes/origin/entire/checkpoints/v1\n  remotes/origin/gh-pages\n  remotes/origin/main\n  remotes/origin/opencode/mighty-nebula\n  remotes/origin/ui\n",
+              "exit": 0,
+              "description": "查看所有分支",
+              "truncated": false
+            },
+            "time": {
+              "start": 1772523565187,
+              "end": 1772523565225
+            }
+          },
+          "id": "prt_cb2a32c9d0013M3bcbuQYjG3lK",
+          "sessionID": "ses_34d5f0162ffeeB9T8yJ2y2rmV6",
+          "messageID": "msg_cb2a30e710017dnU44ql9n5UJV"
+        },
+        {
+          "type": "tool",
+          "callID": "toolu_tool-032bf7af62e5413986eceab937f64ebe",
+          "tool": "bash",
+          "state": {
+            "status": "completed",
+            "input": {
+              "command": "gh pr view 250",
+              "description": "查看PR 250详情"
+            },
+            "output": "title:\tfeat: add ny format support for forward import with node-based tunnel matching\nstate:\tMERGED\nauthor:\tSagit-chu\nlabels:\t\nassignees:\t\nreviewers:\t\nprojects:\t\nmilestone:\t\nnumber:\t250\nurl:\thttps://github.com/Sagit-chu/flvx/pull/250\nadditions:\t839\ndeletions:\t190\nauto-merge:\tdisabled\n--\n## Summary\n- 新增 ny 格式转发数据导入支持，支持 JSON 格式的多目标地址配置\n- 新增入口节点选择功能，自动匹配使用该节点的端口转发类型隧道\n- 当匹配到多个隧道时，提供隧道选择界面\n- 添加 import-format.ts 模块处理 ny 格式解析和转换\n- 添加 import-format.test.ts 测试文件\n- 优化 diagnosis-stream.ts 代码格式\n- 修复多个页面代码格式问题（limit.tsx, node.tsx, tunnel.tsx）\n",
+            "title": "查看PR 250详情",
+            "metadata": {
+              "output": "title:\tfeat: add ny format support for forward import with node-based tunnel matching\nstate:\tMERGED\nauthor:\tSagit-chu\nlabels:\t\nassignees:\t\nreviewers:\t\nprojects:\t\nmilestone:\t\nnumber:\t250\nurl:\thttps://github.com/Sagit-chu/flvx/pull/250\nadditions:\t839\ndeletions:\t190\nauto-merge:\tdisabled\n--\n## Summary\n- 新增 ny 格式转发数据导入支持，支持 JSON 格式的多目标地址配置\n- 新增入口节点选择功能，自动匹配使用该节点的端口转发类型隧道\n- 当匹配到多个隧道时，提供隧道选择界面\n- 添加 import-format.ts 模块处理 ny 格式解析和转换\n- 添加 import-format.test.ts 测试文件\n- 优化 diagnosis-stream.ts 代码格式\n- 修复多个页面代码格式问题（limit.tsx, node.tsx, tunnel.tsx）\n",
+              "exit": 0,
+              "description": "查看PR 250详情",
+              "truncated": false
+            },
+            "time": {
+              "start": 1772523565192,
+              "end": 1772523566518
+            }
+          },
+          "id": "prt_cb2a3306a0015iJV8oKpOqL4UM",
+          "sessionID": "ses_34d5f0162ffeeB9T8yJ2y2rmV6",
+          "messageID": "msg_cb2a30e710017dnU44ql9n5UJV"
+        },
+        {
+          "type": "step-finish",
+          "reason": "tool-calls",
+          "snapshot": "1ecd8ed9d443f07d2dbd45036fd7a89dc412b74b",
+          "cost": 0,
+          "tokens": {
+            "total": 33481,
+            "input": 200,
+            "output": 66,
+            "reasoning": 0,
+            "cache": {
+              "read": 33215,
+              "write": 0
+            }
+          },
+          "id": "prt_cb2a335b7001irbrSoOtT47D6U",
+          "sessionID": "ses_34d5f0162ffeeB9T8yJ2y2rmV6",
+          "messageID": "msg_cb2a30e710017dnU44ql9n5UJV"
+        }
+      ]
+    },
+    {
+      "info": {
+        "role": "assistant",
+        "time": {
+          "created": 1772523566595,
+          "completed": 1772523581104
+        },
+        "parentID": "msg_cb2a0fefa001a7WMfXdGbtfyFh",
+        "modelID": "glm-5",
+        "providerID": "bailian-coding-plan-test",
+        "mode": "build",
+        "agent": "build",
+        "path": {
+          "cwd": "/Users/sagit/.local/share/opencode/worktree/13650be91caa3a9e08a2e63127fef62757658384/mighty-nebula",
+          "root": "/Users/sagit/.local/share/opencode/worktree/13650be91caa3a9e08a2e63127fef62757658384/mighty-nebula"
+        },
+        "cost": 0,
+        "tokens": {
+          "total": 34103,
+          "input": 703,
+          "output": 121,
+          "reasoning": 0,
+          "cache": {
+            "read": 33279,
+            "write": 0
+          }
+        },
+        "finish": "tool-calls",
+        "id": "msg_cb2a336030015PDQg19Lggc6fe",
+        "sessionID": "ses_34d5f0162ffeeB9T8yJ2y2rmV6"
+      },
+      "parts": [
+        {
+          "type": "step-start",
+          "snapshot": "1ecd8ed9d443f07d2dbd45036fd7a89dc412b74b",
+          "id": "prt_cb2a34b560012E42cG7gbXD9hT",
+          "sessionID": "ses_34d5f0162ffeeB9T8yJ2y2rmV6",
+          "messageID": "msg_cb2a336030015PDQg19Lggc6fe"
+        },
+        {
+          "type": "reasoning",
+          "text": "PR 250 已经合并了。现在我需要切换到main分支并创建新的alpha tag。\n\n由于有worktree冲突，我需要先在当前worktree中fetch最新的main分支状态，然后基于远程main创建tag。\n\n最新的alpha tag是 2.1.7-alpha7，所以新的应该是 2.1.7-alpha8。",
+          "metadata": {
+            "anthropic": {
+              "signature": ""
+            }
+          },
+          "time": {
+            "start": 1772523572054,
+            "end": 1772523575877
+          },
+          "id": "prt_cb2a34b56002sTueIe6GEbfABh",
+          "sessionID": "ses_34d5f0162ffeeB9T8yJ2y2rmV6",
+          "messageID": "msg_cb2a336030015PDQg19Lggc6fe"
+        },
+        {
+          "type": "tool",
+          "callID": "toolu_tool-26e70a57090c4d9b8c478080b160d7a4",
+          "tool": "bash",
+          "state": {
+            "status": "completed",
+            "input": {
+              "command": "git fetch origin main",
+              "description": "获取最新的main分支"
+            },
+            "output": "来自 github.com:Sagit-chu/flvx\n * branch            main       -> FETCH_HEAD\n   b62df6f..7b736b2  main       -> origin/main\n",
+            "title": "获取最新的main分支",
+            "metadata": {
+              "output": "来自 github.com:Sagit-chu/flvx\n * branch            main       -> FETCH_HEAD\n   b62df6f..7b736b2  main       -> origin/main\n",
+              "exit": 0,
+              "description": "获取最新的main分支",
+              "truncated": false
+            },
+            "time": {
+              "start": 1772523577063,
+              "end": 1772523581055
+            }
+          },
+          "id": "prt_cb2a35a47001CKqBhln1TxyHjE",
+          "sessionID": "ses_34d5f0162ffeeB9T8yJ2y2rmV6",
+          "messageID": "msg_cb2a336030015PDQg19Lggc6fe"
+        },
+        {
+          "type": "tool",
+          "callID": "toolu_tool-210fc021be224b9fb0bc7d794da9111b",
+          "tool": "bash",
+          "state": {
+            "status": "completed",
+            "input": {
+              "command": "git log origin/main -5 --oneline",
+              "description": "查看远程main最新提交"
+            },
+            "output": "b62df6f feat: custom IP selection and connectIp diagnosis fixes (#248)\nbe9d877 merge: resolve conflicts with main branch\n1c10347 fix: use configured connectIp for tunnel chain diagnosis\n5bd21e2 feat: custom IP selection and forward list enhancements (#247)\ne383359 fix: apply custom IP binding to forward and tunnel chain services\n",
+            "title": "查看远程main最新提交",
+            "metadata": {
+              "output": "b62df6f feat: custom IP selection and connectIp diagnosis fixes (#248)\nbe9d877 merge: resolve conflicts with main branch\n1c10347 fix: use configured connectIp for tunnel chain diagnosis\n5bd21e2 feat: custom IP selection and forward list enhancements (#247)\ne383359 fix: apply custom IP binding to forward and tunnel chain services\n",
+              "exit": 0,
+              "description": "查看远程main最新提交",
+              "truncated": false
+            },
+            "time": {
+              "start": 1772523577067,
+              "end": 1772523577084
+            }
+          },
+          "id": "prt_cb2a35ed500186o730bsVAV8Cs",
+          "sessionID": "ses_34d5f0162ffeeB9T8yJ2y2rmV6",
+          "messageID": "msg_cb2a336030015PDQg19Lggc6fe"
+        },
+        {
+          "type": "step-finish",
+          "reason": "tool-calls",
+          "snapshot": "1ecd8ed9d443f07d2dbd45036fd7a89dc412b74b",
+          "cost": 0,
+          "tokens": {
+            "total": 34103,
+            "input": 703,
+            "output": 121,
+            "reasoning": 0,
+            "cache": {
+              "read": 33279,
+              "write": 0
+            }
+          },
+          "id": "prt_cb2a36e80001nEORsyFUzRRbzN",
+          "sessionID": "ses_34d5f0162ffeeB9T8yJ2y2rmV6",
+          "messageID": "msg_cb2a336030015PDQg19Lggc6fe"
+        }
+      ]
+    },
+    {
+      "info": {
+        "role": "assistant",
+        "time": {
+          "created": 1772523581106,
+          "completed": 1772523590619
+        },
+        "parentID": "msg_cb2a0fefa001a7WMfXdGbtfyFh",
+        "modelID": "glm-5",
+        "providerID": "bailian-coding-plan-test",
+        "mode": "build",
+        "agent": "build",
+        "path": {
+          "cwd": "/Users/sagit/.local/share/opencode/worktree/13650be91caa3a9e08a2e63127fef62757658384/mighty-nebula",
+          "root": "/Users/sagit/.local/share/opencode/worktree/13650be91caa3a9e08a2e63127fef62757658384/mighty-nebula"
+        },
+        "cost": 0,
+        "tokens": {
+          "total": 34280,
+          "input": 34158,
+          "output": 122,
+          "reasoning": 0,
+          "cache": {
+            "read": 0,
+            "write": 0
+          }
+        },
+        "finish": "tool-calls",
+        "id": "msg_cb2a36eb20013tF1ayH8wj0tH7",
+        "sessionID": "ses_34d5f0162ffeeB9T8yJ2y2rmV6"
+      },
+      "parts": [
+        {
+          "type": "step-start",
+          "snapshot": "1ecd8ed9d443f07d2dbd45036fd7a89dc412b74b",
+          "id": "prt_cb2a37f5c001suxIsY0GyFHenh",
+          "sessionID": "ses_34d5f0162ffeeB9T8yJ2y2rmV6",
+          "messageID": "msg_cb2a36eb20013tF1ayH8wj0tH7"
+        },
+        {
+          "type": "reasoning",
+          "text": "看起来PR已经合并了。现在让我检查最新的tag，然后创建一个新的alpha tag。从之前的信息来看，最新的tag是 2.1.7-alpha7。\n\n下一个alpha版本应该是 2.1.7-alpha8。\n\n让我先检查当前存在的所有tag。",
+          "metadata": {
+            "anthropic": {
+              "signature": ""
+            }
+          },
+          "time": {
+            "start": 1772523585372,
+            "end": 1772523589233
+          },
+          "id": "prt_cb2a37f5c002UhGEijmDM6tjis",
+          "sessionID": "ses_34d5f0162ffeeB9T8yJ2y2rmV6",
+          "messageID": "msg_cb2a36eb20013tF1ayH8wj0tH7"
+        },
+        {
+          "type": "tool",
+          "callID": "toolu_tool-dbc8a8f6b38743b3aea41dcecb2f116e",
+          "tool": "bash",
+          "state": {
+            "status": "completed",
+            "input": {
+              "command": "git tag -l '*alpha*' --sort=-version:refname | head -20",
+              "description": "列出最近的alpha标签"
+            },
+            "output": "2.1.7-alpha8\n2.1.7-alpha7\n2.1.7-alpha6\n2.1.7-alpha5\n2.1.7-alpha4\n2.1.7-alpha3\n2.1.7-alpha2\n2.1.7-alpha1\n2.1.6-alpha9\n2.1.6-alpha8\n2.1.6-alpha7\n2.1.6-alpha6\n2.1.6-alpha5\n2.1.6-alpha4\n2.1.6-alpha3\n2.1.6-alpha2\n2.1.6-alpha1\n2.1.5-alpha11\n2.1.5-alpha10\n2.1.5-alpha9\n",
+            "title": "列出最近的alpha标签",
+            "metadata": {
+              "output": "2.1.7-alpha8\n2.1.7-alpha7\n2.1.7-alpha6\n2.1.7-alpha5\n2.1.7-alpha4\n2.1.7-alpha3\n2.1.7-alpha2\n2.1.7-alpha1\n2.1.6-alpha9\n2.1.6-alpha8\n2.1.6-alpha7\n2.1.6-alpha6\n2.1.6-alpha5\n2.1.6-alpha4\n2.1.6-alpha3\n2.1.6-alpha2\n2.1.6-alpha1\n2.1.5-alpha11\n2.1.5-alpha10\n2.1.5-alpha9\n",
+              "exit": 0,
+              "description": "列出最近的alpha标签",
+              "truncated": false
+            },
+            "time": {
+              "start": 1772523590534,
+              "end": 1772523590565
+            }
+          },
+          "id": "prt_cb2a38e720010nphCeJvKKjEEg",
+          "sessionID": "ses_34d5f0162ffeeB9T8yJ2y2rmV6",
+          "messageID": "msg_cb2a36eb20013tF1ayH8wj0tH7"
+        },
+        {
+          "type": "tool",
+          "callID": "toolu_tool-c160240b4b524c68a9fcf925e28855c3",
+          "tool": "bash",
+          "state": {
+            "status": "completed",
+            "input": {
+              "command": "git log origin/main --oneline | head -10",
+              "description": "查看main分支最新提交"
+            },
+            "output": "7b736b2 feat: add ny format support for forward import with node-based tunnel matching (#250)\nb62df6f feat: custom IP selection and connectIp diagnosis fixes (#248)\nbe9d877 merge: resolve conflicts with main branch\n1c10347 fix: use configured connectIp for tunnel chain diagnosis\n5bd21e2 feat: custom IP selection and forward list enhancements (#247)\ne383359 fix: apply custom IP binding to forward and tunnel chain services\n95929bf feat: add comprehensive migration test for legacy columns (#245)\n9cf9f4f feat: add comprehensive migration test for legacy columns\nae8dbdd feat: add custom IP selection for nodes, tunnels, and forwards (#244)\n05bd6a6 feat: add IP selection dropdown for tunnels and forwards\n",
+            "title": "查看main分支最新提交",
+            "metadata": {
+              "output": "7b736b2 feat: add ny format support for forward import with node-based tunnel matching (#250)\nb62df6f feat: custom IP selection and connectIp diagnosis fixes (#248)\nbe9d877 merge: resolve conflicts with main branch\n1c10347 fix: use configured connectIp for tunnel chain diagnosis\n5bd21e2 feat: custom IP selection and forward list enhancements (#247)\ne383359 fix: apply custom IP binding to forward and tunnel chain services\n95929bf feat: add comprehensive migration test for legacy columns (#245)\n9cf9f4f feat: add comprehensive migration test for legacy columns\nae8dbdd feat: add custom IP selection for nodes, tunnels, and forwards (#244)\n05bd6a6 feat: add IP selection dropdown for tunnels and forwards\n",
+              "exit": 0,
+              "description": "查看main分支最新提交",
+              "truncated": false
+            },
+            "time": {
+              "start": 1772523590538,
+              "end": 1772523590565
+            }
+          },
+          "id": "prt_cb2a3936b001zh1yjM0T2P1ySE",
+          "sessionID": "ses_34d5f0162ffeeB9T8yJ2y2rmV6",
+          "messageID": "msg_cb2a36eb20013tF1ayH8wj0tH7"
+        },
+        {
+          "type": "step-finish",
+          "reason": "tool-calls",
+          "snapshot": "1ecd8ed9d443f07d2dbd45036fd7a89dc412b74b",
+          "cost": 0,
+          "tokens": {
+            "total": 34280,
+            "input": 34158,
+            "output": 122,
+            "reasoning": 0,
+            "cache": {
+              "read": 0,
+              "write": 0
+            }
+          },
+          "id": "prt_cb2a393a5001WmyMrW0cORgt2z",
+          "sessionID": "ses_34d5f0162ffeeB9T8yJ2y2rmV6",
+          "messageID": "msg_cb2a36eb20013tF1ayH8wj0tH7"
+        }
+      ]
+    },
+    {
+      "info": {
+        "role": "assistant",
+        "time": {
+          "created": 1772523590620,
+          "completed": 1772523602925
+        },
+        "parentID": "msg_cb2a0fefa001a7WMfXdGbtfyFh",
+        "modelID": "glm-5",
+        "providerID": "bailian-coding-plan-test",
+        "mode": "build",
+        "agent": "build",
+        "path": {
+          "cwd": "/Users/sagit/.local/share/opencode/worktree/13650be91caa3a9e08a2e63127fef62757658384/mighty-nebula",
+          "root": "/Users/sagit/.local/share/opencode/worktree/13650be91caa3a9e08a2e63127fef62757658384/mighty-nebula"
+        },
+        "cost": 0,
+        "tokens": {
+          "total": 34679,
+          "input": 516,
+          "output": 116,
+          "reasoning": 0,
+          "cache": {
+            "read": 34047,
+            "write": 0
+          }
+        },
+        "finish": "tool-calls",
+        "id": "msg_cb2a393dc001CaZR2U6pkwpwVS",
+        "sessionID": "ses_34d5f0162ffeeB9T8yJ2y2rmV6"
+      },
+      "parts": [
+        {
+          "type": "step-start",
+          "snapshot": "1ecd8ed9d443f07d2dbd45036fd7a89dc412b74b",
+          "id": "prt_cb2a3a4ee0016ARCzTQinCjvXO",
+          "sessionID": "ses_34d5f0162ffeeB9T8yJ2y2rmV6",
+          "messageID": "msg_cb2a393dc001CaZR2U6pkwpwVS"
+        },
+        {
+          "type": "reasoning",
+          "text": "最新的alpha标签是 2.1.7-alpha8。现在需要创建一个新的alpha标签。根据项目规范，应该创建 2.1.7-alpha9。",
+          "metadata": {
+            "anthropic": {
+              "signature": ""
+            }
+          },
+          "time": {
+            "start": 1772523594990,
+            "end": 1772523598599
+          },
+          "id": "prt_cb2a3a4ee002F0F7XpXqBml95n",
+          "sessionID": "ses_34d5f0162ffeeB9T8yJ2y2rmV6",
+          "messageID": "msg_cb2a393dc001CaZR2U6pkwpwVS"
+        },
+        {
+          "type": "tool",
+          "callID": "toolu_tool-53ed834e1d5b46ed98c2aa201ae93c07",
+          "tool": "bash",
+          "state": {
+            "status": "completed",
+            "input": {
+              "command": "git tag -a 2.1.7-alpha9 -m \"Release 2.1.7-alpha9: ny format support for forward import\" origin/main",
+              "description": "创建新alpha标签"
+            },
+            "output": "",
+            "title": "创建新alpha标签",
+            "metadata": {
+              "output": "",
+              "exit": 0,
+              "description": "创建新alpha标签",
+              "truncated": false
+            },
+            "time": {
+              "start": 1772523599817,
+              "end": 1772523599843
+            }
+          },
+          "id": "prt_cb2a3b3090013W7AO4Bv87nR8P",
+          "sessionID": "ses_34d5f0162ffeeB9T8yJ2y2rmV6",
+          "messageID": "msg_cb2a393dc001CaZR2U6pkwpwVS"
+        },
+        {
+          "type": "tool",
+          "callID": "toolu_tool-1e3ed1b0dbbb446f80ca6d118f03e86d",
+          "tool": "bash",
+          "state": {
+            "status": "completed",
+            "input": {
+              "command": "git push origin 2.1.7-alpha9",
+              "description": "推送标签到远程"
+            },
+            "output": "致命错误：2.1.7-alpha9 无法被解析为分支\n",
+            "title": "推送标签到远程",
+            "metadata": {
+              "output": "致命错误：2.1.7-alpha9 无法被解析为分支\n",
+              "exit": 128,
+              "description": "推送标签到远程",
+              "truncated": false
+            },
+            "time": {
+              "start": 1772523599821,
+              "end": 1772523602847
+            }
+          },
+          "id": "prt_cb2a3b7b1001NXnTkJvkZWexLB",
+          "sessionID": "ses_34d5f0162ffeeB9T8yJ2y2rmV6",
+          "messageID": "msg_cb2a393dc001CaZR2U6pkwpwVS"
+        },
+        {
+          "type": "step-finish",
+          "reason": "tool-calls",
+          "snapshot": "1ecd8ed9d443f07d2dbd45036fd7a89dc412b74b",
+          "cost": 0,
+          "tokens": {
+            "total": 34679,
+            "input": 516,
+            "output": 116,
+            "reasoning": 0,
+            "cache": {
+              "read": 34047,
+              "write": 0
+            }
+          },
+          "id": "prt_cb2a3c3a10013J6K4QBn7wTd9w",
+          "sessionID": "ses_34d5f0162ffeeB9T8yJ2y2rmV6",
+          "messageID": "msg_cb2a393dc001CaZR2U6pkwpwVS"
+        }
+      ]
+    },
+    {
+      "info": {
+        "role": "assistant",
+        "time": {
+          "created": 1772523602926,
+          "completed": 1772523613293
+        },
+        "parentID": "msg_cb2a0fefa001a7WMfXdGbtfyFh",
+        "modelID": "glm-5",
+        "providerID": "bailian-coding-plan-test",
+        "mode": "build",
+        "agent": "build",
+        "path": {
+          "cwd": "/Users/sagit/.local/share/opencode/worktree/13650be91caa3a9e08a2e63127fef62757658384/mighty-nebula",
+          "root": "/Users/sagit/.local/share/opencode/worktree/13650be91caa3a9e08a2e63127fef62757658384/mighty-nebula"
+        },
+        "cost": 0,
+        "tokens": {
+          "total": 34715,
+          "input": 34281,
+          "output": 51,
+          "reasoning": 0,
+          "cache": {
+            "read": 383,
+            "write": 0
+          }
+        },
+        "finish": "tool-calls",
+        "id": "msg_cb2a3c3ee001V2qOPVx1QpK0kT",
+        "sessionID": "ses_34d5f0162ffeeB9T8yJ2y2rmV6"
+      },
+      "parts": [
+        {
+          "type": "step-start",
+          "snapshot": "1ecd8ed9d443f07d2dbd45036fd7a89dc412b74b",
+          "id": "prt_cb2a3d5d3001cYRaSGI9IM64oh",
+          "sessionID": "ses_34d5f0162ffeeB9T8yJ2y2rmV6",
+          "messageID": "msg_cb2a3c3ee001V2qOPVx1QpK0kT"
+        },
+        {
+          "type": "reasoning",
+          "text": "我需要先推送标签，但是命令格式可能需要调整。让我推送标签到远程。",
+          "metadata": {
+            "anthropic": {
+              "signature": ""
+            }
+          },
+          "time": {
+            "start": 1772523607510,
+            "end": 1772523609627
+          },
+          "id": "prt_cb2a3d5d6001tC6wa77zeV8rwU",
+          "sessionID": "ses_34d5f0162ffeeB9T8yJ2y2rmV6",
+          "messageID": "msg_cb2a3c3ee001V2qOPVx1QpK0kT"
+        },
+        {
+          "type": "tool",
+          "callID": "toolu_tool-5d745f169d76439cb0c3a9196b87a49c",
+          "tool": "bash",
+          "state": {
+            "status": "completed",
+            "input": {
+              "command": "git push origin refs/tags/2.1.7-alpha9",
+              "description": "推送标签到远程"
+            },
+            "output": "To github.com:Sagit-chu/flvx.git\n * [new tag]         2.1.7-alpha9 -> 2.1.7-alpha9\n",
+            "title": "推送标签到远程",
+            "metadata": {
+              "output": "To github.com:Sagit-chu/flvx.git\n * [new tag]         2.1.7-alpha9 -> 2.1.7-alpha9\n",
+              "exit": 0,
+              "description": "推送标签到远程",
+              "truncated": false
+            },
+            "time": {
+              "start": 1772523609654,
+              "end": 1772523613223
+            }
+          },
+          "id": "prt_cb2a3de1c001dcI1oXk37ud74x",
+          "sessionID": "ses_34d5f0162ffeeB9T8yJ2y2rmV6",
+          "messageID": "msg_cb2a3c3ee001V2qOPVx1QpK0kT"
+        },
+        {
+          "type": "step-finish",
+          "reason": "tool-calls",
+          "snapshot": "1ecd8ed9d443f07d2dbd45036fd7a89dc412b74b",
+          "cost": 0,
+          "tokens": {
+            "total": 34715,
+            "input": 34281,
+            "output": 51,
+            "reasoning": 0,
+            "cache": {
+              "read": 383,
+              "write": 0
+            }
+          },
+          "id": "prt_cb2a3ec280010Pr4e1DSUBKC8Y",
+          "sessionID": "ses_34d5f0162ffeeB9T8yJ2y2rmV6",
+          "messageID": "msg_cb2a3c3ee001V2qOPVx1QpK0kT"
+        }
+      ]
+    },
+    {
+      "info": {
+        "role": "assistant",
+        "time": {
+          "created": 1772523613294,
+          "completed": 1772523626869
+        },
+        "parentID": "msg_cb2a0fefa001a7WMfXdGbtfyFh",
+        "modelID": "glm-5",
+        "providerID": "bailian-coding-plan-test",
+        "mode": "build",
+        "agent": "build",
+        "path": {
+          "cwd": "/Users/sagit/.local/share/opencode/worktree/13650be91caa3a9e08a2e63127fef62757658384/mighty-nebula",
+          "root": "/Users/sagit/.local/share/opencode/worktree/13650be91caa3a9e08a2e63127fef62757658384/mighty-nebula"
+        },
+        "cost": 0,
+        "tokens": {
+          "total": 34820,
+          "input": 34350,
+          "output": 87,
+          "reasoning": 0,
+          "cache": {
+            "read": 383,
+            "write": 0
+          }
+        },
+        "finish": "tool-calls",
+        "id": "msg_cb2a3ec6e001lW4wyN5HuY4yoq",
+        "sessionID": "ses_34d5f0162ffeeB9T8yJ2y2rmV6"
+      },
+      "parts": [
+        {
+          "type": "step-start",
+          "snapshot": "1ecd8ed9d443f07d2dbd45036fd7a89dc412b74b",
+          "id": "prt_cb2a404fa001d6DhakAN87YM4l",
+          "sessionID": "ses_34d5f0162ffeeB9T8yJ2y2rmV6",
+          "messageID": "msg_cb2a3ec6e001lW4wyN5HuY4yoq"
+        },
+        {
+          "type": "reasoning",
+          "text": "用户似乎只是重复了我的命令，我需要确认标签是否成功创建并推送。让我再次检查。",
+          "metadata": {
+            "anthropic": {
+              "signature": ""
+            }
+          },
+          "time": {
+            "start": 1772523619579,
+            "end": 1772523621716
+          },
+          "id": "prt_cb2a404fb001dwQam4iDOKE2zI",
+          "sessionID": "ses_34d5f0162ffeeB9T8yJ2y2rmV6",
+          "messageID": "msg_cb2a3ec6e001lW4wyN5HuY4yoq"
+        },
+        {
+          "type": "tool",
+          "callID": "toolu_tool-fdbc33c8a55f4ba1ae3233cc7c1d2c1a",
+          "tool": "bash",
+          "state": {
+            "status": "completed",
+            "input": {
+              "command": "git tag -l '2.1.7-alpha9'",
+              "description": "检查标签是否创建成功"
+            },
+            "output": "2.1.7-alpha9\n",
+            "title": "检查标签是否创建成功",
+            "metadata": {
+              "output": "2.1.7-alpha9\n",
+              "exit": 0,
+              "description": "检查标签是否创建成功",
+              "truncated": false
+            },
+            "time": {
+              "start": 1772523623159,
+              "end": 1772523623185
+            }
+          },
+          "id": "prt_cb2a40d55001FRvUKrY96uMNwr",
+          "sessionID": "ses_34d5f0162ffeeB9T8yJ2y2rmV6",
+          "messageID": "msg_cb2a3ec6e001lW4wyN5HuY4yoq"
+        },
+        {
+          "type": "tool",
+          "callID": "toolu_tool-45370b55993b406a92e85186edf43a6f",
+          "tool": "bash",
+          "state": {
+            "status": "completed",
+            "input": {
+              "command": "git ls-remote --tags origin | grep 2.1.7-alpha9",
+              "description": "检查远程标签"
+            },
+            "output": "eb04a70105875cb9fdb4adfe3c2b6cf8e30b006a\trefs/tags/2.1.7-alpha9\n7b736b2e606aa4892471f1f47bd8459edf8b7940\trefs/tags/2.1.7-alpha9^{}\n",
+            "title": "检查远程标签",
+            "metadata": {
+              "output": "eb04a70105875cb9fdb4adfe3c2b6cf8e30b006a\trefs/tags/2.1.7-alpha9\n7b736b2e606aa4892471f1f47bd8459edf8b7940\trefs/tags/2.1.7-alpha9^{}\n",
+              "exit": 0,
+              "description": "检查远程标签",
+              "truncated": false
+            },
+            "time": {
+              "start": 1772523623163,
+              "end": 1772523626794
+            }
+          },
+          "id": "prt_cb2a412db001nw98pOR3cuDpQU",
+          "sessionID": "ses_34d5f0162ffeeB9T8yJ2y2rmV6",
+          "messageID": "msg_cb2a3ec6e001lW4wyN5HuY4yoq"
+        },
+        {
+          "type": "step-finish",
+          "reason": "tool-calls",
+          "snapshot": "1ecd8ed9d443f07d2dbd45036fd7a89dc412b74b",
+          "cost": 0,
+          "tokens": {
+            "total": 34820,
+            "input": 34350,
+            "output": 87,
+            "reasoning": 0,
+            "cache": {
+              "read": 383,
+              "write": 0
+            }
+          },
+          "id": "prt_cb2a4212b001TUxetI33jlX345",
+          "sessionID": "ses_34d5f0162ffeeB9T8yJ2y2rmV6",
+          "messageID": "msg_cb2a3ec6e001lW4wyN5HuY4yoq"
+        }
+      ]
+    },
+    {
+      "info": {
+        "role": "assistant",
+        "time": {
+          "created": 1772523626870,
+          "completed": 1772523640993
+        },
+        "parentID": "msg_cb2a0fefa001a7WMfXdGbtfyFh",
+        "modelID": "glm-5",
+        "providerID": "bailian-coding-plan-test",
+        "mode": "build",
+        "agent": "build",
+        "path": {
+          "cwd": "/Users/sagit/.local/share/opencode/worktree/13650be91caa3a9e08a2e63127fef62757658384/mighty-nebula",
+          "root": "/Users/sagit/.local/share/opencode/worktree/13650be91caa3a9e08a2e63127fef62757658384/mighty-nebula"
+        },
+        "cost": 0,
+        "tokens": {
+          "total": 35056,
+          "input": 34510,
+          "output": 163,
+          "reasoning": 0,
+          "cache": {
+            "read": 383,
+            "write": 0
+          }
+        },
+        "finish": "stop",
+        "id": "msg_cb2a4217600129BOGVpcH9ctZc",
+        "sessionID": "ses_34d5f0162ffeeB9T8yJ2y2rmV6"
+      },
+      "parts": [
+        {
+          "type": "step-start",
+          "snapshot": "1ecd8ed9d443f07d2dbd45036fd7a89dc412b74b",
+          "id": "prt_cb2a43f06001GbsHWdGyt5OuQA",
+          "sessionID": "ses_34d5f0162ffeeB9T8yJ2y2rmV6",
+          "messageID": "msg_cb2a4217600129BOGVpcH9ctZc"
+        },
+        {
+          "type": "reasoning",
+          "text": "Perfect! The tag has been successfully created and pushed to the remote repository. Let me provide a summary to the user.",
+          "metadata": {
+            "anthropic": {
+              "signature": ""
+            }
+          },
+          "time": {
+            "start": 1772523634438,
+            "end": 1772523635305
+          },
+          "id": "prt_cb2a43f06002w3QdvKl2zRbmvC",
+          "sessionID": "ses_34d5f0162ffeeB9T8yJ2y2rmV6",
+          "messageID": "msg_cb2a4217600129BOGVpcH9ctZc"
+        },
+        {
+          "type": "text",
+          "text": "完成！\n\n**总结:**\n- ✅ 提交变更：`feat: add ny format support for forward import with node-based tunnel matching`\n- ✅ 推送到远程分支 `opencode/mighty-nebula`\n- ✅ 创建 PR #250 并自动合并到 main\n- ✅ 发布新 tag `2.1.7-alpha9`\n\n**新版本特性:**\n- 新增 ny 格式转发数据导入支持（JSON格式，多目标地址负载均衡）\n- 入口节点选择功能，自动匹配端口转发类型隧道\n- 多隧道匹配时提供选择界面\n- 新增 import-format.ts 解析模块及测试文件",
+          "time": {
+            "start": 1772523640913,
+            "end": 1772523640913
+          },
+          "id": "prt_cb2a4426a001KG9aWdETAXeCvp",
+          "sessionID": "ses_34d5f0162ffeeB9T8yJ2y2rmV6",
+          "messageID": "msg_cb2a4217600129BOGVpcH9ctZc"
+        },
+        {
+          "type": "step-finish",
+          "reason": "stop",
+          "snapshot": "1ecd8ed9d443f07d2dbd45036fd7a89dc412b74b",
+          "cost": 0,
+          "tokens": {
+            "total": 35056,
+            "input": 34510,
+            "output": 163,
+            "reasoning": 0,
+            "cache": {
+              "read": 383,
+              "write": 0
+            }
+          },
+          "id": "prt_cb2a45853001nbXlxssgJW9ord",
+          "sessionID": "ses_34d5f0162ffeeB9T8yJ2y2rmV6",
+          "messageID": "msg_cb2a4217600129BOGVpcH9ctZc"
+        }
+      ]
+    }
+  ]
+}

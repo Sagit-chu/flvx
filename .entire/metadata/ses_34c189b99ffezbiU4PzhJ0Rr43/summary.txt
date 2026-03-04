@@ -1,0 +1,7 @@
+✅ 已完成：
+- 提交变更：feat: auto-fallback to default bind IP when invalid bind address detected
+- 推送分支：opencode/mighty-nebula → origin
+- 创建PR：#258（已自动合并）
+- 发布tag：2.1.7-beta5
+
+PR: https://github.com/Sagit-chu/flvx/pull/258

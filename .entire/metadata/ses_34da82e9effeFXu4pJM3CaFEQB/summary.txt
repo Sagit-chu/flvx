@@ -1,0 +1,6 @@
+✅ 完成：
+- **提交**: `fix: use configured connectIp for tunnel chain diagnosis` (1c10347)
+- **PR**: #248 已合并 → https://github.com/Sagit-chu/flvx/pull/248
+- **Tag**: `2.1.7-alpha8` 已创建并推送
+
+变更内容：修复了隧道链诊断时使用配置的 connectIp、forward 绑定 IP 支持带端口的地址、添加了全面的测试覆盖。

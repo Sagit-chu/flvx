@@ -1,0 +1,13 @@
+完成！
+
+**总结:**
+- ✅ 提交变更：`feat: add ny format support for forward import with node-based tunnel matching`
+- ✅ 推送到远程分支 `opencode/mighty-nebula`
+- ✅ 创建 PR #250 并自动合并到 main
+- ✅ 发布新 tag `2.1.7-alpha9`
+
+**新版本特性:**
+- 新增 ny 格式转发数据导入支持（JSON格式，多目标地址负载均衡）
+- 入口节点选择功能，自动匹配端口转发类型隧道
+- 多隧道匹配时提供选择界面
+- 新增 import-format.ts 解析模块及测试文件

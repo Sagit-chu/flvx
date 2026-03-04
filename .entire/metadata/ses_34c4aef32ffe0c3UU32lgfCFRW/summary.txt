@@ -1,0 +1,23 @@
+你这个新报错我确认了：这次**不是端口占用问题**，是 **IP 本机不可绑定** 问题。
+
+- 报错是 `bind: cannot assign requested address`，含义是节点机器网卡上没有 `13.228.170.187` 这个本地地址；释放旧服务也不会解决。
+- 你说“唯一一个IP可选”，很可能来自前端当前候选逻辑把 `serverIp/serverIpV4/serverIpV6` 当成监听候选（`vite-frontend/src/pages/forward.tsx:612` 一带），但这些字段在 NAT/云环境下常是“对外地址”，不一定是本机可 bind 地址。
+- 我之前加的自占用释放逻辑会在冲突时尝试删旧服务再加新服务，但对 `cannot assign requested address` 这种错误会一直失败（因为 IP 本身不可绑定）。
+
+我建议下一步这样改（这次是关键）：
+
+- 后端只把 `address already in use` 走“自占用释放重绑”流程；`cannot assign requested address` 不走该流程。  
+  位置：`go-backend/internal/http/handler/control_plane.go`
+- 前端监听 IP 下拉改为“可绑定地址优先”：优先 `extraIPs` + 明确配置的监听地址，**不再默认把 `serverIp*` 作为可绑定监听IP**。  
+  位置：`vite-frontend/src/pages/forward.tsx`
+- 后端增加快速校验并返回更明确提示：  
+  `监听IP不是节点本机地址，请在节点 extraIPs 配置可绑定IP后再选择`。  
+  位置：`go-backend/internal/http/handler/control_plane.go` + repo 查询辅助。
+- 你的临时可用绕过：到节点配置里把真实网卡 IP 填到 `extraIPs`，然后在编辑转发时选该 IP。
+
+一个需要你拍板的点（推荐第1个）：
+
+1. **推荐**：前端不再展示 `serverIp/serverIpV4/serverIpV6` 为监听IP候选，只展示 `extraIPs`（和明确监听地址）。  
+2. 继续展示 `serverIp*`，但加“可能不可绑定”标签和失败提示。  
+
+你回我 `1` 或 `2`，我就按这个继续落地。
