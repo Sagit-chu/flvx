@@ -675,7 +675,9 @@ export default function ForwardPage() {
       return false;
     }
 
-    const currentTunnel = allTunnels.find((tunnel) => tunnel.id === form.tunnelId);
+    const currentTunnel = allTunnels.find(
+      (tunnel) => tunnel.id === form.tunnelId,
+    );
 
     return (currentTunnel?.inNodeId?.length || 0) > 1;
   }, [allTunnels, form.tunnelId]);
@@ -1174,7 +1176,7 @@ export default function ForwardPage() {
           saveOrder(FORWARD_ORDER_KEY, order);
         }
       } else {
-        toast.error(forwardsRes.msg || "获取转发列表失败");
+        toast.error(forwardsRes.msg || "获取规则列表失败");
       }
 
       if (tunnelsRes.code === 0) {
@@ -1256,9 +1258,9 @@ export default function ForwardPage() {
     const newErrors: { [key: string]: string } = {};
 
     if (!form.name.trim()) {
-      newErrors.name = "请输入转发名称";
+      newErrors.name = "请输入规则名称";
     } else if (form.name.length < 2 || form.name.length > 50) {
-      newErrors.name = "转发名称长度应在2-50个字符之间";
+      newErrors.name = "规则名称长度应在2-50个字符之间";
     }
 
     if (!form.tunnelId) {
@@ -1308,7 +1310,7 @@ export default function ForwardPage() {
     return Object.keys(newErrors).length === 0;
   };
 
-  // 新增转发
+  // 新增规则
   const handleAdd = () => {
     setIsEdit(false);
     setInIpTouched(false);
@@ -1326,7 +1328,7 @@ export default function ForwardPage() {
     setModalOpen(true);
   };
 
-  // 编辑转发
+  // 编辑规则
   const handleEdit = (forward: Forward) => {
     setIsEdit(true);
     setInIpTouched(false);
@@ -1352,7 +1354,7 @@ export default function ForwardPage() {
     setDeleteModalOpen(true);
   };
 
-  // 确认删除转发
+  // 确认删除规则
   const confirmDelete = async () => {
     if (!forwardToDelete) return;
 
@@ -1367,7 +1369,7 @@ export default function ForwardPage() {
       } else {
         // 删除失败，询问是否强制删除
         const confirmed = window.confirm(
-          `常规删除失败：${res.msg || "删除失败"}\n\n是否需要强制删除？\n\n⚠️ 注意：强制删除不会去验证节点端是否已经删除对应的转发服务。`,
+          `常规删除失败：${res.msg || "删除失败"}\n\n是否需要强制删除？\n\n⚠️ 注意：强制删除不会去验证节点端是否已经删除对应的规则服务。`,
         );
 
         if (confirmed) {
@@ -1489,7 +1491,7 @@ export default function ForwardPage() {
   // 处理服务开关
   const handleServiceToggle = async (forward: Forward) => {
     if (forward.status !== 1 && forward.status !== 0) {
-      toast.error("转发状态异常，无法操作");
+      toast.error("规则状态异常，无法操作");
 
       return;
     }
@@ -1514,7 +1516,7 @@ export default function ForwardPage() {
 
       if (res.code === 0) {
         toast.success(targetState ? "服务已启动" : "服务已暂停");
-        // 更新转发状态
+        // 更新规则状态
         setForwards((prev) =>
           prev.map((f) =>
             f.id === forward.id ? { ...f, status: targetState ? 1 : 0 } : f,
@@ -1540,7 +1542,7 @@ export default function ForwardPage() {
     }
   };
 
-  // 诊断转发
+  // 诊断规则
   const handleDiagnose = async (forward: Forward) => {
     diagnosisAbortRef.current?.abort();
     const abortController = new AbortController();
@@ -1795,7 +1797,7 @@ export default function ForwardPage() {
     await copyToClipboard(allAddresses, "所有地址");
   };
 
-  // 导出转发数据
+  // 导出规则数据
   const handleExport = () => {
     setSelectedTunnelForExport(null);
     setExportData("");
@@ -1813,13 +1815,13 @@ export default function ForwardPage() {
     setExportLoading(true);
 
     try {
-      // 获取要导出的转发列表
+      // 获取要导出的规则列表
       const forwardsToExport = sortedForwards.filter(
         (forward) => forward.tunnelId === selectedTunnelForExport,
       );
 
       if (forwardsToExport.length === 0) {
-        toast.error("所选隧道没有转发数据");
+        toast.error("所选隧道没有规则数据");
         setExportLoading(false);
 
         return;
@@ -1842,10 +1844,10 @@ export default function ForwardPage() {
 
   // 复制导出数据
   const copyExportData = async () => {
-    await copyToClipboard(exportData, "转发数据");
+    await copyToClipboard(exportData, "规则数据");
   };
 
-  // 导入转发数据
+  // 导入规则数据
   const handleImport = () => {
     setImportData("");
     setImportResults([]);
@@ -1967,7 +1969,7 @@ export default function ForwardPage() {
               {
                 line,
                 success: false,
-                message: "格式错误：需要至少包含目标地址和转发名称",
+                message: "格式错误：需要至少包含目标地址和规则名称",
               },
               ...prev,
             ]);
@@ -1981,7 +1983,7 @@ export default function ForwardPage() {
               {
                 line,
                 success: false,
-                message: "目标地址和转发名称不能为空",
+                message: "目标地址和规则名称不能为空",
               },
               ...prev,
             ]);
@@ -2395,7 +2397,7 @@ export default function ForwardPage() {
     }),
   );
 
-  // 根据排序顺序获取转发列表
+  // 根据排序顺序获取规则列表
   const orderedForwards = useMemo((): Forward[] => {
     // 确保 forwards 数组存在且有效
     if (!forwards || forwards.length === 0) {
@@ -2430,7 +2432,7 @@ export default function ForwardPage() {
       );
     }
 
-    // 确保过滤后的转发列表有效
+    // 确保过滤后的规则列表有效
     if (!filteredForwards || filteredForwards.length === 0) {
       return [];
     }
@@ -2464,7 +2466,7 @@ export default function ForwardPage() {
         }
       });
 
-      // 添加不在排序列表中的转发（新添加的）
+      // 添加不在排序列表中的规则（新添加的）
       filteredForwards.forEach((forward) => {
         if (!forwardOrder.includes(forward.id)) {
           localSortedForwards.push(forward);
@@ -2768,7 +2770,7 @@ export default function ForwardPage() {
             <span className={titleClassName}>{tunnel.tunnelName}</span>
           </div>
           <div className="flex items-center gap-2">
-            <span className={countClassName}>{tunnel.items.length} 条转发</span>
+            <span className={countClassName}>{tunnel.items.length} 条规则</span>
             <div
               className="cursor-grab active:cursor-grabbing p-1 text-default-400 hover:text-default-600 transition-colors"
               title="拖拽分组排序"
@@ -2791,7 +2793,7 @@ export default function ForwardPage() {
     );
   };
 
-  // 可拖拽的转发卡片组件
+  // 可拖拽的规则卡片组件
   const SortableForwardCard = ({ forward }: { forward: Forward }) => {
     const {
       attributes,
@@ -3292,7 +3294,7 @@ export default function ForwardPage() {
     );
   };
 
-  // 渲染转发卡片
+  // 渲染规则卡片
   const renderForwardCard = (forward: Forward, listeners?: any) => {
     const statusDisplay = getStatusDisplay(forward.status);
     const strategyDisplay = getStrategyDisplay(forward.strategy);
@@ -3585,7 +3587,7 @@ export default function ForwardPage() {
         <div className="flex-1 max-w-sm flex items-center gap-2">
           <SearchBar
             isVisible={isSearchVisible}
-            placeholder="搜索转发名称、地址或用户名"
+            placeholder="搜索规则名称、地址或用户名"
             value={searchKeyword}
             onChange={setSearchKeyword}
             onClose={() => setIsSearchVisible(false)}
@@ -3811,7 +3813,7 @@ export default function ForwardPage() {
                   strategy={verticalListSortingStrategy}
                 >
                   <Table
-                    aria-label="全部转发列表"
+                    aria-label="全部规则列表"
                     classNames={{
                       th: "bg-default-100/50 text-default-600 font-semibold text-sm border-b border-divider py-3 uppercase tracking-wider",
                       td: "py-3 border-b border-divider/50 group-data-[last=true]:border-b-0",
@@ -3833,7 +3835,10 @@ export default function ForwardPage() {
                       <TableColumn>状态</TableColumn>
                       <TableColumn className="text-right">操作</TableColumn>
                     </TableHeader>
-                    <TableBody emptyContent="暂无转发配置" items={sortedForwards}>
+                    <TableBody
+                      emptyContent="暂无规则配置"
+                      items={sortedForwards}
+                    >
                       {(forward) => (
                         <SortableCompactTableRow
                           formatFlow={formatFlow}
@@ -3861,42 +3866,52 @@ export default function ForwardPage() {
             <Card className="shadow-sm border border-gray-200 dark:border-gray-700 bg-default-50/50">
               <CardBody className="text-center py-20 flex flex-col items-center justify-center min-h-[240px]">
                 <h3 className="text-xl font-medium text-foreground tracking-tight mb-2">
-                  暂无转发配置
+                  暂无规则配置
                 </h3>
                 <p className="text-default-500 text-sm max-w-xs mx-auto leading-relaxed">
-                  还没有创建任何转发配置，点击上方按钮开始创建
+                  还没有创建任何规则配置，点击上方按钮开始创建
                 </p>
               </CardBody>
             </Card>
           )
         ) : sortedForwards.length > 0 ? (
-          <DndContext
-            collisionDetection={closestCenter}
-            sensors={sensors}
-            onDragEnd={handleDragEnd}
-            onDragStart={() => {}}
-          >
-            <SortableContext
-              items={sortableForwardIds}
-              strategy={rectSortingStrategy}
+          <>
+            <div className="flex items-center justify-between px-1 mb-3">
+              <span className="text-sm font-semibold text-foreground">
+                全部规则
+              </span>
+              <span className="text-xs text-default-600">
+                {sortedForwards.length} 条规则
+              </span>
+            </div>
+            <DndContext
+              collisionDetection={closestCenter}
+              sensors={sensors}
+              onDragEnd={handleDragEnd}
+              onDragStart={() => {}}
             >
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4">
-                {sortedForwards.map((forward) =>
-                  forward && forward.id ? (
-                    <SortableForwardCard key={forward.id} forward={forward} />
-                  ) : null,
-                )}
-              </div>
-            </SortableContext>
-          </DndContext>
+              <SortableContext
+                items={sortableForwardIds}
+                strategy={rectSortingStrategy}
+              >
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4">
+                  {sortedForwards.map((forward) =>
+                    forward && forward.id ? (
+                      <SortableForwardCard key={forward.id} forward={forward} />
+                    ) : null,
+                  )}
+                </div>
+              </SortableContext>
+            </DndContext>
+          </>
         ) : (
           <Card className="shadow-sm border border-gray-200 dark:border-gray-700 bg-default-50/50">
             <CardBody className="text-center py-20 flex flex-col items-center justify-center min-h-[240px]">
               <h3 className="text-xl font-medium text-foreground tracking-tight mb-2">
-                暂无转发配置
+                暂无规则配置
               </h3>
               <p className="text-default-500 text-sm max-w-xs mx-auto leading-relaxed">
-                还没有创建任何转发配置，点击上方按钮开始创建
+                还没有创建任何规则配置，点击上方按钮开始创建
               </p>
             </CardBody>
           </Card>
@@ -3929,7 +3944,7 @@ export default function ForwardPage() {
                       )}
                     </div>
                     <span className="text-xs text-default-600">
-                      {groupForwardCount} 条转发
+                      {groupForwardCount} 条规则
                     </span>
                   </div>
 
@@ -3984,7 +3999,7 @@ export default function ForwardPage() {
                                 onDragEnd={handleDragEnd}
                               >
                                 <Table
-                                  aria-label={`${group.userName}-${tunnel.tunnelName}转发列表`}
+                                  aria-label={`${group.userName}-${tunnel.tunnelName}规则列表`}
                                   className={`table-fixed ${FORWARD_GROUPED_TABLE_MIN_WIDTH_CLASS}`}
                                   classNames={{
                                     th: "bg-default-100/50 text-default-600 font-semibold text-sm border-b border-divider py-3 uppercase tracking-wider",
@@ -4058,7 +4073,7 @@ export default function ForwardPage() {
                                     </TableColumn>
                                   </TableHeader>
                                   <TableBody
-                                    emptyContent="暂无转发配置"
+                                    emptyContent="暂无规则配置"
                                     items={tunnel.items}
                                   >
                                     {(forward) => (
@@ -4110,10 +4125,10 @@ export default function ForwardPage() {
           <Card className="shadow-sm border border-gray-200 dark:border-gray-700 bg-default-50/50">
             <CardBody className="text-center py-20 flex flex-col items-center justify-center min-h-[240px]">
               <h3 className="text-xl font-medium text-foreground tracking-tight mb-2">
-                暂无转发配置
+                暂无规则配置
               </h3>
               <p className="text-default-500 text-sm max-w-xs mx-auto leading-relaxed">
-                还没有创建任何转发配置，点击上方按钮开始创建
+                还没有创建任何规则配置，点击上方按钮开始创建
               </p>
             </CardBody>
           </Card>
@@ -4145,7 +4160,7 @@ export default function ForwardPage() {
                     )}
                   </div>
                   <span className="text-xs text-default-600">
-                    {groupForwardCount} 条转发
+                    {groupForwardCount} 条规则
                   </span>
                 </div>
 
@@ -4230,10 +4245,10 @@ export default function ForwardPage() {
         <Card className="shadow-sm border border-gray-200 dark:border-gray-700 bg-default-50/50">
           <CardBody className="text-center py-20 flex flex-col items-center justify-center min-h-[240px]">
             <h3 className="text-xl font-medium text-foreground tracking-tight mb-2">
-              暂无转发配置
+              暂无规则配置
             </h3>
             <p className="text-default-500 text-sm max-w-xs mx-auto leading-relaxed">
-              还没有创建任何转发配置，点击上方按钮开始创建
+              还没有创建任何规则配置，点击上方按钮开始创建
             </p>
           </CardBody>
         </Card>
@@ -4253,10 +4268,10 @@ export default function ForwardPage() {
             <>
               <ModalHeader className="flex flex-col gap-1">
                 <h2 className="text-xl font-bold">
-                  {isEdit ? "编辑转发" : "新增转发"}
+                  {isEdit ? "编辑规则" : "新增规则"}
                 </h2>
                 <p className="text-small text-default-500">
-                  {isEdit ? "修改现有转发配置的信息" : "创建新的转发配置"}
+                  {isEdit ? "修改现有规则配置的信息" : "创建新的规则配置"}
                 </p>
               </ModalHeader>
               <ModalBody>
@@ -4264,8 +4279,8 @@ export default function ForwardPage() {
                   <Input
                     errorMessage={errors.name}
                     isInvalid={!!errors.name}
-                    label="转发名称"
-                    placeholder="请输入转发名称"
+                    label="规则名称"
+                    placeholder="请输入规则名称"
                     value={form.name}
                     variant="bordered"
                     onChange={(e) =>
@@ -4369,10 +4384,10 @@ export default function ForwardPage() {
                       isCurrentTunnelMultiEntrance
                         ? "多入口隧道使用节点默认IP"
                         : form.tunnelId
-                        ? currentTunnelIpOptions.length > 0
-                          ? "选择入口监听IP"
-                          : "当前隧道入口节点暂无可选IP"
-                        : "请先选择隧道"
+                          ? currentTunnelIpOptions.length > 0
+                            ? "选择入口监听IP"
+                            : "当前隧道入口节点暂无可选IP"
+                          : "请先选择隧道"
                     }
                     selectedKeys={[form.inIp || "__default__"]}
                     variant="bordered"
@@ -4441,7 +4456,7 @@ export default function ForwardPage() {
                   isLoading={submitLoading}
                   onPress={handleSubmit}
                 >
-                  {isEdit ? "保存修改" : "创建转发"}
+                  {isEdit ? "保存修改" : "创建规则"}
                 </Button>
               </ModalFooter>
             </>
@@ -4466,14 +4481,14 @@ export default function ForwardPage() {
               </ModalHeader>
               <ModalBody>
                 <p className="text-default-600">
-                  确定要删除转发{" "}
+                  确定要删除规则{" "}
                   <span className="font-semibold text-foreground">
                     &quot;{forwardToDelete?.name}&quot;
                   </span>{" "}
                   吗？
                 </p>
                 <p className="text-small text-default-500 mt-2">
-                  此操作无法撤销，删除后该转发将永久消失。
+                  此操作无法撤销，删除后该规则将永久消失。
                 </p>
               </ModalBody>
               <ModalFooter>
@@ -4548,9 +4563,9 @@ export default function ForwardPage() {
       >
         <ModalContent>
           <ModalHeader className="flex flex-col gap-1">
-            <h2 className="text-xl font-bold">导出转发数据</h2>
+            <h2 className="text-xl font-bold">导出规则数据</h2>
             <p className="text-small text-default-500">
-              格式：目标地址|转发名称|入口端口
+              格式：目标地址|规则名称|入口端口
             </p>
           </ModalHeader>
           <ModalBody className="pb-6">
@@ -4700,11 +4715,11 @@ export default function ForwardPage() {
       >
         <ModalContent>
           <ModalHeader className="flex flex-col gap-1">
-            <h2 className="text-xl font-bold">导入转发数据</h2>
+            <h2 className="text-xl font-bold">导入规则数据</h2>
             {importFormat === "flvx" ? (
               <>
                 <p className="text-small text-default-500">
-                  格式：目标地址|转发名称|入口端口，每行一个，入口端口留空将自动分配可用端口
+                  格式：目标地址|规则名称|入口端口，每行一个，入口端口留空将自动分配可用端口
                 </p>
                 <p className="text-small text-default-400">
                   目标地址支持单个地址(如：example.com:8080)或多个地址用逗号分隔(如：3.3.3.3:3,4.4.4.4:4)
@@ -4788,8 +4803,8 @@ export default function ForwardPage() {
                 minRows={8}
                 placeholder={
                   importFormat === "flvx"
-                    ? "请输入要导入的转发数据，格式：目标地址|转发名称|入口端口"
-                    : '请输入ny格式数据，每行一个JSON对象，如：{"dest":["1.2.3.4:80"],"listen_port":8080,"name":"转发1"}；listen_port可省略自动分配'
+                    ? "请输入要导入的规则数据，格式：目标地址|规则名称|入口端口"
+                    : '请输入ny格式数据，每行一个JSON对象，如：{"dest":["1.2.3.4:80"],"listen_port":8080,"name":"规则1"}；listen_port可省略自动分配'
                 }
                 value={importData}
                 variant="flat"
@@ -4929,7 +4944,7 @@ export default function ForwardPage() {
           {(onClose) => (
             <>
               <ModalHeader className="flex flex-col gap-1 bg-content1 border-b border-divider">
-                <h2 className="text-xl font-bold">转发诊断结果</h2>
+                <h2 className="text-xl font-bold">规则诊断结果</h2>
                 {currentDiagnosisForward && (
                   <div className="flex items-center gap-2 min-w-0">
                     <span className="text-small text-default-500 truncate flex-1 min-w-0">
@@ -4941,7 +4956,7 @@ export default function ForwardPage() {
                       size="sm"
                       variant="flat"
                     >
-                      转发服务
+                      规则服务
                     </Chip>
                   </div>
                 )}
@@ -5500,7 +5515,7 @@ export default function ForwardPage() {
               <ModalHeader>确认删除</ModalHeader>
               <ModalBody>
                 <p>
-                  确定要删除选中的 {selectedIds.size} 项转发吗？此操作不可撤销。
+                  确定要删除选中的 {selectedIds.size} 项规则吗？此操作不可撤销。
                 </p>
               </ModalBody>
               <ModalFooter>
@@ -5531,7 +5546,7 @@ export default function ForwardPage() {
               <ModalHeader>隧道</ModalHeader>
               <ModalBody>
                 <p className="mb-4">
-                  将选中的 {selectedIds.size} 项转发迁移到新隧道：
+                  将选中的 {selectedIds.size} 项规则迁移到新隧道：
                 </p>
                 <Select
                   label="目标隧道"

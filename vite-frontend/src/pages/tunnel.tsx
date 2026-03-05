@@ -1843,10 +1843,10 @@ export default function TunnelPage() {
                                     isMultiNodeGroup
                                       ? "多节点跳使用节点默认IP"
                                       : groupSelectedNodeIds.length === 0
-                                      ? "请先选择节点"
-                                      : groupIpOptions.length > 0
-                                        ? "选择连接IP"
-                                        : "所选节点无共同可选IP"
+                                        ? "请先选择节点"
+                                        : groupIpOptions.length > 0
+                                          ? "选择连接IP"
+                                          : "所选节点无共同可选IP"
                                   }
                                   selectedKeys={[
                                     selectedGroupConnectIp || "__default__",
@@ -1906,243 +1906,259 @@ export default function TunnelPage() {
                         return (
                           <>
                             <div className="grid grid-cols-1 md:grid-cols-4 gap-2">
-                        {/* 节点选择 - 移动端100%，桌面端50% */}
-                        <div className="col-span-1 md:col-span-2">
-                          <Select
-                            classNames={{
-                              label: "text-xs",
-                              value: "text-sm",
-                            }}
-                            disabledKeys={[
-                              ...nodes
-                                .filter((node) => node.status !== 1)
-                                .map((node) => node.id.toString()),
-                              ...form.inNodeId.map((ct) =>
-                                ct.nodeId.toString(),
-                              ),
-                              ...getSelectedChainNodeIds().map((id) =>
-                                id.toString(),
-                              ),
-                            ]}
-                            dropdownPlacement="top"
-                            errorMessage={errors.outNodeId}
-                            isInvalid={!!errors.outNodeId}
-                            label="节点"
-                            placeholder="请选择出口节点（可多选）"
-                            selectedKeys={
-                              form.outNodeId
-                                ? form.outNodeId
-                                    .filter((ct) => ct.nodeId !== -1)
-                                    .map((ct) => ct.nodeId.toString())
-                                : []
-                            }
-                            selectionMode="multiple"
-                            variant="bordered"
-                            onSelectionChange={(keys) => {
-                              const selectedIds = toSelectedNodeIds(keys);
+                              {/* 节点选择 - 移动端100%，桌面端50% */}
+                              <div className="col-span-1 md:col-span-2">
+                                <Select
+                                  classNames={{
+                                    label: "text-xs",
+                                    value: "text-sm",
+                                  }}
+                                  disabledKeys={[
+                                    ...nodes
+                                      .filter((node) => node.status !== 1)
+                                      .map((node) => node.id.toString()),
+                                    ...form.inNodeId.map((ct) =>
+                                      ct.nodeId.toString(),
+                                    ),
+                                    ...getSelectedChainNodeIds().map((id) =>
+                                      id.toString(),
+                                    ),
+                                  ]}
+                                  dropdownPlacement="top"
+                                  errorMessage={errors.outNodeId}
+                                  isInvalid={!!errors.outNodeId}
+                                  label="节点"
+                                  placeholder="请选择出口节点（可多选）"
+                                  selectedKeys={
+                                    form.outNodeId
+                                      ? form.outNodeId
+                                          .filter((ct) => ct.nodeId !== -1)
+                                          .map((ct) => ct.nodeId.toString())
+                                      : []
+                                  }
+                                  selectionMode="multiple"
+                                  variant="bordered"
+                                  onSelectionChange={(keys) => {
+                                    const selectedIds = toSelectedNodeIds(keys);
 
-                              setForm((prev) => {
-                                const currentOutNodes = prev.outNodeId || [];
-                                const protocol =
-                                  currentOutNodes[0]?.protocol || "tls";
-                                const strategy =
-                                  currentOutNodes[0]?.strategy || "round";
-                                const realNodes = currentOutNodes.filter(
-                                  (ct) => ct.nodeId !== -1,
-                                );
+                                    setForm((prev) => {
+                                      const currentOutNodes =
+                                        prev.outNodeId || [];
+                                      const protocol =
+                                        currentOutNodes[0]?.protocol || "tls";
+                                      const strategy =
+                                        currentOutNodes[0]?.strategy || "round";
+                                      const realNodes = currentOutNodes.filter(
+                                        (ct) => ct.nodeId !== -1,
+                                      );
 
-                                return {
-                                  ...prev,
-                                  outNodeId: mergeOrderedNodes(
-                                    realNodes,
-                                    selectedIds,
-                                    (nodeId) => ({
-                                      nodeId,
-                                      chainType: 3,
-                                      protocol,
-                                      strategy,
-                                    }),
-                                  ),
-                                };
-                              });
-                            }}
-                          >
-                            {nodes.map((node) => (
-                              <SelectItem
-                                key={node.id}
-                                textValue={`${node.name}`}
-                              >
-                                <div className="flex items-center justify-between">
-                                  <span>{node.name}</span>
-                                  <div className="flex items-center gap-2">
-                                    <Chip
-                                      color={
-                                        node.status === 1
-                                          ? "success"
-                                          : "default"
-                                      }
-                                      size="sm"
-                                      variant="flat"
+                                      return {
+                                        ...prev,
+                                        outNodeId: mergeOrderedNodes(
+                                          realNodes,
+                                          selectedIds,
+                                          (nodeId) => ({
+                                            nodeId,
+                                            chainType: 3,
+                                            protocol,
+                                            strategy,
+                                          }),
+                                        ),
+                                      };
+                                    });
+                                  }}
+                                >
+                                  {nodes.map((node) => (
+                                    <SelectItem
+                                      key={node.id}
+                                      textValue={`${node.name}`}
                                     >
-                                      {node.status === 1 ? "在线" : "离线"}
-                                    </Chip>
-                                    {form.inNodeId.some(
-                                      (ct) => ct.nodeId === node.id,
-                                    ) && (
-                                      <Chip
-                                        color="warning"
-                                        size="sm"
-                                        variant="flat"
-                                      >
-                                        已选为入口
-                                      </Chip>
-                                    )}
-                                    {getSelectedChainNodeIds().includes(
-                                      node.id,
-                                    ) && (
-                                      <Chip
-                                        color="primary"
-                                        size="sm"
-                                        variant="flat"
-                                      >
-                                        已选为转发链
-                                      </Chip>
-                                    )}
-                                  </div>
-                                </div>
-                              </SelectItem>
-                            ))}
-                          </Select>
-                        </div>
+                                      <div className="flex items-center justify-between">
+                                        <span>{node.name}</span>
+                                        <div className="flex items-center gap-2">
+                                          <Chip
+                                            color={
+                                              node.status === 1
+                                                ? "success"
+                                                : "default"
+                                            }
+                                            size="sm"
+                                            variant="flat"
+                                          >
+                                            {node.status === 1
+                                              ? "在线"
+                                              : "离线"}
+                                          </Chip>
+                                          {form.inNodeId.some(
+                                            (ct) => ct.nodeId === node.id,
+                                          ) && (
+                                            <Chip
+                                              color="warning"
+                                              size="sm"
+                                              variant="flat"
+                                            >
+                                              已选为入口
+                                            </Chip>
+                                          )}
+                                          {getSelectedChainNodeIds().includes(
+                                            node.id,
+                                          ) && (
+                                            <Chip
+                                              color="primary"
+                                              size="sm"
+                                              variant="flat"
+                                            >
+                                              已选为转发链
+                                            </Chip>
+                                          )}
+                                        </div>
+                                      </div>
+                                    </SelectItem>
+                                  ))}
+                                </Select>
+                              </div>
 
-                        {/* 协议选择 - 25% */}
-                        <Select
-                          classNames={{
-                            label: "text-xs",
-                            value: "text-sm",
-                          }}
-                          errorMessage={errors.protocol}
-                          isInvalid={!!errors.protocol}
-                          label="协议"
-                          placeholder="选择协议"
-                          selectedKeys={[
-                            (() => {
-                              if (
-                                !form.outNodeId ||
-                                form.outNodeId.length === 0
-                              )
-                                return "tls";
+                              {/* 协议选择 - 25% */}
+                              <Select
+                                classNames={{
+                                  label: "text-xs",
+                                  value: "text-sm",
+                                }}
+                                errorMessage={errors.protocol}
+                                isInvalid={!!errors.protocol}
+                                label="协议"
+                                placeholder="选择协议"
+                                selectedKeys={[
+                                  (() => {
+                                    if (
+                                      !form.outNodeId ||
+                                      form.outNodeId.length === 0
+                                    )
+                                      return "tls";
 
-                              return form.outNodeId[0].protocol || "tls";
-                            })(),
-                          ]}
-                          variant="bordered"
-                          onSelectionChange={(keys) => {
-                            const selectedKey = Array.from(keys)[0] as string;
+                                    return form.outNodeId[0].protocol || "tls";
+                                  })(),
+                                ]}
+                                variant="bordered"
+                                onSelectionChange={(keys) => {
+                                  const selectedKey = Array.from(
+                                    keys,
+                                  )[0] as string;
 
-                            if (selectedKey) {
-                              setForm((prev) => {
-                                const currentOutNodes = prev.outNodeId || [];
-                                const currentStrategy =
-                                  currentOutNodes.length > 0
-                                    ? currentOutNodes[0].strategy || "round"
-                                    : "round";
+                                  if (selectedKey) {
+                                    setForm((prev) => {
+                                      const currentOutNodes =
+                                        prev.outNodeId || [];
+                                      const currentStrategy =
+                                        currentOutNodes.length > 0
+                                          ? currentOutNodes[0].strategy ||
+                                            "round"
+                                          : "round";
 
-                                if (currentOutNodes.length === 0) {
-                                  // 如果还没有出口节点，创建一个占位节点保存设置
-                                  return {
-                                    ...prev,
-                                    outNodeId: [
-                                      {
-                                        nodeId: -1,
-                                        chainType: 3,
-                                        protocol: selectedKey,
-                                        strategy: currentStrategy,
-                                      },
-                                    ],
-                                  };
-                                }
+                                      if (currentOutNodes.length === 0) {
+                                        // 如果还没有出口节点，创建一个占位节点保存设置
+                                        return {
+                                          ...prev,
+                                          outNodeId: [
+                                            {
+                                              nodeId: -1,
+                                              chainType: 3,
+                                              protocol: selectedKey,
+                                              strategy: currentStrategy,
+                                            },
+                                          ],
+                                        };
+                                      }
 
-                                // 更新所有出口节点的协议
-                                return {
-                                  ...prev,
-                                  outNodeId: currentOutNodes.map((ct) => ({
-                                    ...ct,
-                                    protocol: selectedKey,
-                                  })),
-                                };
-                              });
-                            }
-                          }}
-                        >
-                          <SelectItem key="tls">TLS</SelectItem>
-                          <SelectItem key="wss">WSS</SelectItem>
-                          <SelectItem key="tcp">TCP</SelectItem>
-                          <SelectItem key="mtls">MTLS</SelectItem>
-                          <SelectItem key="mwss">MWSS</SelectItem>
-                          <SelectItem key="mtcp">MTCP</SelectItem>
-                        </Select>
+                                      // 更新所有出口节点的协议
+                                      return {
+                                        ...prev,
+                                        outNodeId: currentOutNodes.map(
+                                          (ct) => ({
+                                            ...ct,
+                                            protocol: selectedKey,
+                                          }),
+                                        ),
+                                      };
+                                    });
+                                  }
+                                }}
+                              >
+                                <SelectItem key="tls">TLS</SelectItem>
+                                <SelectItem key="wss">WSS</SelectItem>
+                                <SelectItem key="tcp">TCP</SelectItem>
+                                <SelectItem key="mtls">MTLS</SelectItem>
+                                <SelectItem key="mwss">MWSS</SelectItem>
+                                <SelectItem key="mtcp">MTCP</SelectItem>
+                              </Select>
 
-                        {/* 负载策略 - 25% */}
-                        <Select
-                          classNames={{
-                            label: "text-xs",
-                            value: "text-sm",
-                          }}
-                          label="负载策略"
-                          placeholder="选择策略"
-                          selectedKeys={[
-                            (() => {
-                              if (
-                                !form.outNodeId ||
-                                form.outNodeId.length === 0
-                              )
-                                return "round";
+                              {/* 负载策略 - 25% */}
+                              <Select
+                                classNames={{
+                                  label: "text-xs",
+                                  value: "text-sm",
+                                }}
+                                label="负载策略"
+                                placeholder="选择策略"
+                                selectedKeys={[
+                                  (() => {
+                                    if (
+                                      !form.outNodeId ||
+                                      form.outNodeId.length === 0
+                                    )
+                                      return "round";
 
-                              return form.outNodeId[0].strategy || "round";
-                            })(),
-                          ]}
-                          variant="bordered"
-                          onSelectionChange={(keys) => {
-                            const selectedKey = Array.from(keys)[0] as string;
+                                    return (
+                                      form.outNodeId[0].strategy || "round"
+                                    );
+                                  })(),
+                                ]}
+                                variant="bordered"
+                                onSelectionChange={(keys) => {
+                                  const selectedKey = Array.from(
+                                    keys,
+                                  )[0] as string;
 
-                            if (selectedKey) {
-                              setForm((prev) => {
-                                const currentOutNodes = prev.outNodeId || [];
-                                const currentProtocol =
-                                  currentOutNodes.length > 0
-                                    ? currentOutNodes[0].protocol || "tls"
-                                    : "tls";
+                                  if (selectedKey) {
+                                    setForm((prev) => {
+                                      const currentOutNodes =
+                                        prev.outNodeId || [];
+                                      const currentProtocol =
+                                        currentOutNodes.length > 0
+                                          ? currentOutNodes[0].protocol || "tls"
+                                          : "tls";
 
-                                if (currentOutNodes.length === 0) {
-                                  return {
-                                    ...prev,
-                                    outNodeId: [
-                                      {
-                                        nodeId: -1,
-                                        chainType: 3,
-                                        protocol: currentProtocol,
-                                        strategy: selectedKey,
-                                      },
-                                    ],
-                                  };
-                                }
+                                      if (currentOutNodes.length === 0) {
+                                        return {
+                                          ...prev,
+                                          outNodeId: [
+                                            {
+                                              nodeId: -1,
+                                              chainType: 3,
+                                              protocol: currentProtocol,
+                                              strategy: selectedKey,
+                                            },
+                                          ],
+                                        };
+                                      }
 
-                                return {
-                                  ...prev,
-                                  outNodeId: currentOutNodes.map((ct) => ({
-                                    ...ct,
-                                    strategy: selectedKey,
-                                  })),
-                                };
-                              });
-                            }
-                          }}
-                        >
-                          <SelectItem key="fifo">主备</SelectItem>
-                          <SelectItem key="round">轮询</SelectItem>
-                          <SelectItem key="rand">随机</SelectItem>
-                        </Select>
+                                      return {
+                                        ...prev,
+                                        outNodeId: currentOutNodes.map(
+                                          (ct) => ({
+                                            ...ct,
+                                            strategy: selectedKey,
+                                          }),
+                                        ),
+                                      };
+                                    });
+                                  }
+                                }}
+                              >
+                                <SelectItem key="fifo">主备</SelectItem>
+                                <SelectItem key="round">轮询</SelectItem>
+                                <SelectItem key="rand">随机</SelectItem>
+                              </Select>
                             </div>
 
                             {/* 连接IP - 出口节点 */}
@@ -2179,9 +2195,13 @@ export default function TunnelPage() {
                               size="sm"
                               variant="bordered"
                               onSelectionChange={(keys) => {
-                                const selectedKey = Array.from(keys)[0] as string;
+                                const selectedKey = Array.from(
+                                  keys,
+                                )[0] as string;
                                 const value =
-                                  selectedKey === "__default__" ? "" : selectedKey;
+                                  selectedKey === "__default__"
+                                    ? ""
+                                    : selectedKey;
 
                                 setForm((prev) => {
                                   const currentOutNodes = prev.outNodeId || [];
@@ -2211,7 +2231,9 @@ export default function TunnelPage() {
                                 });
                               }}
                             >
-                              <SelectItem key="__default__">默认连接IP</SelectItem>
+                              <SelectItem key="__default__">
+                                默认连接IP
+                              </SelectItem>
                               {commonOutIpOptions.map((ip) => (
                                 <SelectItem key={ip}>{ip}</SelectItem>
                               ))}
@@ -2887,7 +2909,7 @@ export default function TunnelPage() {
               <ModalBody>
                 <p>
                   确定要删除选中的 {selectedIds.size}{" "}
-                  项隧道吗？此操作不可撤销，相关转发也将被删除。
+                  项隧道吗？此操作不可撤销，相关规则也将被删除。
                 </p>
               </ModalBody>
               <ModalFooter>

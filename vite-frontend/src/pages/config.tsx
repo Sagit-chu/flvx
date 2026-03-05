@@ -119,8 +119,8 @@ const CONFIG_ITEMS: ConfigItem[] = [
   },
   {
     key: "forward_compact_mode",
-    label: "转发页面精简模式",
-    description: "开启后，转发页面列表使用 2.1.6-alpha8 样式（全局配置）",
+    label: "规则页面精简模式",
+    description: "开启后，规则页面列表使用 2.1.6-alpha8 样式（全局配置）",
     type: "switch",
   },
   {
@@ -153,7 +153,7 @@ const BACKUP_TYPE_OPTIONS = [
   { value: "users", label: "用户" },
   { value: "nodes", label: "节点" },
   { value: "tunnels", label: "隧道" },
-  { value: "forwards", label: "转发" },
+  { value: "forwards", label: "规则" },
   { value: "userTunnels", label: "用户隧道权限" },
   { value: "speedLimits", label: "限速规则" },
   { value: "tunnelGroups", label: "隧道分组" },

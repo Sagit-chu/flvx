@@ -616,7 +616,7 @@ export default function DashboardPage() {
             </svg>
           }
           iconClassName="bg-purple-100 dark:bg-purple-500/20"
-          title="转发配额"
+          title="规则配额"
           value={formatNumber(userInfo.num || 0)}
         />
 
@@ -650,7 +650,7 @@ export default function DashboardPage() {
             </svg>
           }
           iconClassName="bg-orange-100 dark:bg-orange-500/20"
-          title="已用转发"
+          title="已用规则"
           value={forwardList.length}
         />
       </div>
@@ -753,7 +753,7 @@ export default function DashboardPage() {
                         </div>
                         <div>
                           <p className="text-sm text-default-600 mb-1">
-                            转发配额
+                            规则配额
                           </p>
                           <p className="font-semibold text-foreground">
                             {formatNumber(tunnel.num)}
@@ -761,7 +761,7 @@ export default function DashboardPage() {
                         </div>
                         <div>
                           <p className="text-sm text-default-600 mb-1">
-                            已用转发
+                            已用规则
                           </p>
                           <p className="font-semibold text-foreground">
                             {getTunnelUsedForwards(tunnel.tunnelId)}
@@ -784,7 +784,7 @@ export default function DashboardPage() {
         </Card>
       )}
 
-      {/* 转发配置 */}
+      {/* 规则配置 */}
       <Card className="border border-gray-200 dark:border-default-200 shadow-md">
         <CardHeader className="pb-3">
           <div className="flex items-center gap-2">
@@ -801,7 +801,7 @@ export default function DashboardPage() {
               />
             </svg>
             <h2 className="text-lg lg:text-xl font-semibold text-foreground">
-              转发配置
+              规则配置
             </h2>
             <span className="px-2 py-1 bg-default-100 dark:bg-default-50 text-default-600 rounded-full text-xs">
               {forwardList.length}
@@ -825,7 +825,7 @@ export default function DashboardPage() {
                   strokeWidth={1.5}
                 />
               </svg>
-              <p className="text-default-500">暂无转发配置</p>
+              <p className="text-default-500">暂无规则配置</p>
             </div>
           ) : (
             <div className="space-y-4">
@@ -839,7 +839,7 @@ export default function DashboardPage() {
                       {group.tunnelName}
                     </h3>
                     <span className="px-2 py-1 bg-primary-100 dark:bg-primary-500/20 text-primary-700 dark:text-primary-300 rounded-md text-sm">
-                      {group.forwards.length} 个转发
+                      {group.forwards.length} 个规则
                     </span>
                   </div>
 

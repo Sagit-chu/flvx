@@ -129,7 +129,7 @@ export const SettingsPage = () => {
       );
 
       if (response.code === 0) {
-        toast.success(`转发页面精简模式已${enabled ? "开启" : "关闭"}`);
+        toast.success(`规则页面精简模式已${enabled ? "开启" : "关闭"}`);
         window.dispatchEvent(
           new CustomEvent("forwardCompactModeChanged", {
             detail: { enabled },
@@ -232,10 +232,10 @@ export const SettingsPage = () => {
                 <div className="flex items-center justify-between gap-4">
                   <div>
                     <p className="text-sm font-medium text-gray-900 dark:text-white">
-                      转发页面精简模式
+                      规则页面精简模式
                     </p>
                     <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                      开启后，转发页面列表使用 2.1.6-alpha8 样式。
+                      开启后，规则页面列表使用 2.1.6-alpha8 样式。{" "}
                     </p>
                   </div>
                   <Switch

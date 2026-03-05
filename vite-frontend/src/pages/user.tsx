@@ -845,7 +845,7 @@ export default function UserPage() {
                       {/* 其他信息 */}
                       <div className="space-y-1.5 pt-2 border-t border-divider">
                         <div className="flex justify-between text-sm">
-                          <span className="text-default-600">转发数量</span>
+                          <span className="text-default-600">规则数量</span>
                           <span className="font-medium text-xs">
                             {user.num}
                           </span>
@@ -1001,7 +1001,7 @@ export default function UserPage() {
               />
               <Input
                 isRequired
-                label="转发数量"
+                label="规则数量"
                 max="99999"
                 min="1"
                 type="number"
@@ -1138,7 +1138,7 @@ export default function UserPage() {
                 <h3 className="text-lg font-semibold mb-4">分配新权限</h3>
                 <div className="space-y-4">
                   <div className="text-sm text-default-500 bg-default-100 dark:bg-default-50 p-3 rounded-lg border border-default-200 dark:border-default-100/30">
-                    流量限制、转发数量、到期时间、流量重置时间将自动继承用户设置
+                    流量限制、规则数量、到期时间、流量重置时间将自动继承用户设置
                   </div>
 
                   <div className="grid gap-2 max-h-72 overflow-y-auto pr-1">
@@ -1296,7 +1296,7 @@ export default function UserPage() {
                   <TableHeader>
                     <TableColumn>隧道名称</TableColumn>
                     <TableColumn>流量统计</TableColumn>
-                    <TableColumn>转发数量</TableColumn>
+                    <TableColumn>规则数量</TableColumn>
                     <TableColumn>状态</TableColumn>
                     <TableColumn>限速规则</TableColumn>
                     <TableColumn>重置时间</TableColumn>
@@ -1453,7 +1453,7 @@ export default function UserPage() {
                   />
 
                   <Input
-                    label="转发数量"
+                    label="规则数量"
                     max="99999"
                     min="1"
                     type="number"
@@ -1668,7 +1668,7 @@ export default function UserPage() {
                   的权限吗？
                 </p>
                 <p className="text-small text-default-500 mt-1">
-                  删除后该用户将无法使用此隧道创建转发，此操作不可撤销。
+                  删除后该用户将无法使用此隧道创建规则，此操作不可撤销。{" "}
                 </p>
               </div>
             </div>
