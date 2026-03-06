@@ -122,6 +122,35 @@ func TestControlForwardServiceCommandReturnsLastNotFoundWhenAllMissing(t *testin
 	}
 }
 
+func TestDeleteForwardServiceCandidatesSkipsNotFoundUntilLegacyMatch(t *testing.T) {
+	bases := []string{"12_34_56", "12_34_0"}
+	called := make([]string, 0)
+	err := deleteForwardServiceCandidates(bases, func(name string) error {
+		called = append(called, name)
+		if name == "12_34_0" {
+			return nil
+		}
+		return errors.New("service " + name + " not found")
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	wantCalls := []string{"12_34_56_tcp", "12_34_56_udp", "12_34_56", "12_34_0_tcp", "12_34_0_udp", "12_34_0"}
+	if !reflect.DeepEqual(called, wantCalls) {
+		t.Fatalf("expected calls %v, got %v", wantCalls, called)
+	}
+}
+
+func TestDeleteForwardServiceCandidatesTreatsAllMissingAsSuccess(t *testing.T) {
+	bases := []string{"12_34_56", "12_34_0"}
+	err := deleteForwardServiceCandidates(bases, func(name string) error {
+		return errors.New("service " + name + " not found")
+	})
+	if err != nil {
+		t.Fatalf("all-missing delete should be tolerated, got %v", err)
+	}
+}
+
 func TestControlForwardServiceCommandReturnsHardError(t *testing.T) {
 	bases := []string{"12_34_56"}
 	handled, lastNotFoundErr, err := controlForwardServiceCommand(bases, "PauseService", func(name string) error {

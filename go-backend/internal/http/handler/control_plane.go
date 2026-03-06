@@ -395,23 +395,13 @@ func (h *Handler) deleteForwardServicesOnNode(forward *forwardRecord, nodeID int
 	candidateTunnelIDs = append(candidateTunnelIDs, allUserTunnelIDs...)
 	bases := buildForwardServiceBaseCandidates(forward.ID, forward.UserID, userTunnelID, candidateTunnelIDs)
 
-	var lastErr error
-	for _, base := range bases {
-		names := buildForwardControlServiceNames(base, "DeleteService")
+	return deleteForwardServiceCandidates(bases, func(name string) error {
 		payload := map[string]interface{}{
-			"services": names,
+			"services": []string{name},
 		}
-		_, cmdErr := h.sendNodeCommand(nodeID, "DeleteService", payload, false, true)
-		if cmdErr == nil {
-			return nil
-		}
-		lastErr = cmdErr
-	}
-
-	if lastErr != nil {
-		return lastErr
-	}
-	return nil
+		_, err := h.sendNodeCommand(nodeID, "DeleteService", payload, false, false)
+		return err
+	})
 }
 
 func (h *Handler) controlForwardServices(forward *forwardRecord, commandType string, tolerateNotFound bool) error {
@@ -515,6 +505,20 @@ func controlForwardServiceCommand(bases []string, commandType string, send func(
 		}
 	}
 	return false, lastNotFoundErr, nil
+}
+
+func deleteForwardServiceCandidates(bases []string, send func(name string) error) error {
+	handled, lastNotFoundErr, err := controlForwardServiceCommand(bases, "DeleteService", send)
+	if err != nil {
+		return err
+	}
+	if handled {
+		return nil
+	}
+	if lastNotFoundErr != nil {
+		return nil
+	}
+	return nil
 }
 
 func shouldSelfHealForwardServiceControl(commandType string) bool {
