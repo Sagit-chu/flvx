@@ -2,7 +2,7 @@ import { motion, AnimatePresence } from "framer-motion";
 
 import { Button } from "@/shadcn-bridge/heroui/button";
 import { Input } from "@/shadcn-bridge/heroui/input";
-import { SearchIcon } from "@/components/icons";
+import { SearchIcon, XIcon } from "@/components/icons";
 
 interface SearchBarProps {
   isVisible: boolean;
@@ -36,9 +36,10 @@ export function SearchBar({
             <Button
               isIconOnly
               aria-label="搜索"
-              className="text-default-600"
+              className="bg-blue-100 text-blue-700 hover:bg-blue-200 dark:bg-blue-900/30 dark:text-blue-300 dark:hover:bg-blue-900/45 h-8 w-8 min-w-8"
               color="default"
               size="sm"
+              title="搜索"
               variant="flat"
               onPress={onOpen}
             >
@@ -71,26 +72,14 @@ export function SearchBar({
               className="text-default-600 shrink-0"
               color="default"
               size="sm"
+              title="关闭搜索"
               variant="light"
               onPress={() => {
                 onClose();
                 onChange("");
               }}
             >
-              <svg
-                aria-hidden="true"
-                className="w-4 h-4"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  d="M6 18L18 6M6 6l12 12"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                />
-              </svg>
+              <XIcon className="w-4 h-4" />
             </Button>
           </motion.div>
         )}

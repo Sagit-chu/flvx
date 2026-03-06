@@ -97,6 +97,23 @@ import { useMobileBreakpoint } from "@/hooks/useMobileBreakpoint";
 import { useLocalStorageState } from "@/hooks/use-local-storage-state";
 import { saveOrder } from "@/utils/order-storage";
 import { JwtUtil } from "@/utils/jwt";
+import {
+  PlusIcon,
+  DeleteIcon,
+  CheckAllIcon,
+  XCircleIcon,
+  UploadIcon,
+  DownloadIcon,
+  ListCheckIcon,
+  XIcon,
+  PauseIcon,
+  PlayIcon,
+  SendIcon,
+  GitBranchIcon,
+  FunnelIcon,
+  ViewListIcon,
+  ViewSplitIcon,
+} from "@/components/icons";
 
 interface Forward {
   id: number;
@@ -699,7 +716,10 @@ export default function ForwardPage() {
       currentTunnel.portRangeMin > 0 &&
       currentTunnel.portRangeMax > 0
     ) {
-      return { min: currentTunnel.portRangeMin, max: currentTunnel.portRangeMax };
+      return {
+        min: currentTunnel.portRangeMin,
+        max: currentTunnel.portRangeMax,
+      };
     }
 
     return null;
@@ -1290,8 +1310,16 @@ export default function ForwardPage() {
       newErrors.tunnelId = "请选择关联隧道";
     }
 
-    if (form.inPort !== null && form.inPort !== undefined && form.inPort > 0 && currentTunnelPortRange) {
-      if (form.inPort < currentTunnelPortRange.min || form.inPort > currentTunnelPortRange.max) {
+    if (
+      form.inPort !== null &&
+      form.inPort !== undefined &&
+      form.inPort > 0 &&
+      currentTunnelPortRange
+    ) {
+      if (
+        form.inPort < currentTunnelPortRange.min ||
+        form.inPort > currentTunnelPortRange.max
+      ) {
         newErrors.inPort = `端口 ${currentTunnelPortRange.min}-${currentTunnelPortRange.max} 超出允许范围`;
       }
     }
@@ -1470,6 +1498,7 @@ export default function ForwardPage() {
           strategy: addressCount > 1 ? form.strategy : "fifo",
           speedId: normalizedSpeedId,
         };
+
         res = await createForward(createData);
       }
 
@@ -3602,8 +3631,12 @@ export default function ForwardPage() {
   return (
     <AnimatedPage className="px-3 lg:px-6 py-8">
       {/* 页面头部 */}
-      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between mb-6 gap-3">
-        <div className="flex-1 max-w-sm flex items-center gap-2">
+      <div className="flex flex-row items-center justify-between mb-6 gap-3 overflow-x-auto pb-1 no-scrollbar">
+        <div
+          className={`flex-1 max-w-sm flex items-center gap-2 shrink-0 ${
+            isSearchVisible ? "min-w-[200px]" : "min-w-0"
+          }`}
+        >
           <SearchBar
             isVisible={isSearchVisible}
             placeholder="搜索规则名称、地址或用户名"
@@ -3613,207 +3646,205 @@ export default function ForwardPage() {
             onOpen={() => setIsSearchVisible(true)}
           />
         </div>
-        <div className="min-h-9 min-w-0 max-w-full overflow-x-auto touch-pan-x">
-          <div className="flex min-h-9 w-max min-w-full items-center justify-end gap-2 whitespace-nowrap sm:gap-3 [&>*]:shrink-0">
-            {selectMode ? (
-              <>
-                <span className="text-sm text-default-600 shrink-0">
-                  已选择 {selectedIds.size} 项
-                </span>
-                <Button
-                  color="primary"
-                  size="sm"
-                  variant="flat"
-                  onPress={selectAll}
-                >
-                  全选
-                </Button>
-                <Button
-                  color="secondary"
-                  size="sm"
-                  variant="flat"
-                  onPress={deselectAll}
-                >
-                  清空
-                </Button>
-                <Button
-                  color="danger"
-                  isDisabled={selectedIds.size === 0}
-                  size="sm"
-                  variant="flat"
-                  onPress={() => setBatchDeleteModalOpen(true)}
-                >
-                  删除
-                </Button>
-                <Button
-                  color="warning"
-                  isDisabled={selectedIds.size === 0}
-                  isLoading={batchLoading}
-                  size="sm"
-                  variant="flat"
-                  onPress={() => handleBatchToggleService(false)}
-                >
-                  停用
-                </Button>
-                <Button
-                  color="success"
-                  isDisabled={selectedIds.size === 0}
-                  isLoading={batchLoading}
-                  size="sm"
-                  variant="flat"
-                  onPress={() => handleBatchToggleService(true)}
-                >
-                  启用
-                </Button>
-                <Button
-                  color="primary"
-                  isDisabled={selectedIds.size === 0}
-                  isLoading={batchLoading}
-                  size="sm"
-                  variant="flat"
-                  onPress={handleBatchRedeploy}
-                >
-                  下发
-                </Button>
-                <Button
-                  color="secondary"
-                  isDisabled={selectedIds.size === 0}
-                  size="sm"
-                  variant="flat"
-                  onPress={() => setBatchChangeTunnelModalOpen(true)}
-                >
-                  隧道
-                </Button>
-                <Button
-                  color="secondary"
-                  size="sm"
-                  variant="solid"
-                  onPress={toggleSelectMode}
-                >
-                  退出
-                </Button>
-              </>
-            ) : (
-              <>
-                {/* 筛选按钮 */}
-                <Button
-                  isIconOnly
-                  aria-label="筛选条件"
-                  className={
-                    filterUserId !== "all" || filterTunnelId !== "all"
-                      ? "bg-primary/20 text-primary relative"
-                      : "text-default-600 relative"
-                  }
-                  color={
-                    filterUserId !== "all" || filterTunnelId !== "all"
-                      ? "primary"
-                      : "default"
-                  }
-                  size="sm"
-                  title="筛选条件"
-                  variant="flat"
-                  onPress={() => setIsFilterModalOpen(true)}
-                >
-                  <svg
-                    aria-hidden="true"
-                    className="w-4 h-4"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                    />
-                  </svg>
-                  {(filterUserId !== "all" || filterTunnelId !== "all") && (
-                    <span className="absolute top-1.5 right-1.5 flex h-1.5 w-1.5 rounded-full bg-primary" />
-                  )}
-                </Button>
-                {/* 显示模式切换按钮 */}
-                <Button
-                  isIconOnly
-                  aria-label={
-                    viewMode === "grouped" ? "切换到直接显示" : "切换到分类显示"
-                  }
-                  className="text-sm"
-                  color="default"
-                  size="sm"
-                  title={
-                    viewMode === "grouped" ? "切换到直接显示" : "切换到分类显示"
-                  }
-                  variant="flat"
-                  onPress={handleViewModeChange}
-                >
-                  {viewMode === "grouped" ? (
-                    <svg
-                      aria-hidden="true"
-                      className="w-4 h-4"
-                      fill="currentColor"
-                      viewBox="0 0 20 20"
-                    >
-                      <path
-                        clipRule="evenodd"
-                        d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1v-2zM3 16a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1v-2z"
-                        fillRule="evenodd"
-                      />
-                    </svg>
-                  ) : (
-                    <svg
-                      aria-hidden="true"
-                      className="w-4 h-4"
-                      fill="currentColor"
-                      viewBox="0 0 20 20"
-                    >
-                      <path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z" />
-                    </svg>
-                  )}
-                </Button>
+        <div className="flex h-8 items-center justify-end gap-2 whitespace-nowrap sm:gap-3 shrink-0">
+          {selectMode ? (
+            <>
+              <span className="text-sm text-default-600 shrink-0 hidden sm:inline-block">
+                已选择 {selectedIds.size} 项
+              </span>
+              <Button
+                isIconOnly
+                className="h-8 w-8 min-w-8"
+                color="primary"
+                size="sm"
+                title="全选"
+                variant="flat"
+                onPress={selectAll}
+              >
+                <CheckAllIcon className="w-4 h-4" />
+              </Button>
+              <Button
+                isIconOnly
+                className="h-8 w-8 min-w-8"
+                color="secondary"
+                size="sm"
+                title="清空"
+                variant="flat"
+                onPress={deselectAll}
+              >
+                <XCircleIcon className="w-4 h-4" />
+              </Button>
+              <Button
+                isIconOnly
+                className="h-8 w-8 min-w-8"
+                color="danger"
+                isDisabled={selectedIds.size === 0}
+                size="sm"
+                title="删除"
+                variant="flat"
+                onPress={() => setBatchDeleteModalOpen(true)}
+              >
+                <DeleteIcon className="w-4 h-4" />
+              </Button>
+              <Button
+                isIconOnly
+                className="h-8 w-8 min-w-8"
+                color="warning"
+                isDisabled={selectedIds.size === 0}
+                isLoading={batchLoading}
+                size="sm"
+                title="停用"
+                variant="flat"
+                onPress={() => handleBatchToggleService(false)}
+              >
+                <PauseIcon className="w-4 h-4" />
+              </Button>
+              <Button
+                isIconOnly
+                className="h-8 w-8 min-w-8"
+                color="success"
+                isDisabled={selectedIds.size === 0}
+                isLoading={batchLoading}
+                size="sm"
+                title="启用"
+                variant="flat"
+                onPress={() => handleBatchToggleService(true)}
+              >
+                <PlayIcon className="w-4 h-4" />
+              </Button>
+              <Button
+                isIconOnly
+                className="bg-cyan-100 text-cyan-700 hover:bg-cyan-200 dark:bg-cyan-900/30 dark:text-cyan-300 dark:hover:bg-cyan-900/45 h-8 w-8 min-w-8"
+                color="default"
+                isDisabled={selectedIds.size === 0}
+                isLoading={batchLoading}
+                size="sm"
+                title="下发"
+                variant="flat"
+                onPress={handleBatchRedeploy}
+              >
+                <SendIcon className="w-4 h-4" />
+              </Button>
+              <Button
+                isIconOnly
+                className="bg-violet-100 text-violet-700 hover:bg-violet-200 dark:bg-violet-900/30 dark:text-violet-300 dark:hover:bg-violet-900/45 h-8 w-8 min-w-8"
+                color="default"
+                isDisabled={selectedIds.size === 0}
+                size="sm"
+                title="更换隧道"
+                variant="flat"
+                onPress={() => setBatchChangeTunnelModalOpen(true)}
+              >
+                <GitBranchIcon className="w-4 h-4" />
+              </Button>
+              <Button
+                isIconOnly
+                className="h-8 w-8 min-w-8"
+                color="default"
+                size="sm"
+                title="退出"
+                variant="solid"
+                onPress={toggleSelectMode}
+              >
+                <XIcon className="w-4 h-4" />
+              </Button>
+            </>
+          ) : (
+            <>
+              {/* 筛选按钮 */}
+              <Button
+                isIconOnly
+                aria-label="筛选条件"
+                className={`h-8 w-8 min-w-8 relative ${
+                  filterUserId !== "all" || filterTunnelId !== "all"
+                    ? "bg-orange-200 text-orange-800 dark:bg-orange-900/50 dark:text-orange-300"
+                    : "bg-orange-100 text-orange-700 hover:bg-orange-200 dark:bg-orange-900/30 dark:text-orange-300 dark:hover:bg-orange-900/45"
+                }`}
+                color="default"
+                size="sm"
+                title="筛选条件"
+                variant="flat"
+                onPress={() => setIsFilterModalOpen(true)}
+              >
+                <FunnelIcon className="w-4 h-4" />
+                {(filterUserId !== "all" || filterTunnelId !== "all") && (
+                  <span className="absolute top-1.5 right-1.5 flex h-1.5 w-1.5 rounded-full bg-red-500" />
+                )}
+              </Button>
+              {/* 显示模式切换按钮 */}
+              <Button
+                isIconOnly
+                aria-label={
+                  viewMode === "grouped" ? "切换到直接显示" : "切换到分类显示"
+                }
+                className="text-sm h-8 w-8 min-w-8 bg-indigo-100 text-indigo-700 hover:bg-indigo-200 dark:bg-indigo-900/30 dark:text-indigo-300 dark:hover:bg-indigo-900/45"
+                color="default"
+                size="sm"
+                title={
+                  viewMode === "grouped" ? "切换到直接显示" : "切换到分类显示"
+                }
+                variant="flat"
+                onPress={handleViewModeChange}
+              >
+                {viewMode === "grouped" ? (
+                  <ViewListIcon className="w-4 h-4" />
+                ) : (
+                  <ViewSplitIcon className="w-4 h-4" />
+                )}
+              </Button>
 
-                {/* 导入按钮 */}
-                <Button
-                  color="warning"
-                  size="sm"
-                  variant="flat"
-                  onPress={handleImport}
-                >
-                  导入
-                </Button>
+              {/* 导入按钮 */}
+              <Button
+                isIconOnly
+                className="h-8 w-8 min-w-8"
+                color="warning"
+                size="sm"
+                title="导入"
+                variant="flat"
+                onPress={handleImport}
+              >
+                <UploadIcon className="w-4 h-4" />
+              </Button>
 
-                {/* 导出按钮 */}
-                <Button
-                  color="success"
-                  isLoading={exportLoading}
-                  size="sm"
-                  variant="flat"
-                  onPress={handleExport}
-                >
-                  导出
-                </Button>
+              {/* 导出按钮 */}
+              <Button
+                isIconOnly
+                className="h-8 w-8 min-w-8"
+                color="success"
+                isLoading={exportLoading}
+                size="sm"
+                title="导出"
+                variant="flat"
+                onPress={handleExport}
+              >
+                <DownloadIcon className="w-4 h-4" />
+              </Button>
 
-                <Button
-                  className="bg-sky-100 text-sky-700 hover:bg-sky-200 dark:bg-sky-900/30 dark:text-sky-300 dark:hover:bg-sky-900/45"
-                  color="default"
-                  size="sm"
-                  variant="flat"
-                  onPress={toggleSelectMode}
-                >
-                  批量
-                </Button>
+              <Button
+                isIconOnly
+                className="bg-violet-100 text-violet-700 hover:bg-violet-200 dark:bg-violet-900/30 dark:text-violet-300 dark:hover:bg-violet-900/45 h-8 w-8 min-w-8"
+                color="default"
+                size="sm"
+                title="选择"
+                variant="flat"
+                onPress={toggleSelectMode}
+              >
+                <ListCheckIcon className="w-4 h-4" />
+              </Button>
 
-                <Button
-                  color="primary"
-                  size="sm"
-                  variant="flat"
-                  onPress={handleAdd}
-                >
-                  新增
-                </Button>
-              </>
-            )}
-          </div>
+              <Button
+                isIconOnly
+                className="h-8 w-8 min-w-8"
+                color="primary"
+                size="sm"
+                title="新增"
+                variant="flat"
+                onPress={handleAdd}
+              >
+                <PlusIcon className="w-4 h-4" />
+              </Button>
+            </>
+          )}
         </div>
       </div>
 
@@ -5564,7 +5595,7 @@ export default function ForwardPage() {
         <ModalContent>
           {(onClose) => (
             <>
-              <ModalHeader>隧道</ModalHeader>
+              <ModalHeader>更换隧道</ModalHeader>
               <ModalBody>
                 <p className="mb-4">
                   将选中的 {selectedIds.size} 项规则迁移到新隧道：
