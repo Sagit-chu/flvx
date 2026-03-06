@@ -1191,6 +1191,10 @@ func (h *Handler) forwardCreate(w http.ResponseWriter, r *http.Request) {
 			response.WriteJSON(w, response.ErrDefault(err.Error()))
 			return
 		}
+		if err := h.validateForwardPortAvailability(node, port, 0); err != nil {
+			response.WriteJSON(w, response.ErrDefault(err.Error()))
+			return
+		}
 	}
 	now := time.Now().UnixMilli()
 	inx := h.repo.NextIndex("forward")
@@ -1323,6 +1327,10 @@ func (h *Handler) forwardUpdate(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if err := validateLocalNodePort(node, port); err != nil {
+			response.WriteJSON(w, response.ErrDefault(err.Error()))
+			return
+		}
+		if err := h.validateForwardPortAvailability(node, port, id); err != nil {
 			response.WriteJSON(w, response.ErrDefault(err.Error()))
 			return
 		}
@@ -3528,6 +3536,20 @@ func validateLocalNodePort(node *nodeRecord, port int) error {
 	}
 	if port < minPort || port > maxPort {
 		return fmt.Errorf("端口 %d 超出节点 %s 允许范围 %d-%d", port, node.Name, minPort, maxPort)
+	}
+	return nil
+}
+
+func (h *Handler) validateForwardPortAvailability(node *nodeRecord, port int, currentForwardID int64) error {
+	if h == nil || h.repo == nil || node == nil || port <= 0 {
+		return nil
+	}
+	occupied, err := h.repo.HasOtherForwardOnNodePort(node.ID, port, currentForwardID)
+	if err != nil {
+		return err
+	}
+	if occupied {
+		return fmt.Errorf("节点 %s 端口 %d 已被其他转发占用", node.Name, port)
 	}
 	return nil
 }

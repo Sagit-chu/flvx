@@ -4,6 +4,8 @@ import (
 	"errors"
 	"reflect"
 	"testing"
+
+	"go-backend/internal/store/repo"
 )
 
 func TestBuildForwardControlServiceNamesPauseResume(t *testing.T) {
@@ -148,6 +150,62 @@ func TestDeleteForwardServiceCandidatesTreatsAllMissingAsSuccess(t *testing.T) {
 	})
 	if err != nil {
 		t.Fatalf("all-missing delete should be tolerated, got %v", err)
+	}
+}
+
+func TestForwardServiceBaseCandidatesIncludesResolvedAndLegacyZero(t *testing.T) {
+	bases := buildForwardServiceBaseCandidates(46, 9, 123, []int64{123, 77, 0})
+	want := []string{"46_9_123", "46_9_77", "46_9_0"}
+	if !reflect.DeepEqual(bases, want) {
+		t.Fatalf("expected %v, got %v", want, bases)
+	}
+}
+
+func TestDeleteForwardServiceBasesOnNodeRetriesLegacyZeroResidue(t *testing.T) {
+	bases := []string{"46_9_123", "46_9_0"}
+	called := make([]string, 0)
+	err := deleteForwardServiceCandidates(bases, func(name string) error {
+		called = append(called, name)
+		if name == "46_9_0_tcp" || name == "46_9_0_udp" {
+			return nil
+		}
+		return errors.New("service " + name + " not found")
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	want := []string{"46_9_123_tcp", "46_9_123_udp", "46_9_123", "46_9_0_tcp", "46_9_0_udp", "46_9_0"}
+	if !reflect.DeepEqual(called, want) {
+		t.Fatalf("expected calls %v, got %v", want, called)
+	}
+}
+
+func TestValidateForwardPortAvailabilityRejectsOtherForwardOccupancy(t *testing.T) {
+	h := &Handler{repo: nil}
+	node := &nodeRecord{ID: 9, Name: "test-node"}
+	_ = h
+	_ = node
+
+	rawRepo, err := repo.Open(":memory:")
+	if err != nil {
+		t.Fatalf("open repo: %v", err)
+	}
+	h = &Handler{repo: rawRepo}
+	if err := rawRepo.DB().Exec(`INSERT INTO forward_port(forward_id, node_id, port) VALUES(1, 9, 2000)`).Error; err != nil {
+		t.Fatalf("insert forward port: %v", err)
+	}
+
+	err = h.validateForwardPortAvailability(&nodeRecord{ID: 9, Name: "test-node"}, 2000, 2)
+	if err == nil {
+		t.Fatalf("expected occupancy error")
+	}
+	if err.Error() != "节点 test-node 端口 2000 已被其他转发占用" {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	err = h.validateForwardPortAvailability(&nodeRecord{ID: 9, Name: "test-node"}, 2000, 1)
+	if err != nil {
+		t.Fatalf("same forward should be allowed, got %v", err)
 	}
 }
 

@@ -359,7 +359,12 @@ func (h *Handler) rebindForwardServiceOnSelfOccupiedPort(forward *forwardRecord,
 		return fmt.Errorf("端口 %d 已被其他转发占用", port)
 	}
 
-	if err := h.deleteForwardServicesOnNode(forward, node.ID); err != nil {
+	bases, err := h.forwardServiceBaseCandidates(forward)
+	if err != nil {
+		return err
+	}
+
+	if err := h.deleteForwardServiceBasesOnNode(node.ID, bases); err != nil {
 		return err
 	}
 
@@ -377,24 +382,38 @@ func (h *Handler) deleteForwardServicesOnNode(forward *forwardRecord, nodeID int
 	if h == nil || forward == nil {
 		return errors.New("invalid forward delete context")
 	}
-
-	userTunnelID, _, _, err := h.resolveUserTunnelAndLimiter(forward.UserID, forward.TunnelID)
+	bases, err := h.forwardServiceBaseCandidates(forward)
 	if err != nil {
 		return err
+	}
+	return h.deleteForwardServiceBasesOnNode(nodeID, bases)
+
+}
+
+func (h *Handler) forwardServiceBaseCandidates(forward *forwardRecord) ([]string, error) {
+	if h == nil || forward == nil {
+		return nil, errors.New("invalid forward service base context")
+	}
+	userTunnelID, _, _, err := h.resolveUserTunnelAndLimiter(forward.UserID, forward.TunnelID)
+	if err != nil {
+		return nil, err
 	}
 	userTunnelIDs, err := h.listUserTunnelIDs(forward.UserID, forward.TunnelID)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	allUserTunnelIDs, err := h.listUserTunnelIDsByUser(forward.UserID)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	candidateTunnelIDs := make([]int64, 0, len(userTunnelIDs)+len(allUserTunnelIDs))
 	candidateTunnelIDs = append(candidateTunnelIDs, userTunnelIDs...)
 	candidateTunnelIDs = append(candidateTunnelIDs, allUserTunnelIDs...)
-	bases := buildForwardServiceBaseCandidates(forward.ID, forward.UserID, userTunnelID, candidateTunnelIDs)
+	return buildForwardServiceBaseCandidates(forward.ID, forward.UserID, userTunnelID, candidateTunnelIDs), nil
 
+}
+
+func (h *Handler) deleteForwardServiceBasesOnNode(nodeID int64, bases []string) error {
 	return deleteForwardServiceCandidates(bases, func(name string) error {
 		payload := map[string]interface{}{
 			"services": []string{name},
