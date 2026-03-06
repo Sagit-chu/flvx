@@ -1435,7 +1435,7 @@ export default function TunnelPage() {
                   </div>
 
                   <Textarea
-                    description="支持多个IP，每行一个地址,为空时使用入口节点ip"
+                    description="入口IP由系统自动从入口节点采集，无需手动填写。支持多个IP，每行一个地址，留空则使用入口节点IP"
                     errorMessage={errors.inIp}
                     isInvalid={!!errors.inIp}
                     label="入口IP"

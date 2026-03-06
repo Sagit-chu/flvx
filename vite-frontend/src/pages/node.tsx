@@ -1563,7 +1563,7 @@ export default function NodePage() {
               />
 
               <Input
-                description="可选：不带协议、不带端口。至少填写一个 IPv4/IPv6/域名"
+                description="可选：不带协议、不带端口。建议在 IPv4 和 IPv6 都未填写时使用。至少填写一个 IPv4/IPv6/域名"
                 errorMessage={errors.serverHost}
                 isInvalid={!!errors.serverHost}
                 label="服务器域名/主机名"
