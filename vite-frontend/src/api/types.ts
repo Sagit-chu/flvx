@@ -6,6 +6,7 @@ export interface NodeApiItem {
   remark?: string;
   tags?: string;
   expiryTime?: number;
+  renewalCycle?: "month" | "quarter" | "year" | "";
   syncError?: string;
   [key: string]: unknown;
 }
@@ -221,6 +222,7 @@ export interface NodeMutationPayload {
   remark?: string;
   tags?: string;
   expiryTime?: number;
+  renewalCycle?: "month" | "quarter" | "year" | "";
   serverIp?: string;
   serverIpV4?: string;
   serverIpV6?: string;

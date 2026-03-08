@@ -9,6 +9,7 @@ import {
   getUserPackageInfo,
   type AnnouncementData,
 } from "@/api";
+import { getNodeRenewalSnapshot } from "@/pages/node/renewal";
 import { getAdminFlag } from "@/utils/session";
 
 export interface DashboardUserInfo {
@@ -59,7 +60,16 @@ export interface DashboardNodeExpiryItem {
   remark?: string;
   tags?: string;
   expiryTime?: number;
+  renewalCycle?: "month" | "quarter" | "year" | "";
 }
+
+const normalizeDashboardRenewalCycle = (
+  value: unknown,
+): DashboardNodeExpiryItem["renewalCycle"] => {
+  return value === "month" || value === "quarter" || value === "year"
+    ? value
+    : "";
+};
 
 const DASHBOARD_POLL_INTERVAL_MS = 5000;
 const EXPIRATION_NOTIFICATION_STORAGE_KEY =
@@ -213,16 +223,25 @@ const normalizeNodeExpiryReminders = (items: NodeApiItem[]) => {
       name: item.name || "",
       remark: typeof item.remark === "string" ? item.remark : "",
       tags: typeof item.tags === "string" ? item.tags : "",
+      renewalCycle: normalizeDashboardRenewalCycle(item.renewalCycle),
       expiryTime:
         typeof item.expiryTime === "number" && item.expiryTime > 0
           ? item.expiryTime
           : undefined,
     }))
     .filter((item) => {
-      if (!item.expiryTime) return false;
-      return item.expiryTime <= now + warningWindowMs;
+      if (!item.expiryTime || !item.renewalCycle) return false;
+      const snapshot = getNodeRenewalSnapshot(item.expiryTime, item.renewalCycle);
+
+      if (!snapshot.nextDueTime) return false;
+      return snapshot.nextDueTime <= now + warningWindowMs;
     })
-    .sort((a, b) => (a.expiryTime || 0) - (b.expiryTime || 0));
+    .sort((a, b) => {
+      const aDue = getNodeRenewalSnapshot(a.expiryTime, a.renewalCycle).nextDueTime || 0;
+      const bDue = getNodeRenewalSnapshot(b.expiryTime, b.renewalCycle).nextDueTime || 0;
+
+      return aDue - bDue;
+    });
 };
 
 export const useDashboardData = (): DashboardDataState => {

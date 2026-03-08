@@ -63,6 +63,7 @@ type Node struct {
 	Remark        sql.NullString `gorm:"column:remark;type:text"`
 	Tags          sql.NullString `gorm:"column:tags;type:text"`
 	ExpiryTime    sql.NullInt64  `gorm:"column:expiry_time"`
+	RenewalCycle  sql.NullString `gorm:"column:renewal_cycle;type:varchar(20)"`
 	Secret        string         `gorm:"type:varchar(100);not null"`
 	ServerIP      string         `gorm:"column:server_ip;type:varchar(100);not null"`
 	ServerIPV4    sql.NullString `gorm:"column:server_ip_v4;type:varchar(100)"`
@@ -342,6 +343,7 @@ type NodeBackup struct {
 	Remark        string `json:"remark,omitempty"`
 	Tags          string `json:"tags,omitempty"`
 	ExpiryTime    int64  `json:"expiryTime,omitempty"`
+	RenewalCycle  string `json:"renewalCycle,omitempty"`
 	Secret        string `json:"secret"`
 	ServerIP      string `json:"serverIp"`
 	ServerIPv4    string `json:"serverIpV4,omitempty"`

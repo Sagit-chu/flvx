@@ -18,11 +18,12 @@ func (h *Handler) StartBackgroundJobs() {
 	ctx, cancel := context.WithCancel(context.Background())
 	h.jobsCancel = cancel
 	h.jobsStarted = true
-	h.jobsWG.Add(2)
+	h.jobsWG.Add(3)
 	h.jobsMu.Unlock()
 
 	go h.runHourlyStatsLoop(ctx)
 	go h.runDailyMaintenanceLoop(ctx)
+	go h.runNodeRenewalCycleLoop(ctx)
 }
 
 func (h *Handler) StopBackgroundJobs() {
@@ -175,4 +176,40 @@ func (h *Handler) disableExpiredUserTunnels(nowMs int64) {
 		}
 		_ = h.repo.DisableUserTunnel(item.ID)
 	}
+}
+
+func (h *Handler) runNodeRenewalCycleLoop(ctx context.Context) {
+	defer h.jobsWG.Done()
+
+	for {
+		wait := durationUntilNextNodeRenewalCycle(time.Now())
+		timer := time.NewTimer(wait)
+		select {
+		case <-ctx.Done():
+			if !timer.Stop() {
+				<-timer.C
+			}
+			return
+		case <-timer.C:
+			h.runNodeRenewalCycleJob(time.Now())
+		}
+	}
+}
+
+func durationUntilNextNodeRenewalCycle(now time.Time) time.Duration {
+	next := now.Truncate(6 * time.Hour).Add(6 * time.Hour)
+	return next.Sub(now)
+}
+
+func (h *Handler) runNodeRenewalCycleJob(now time.Time) {
+	if h == nil || h.repo == nil {
+		return
+	}
+
+	advanced, err := h.repo.AdvanceNodeRenewalCycles(now.UnixMilli())
+	if err != nil {
+		return
+	}
+
+	_ = advanced
 }

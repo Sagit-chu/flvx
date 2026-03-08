@@ -7,9 +7,56 @@ import (
 	"testing"
 
 	gsqlite "github.com/glebarez/sqlite"
+	"go-backend/internal/store/model"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 )
+
+func TestPrepareSQLiteLegacyColumnsAddsNodeMetadataColumns(t *testing.T) {
+	db, err := gorm.Open(gsqlite.Open(":memory:"), &gorm.Config{
+		Logger: logger.Default.LogMode(logger.Silent),
+	})
+	if err != nil {
+		t.Fatalf("open sqlite: %v", err)
+	}
+	t.Cleanup(func() {
+		sqlDB, _ := db.DB()
+		if sqlDB != nil {
+			_ = sqlDB.Close()
+		}
+	})
+
+	if err := db.Exec(`
+		CREATE TABLE node (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			name VARCHAR(100) NOT NULL,
+			secret VARCHAR(100) NOT NULL,
+			server_ip VARCHAR(100) NOT NULL,
+			port TEXT NOT NULL,
+			interface_name VARCHAR(200),
+			version VARCHAR(100),
+			http INTEGER NOT NULL DEFAULT 0,
+			tls INTEGER NOT NULL DEFAULT 0,
+			socks INTEGER NOT NULL DEFAULT 0,
+			created_time INTEGER NOT NULL,
+			updated_time INTEGER,
+			status INTEGER NOT NULL
+		)
+	`).Error; err != nil {
+		t.Fatalf("create legacy node table: %v", err)
+	}
+
+	if err := prepareSQLiteLegacyColumns(db); err != nil {
+		t.Fatalf("prepareSQLiteLegacyColumns: %v", err)
+	}
+
+	m := db.Migrator()
+	for _, field := range []string{"Remark", "Tags", "ExpiryTime", "RenewalCycle"} {
+		if !m.HasColumn(&model.Node{}, field) {
+			t.Fatalf("expected node.%s column to exist", field)
+		}
+	}
+}
 
 func TestMigrateSchemaRunsPostgresIDRepairEvenAtCurrentVersion(t *testing.T) {
 	db, err := gorm.Open(gsqlite.Open(":memory:"), &gorm.Config{

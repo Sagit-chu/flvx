@@ -15,6 +15,11 @@ import { AnnouncementBanner } from "@/pages/dashboard/components/announcement-ba
 import { FlowChartCard } from "@/pages/dashboard/components/flow-chart-card";
 import { MetricCard } from "@/pages/dashboard/components/metric-card";
 import {
+  formatNodeRenewalTime,
+  getNodeRenewalCycleLabel,
+  getNodeRenewalSnapshot,
+} from "@/pages/node/renewal";
+import {
   useDashboardData,
   type DashboardForward as Forward,
   type DashboardNodeExpiryItem,
@@ -72,23 +77,27 @@ export default function DashboardPage() {
     return value.toString();
   };
 
-  const getNodeExpiryStatus = (expiryTime?: number) => {
-    if (!expiryTime) {
+  const getNodeExpiryStatus = (
+    nextDueTime?: number,
+    renewalState: "unset" | "expired" | "dueSoon" | "scheduled" = "unset",
+  ) => {
+    if (!nextDueTime || renewalState === "unset") {
       return {
-        label: "永久有效",
+        label: "未设置",
         badgeClassName:
           "bg-default-100 text-default-700 dark:bg-default-50 dark:text-default-300",
+        nextDueTime: undefined as number | undefined,
       };
     }
 
-    const diffMs = expiryTime - Date.now();
-    const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+    const diffDays = Math.ceil((nextDueTime - Date.now()) / (1000 * 60 * 60 * 24));
 
-    if (diffDays <= 0) {
+    if (renewalState === "expired" || diffDays <= 0) {
       return {
-        label: "已过期",
+        label: "已逾期",
         badgeClassName:
           "bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-300",
+        nextDueTime,
       };
     }
 
@@ -97,6 +106,7 @@ export default function DashboardPage() {
         label: "明天到期",
         badgeClassName:
           "bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-300",
+        nextDueTime,
       };
     }
 
@@ -106,6 +116,7 @@ export default function DashboardPage() {
         diffDays <= 7
           ? "bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-300"
           : "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300",
+      nextDueTime,
     };
   };
 
@@ -119,7 +130,14 @@ export default function DashboardPage() {
   };
 
   const renderNodeExpiryCard = (node: DashboardNodeExpiryItem) => {
-    const expiryStatus = getNodeExpiryStatus(node.expiryTime);
+    const renewalSnapshot = getNodeRenewalSnapshot(
+      node.expiryTime,
+      node.renewalCycle,
+    );
+    const expiryStatus = getNodeExpiryStatus(
+      renewalSnapshot.nextDueTime,
+      renewalSnapshot.state,
+    );
     const tags = parseNodeTags(node.tags);
 
     return (
@@ -142,9 +160,11 @@ export default function DashboardPage() {
         </div>
 
         <div className="mt-3 text-sm text-default-700 dark:text-default-300">
-          {node.expiryTime
-            ? new Date(node.expiryTime).toLocaleString()
-            : "未设置到期时间"}
+          {formatNodeRenewalTime(renewalSnapshot.nextDueTime)}
+        </div>
+
+        <div className="mt-1 text-xs text-default-500">
+          {getNodeRenewalCycleLabel(node.renewalCycle)}
         </div>
 
         {node.remark?.trim() && (
@@ -784,7 +804,7 @@ export default function DashboardPage() {
                     节点到期提醒
                   </h2>
                   <p className="text-sm text-default-500">
-                    展示 7 天内到期或已过期的节点，便于提前续费或清理
+                    展示 7 天内需要续费或已经逾期的节点，基于月付/季付/年付周期自动推算
                   </p>
                 </div>
               </div>

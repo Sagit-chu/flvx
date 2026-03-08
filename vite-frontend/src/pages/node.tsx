@@ -59,6 +59,12 @@ import {
   getRemoteSyncErrorMessage,
 } from "@/pages/node/display";
 import { tryCopyInstallCommand } from "@/pages/node/install-command";
+import {
+  formatNodeRenewalTime,
+  getNodeRenewalCycleLabel,
+  getNodeRenewalSnapshot,
+  type NodeRenewalCycle,
+} from "@/pages/node/renewal";
 import { buildNodeSystemInfo } from "@/pages/node/system-info";
 import { useNodeOfflineTimers } from "@/pages/node/use-node-offline-timers";
 import { useNodeRealtime } from "@/pages/node/use-node-realtime";
@@ -74,6 +80,7 @@ interface Node {
   remark?: string;
   tags?: string;
   expiryTime?: number;
+  renewalCycle?: NodeRenewalCycle;
   ip: string;
   serverIp: string;
   serverIpV4?: string;
@@ -111,6 +118,7 @@ interface NodeForm {
   remark: string;
   tags: string;
   expiryTime: number;
+  renewalCycle: NodeRenewalCycle;
   serverHost: string;
   serverIpV4: string;
   serverIpV6: string;
@@ -124,34 +132,33 @@ interface NodeForm {
   socks: number; // 0 关 1 开
 }
 
-const formatNodeExpiry = (timestamp?: number): string => {
-  if (!timestamp || timestamp <= 0) return "永久有效";
-  return new Date(timestamp).toLocaleString();
-};
-
 const EXPIRING_SOON_DAYS = 7;
 
 type NodeExpiryState = "permanent" | "healthy" | "expiringSoon" | "expired";
 
 type NodeFilterMode = "all" | "expiringSoon" | "expired" | "withExpiry";
 
-const getNodeExpiryMeta = (timestamp?: number) => {
-  if (!timestamp || timestamp <= 0) {
+const getNodeReminderEnabled = (node: Node): boolean => {
+  return !!node.expiryTime && node.expiryTime > 0 && !!node.renewalCycle;
+};
+
+const getNodeExpiryMeta = (timestamp?: number, cycle?: NodeRenewalCycle) => {
+  const renewal = getNodeRenewalSnapshot(timestamp, cycle, EXPIRING_SOON_DAYS);
+
+  if (renewal.state === "unset") {
     return {
       state: "permanent" as NodeExpiryState,
-      label: "永久有效",
+      label: "未设置续费周期",
       tone: "default" as const,
       accentClassName: "",
       bannerClassName: "",
       isHighlighted: false,
       sortWeight: 3,
+      nextDueTime: undefined,
     };
   }
 
-  const diffMs = timestamp - Date.now();
-  const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
-
-  if (diffDays <= 0) {
+  if (renewal.state === "expired") {
     return {
       state: "expired" as NodeExpiryState,
       label: "已过期",
@@ -162,13 +169,14 @@ const getNodeExpiryMeta = (timestamp?: number) => {
         "bg-red-50 text-red-700 dark:bg-red-950/30 dark:text-red-300",
       isHighlighted: true,
       sortWeight: 0,
+      nextDueTime: renewal.nextDueTime,
     };
   }
 
-  if (diffDays <= EXPIRING_SOON_DAYS) {
+  if (renewal.state === "dueSoon") {
     return {
       state: "expiringSoon" as NodeExpiryState,
-      label: diffDays === 1 ? "明天到期" : `${diffDays}天后到期`,
+      label: renewal.label,
       tone: "warning" as const,
       accentClassName:
         "border-amber-300/80 bg-amber-50/80 shadow-amber-100 dark:border-amber-500/40 dark:bg-amber-950/20",
@@ -176,17 +184,19 @@ const getNodeExpiryMeta = (timestamp?: number) => {
         "bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-300",
       isHighlighted: true,
       sortWeight: 1,
+      nextDueTime: renewal.nextDueTime,
     };
   }
 
   return {
     state: "healthy" as NodeExpiryState,
-    label: `${diffDays}天后到期`,
+    label: renewal.label,
     tone: "success" as const,
     accentClassName: "",
     bannerClassName: "",
     isHighlighted: false,
     sortWeight: 2,
+    nextDueTime: renewal.nextDueTime,
   };
 };
 
@@ -282,6 +292,7 @@ export default function NodePage() {
     remark: "",
     tags: "",
     expiryTime: 0,
+    renewalCycle: "",
     serverHost: "",
     serverIpV4: "",
     serverIpV6: "",
@@ -664,6 +675,10 @@ export default function NodePage() {
       newErrors.name = "节点名称长度不能超过50位";
     }
 
+    if ((form.renewalCycle && !form.expiryTime) || (!form.renewalCycle && form.expiryTime)) {
+      newErrors.expiryTime = "请同时设置续费周期和续费基准时间";
+    }
+
     const v4 = form.serverIpV4.trim();
     const v6 = form.serverIpV6.trim();
     const host = form.serverHost.trim();
@@ -726,6 +741,7 @@ export default function NodePage() {
       remark: node.remark || "",
       tags: node.tags || "",
       expiryTime: node.expiryTime || 0,
+      renewalCycle: node.renewalCycle || "",
       serverHost: normalizedHost,
       serverIpV4: normalizedV4,
       serverIpV6: normalizedV6,
@@ -964,6 +980,7 @@ export default function NodePage() {
         remark: form.remark.trim(),
         tags: form.tags.trim(),
         expiryTime: form.expiryTime,
+        renewalCycle: form.renewalCycle,
         extraIPs: form.extraIPs,
         serverIp:
           form.serverIpV4?.trim() ||
@@ -988,6 +1005,7 @@ export default function NodePage() {
                     remark: form.remark.trim(),
                     tags: form.tags.trim(),
                     expiryTime: form.expiryTime,
+                    renewalCycle: form.renewalCycle,
                     serverIp:
                       form.serverIpV4?.trim() ||
                       form.serverIpV6?.trim() ||
@@ -1027,6 +1045,7 @@ export default function NodePage() {
       remark: "",
       tags: "",
       expiryTime: 0,
+      renewalCycle: "",
       serverHost: "",
       serverIpV4: "",
       serverIpV6: "",
@@ -1162,11 +1181,13 @@ export default function NodePage() {
   const nodeExpiryStats = useMemo(() => {
     return nodeList.reduce(
       (acc, node) => {
-        const meta = getNodeExpiryMeta(node.expiryTime);
+        const meta = getNodeExpiryMeta(node.expiryTime, node.renewalCycle);
 
         if (meta.state === "expired") acc.expired += 1;
         if (meta.state === "expiringSoon") acc.expiringSoon += 1;
-        if (node.expiryTime && node.expiryTime > 0) acc.withExpiry += 1;
+        if (getNodeReminderEnabled(node)) {
+          acc.withExpiry += 1;
+        }
         return acc;
       },
       { expired: 0, expiringSoon: 0, withExpiry: 0 },
@@ -1195,7 +1216,7 @@ export default function NodePage() {
 
     if (nodeFilterMode !== "all") {
       filteredNodes = filteredNodes.filter((node) => {
-        const expiryMeta = getNodeExpiryMeta(node.expiryTime);
+        const expiryMeta = getNodeExpiryMeta(node.expiryTime, node.renewalCycle);
 
         switch (nodeFilterMode) {
           case "expiringSoon":
@@ -1203,7 +1224,7 @@ export default function NodePage() {
           case "expired":
             return expiryMeta.state === "expired";
           case "withExpiry":
-            return !!node.expiryTime && node.expiryTime > 0;
+            return getNodeReminderEnabled(node);
           default:
             return true;
         }
@@ -1212,8 +1233,8 @@ export default function NodePage() {
 
     const sortedByDb = [...filteredNodes].sort((a, b) => {
       const expiryDiff =
-        getNodeExpiryMeta(a.expiryTime).sortWeight -
-        getNodeExpiryMeta(b.expiryTime).sortWeight;
+        getNodeExpiryMeta(a.expiryTime, a.renewalCycle).sortWeight -
+        getNodeExpiryMeta(b.expiryTime, b.renewalCycle).sortWeight;
 
       if (expiryDiff !== 0) {
         return expiryDiff;
@@ -1286,13 +1307,13 @@ export default function NodePage() {
               全部节点
             </SelectItem>
             <SelectItem key="expiringSoon" textValue="7天内到期">
-              7天内到期 ({nodeExpiryStats.expiringSoon})
+              7天内续费 ({nodeExpiryStats.expiringSoon})
             </SelectItem>
             <SelectItem key="expired" textValue="已过期">
-              已过期 ({nodeExpiryStats.expired})
+              已逾期 ({nodeExpiryStats.expired})
             </SelectItem>
             <SelectItem key="withExpiry" textValue="已设置到期时间">
-              已设置到期时间 ({nodeExpiryStats.withExpiry})
+              已启用续费提醒 ({nodeExpiryStats.withExpiry})
             </SelectItem>
           </Select>
         </div>
@@ -1405,7 +1426,10 @@ export default function NodePage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4">
               {sortedNodes.map((node) => {
                 const isRemoteNode = node.isRemote === 1;
-                const expiryMeta = getNodeExpiryMeta(node.expiryTime);
+                const expiryMeta = getNodeExpiryMeta(
+                  node.expiryTime,
+                  node.renewalCycle,
+                );
 
                 return (
                   <SortableItem key={node.id} id={node.id}>
@@ -1514,12 +1538,12 @@ export default function NodePage() {
                                 )}
                               </div>
                             )}
-                            {node.expiryTime && node.expiryTime > 0 && (
+                            {node.expiryTime && node.expiryTime > 0 && node.renewalCycle && (
                               <div className="flex justify-between text-sm">
-                                <span className="text-default-600">到期时间</span>
+                                <span className="text-default-600">下次续费</span>
                                 <div className="text-right ml-2">
                                   <div className="text-xs text-warning-700 dark:text-warning-400">
-                                    {formatNodeExpiry(node.expiryTime)}
+                                    {formatNodeRenewalTime(expiryMeta.nextDueTime)}
                                   </div>
                                   <div className="mt-1">
                                     <Chip
@@ -1530,6 +1554,9 @@ export default function NodePage() {
                                     >
                                       {expiryMeta.label}
                                     </Chip>
+                                  </div>
+                                  <div className="mt-1 text-[11px] text-default-500">
+                                    {getNodeRenewalCycleLabel(node.renewalCycle)}
                                   </div>
                                 </div>
                               </div>
@@ -1860,26 +1887,73 @@ export default function NodePage() {
                   }
                 />
 
-                <Input
-                  description="留空表示永久有效，可用于记录节点到期时间"
-                  label="到期时间"
-                  type="datetime-local"
-                  value={
-                    form.expiryTime > 0
-                      ? new Date(form.expiryTime).toISOString().slice(0, 16)
-                      : ""
-                  }
+                <Select
+                  label="续费周期"
+                  placeholder="选择续费周期"
+                  selectedKeys={form.renewalCycle ? [form.renewalCycle] : []}
                   variant="bordered"
-                  onChange={(e) =>
+                  onSelectionChange={(keys) => {
+                    const selected = Array.from(keys)[0] as
+                      | NodeRenewalCycle
+                      | undefined;
+
                     setForm((prev) => ({
                       ...prev,
-                      expiryTime: e.target.value
-                        ? new Date(e.target.value).getTime()
-                        : 0,
-                    }))
-                  }
-                />
+                      renewalCycle: selected || "",
+                    }));
+                  }}
+                >
+                  <SelectItem key="month" textValue="month">
+                    月付
+                  </SelectItem>
+                  <SelectItem key="quarter" textValue="quarter">
+                    季付
+                  </SelectItem>
+                  <SelectItem key="year" textValue="year">
+                    年付
+                  </SelectItem>
+                </Select>
               </div>
+
+              <Input
+                description="填写最近一次续费时间或周期起始时间，系统会按月/季/年自动推算下次续费"
+                errorMessage={errors.expiryTime}
+                isInvalid={!!errors.expiryTime}
+                label="续费基准时间"
+                type="datetime-local"
+                value={
+                  form.expiryTime > 0
+                    ? new Date(form.expiryTime).toISOString().slice(0, 16)
+                    : ""
+                }
+                variant="bordered"
+                onChange={(e) =>
+                  setForm((prev) => ({
+                    ...prev,
+                    expiryTime: e.target.value
+                      ? new Date(e.target.value).getTime()
+                      : 0,
+                  }))
+                }
+              />
+
+              <Alert
+                color="primary"
+                description="例如选择月付并填写 2026-03-01，系统会自动按每月同日推算下次续费时间。"
+                variant="flat"
+              />
+
+              <Input
+                description="留空表示未设置续费提醒；只有同时设置周期和基准时间才会参与提醒与筛选"
+                label="说明"
+                readOnly
+                value={
+                  form.renewalCycle && form.expiryTime > 0
+                    ? `当前按${getNodeRenewalCycleLabel(form.renewalCycle)}循环计算`
+                    : "未启用循环续费提醒"
+                }
+                variant="bordered"
+              />
 
               <Input
                 description="可选：不带协议、不带端口。建议在 IPv4 和 IPv6 都未填写时使用。至少填写一个 IPv4/IPv6/域名"

@@ -264,6 +264,7 @@ func (h *Handler) nodeCreate(w http.ResponseWriter, r *http.Request) {
 		nullableText(strings.TrimSpace(asString(req["remark"]))),
 		nullableText(strings.TrimSpace(asString(req["tags"]))),
 		nullableUnixMilli(asInt64(req["expiryTime"], 0)),
+		nullableText(normalizeNodeRenewalCycle(asString(req["renewalCycle"]))),
 		asInt(req["http"], 0),
 		asInt(req["tls"], 0),
 		asInt(req["socks"], 0),
@@ -332,6 +333,7 @@ func (h *Handler) nodeUpdate(w http.ResponseWriter, r *http.Request) {
 		nullableText(strings.TrimSpace(asString(req["remark"]))),
 		nullableText(strings.TrimSpace(asString(req["tags"]))),
 		nullableUnixMilli(asInt64(req["expiryTime"], 0)),
+		nullableText(normalizeNodeRenewalCycle(asString(req["renewalCycle"]))),
 		newHTTP,
 		newTLS,
 		newSocks,
@@ -3545,6 +3547,15 @@ func nullableUnixMilli(v int64) interface{} {
 		return nil
 	}
 	return v
+}
+
+func normalizeNodeRenewalCycle(v string) string {
+	switch strings.ToLower(strings.TrimSpace(v)) {
+	case "month", "quarter", "year":
+		return strings.ToLower(strings.TrimSpace(v))
+	default:
+		return ""
+	}
 }
 
 func nullableInt(v *int64) interface{} {
