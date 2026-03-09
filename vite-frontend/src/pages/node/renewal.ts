@@ -14,7 +14,6 @@ const addMonths = (timestamp: number, months: number): number => {
   const next = new Date(date);
 
   next.setMonth(next.getMonth() + months);
-
   return next.getTime();
 };
 
@@ -73,9 +72,7 @@ export const getNodeRenewalSnapshot = (
     nextDueTime = advanced;
   }
 
-const diffDays = Math.ceil(
-    (nextDueTime - Date.now()) / (1000 * 60 * 60 * 24),
-  );
+  const diffDays = Math.ceil((nextDueTime - Date.now()) / (1000 * 60 * 60 * 24));
 
   if (diffDays <= 0) {
     return {
@@ -109,8 +106,9 @@ const diffDays = Math.ceil(
   };
 };
 
-if (!timestamp || timestamp <= 0) {
+export const formatNodeRenewalTime = (timestamp?: number): string => {
+  if (!timestamp || timestamp <= 0) {
     return "未设置";
   }
-
   return new Date(timestamp).toLocaleString();
+};
