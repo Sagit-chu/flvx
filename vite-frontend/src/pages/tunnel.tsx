@@ -265,27 +265,30 @@ export default function TunnelPage() {
     );
   }, []);
 
-  const refreshTunnelList = useCallback(async (withLoading = true) => {
-    if (withLoading) {
-      setLoading(true);
-    }
-
-    try {
-      const tunnelsRes = await getTunnelList();
-
-      if (tunnelsRes.code === 0) {
-        applyTunnelList(mapTunnelApiItems(tunnelsRes.data || []));
-      } else {
-        toast.error(tunnelsRes.msg || "获取隧道列表失败");
-      }
-    } catch {
-      toast.error("获取隧道列表失败");
-    } finally {
+  const refreshTunnelList = useCallback(
+    async (withLoading = true) => {
       if (withLoading) {
-        setLoading(false);
+        setLoading(true);
       }
-    }
-  }, [applyTunnelList]);
+
+      try {
+        const tunnelsRes = await getTunnelList();
+
+        if (tunnelsRes.code === 0) {
+          applyTunnelList(mapTunnelApiItems(tunnelsRes.data || []));
+        } else {
+          toast.error(tunnelsRes.msg || "获取隧道列表失败");
+        }
+      } catch {
+        toast.error("获取隧道列表失败");
+      } finally {
+        if (withLoading) {
+          setLoading(false);
+        }
+      }
+    },
+    [applyTunnelList],
+  );
 
   const refreshNodes = useCallback(async () => {
     try {
@@ -381,12 +384,14 @@ export default function TunnelPage() {
           const next = prev.filter((id) => id !== tunnelToDelete.id);
 
           saveOrder(TUNNEL_ORDER_KEY, next);
+
           return next;
         });
         setSelectedIds((prev) => {
           const next = new Set(prev);
 
           next.delete(tunnelToDelete.id);
+
           return next;
         });
       } else {
@@ -858,11 +863,14 @@ export default function TunnelPage() {
             label: `删除完成：成功 ${result.successCount} 项`,
             percent: 100,
           });
-          setTunnels((prev) => prev.filter((tunnel) => !selectedIds.has(tunnel.id)));
+          setTunnels((prev) =>
+            prev.filter((tunnel) => !selectedIds.has(tunnel.id)),
+          );
           setTunnelOrder((prev) => {
             const next = prev.filter((id) => !selectedIds.has(id));
 
             saveOrder(TUNNEL_ORDER_KEY, next);
+
             return next;
           });
         } else {

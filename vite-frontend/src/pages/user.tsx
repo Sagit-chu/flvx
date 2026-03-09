@@ -66,10 +66,7 @@ import {
 } from "@/components/icons";
 import { PageLoadingState } from "@/components/page-state";
 import { useLocalStorageState } from "@/hooks/use-local-storage-state";
-import {
-  removeItemsById,
-  replaceItemById,
-} from "@/utils/list-state";
+import { removeItemsById, replaceItemById } from "@/utils/list-state";
 
 // 工具函数
 const formatFlow = (value: number, unit: string = "bytes"): string => {
@@ -304,30 +301,30 @@ export default function UserPage() {
   // 数据加载函数
   const loadUsers = useCallback(
     async (keywordOverride?: string) => {
-    setLoading(true);
-    try {
-      const keyword = keywordOverride ?? searchKeyword;
-      const response = await getAllUsers({
-        current: pagination.current,
-        size: pagination.size,
-        keyword,
-      });
+      setLoading(true);
+      try {
+        const keyword = keywordOverride ?? searchKeyword;
+        const response = await getAllUsers({
+          current: pagination.current,
+          size: pagination.size,
+          keyword,
+        });
 
-      if (response.code === 0) {
-        const nextUsers = Array.isArray(response.data)
-          ? response.data.map((item) => normalizeUserItem(item))
-          : [];
+        if (response.code === 0) {
+          const nextUsers = Array.isArray(response.data)
+            ? response.data.map((item) => normalizeUserItem(item))
+            : [];
 
-        setUsers(nextUsers);
-        setPagination((prev) => ({ ...prev, total: nextUsers.length }));
-      } else {
-        toast.error(response.msg || "获取用户列表失败");
+          setUsers(nextUsers);
+          setPagination((prev) => ({ ...prev, total: nextUsers.length }));
+        } else {
+          toast.error(response.msg || "获取用户列表失败");
+        }
+      } catch {
+        toast.error("获取用户列表失败");
+      } finally {
+        setLoading(false);
       }
-    } catch {
-      toast.error("获取用户列表失败");
-    } finally {
-      setLoading(false);
-    }
     },
     [pagination.current, pagination.size],
   );
@@ -411,6 +408,7 @@ export default function UserPage() {
       setPagination((prev) => {
         if (prev.current === 1) {
           void loadUsers(searchKeyword);
+
           return prev;
         }
 
@@ -667,7 +665,8 @@ export default function UserPage() {
               normalizeSpeedId(editTunnelForm.speedId) !== null
                 ? speedLimits.find(
                     (speedLimit) =>
-                      speedLimit.id === normalizeSpeedId(editTunnelForm.speedId),
+                      speedLimit.id ===
+                      normalizeSpeedId(editTunnelForm.speedId),
                   )?.name
                 : undefined,
           });
@@ -733,7 +732,9 @@ export default function UserPage() {
 
         setUsers((prev) =>
           prev.map((user) =>
-            user.id === targetUserId ? { ...user, inFlow: 0, outFlow: 0 } : user,
+            user.id === targetUserId
+              ? { ...user, inFlow: 0, outFlow: 0 }
+              : user,
           ),
         );
         setUserToReset(null);

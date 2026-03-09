@@ -202,6 +202,7 @@ const getNodeExpiryMeta = (timestamp?: number, cycle?: NodeRenewalCycle) => {
 
 const normalizeNodeTags = (tags?: string): string[] => {
   if (!tags) return [];
+
   return tags
     .split(",")
     .map((tag) => tag.trim())
@@ -257,7 +258,8 @@ const SortableItem = ({
       ref={setNodeRef}
       style={style}
       {...attributes}
-      className="overflow-hidden"
+      className="overflow-hidden h-full"
+      {...listeners}
     >
       {children(listeners)}
     </div>
@@ -272,10 +274,8 @@ export default function NodePage() {
     "node-search-keyword",
     "",
   );
-  const [nodeFilterMode, setNodeFilterMode] = useLocalStorageState<NodeFilterMode>(
-    "node-expiry-filter-mode",
-    "all",
-  );
+  const [nodeFilterMode, setNodeFilterMode] =
+    useLocalStorageState<NodeFilterMode>("node-expiry-filter-mode", "all");
   const [isSearchVisible, setIsSearchVisible] = useState(false);
   const [dialogVisible, setDialogVisible] = useState(false);
   const [dialogTitle, setDialogTitle] = useState("");
@@ -675,7 +675,10 @@ export default function NodePage() {
       newErrors.name = "节点名称长度不能超过50位";
     }
 
-    if ((form.renewalCycle && !form.expiryTime) || (!form.renewalCycle && form.expiryTime)) {
+    if (
+      (form.renewalCycle && !form.expiryTime) ||
+      (!form.renewalCycle && form.expiryTime)
+    ) {
       newErrors.expiryTime = "请同时设置续费周期和续费基准时间";
     }
 
@@ -1188,6 +1191,7 @@ export default function NodePage() {
         if (getNodeReminderEnabled(node)) {
           acc.withExpiry += 1;
         }
+
         return acc;
       },
       { expired: 0, expiringSoon: 0, withExpiry: 0 },
@@ -1216,7 +1220,10 @@ export default function NodePage() {
 
     if (nodeFilterMode !== "all") {
       filteredNodes = filteredNodes.filter((node) => {
-        const expiryMeta = getNodeExpiryMeta(node.expiryTime, node.renewalCycle);
+        const expiryMeta = getNodeExpiryMeta(
+          node.expiryTime,
+          node.renewalCycle,
+        );
 
         switch (nodeFilterMode) {
           case "expiringSoon":
@@ -1298,7 +1305,9 @@ export default function NodePage() {
             size="sm"
             variant="bordered"
             onSelectionChange={(keys) => {
-              const selected = Array.from(keys)[0] as NodeFilterMode | undefined;
+              const selected = Array.from(keys)[0] as
+                | NodeFilterMode
+                | undefined;
 
               setNodeFilterMode(selected || "all");
             }}
@@ -1436,7 +1445,7 @@ export default function NodePage() {
                     {(listeners) => (
                       <Card
                         key={node.id}
-                        className={`group shadow-sm border border-divider hover:shadow-md transition-shadow duration-200 overflow-hidden ${expiryMeta.accentClassName}`}
+                        className={`group shadow-sm border border-divider hover:shadow-md transition-shadow duration-200 overflow-hidden h-full flex flex-col ${expiryMeta.accentClassName}`}
                       >
                         <CardHeader className="pb-2 md:pb-2">
                           <div className="flex justify-between items-start w-full">
@@ -1498,7 +1507,7 @@ export default function NodePage() {
                           </div>
                         </CardHeader>
 
-                        <CardBody className="pt-0 pb-3 md:pt-0 md:pb-3">
+                        <CardBody className="pt-0 pb-3 md:pt-0 md:pb-3 flex-1 flex flex-col">
                           {isRemoteNode && node.syncError && (
                             <div className="mb-3 px-2 py-1.5 rounded-md bg-warning-50 dark:bg-warning-100/10 text-warning-700 dark:text-warning-400 text-xs">
                               {getRemoteSyncErrorMessage(node.syncError)}
@@ -1517,7 +1526,10 @@ export default function NodePage() {
                             {(node.remark?.trim() || node.tags?.trim()) && (
                               <div className="rounded-lg border border-divider/80 bg-default-50/80 px-3 py-2">
                                 {node.remark?.trim() && (
-                                  <div className="text-xs leading-5 text-default-700 whitespace-pre-wrap break-words">
+                                  <div
+                                    className="text-xs leading-5 text-default-700 line-clamp-1 break-all"
+                                    title={node.remark.trim()}
+                                  >
                                     {node.remark.trim()}
                                   </div>
                                 )}
@@ -1538,29 +1550,24 @@ export default function NodePage() {
                                 )}
                               </div>
                             )}
-                            {node.expiryTime && node.expiryTime > 0 && node.renewalCycle && (
-                              <div className="flex justify-between text-sm">
-                                <span className="text-default-600">下次续费</span>
-                                <div className="text-right ml-2">
-                                  <div className="text-xs text-warning-700 dark:text-warning-400">
-                                    {formatNodeRenewalTime(expiryMeta.nextDueTime)}
-                                  </div>
-                                  <div className="mt-1">
-                                    <Chip
-                                      className="text-[11px]"
-                                      color={expiryMeta.tone}
-                                      size="sm"
-                                      variant="flat"
-                                    >
-                                      {expiryMeta.label}
-                                    </Chip>
-                                  </div>
-                                  <div className="mt-1 text-[11px] text-default-500">
-                                    {getNodeRenewalCycleLabel(node.renewalCycle)}
-                                  </div>
+                            {node.expiryTime &&
+                              node.expiryTime > 0 &&
+                              node.renewalCycle && (
+                                <div className="flex justify-between items-center text-sm">
+                                  <span className="text-default-600">
+                                    下次续费
+                                  </span>
+                                  <Chip
+                                    className="text-[11px]"
+                                    color={expiryMeta.tone}
+                                    size="sm"
+                                    title={`${formatNodeRenewalTime(expiryMeta.nextDueTime)} (${getNodeRenewalCycleLabel(node.renewalCycle)})`}
+                                    variant="flat"
+                                  >
+                                    {expiryMeta.label}
+                                  </Chip>
                                 </div>
-                              </div>
-                            )}
+                              )}
                             <div className="flex justify-between items-center text-sm min-w-0">
                               <span className="text-default-600 flex-shrink-0">
                                 IP
@@ -1758,7 +1765,7 @@ export default function NodePage() {
                           )}
 
                           {/* 操作按钮 */}
-                          <div className="space-y-1.5">
+                          <div className="space-y-1.5 mt-auto">
                             {!isRemoteNode && (
                               <div className="grid grid-cols-3 gap-1.5">
                                 <Button
@@ -1941,18 +1948,6 @@ export default function NodePage() {
                 color="primary"
                 description="例如选择月付并填写 2026-03-01，系统会自动按每月同日推算下次续费时间。"
                 variant="flat"
-              />
-
-              <Input
-                description="留空表示未设置续费提醒；只有同时设置周期和基准时间才会参与提醒与筛选"
-                label="说明"
-                readOnly
-                value={
-                  form.renewalCycle && form.expiryTime > 0
-                    ? `当前按${getNodeRenewalCycleLabel(form.renewalCycle)}循环计算`
-                    : "未启用循环续费提醒"
-                }
-                variant="bordered"
               />
 
               <Input

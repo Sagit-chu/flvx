@@ -231,14 +231,20 @@ const normalizeNodeExpiryReminders = (items: NodeApiItem[]) => {
     }))
     .filter((item) => {
       if (!item.expiryTime || !item.renewalCycle) return false;
-      const snapshot = getNodeRenewalSnapshot(item.expiryTime, item.renewalCycle);
+      const snapshot = getNodeRenewalSnapshot(
+        item.expiryTime,
+        item.renewalCycle,
+      );
 
       if (!snapshot.nextDueTime) return false;
+
       return snapshot.nextDueTime <= now + warningWindowMs;
     })
     .sort((a, b) => {
-      const aDue = getNodeRenewalSnapshot(a.expiryTime, a.renewalCycle).nextDueTime || 0;
-      const bDue = getNodeRenewalSnapshot(b.expiryTime, b.renewalCycle).nextDueTime || 0;
+      const aDue =
+        getNodeRenewalSnapshot(a.expiryTime, a.renewalCycle).nextDueTime || 0;
+      const bDue =
+        getNodeRenewalSnapshot(b.expiryTime, b.renewalCycle).nextDueTime || 0;
 
       return aDue - bDue;
     });
@@ -265,31 +271,34 @@ export const useDashboardData = (): DashboardDataState => {
   const packageRequestInFlightRef = useRef(false);
   const nodeExpiryRequestInFlightRef = useRef(false);
 
-  const applyPackageData = useCallback((data: {
-    userInfo?: DashboardUserInfo;
-    tunnelPermissions?: DashboardUserTunnel[];
-    forwards?: ForwardApiItem[];
-    statisticsFlows?: DashboardStatisticsFlow[];
-  }) => {
-    const normalizedTunnelPermissions = normalizeTunnelPermissions(
-      data.tunnelPermissions || [],
-    );
-    const normalizedForwards = normalizeForwards(data.forwards || []);
+  const applyPackageData = useCallback(
+    (data: {
+      userInfo?: DashboardUserInfo;
+      tunnelPermissions?: DashboardUserTunnel[];
+      forwards?: ForwardApiItem[];
+      statisticsFlows?: DashboardStatisticsFlow[];
+    }) => {
+      const normalizedTunnelPermissions = normalizeTunnelPermissions(
+        data.tunnelPermissions || [],
+      );
+      const normalizedForwards = normalizeForwards(data.forwards || []);
 
-    if (!isMountedRef.current) {
-      return;
-    }
+      if (!isMountedRef.current) {
+        return;
+      }
 
-    setUserInfo(data.userInfo || ({} as DashboardUserInfo));
-    setUserTunnels(normalizedTunnelPermissions);
-    setForwardList(normalizedForwards);
-    setStatisticsFlows(data.statisticsFlows || []);
+      setUserInfo(data.userInfo || ({} as DashboardUserInfo));
+      setUserTunnels(normalizedTunnelPermissions);
+      setForwardList(normalizedForwards);
+      setStatisticsFlows(data.statisticsFlows || []);
 
-    checkExpirationNotifications(
-      data.userInfo || ({} as DashboardUserInfo),
-      normalizedTunnelPermissions,
-    );
-  }, []);
+      checkExpirationNotifications(
+        data.userInfo || ({} as DashboardUserInfo),
+        normalizedTunnelPermissions,
+      );
+    },
+    [],
+  );
 
   const loadPackageData = useCallback(
     async ({ silent = false, notifyOnError = false } = {}) => {

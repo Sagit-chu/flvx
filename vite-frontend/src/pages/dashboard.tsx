@@ -90,7 +90,9 @@ export default function DashboardPage() {
       };
     }
 
-    const diffDays = Math.ceil((nextDueTime - Date.now()) / (1000 * 60 * 60 * 24));
+    const diffDays = Math.ceil(
+      (nextDueTime - Date.now()) / (1000 * 60 * 60 * 24),
+    );
 
     if (renewalState === "expired" || diffDays <= 0) {
       return {
@@ -122,6 +124,7 @@ export default function DashboardPage() {
 
   const parseNodeTags = (tags?: string) => {
     if (!tags) return [];
+
     return tags
       .split(",")
       .map((tag) => tag.trim())
@@ -150,7 +153,9 @@ export default function DashboardPage() {
             <div className="text-sm font-semibold text-foreground truncate">
               {node.name}
             </div>
-            <div className="mt-1 text-xs text-default-500">节点 ID: {node.id}</div>
+            <div className="mt-1 text-xs text-default-500">
+              节点 ID: {node.id}
+            </div>
           </div>
           <span
             className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-medium ${expiryStatus.badgeClassName}`}
@@ -804,7 +809,8 @@ export default function DashboardPage() {
                     节点到期提醒
                   </h2>
                   <p className="text-sm text-default-500">
-                    展示 7 天内需要续费或已经逾期的节点，基于月付/季付/年付周期自动推算
+                    展示 7
+                    天内需要续费或已经逾期的节点，基于月付/季付/年付周期自动推算
                   </p>
                 </div>
               </div>
@@ -819,7 +825,8 @@ export default function DashboardPage() {
             </div>
             {nodeExpiryReminders.length > 6 && (
               <p className="mt-4 text-xs text-default-500">
-                还有 {nodeExpiryReminders.length - 6} 个节点未展开显示，可前往节点页面继续处理。
+                还有 {nodeExpiryReminders.length - 6}{" "}
+                个节点未展开显示，可前往节点页面继续处理。
               </p>
             )}
           </CardBody>
