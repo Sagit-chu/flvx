@@ -61,7 +61,6 @@ type Node struct {
 	ID            int64          `gorm:"primaryKey;autoIncrement"`
 	Name          string         `gorm:"type:varchar(100);not null"`
 	Remark        sql.NullString `gorm:"column:remark;type:text"`
-	Tags          sql.NullString `gorm:"column:tags;type:text"`
 	ExpiryTime    sql.NullInt64  `gorm:"column:expiry_time"`
 	RenewalCycle  sql.NullString `gorm:"column:renewal_cycle;type:varchar(20)"`
 	Secret        string         `gorm:"type:varchar(100);not null"`
@@ -341,7 +340,6 @@ type NodeBackup struct {
 	ID            int64  `json:"id"`
 	Name          string `json:"name"`
 	Remark        string `json:"remark,omitempty"`
-	Tags          string `json:"tags,omitempty"`
 	ExpiryTime    int64  `json:"expiryTime,omitempty"`
 	RenewalCycle  string `json:"renewalCycle,omitempty"`
 	Secret        string `json:"secret"`

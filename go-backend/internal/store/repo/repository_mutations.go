@@ -197,14 +197,13 @@ func (r *Repository) GetUserDefaultsForTunnel(userID int64) (flow int64, num int
 	return user.Flow, user.Num, user.ExpTime, user.FlowResetTime, nil
 }
 
-func (r *Repository) CreateNode(name, secret, serverIP string, serverIPV4, serverIPV6, port, interfaceName, version, remark, tags, expiryTime, renewalCycle interface{}, httpFlag, tlsFlag, socksFlag int, now int64, status int, tcpAddr, udpAddr string, inx, isRemote int, remoteURL, remoteToken, remoteConfig, extraIPs interface{}) error {
+func (r *Repository) CreateNode(name, secret, serverIP string, serverIPV4, serverIPV6, port, interfaceName, version, remark, expiryTime, renewalCycle interface{}, httpFlag, tlsFlag, socksFlag int, now int64, status int, tcpAddr, udpAddr string, inx, isRemote int, remoteURL, remoteToken, remoteConfig, extraIPs interface{}) error {
 	if r == nil || r.db == nil {
 		return errors.New("repository not initialized")
 	}
 	node := model.Node{
 		Name:          name,
 		Remark:        nullStringFromInterface(remark),
-		Tags:          nullStringFromInterface(tags),
 		ExpiryTime:    nullInt64FromInterface(expiryTime),
 		RenewalCycle:  nullStringFromInterface(renewalCycle),
 		Secret:        secret,
@@ -244,7 +243,7 @@ func (r *Repository) GetNodeStatusFields(nodeID int64) (status, httpFlag, tlsFla
 	return node.Status, node.HTTP, node.TLS, node.Socks, nil
 }
 
-func (r *Repository) UpdateNode(id int64, name, serverIP string, serverIPV4, serverIPV6, port, interfaceName, extraIPs, remark, tags, expiryTime, renewalCycle interface{}, httpFlag, tlsFlag, socksFlag int, tcpAddr, udpAddr string, now int64) error {
+func (r *Repository) UpdateNode(id int64, name, serverIP string, serverIPV4, serverIPV6, port, interfaceName, extraIPs, remark, expiryTime, renewalCycle interface{}, httpFlag, tlsFlag, socksFlag int, tcpAddr, udpAddr string, now int64) error {
 	if r == nil || r.db == nil {
 		return errors.New("repository not initialized")
 	}
@@ -253,7 +252,6 @@ func (r *Repository) UpdateNode(id int64, name, serverIP string, serverIPV4, ser
 		Updates(map[string]interface{}{
 			"name":            name,
 			"remark":          nullStringFromInterface(remark),
-			"tags":            nullStringFromInterface(tags),
 			"expiry_time":     nullInt64FromInterface(expiryTime),
 			"renewal_cycle":   nullStringFromInterface(renewalCycle),
 			"server_ip":       serverIP,

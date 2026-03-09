@@ -78,7 +78,6 @@ interface Node {
   inx?: number;
   name: string;
   remark?: string;
-  tags?: string;
   expiryTime?: number;
   renewalCycle?: NodeRenewalCycle;
   ip: string;
@@ -116,7 +115,6 @@ interface NodeForm {
   id: number | null;
   name: string;
   remark: string;
-  tags: string;
   expiryTime: number;
   renewalCycle: NodeRenewalCycle;
   serverHost: string;
@@ -198,15 +196,6 @@ const getNodeExpiryMeta = (timestamp?: number, cycle?: NodeRenewalCycle) => {
     sortWeight: 2,
     nextDueTime: renewal.nextDueTime,
   };
-};
-
-const normalizeNodeTags = (tags?: string): string[] => {
-  if (!tags) return [];
-
-  return tags
-    .split(",")
-    .map((tag) => tag.trim())
-    .filter(Boolean);
 };
 
 const mergeNodeRealtimeState = (
@@ -291,7 +280,6 @@ export default function NodePage() {
     id: null,
     name: "",
     remark: "",
-    tags: "",
     expiryTime: 0,
     renewalCycle: "",
     serverHost: "",
@@ -743,7 +731,6 @@ export default function NodePage() {
       id: node.id,
       name: node.name,
       remark: node.remark || "",
-      tags: node.tags || "",
       expiryTime: node.expiryTime || 0,
       renewalCycle: node.renewalCycle || "",
       serverHost: normalizedHost,
@@ -982,7 +969,6 @@ export default function NodePage() {
       const data = {
         ...rest,
         remark: form.remark.trim(),
-        tags: form.tags.trim(),
         expiryTime: form.expiryTime,
         renewalCycle: form.renewalCycle,
         extraIPs: form.extraIPs,
@@ -1007,7 +993,6 @@ export default function NodePage() {
                     ...n,
                     name: form.name,
                     remark: form.remark.trim(),
-                    tags: form.tags.trim(),
                     expiryTime: form.expiryTime,
                     renewalCycle: form.renewalCycle,
                     serverIp:
@@ -1047,7 +1032,6 @@ export default function NodePage() {
       id: null,
       name: "",
       remark: "",
-      tags: "",
       expiryTime: 0,
       renewalCycle: "",
       serverHost: "",
@@ -1208,14 +1192,13 @@ export default function NodePage() {
     if (searchKeyword.trim()) {
       const lowerKeyword = searchKeyword.toLowerCase();
 
-      filteredNodes = filteredNodes.filter(
-        (n) =>
-          (n.name && n.name.toLowerCase().includes(lowerKeyword)) ||
-          (n.remark && n.remark.toLowerCase().includes(lowerKeyword)) ||
-          (n.tags && n.tags.toLowerCase().includes(lowerKeyword)) ||
-          (n.serverIp && n.serverIp.toLowerCase().includes(lowerKeyword)) ||
-          (n.serverIpV4 && n.serverIpV4.toLowerCase().includes(lowerKeyword)) ||
-          (n.serverIpV6 && n.serverIpV6.toLowerCase().includes(lowerKeyword)),
+        filteredNodes = filteredNodes.filter(
+          (n) =>
+            (n.name && n.name.toLowerCase().includes(lowerKeyword)) ||
+            (n.remark && n.remark.toLowerCase().includes(lowerKeyword)) ||
+            (n.serverIp && n.serverIp.toLowerCase().includes(lowerKeyword)) ||
+            (n.serverIpV4 && n.serverIpV4.toLowerCase().includes(lowerKeyword)) ||
+            (n.serverIpV6 && n.serverIpV6.toLowerCase().includes(lowerKeyword)),
       );
     }
 
@@ -1542,35 +1525,6 @@ export default function NodePage() {
                           )}
                           {/* 基础信息 */}
                           <div className="space-y-2 mb-4">
-                            {(node.remark?.trim() || node.tags?.trim()) && (
-                              <div className="space-y-1.5">
-                                {node.remark?.trim() && (
-                                  <div className="rounded-md border border-divider/80 bg-default-50/80 px-2.5 py-1.5">
-                                    <div
-                                      className="text-xs leading-5 text-default-600 line-clamp-1 break-all"
-                                      title={node.remark.trim()}
-                                    >
-                                      {node.remark.trim()}
-                                    </div>
-                                  </div>
-                                )}
-                                {normalizeNodeTags(node.tags).length > 0 && (
-                                  <div className="flex flex-wrap gap-1.5">
-                                    {normalizeNodeTags(node.tags).map((tag) => (
-                                      <Chip
-                                        key={`${node.id}-${tag}`}
-                                        className="text-[10px] h-5 px-1"
-                                        color="secondary"
-                                        size="sm"
-                                        variant="flat"
-                                      >
-                                        #{tag}
-                                      </Chip>
-                                    ))}
-                                  </div>
-                                )}
-                              </div>
-                            )}
                             {node.expiryTime &&
                               node.expiryTime > 0 &&
                               node.renewalCycle && <div className="hidden" />}
@@ -1838,6 +1792,19 @@ export default function NodePage() {
                                 删除
                               </Button>
                             </div>
+                            {node.remark?.trim() && (
+                              <div className="rounded-md border border-divider/80 bg-default-50/80 px-2.5 py-2">
+                                <div className="text-[11px] font-medium text-default-500">
+                                  备注
+                                </div>
+                                <div
+                                  className="mt-1 text-xs leading-5 text-default-700 break-all"
+                                  title={node.remark.trim()}
+                                >
+                                  {node.remark.trim()}
+                                </div>
+                              </div>
+                            )}
                           </div>
                         </CardBody>
                       </Card>
@@ -1889,17 +1856,6 @@ export default function NodePage() {
               />
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <Input
-                  description="多个标签用逗号分隔，可用于搜索过滤"
-                  label="标签"
-                  placeholder="例如: 年付,日本中转,测试机"
-                  value={form.tags}
-                  variant="bordered"
-                  onChange={(e) =>
-                    setForm((prev) => ({ ...prev, tags: e.target.value }))
-                  }
-                />
-
                 <Select
                   label="续费周期"
                   placeholder="选择续费周期"

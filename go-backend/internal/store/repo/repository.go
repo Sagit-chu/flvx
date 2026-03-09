@@ -260,7 +260,7 @@ func prepareSQLiteLegacyColumns(db *gorm.DB) error {
 	m := db.Migrator()
 
 	if m.HasTable(&model.Node{}) {
-		for _, field := range []string{"ServerIPV4", "ServerIPV6", "ExtraIPs", "TCPListenAddr", "UDPListenAddr", "Inx", "IsRemote", "RemoteURL", "RemoteToken", "RemoteConfig", "Remark", "Tags", "ExpiryTime", "RenewalCycle"} {
+		for _, field := range []string{"ServerIPV4", "ServerIPV6", "ExtraIPs", "TCPListenAddr", "UDPListenAddr", "Inx", "IsRemote", "RemoteURL", "RemoteToken", "RemoteConfig", "Remark", "ExpiryTime", "RenewalCycle"} {
 			if m.HasColumn(&model.Node{}, field) {
 				continue
 			}
@@ -635,7 +635,6 @@ func (r *Repository) ListNodes() ([]map[string]interface{}, error) {
 		items = append(items, map[string]interface{}{
 			"id": n.ID, "inx": n.Inx, "name": n.Name,
 			"remark":       nullableString(n.Remark),
-			"tags":         nullableString(n.Tags),
 			"expiryTime":   nullableInt64(n.ExpiryTime),
 			"renewalCycle": nullableString(n.RenewalCycle),
 			"ip":           n.ServerIP, "serverIp": n.ServerIP,
@@ -1820,7 +1819,7 @@ func (r *Repository) exportNodes() ([]model.NodeBackup, error) {
 	for _, n := range nodes {
 		b := model.NodeBackup{
 			ID: n.ID, Name: n.Name, Secret: n.Secret, ServerIP: n.ServerIP,
-			Remark: n.Remark.String, Tags: n.Tags.String, RenewalCycle: n.RenewalCycle.String,
+			Remark: n.Remark.String, RenewalCycle: n.RenewalCycle.String,
 			Port: n.Port, HTTP: n.HTTP, TLS: n.TLS, Socks: n.Socks,
 			CreatedTime: n.CreatedTime, Status: n.Status,
 			TCPListenAddr: n.TCPListenAddr, UDPListenAddr: n.UDPListenAddr,
@@ -2179,7 +2178,6 @@ func importNodes(tx *gorm.DB, nodes []model.NodeBackup, now int64) (int, error) 
 			ID:            n.ID,
 			Name:          n.Name,
 			Remark:        sql.NullString{String: n.Remark, Valid: n.Remark != ""},
-			Tags:          sql.NullString{String: n.Tags, Valid: n.Tags != ""},
 			ExpiryTime:    sql.NullInt64{Int64: n.ExpiryTime, Valid: n.ExpiryTime > 0},
 			RenewalCycle:  sql.NullString{String: n.RenewalCycle, Valid: n.RenewalCycle != ""},
 			Secret:        n.Secret,
@@ -2206,7 +2204,7 @@ func importNodes(tx *gorm.DB, nodes []model.NodeBackup, now int64) (int, error) 
 		err := tx.Clauses(clause.OnConflict{
 			Columns: []clause.Column{{Name: "id"}},
 			DoUpdates: clause.AssignmentColumns([]string{
-				"name", "remark", "tags", "expiry_time", "renewal_cycle", "secret", "server_ip", "server_ip_v4", "server_ip_v6", "port", "interface_name", "version",
+				"name", "remark", "expiry_time", "renewal_cycle", "secret", "server_ip", "server_ip_v4", "server_ip_v6", "port", "interface_name", "version",
 				"http", "tls", "socks", "updated_time", "status", "tcp_listen_addr", "udp_listen_addr",
 				"inx", "is_remote", "remote_url", "remote_token", "remote_config",
 			}),

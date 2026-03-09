@@ -122,16 +122,6 @@ export default function DashboardPage() {
     };
   };
 
-  const parseNodeTags = (tags?: string) => {
-    if (!tags) return [];
-
-    return tags
-      .split(",")
-      .map((tag) => tag.trim())
-      .filter(Boolean)
-      .slice(0, 3);
-  };
-
   const renderNodeExpiryCard = (node: DashboardNodeExpiryItem) => {
     const renewalSnapshot = getNodeRenewalSnapshot(
       node.expiryTime,
@@ -141,7 +131,6 @@ export default function DashboardPage() {
       renewalSnapshot.nextDueTime,
       renewalSnapshot.state,
     );
-    const tags = parseNodeTags(node.tags);
 
     return (
       <div
@@ -176,19 +165,6 @@ export default function DashboardPage() {
           <p className="mt-3 line-clamp-2 text-xs leading-5 text-default-600 dark:text-default-400">
             {node.remark.trim()}
           </p>
-        )}
-
-        {tags.length > 0 && (
-          <div className="mt-3 flex flex-wrap gap-2">
-            {tags.map((tag) => (
-              <span
-                key={`${node.id}-${tag}`}
-                className="rounded-full bg-white/80 px-2 py-1 text-[11px] text-default-600 ring-1 ring-amber-200/80 dark:bg-white/5 dark:text-default-300 dark:ring-amber-500/20"
-              >
-                #{tag}
-              </span>
-            ))}
-          </div>
         )}
       </div>
     );

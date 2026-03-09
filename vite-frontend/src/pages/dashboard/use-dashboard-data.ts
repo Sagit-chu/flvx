@@ -58,7 +58,6 @@ export interface DashboardNodeExpiryItem {
   id: number;
   name: string;
   remark?: string;
-  tags?: string;
   expiryTime?: number;
   renewalCycle?: "month" | "quarter" | "year" | "";
 }
@@ -222,7 +221,6 @@ const normalizeNodeExpiryReminders = (items: NodeApiItem[]) => {
       id: item.id,
       name: item.name || "",
       remark: typeof item.remark === "string" ? item.remark : "",
-      tags: typeof item.tags === "string" ? item.tags : "",
       renewalCycle: normalizeDashboardRenewalCycle(item.renewalCycle),
       expiryTime:
         typeof item.expiryTime === "number" && item.expiryTime > 0

@@ -51,7 +51,7 @@ func TestPrepareSQLiteLegacyColumnsAddsNodeMetadataColumns(t *testing.T) {
 	}
 
 	m := db.Migrator()
-	for _, field := range []string{"Remark", "Tags", "ExpiryTime", "RenewalCycle"} {
+	for _, field := range []string{"Remark", "ExpiryTime", "RenewalCycle"} {
 		if !m.HasColumn(&model.Node{}, field) {
 			t.Fatalf("expected node.%s column to exist", field)
 		}

@@ -4,7 +4,6 @@ export interface NodeApiItem {
   status: number;
   inx?: number;
   remark?: string;
-  tags?: string;
   expiryTime?: number;
   renewalCycle?: "month" | "quarter" | "year" | "";
   syncError?: string;
@@ -220,7 +219,6 @@ export interface NodeMutationPayload {
   status?: number;
   inx?: number;
   remark?: string;
-  tags?: string;
   expiryTime?: number;
   renewalCycle?: "month" | "quarter" | "year" | "";
   serverIp?: string;
