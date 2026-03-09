@@ -1436,35 +1436,11 @@ export default function NodePage() {
                         key={node.id}
                         className={`group shadow-sm border border-divider hover:shadow-md transition-shadow duration-200 overflow-hidden h-full flex flex-col ${expiryMeta.accentClassName}`}
                       >
-                        <CardHeader className="pb-2 md:pb-2">
-                          <div className="flex justify-between items-start w-full">
-                            <div className="flex items-center gap-2 flex-1 min-w-0">
-                              {selectMode && (
-                                <Checkbox
-                                  isSelected={selectedIds.has(node.id)}
-                                  onValueChange={() => toggleSelect(node.id)}
-                                />
-                              )}
-                              <h3 className="font-semibold text-foreground truncate text-sm">
-                                {node.name}
-                              </h3>
-                            </div>
-                            <div className="flex items-center gap-1.5 ml-2">
-                              {node.expiryTime &&
-                                node.expiryTime > 0 &&
-                                node.renewalCycle && (
-                                  <Chip
-                                    className="text-[10px] h-5 px-1 flex-shrink-0"
-                                    color={expiryMeta.tone}
-                                    size="sm"
-                                    title={`${formatNodeRenewalTime(expiryMeta.nextDueTime)} (${getNodeRenewalCycleLabel(node.renewalCycle)})`}
-                                    variant="flat"
-                                  >
-                                    {expiryMeta.label}
-                                  </Chip>
-                                )}
+                        <CardHeader className="pb-3 md:pb-3">
+                          <div className="flex justify-between items-start w-full gap-3">
+                            <div className="flex items-start gap-2 flex-1 min-w-0">
                               <div
-                                className="cursor-grab active:cursor-grabbing p-2 text-default-400 hover:text-default-600 transition-colors touch-manipulation opacity-100 sm:opacity-0 sm:group-hover:opacity-100"
+                                className="cursor-grab active:cursor-grabbing p-2 -ml-2 -mt-1 text-default-400 hover:text-default-600 transition-colors touch-manipulation opacity-100 sm:opacity-0 sm:group-hover:opacity-100 flex-shrink-0"
                                 {...listeners}
                                 style={{ touchAction: "none" }}
                                 title="拖拽排序"
@@ -1478,6 +1454,18 @@ export default function NodePage() {
                                   <path d="M7 2a2 2 0 1 1 .001 4.001A2 2 0 0 1 7 2zm0 6a2 2 0 1 1 .001 4.001A2 2 0 0 1 7 8zm0 6a2 2 0 1 1 .001 4.001A2 2 0 0 1 7 14zm6-8a2 2 0 1 1-.001-4.001A2 2 0 0 1 13 6zm0 2a2 2 0 1 1 .001 4.001A2 2 0 0 1 13 8zm0 6a2 2 0 1 1 .001 4.001A2 2 0 0 1 13 14z" />
                                 </svg>
                               </div>
+                              {selectMode && (
+                                <Checkbox
+                                  className="mt-0.5"
+                                  isSelected={selectedIds.has(node.id)}
+                                  onValueChange={() => toggleSelect(node.id)}
+                                />
+                              )}
+                              <h3 className="pt-0.5 font-semibold text-foreground truncate text-sm leading-5">
+                                {node.name}
+                              </h3>
+                            </div>
+                            <div className="ml-2 flex max-w-[58%] flex-wrap items-center justify-end gap-1.5 self-start">
                               {isRemoteNode && (
                                 <Chip
                                   className="text-[10px] h-5 px-1 flex-shrink-0"
@@ -1505,6 +1493,19 @@ export default function NodePage() {
                                   </Chip>
                                 );
                               })()}
+                              {node.expiryTime &&
+                                node.expiryTime > 0 &&
+                                node.renewalCycle && (
+                                  <Chip
+                                    className="text-[10px] h-5 px-1 flex-shrink-0"
+                                    color={expiryMeta.tone}
+                                    size="sm"
+                                    title={`${formatNodeRenewalTime(expiryMeta.nextDueTime)} (${getNodeRenewalCycleLabel(node.renewalCycle)})`}
+                                    variant="flat"
+                                  >
+                                    {expiryMeta.label}
+                                  </Chip>
+                                )}
                             </div>
                           </div>
                         </CardHeader>
@@ -1513,14 +1514,6 @@ export default function NodePage() {
                           {isRemoteNode && node.syncError && (
                             <div className="mb-3 px-2 py-1.5 rounded-md bg-warning-50 dark:bg-warning-100/10 text-warning-700 dark:text-warning-400 text-xs">
                               {getRemoteSyncErrorMessage(node.syncError)}
-                            </div>
-                          )}
-                          {expiryMeta.isHighlighted && (
-                            <div
-                              className={`mb-3 flex items-center justify-between gap-3 rounded-md px-2 py-1.5 text-xs font-medium ${expiryMeta.bannerClassName}`}
-                            >
-                              <span>节点到期提醒</span>
-                              <span>{expiryMeta.label}</span>
                             </div>
                           )}
                           {/* 基础信息 */}
@@ -1724,87 +1717,84 @@ export default function NodePage() {
                             </>
                           )}
 
-                          {/* 操作按钮 */}
-                          <div className="space-y-1.5 mt-auto">
-                            {!isRemoteNode && (
-                              <div className="grid grid-cols-3 gap-1.5">
-                                <Button
-                                  className="min-h-8"
-                                  color="success"
-                                  isLoading={node.copyLoading}
-                                  size="sm"
-                                  variant="flat"
-                                  onPress={() => openInstallSelector(node)}
-                                >
-                                  安装
-                                </Button>
-                                <Button
-                                  className="min-h-8"
-                                  color="warning"
-                                  isDisabled={
-                                    node.connectionStatus !== "online"
-                                  }
-                                  isLoading={node.upgradeLoading}
-                                  size="sm"
-                                  variant="flat"
-                                  onPress={() =>
-                                    openUpgradeModal("single", node.id)
-                                  }
-                                >
-                                  升级
-                                </Button>
-                                <Button
-                                  className="min-h-8"
-                                  color="secondary"
-                                  isDisabled={
-                                    node.connectionStatus !== "online"
-                                  }
-                                  isLoading={node.rollbackLoading}
-                                  size="sm"
-                                  variant="flat"
-                                  onPress={() => handleRollbackNode(node)}
-                                >
-                                  回退
-                                </Button>
-                              </div>
-                            )}
-                            <div
-                              className={`grid gap-1.5 ${isRemoteNode ? "grid-cols-1" : "grid-cols-2"}`}
-                            >
-                              {!isRemoteNode && (
-                                <Button
-                                  className="min-h-8"
-                                  color="primary"
-                                  size="sm"
-                                  variant="flat"
-                                  onPress={() => handleEdit(node)}
-                                >
-                                  编辑
-                                </Button>
-                              )}
-                              <Button
-                                className="min-h-8"
-                                color="danger"
-                                size="sm"
-                                variant="flat"
-                                onPress={() => handleDelete(node)}
-                              >
-                                删除
-                              </Button>
-                            </div>
+                          <div className="mt-auto space-y-3">
                             {node.remark?.trim() && (
-                              <div className="rounded-md border border-divider/80 bg-default-50/80 px-2.5 py-2">
-                                <div className="text-[11px] font-medium text-default-500">
-                                  备注
-                                </div>
-                                <div
-                                  className="mt-1 text-xs leading-5 text-default-700 break-all"
-                                  title={node.remark.trim()}
-                                >
+                              <div className="rounded-md border border-divider/80 bg-default-50/80 px-2.5 py-2.5 text-xs leading-5 text-default-700 break-all">
+                                <div title={node.remark.trim()}>
                                   {node.remark.trim()}
                                 </div>
                               </div>
                             )}
+
+                            {/* 操作按钮 */}
+                            <div className="space-y-1.5">
+                              {!isRemoteNode && (
+                                <div className="grid grid-cols-3 gap-1.5">
+                                  <Button
+                                    className="min-h-8"
+                                    color="success"
+                                    isLoading={node.copyLoading}
+                                    size="sm"
+                                    variant="flat"
+                                    onPress={() => openInstallSelector(node)}
+                                  >
+                                    安装
+                                  </Button>
+                                  <Button
+                                    className="min-h-8"
+                                    color="warning"
+                                    isDisabled={
+                                      node.connectionStatus !== "online"
+                                    }
+                                    isLoading={node.upgradeLoading}
+                                    size="sm"
+                                    variant="flat"
+                                    onPress={() =>
+                                      openUpgradeModal("single", node.id)
+                                    }
+                                  >
+                                    升级
+                                  </Button>
+                                  <Button
+                                    className="min-h-8"
+                                    color="secondary"
+                                    isDisabled={
+                                      node.connectionStatus !== "online"
+                                    }
+                                    isLoading={node.rollbackLoading}
+                                    size="sm"
+                                    variant="flat"
+                                    onPress={() => handleRollbackNode(node)}
+                                  >
+                                    回退
+                                  </Button>
+                                </div>
+                              )}
+                              <div
+                                className={`grid gap-1.5 ${isRemoteNode ? "grid-cols-1" : "grid-cols-2"}`}
+                              >
+                                {!isRemoteNode && (
+                                  <Button
+                                    className="min-h-8"
+                                    color="primary"
+                                    size="sm"
+                                    variant="flat"
+                                    onPress={() => handleEdit(node)}
+                                  >
+                                    编辑
+                                  </Button>
+                                )}
+                                <Button
+                                  className="min-h-8"
+                                  color="danger"
+                                  size="sm"
+                                  variant="flat"
+                                  onPress={() => handleDelete(node)}
+                                >
+                                  删除
+                                </Button>
+                              </div>
+                            </div>
                           </div>
                         </CardBody>
                       </Card>
