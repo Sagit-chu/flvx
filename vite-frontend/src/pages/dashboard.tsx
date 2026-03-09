@@ -90,7 +90,7 @@ export default function DashboardPage() {
       };
     }
 
-const diffDays = Math.ceil(
+    const diffDays = Math.ceil(
       (nextDueTime - Date.now()) / (1000 * 60 * 60 * 24),
     );
 

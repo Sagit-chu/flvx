@@ -1,0 +1,1 @@
+已成功构建并推送 `ghcr.io/sagit-chu/vite-frontend:beta` (linux/amd64)

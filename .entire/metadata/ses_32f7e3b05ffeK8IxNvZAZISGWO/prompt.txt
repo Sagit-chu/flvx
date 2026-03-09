@@ -1,0 +1,17 @@
+编译docker 镜像 ghcr.io/sagit-chu/vite-frontend:beta linux/amd64架构 推送
+
+---
+
+编译docker 镜像 ghcr.io/sagit-chu/vite-frontend:beta linux/amd64架构 推送
+
+---
+
+编译docker 镜像 ghcr.io/sagit-chu/vite-frontend:beta linux/amd64架构 推送
+
+---
+
+编译docker 镜像 ghcr.io/sagit-chu/vite-frontend:beta linux/amd64架构 推送
+
+---
+
+编译docker 镜像 ghcr.io/sagit-chu/vite-frontend:beta linux/amd64架构 推送
