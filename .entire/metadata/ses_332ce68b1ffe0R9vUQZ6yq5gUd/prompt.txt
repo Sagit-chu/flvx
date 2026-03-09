@@ -1,0 +1,1 @@
+在agent.md中加上，尽量使用能使用的skills和mcp

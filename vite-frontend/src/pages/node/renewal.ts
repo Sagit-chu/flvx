@@ -73,7 +73,7 @@ export const getNodeRenewalSnapshot = (
     nextDueTime = advanced;
   }
 
-  const diffDays = Math.ceil(
+const diffDays = Math.ceil(
     (nextDueTime - Date.now()) / (1000 * 60 * 60 * 24),
   );
 
@@ -109,10 +109,8 @@ export const getNodeRenewalSnapshot = (
   };
 };
 
-export const formatNodeRenewalTime = (timestamp?: number): string => {
-  if (!timestamp || timestamp <= 0) {
+if (!timestamp || timestamp <= 0) {
     return "未设置";
   }
 
   return new Date(timestamp).toLocaleString();
-};

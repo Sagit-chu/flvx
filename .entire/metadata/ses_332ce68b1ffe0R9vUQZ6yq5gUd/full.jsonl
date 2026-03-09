@@ -1,0 +1,350 @@
+{
+  "info": {
+    "id": "ses_332ce68b1ffe0R9vUQZ6yq5gUd",
+    "slug": "swift-panda",
+    "projectID": "03c3dd2e5791a80ef100ef53744e013d779d671c",
+    "directory": "/Users/sagit/.local/share/opencode/worktree/13650be91caa3a9e08a2e63127fef62757658384/quiet-canyon",
+    "title": "Agent.md 改进：使用可用 skills 与 MCP",
+    "version": "1.2.21",
+    "summary": {
+      "additions": 1,
+      "deletions": 0,
+      "files": 1
+    },
+    "time": {
+      "created": 1772969105230,
+      "updated": 1772969119198
+    }
+  },
+  "messages": [
+    {
+      "info": {
+        "role": "user",
+        "time": {
+          "created": 1772969105350
+        },
+        "summary": {
+          "diffs": [
+            {
+              "file": "AGENTS.md",
+              "before": "# PROJECT KNOWLEDGE BASE\n\n**Generated:** Thu Feb 26 2026\n**Commit:** 21008cc\n**Branch:** main\n**Tag:** 2.1.5-rc15\n\n## OVERVIEW\nFLVX (formerly Flux Panel) is a traffic forwarding management system built on a forked GOST v3 stack. It ships as a Go-based admin API (SQLite/PostgreSQL) + Vite/React UI + Go forwarding agent, with optional mobile WebView wrappers.\n\n## STRUCTURE\n```\n./\n├── go-gost/               # Go forwarding agent (forked gost + local x/)\n│   └── x/                 # Local fork of github.com/go-gost/x (replace => ./x)\n├── go-backend/            # Go Admin API (GORM + SQLite/PostgreSQL, net/http)\n│   └── tests/contract/    # Integration/contract tests\n├── vite-frontend/         # React/Vite dashboard (shadcn bridge + Tailwind v4)\n│   └── src/shadcn-bridge/heroui/  # HeroUI-compatible facade\n├── docker-compose-v4.yml  # Panel deploy (IPv4-only bridge)\n├── docker-compose-v6.yml  # Panel deploy (IPv6-enabled bridge)\n├── panel_install.sh       # Panel installer/upgrader (downloads compose)\n├── install.sh             # Node installer/upgrader (downloads gost binary)\n└── .github/workflows/     # CI: build/test + Docker push + release artifacts\n```\n\n## WHERE TO LOOK\n| Task | Location | Notes |\n|------|----------|-------|\n| **Deploy (Docker)** | `docker-compose-v4.yml` | Env: `JWT_SECRET`, `BACKEND_PORT`, `FRONTEND_PORT` |\n| **Deploy (IPv6)** | `docker-compose-v6.yml` | Same as v4 + IPv6-enabled bridge |\n| **Panel install** | `panel_install.sh` | Picks v4/v6, generates `JWT_SECRET`, downloads compose |\n| **Node install** | `install.sh` | Installs `/etc/flux_agent/flux_agent` + writes `config.json`/`gost.json` + systemd `flux_agent.service` |\n| **Admin API** | `go-backend/` | Go Admin API (SQLite/PostgreSQL) |\n| **Web UI** | `vite-frontend/` | React/Vite dashboard (shadcn bridge + Tailwind v4) |\n| **UI Compatibility** | `vite-frontend/src/shadcn-bridge/heroui/` | HeroUI-compatible API wrappers backed by shadcn/radix |\n| **Theme Tokens** | `vite-frontend/src/styles/tailwind-theme.pcss` | Tailwind v4 `@theme inline` semantic color mapping |\n| **Go Agent** | `go-gost/` | Forwarding agent (forked gost + local x/) |\n| **Go Core** | `go-gost/x/` | Handlers/listeners/dialers + management API |\n| **Repository Layer** | `go-backend/internal/store/repo/` | GORM data access (repository.go 83k LOC) |\n| **Contract Tests** | `go-backend/tests/contract/` | Integration tests for auth, federation, tunnels |\n| **CI Workflows** | `.github/workflows/` | ci-build.yml, docker-build.yml, deploy-docs.yml |\n\n## CODE MAP\n| Symbol | Type | Location | Role |\n|--------|------|----------|------|\n| `flvx` | Project | `.` | Root directory |\n| `main` | Func | `go-backend/cmd/paneld/main.go` | Backend Entry |\n| `App` | Component | `vite-frontend/src/App.tsx` | Frontend Entry |\n| `main` | Func | `go-gost/main.go` | Agent Entry |\n| `Repository` | Struct | `go-backend/internal/store/repo/repository.go` | Data Access Layer |\n| `Handler` | Struct | `go-backend/internal/http/handler/handler.go` | HTTP Handlers |\n| `websocket_reporter` | Func | `go-gost/x/socket/websocket_reporter.go` | Panel Telemetry |\n\n## CONVENTIONS\n- **Auth**: `Authorization` header carries the raw JWT token (no `Bearer` prefix) between `vite-frontend/` and `go-backend/`.\n- **Module Fork**: `go-gost/` uses `replace github.com/go-gost/x => ./x` and `go-gost/x/` is also its own Go module.\n- **Encryption**: Agent-to-panel communication uses AES encryption with node `secret` as PSK.\n- **API Envelope**: All REST responses follow `{code, msg, data, ts}` structure (code 0 = success).\n- **Frontend UI Layer**: Import UI primitives from `src/shadcn-bridge/heroui/*` (legacy-compatible facade), not direct `@heroui/*` packages.\n- **Tailwind v4 Semantic Colors**: `src/styles/globals.css` must import `src/styles/tailwind-theme.pcss`; removing it breaks semantic classes like `bg-primary`, `text-foreground`, and `border-input`.\n- **Go Versions**: `go-backend` uses Go 1.24, `go-gost` uses Go 1.23, `go-gost/x` uses Go 1.22.\n\n## ANTI-PATTERNS (THIS PROJECT)\n- **DO NOT EDIT** generated protobuf output: `go-gost/x/internal/util/grpc/proto/*.pb.go`, `go-gost/x/internal/util/grpc/proto/*_grpc.pb.go`.\n- **DO NOT ADD** `Bearer` prefix to Authorization header - expects raw JWT token.\n- **DO NOT MODIFY** `install.sh` or `panel_install.sh` locally - CI overwrites these on release.\n- **DO NOT** let backend handlers call `repo.DB()` directly — add a Repository method instead.\n- **DO NOT ADD** frontend tests - project has no test infrastructure (Vitest/Jest not configured).\n- **DO NOT REINTRODUCE** `@heroui/*` or `@nextui-org/*` dependencies; migration is now shadcn bridge-based.\n- **DO NOT** use `type:jsonb` or `type:serial` in GORM tags (SQLite incompatible).\n- **DO NOT** omit `TableName()` on new models — GORM pluralizes by default.\n\n## COMMANDS\n```bash\n# Panel (Docker)\ndocker compose -f docker-compose-v4.yml up -d\ndocker compose -f docker-compose-v6.yml up -d\n\n# Release-based install scripts\n./panel_install.sh\n./install.sh\n\n# Local dev (per subproject)\n(cd go-backend && make build)\n(cd vite-frontend && npm run dev)\n(cd go-gost && go run .)\n\n# Testing\n(cd go-backend && go test ./...)\n(cd go-backend && go test ./tests/contract/...)\n```\n\n## UNIQUE STYLES\n- **Flat Monorepo**: Language-prefixed dirs (`go-backend`, `go-gost`, `vite-frontend`) instead of `apps/`/`libs/`.\n- **Asymmetric Go Layout**: `go-backend` follows `cmd/<app>/main.go` while `go-gost` uses `root/main.go`.\n- **Frontend Hybrid Mode**: `App.tsx` detects \"H5 mode\" (mobile WebView) vs desktop, dictating layout strategy.\n- **Experimental Bundler**: `vite-frontend` uses `rolldown-vite` (Rust-based) instead of standard Vite.\n- **Non-minified Builds**: `vite.config.ts` sets `minify: false`, `treeshake: false` for debugging.\n\n## NOTES\n- LSP servers are not installed in this environment (gopls/typescript-language-server); rely on grep-based navigation.\n- `vite-frontend/vite.config.ts` sets `minify: false` and disables treeshake; expect larger bundles.\n- `vite-frontend` uses `rolldown-vite` (experimental Rust bundler) instead of standard Vite.\n- Install scripts (`install.sh`, `panel_install.sh`) self-delete after execution - common pattern in one-liner installs.\n- CI uses UPX compression (`--best --lzma`) on Go binaries before release.\n- CI dynamically injects `PINNED_VERSION` into install scripts and docker-compose files during releases.\n- `panel_install.sh` auto-detects IPv6 and modifies `/etc/docker/daemon.json` to enable IPv6 bridge.\n- Download proxy `https://gcode.hostcentral.cc/` used for GitHub downloads in China/restricted environments.\n- Backend has contract tests in `go-backend/tests/contract/` - frontend has no test infrastructure.\n- `analysis/3x-ui/` contains a separate git repo for reference/comparison - not part of FLVX core.\n- CI workflows: `ci-build.yml` (build check), `docker-build.yml` (multi-arch images + release), `deploy-docs.yml` (MkDocs).\n- PostgreSQL migration supported via `panel_install.sh` menu option using pgloader.\n- Repository layer is large: `repository.go` (83k LOC), `repository_mutations.go` (43k LOC).\n- Button visual parity relies on `vite-frontend/src/shadcn-bridge/heroui/button.tsx` color mapping + `vite-frontend/src/styles/tailwind-theme.pcss` token export.\n\n## PLAN DOCUMENT RULE\n- Every new implementation plan must have a dedicated Markdown plan document.\n- Store plan documents under `plans/`.\n- Use an incrementing numeric prefix and a short plan-summary name: `NNN-<plan-summary>.md` (for example, `001-auth-refactor.md`, `002-federation-api-cleanup.md`).\n- The numeric prefix must increase by 1 for each new plan.\n- In each plan document, keep a task checklist and mark each task as completed immediately after finishing it.\n",
+              "after": "# PROJECT KNOWLEDGE BASE\n\n**Generated:** Thu Feb 26 2026\n**Commit:** 21008cc\n**Branch:** main\n**Tag:** 2.1.5-rc15\n\n## OVERVIEW\nFLVX (formerly Flux Panel) is a traffic forwarding management system built on a forked GOST v3 stack. It ships as a Go-based admin API (SQLite/PostgreSQL) + Vite/React UI + Go forwarding agent, with optional mobile WebView wrappers.\n\n## STRUCTURE\n```\n./\n├── go-gost/               # Go forwarding agent (forked gost + local x/)\n│   └── x/                 # Local fork of github.com/go-gost/x (replace => ./x)\n├── go-backend/            # Go Admin API (GORM + SQLite/PostgreSQL, net/http)\n│   └── tests/contract/    # Integration/contract tests\n├── vite-frontend/         # React/Vite dashboard (shadcn bridge + Tailwind v4)\n│   └── src/shadcn-bridge/heroui/  # HeroUI-compatible facade\n├── docker-compose-v4.yml  # Panel deploy (IPv4-only bridge)\n├── docker-compose-v6.yml  # Panel deploy (IPv6-enabled bridge)\n├── panel_install.sh       # Panel installer/upgrader (downloads compose)\n├── install.sh             # Node installer/upgrader (downloads gost binary)\n└── .github/workflows/     # CI: build/test + Docker push + release artifacts\n```\n\n## WHERE TO LOOK\n| Task | Location | Notes |\n|------|----------|-------|\n| **Deploy (Docker)** | `docker-compose-v4.yml` | Env: `JWT_SECRET`, `BACKEND_PORT`, `FRONTEND_PORT` |\n| **Deploy (IPv6)** | `docker-compose-v6.yml` | Same as v4 + IPv6-enabled bridge |\n| **Panel install** | `panel_install.sh` | Picks v4/v6, generates `JWT_SECRET`, downloads compose |\n| **Node install** | `install.sh` | Installs `/etc/flux_agent/flux_agent` + writes `config.json`/`gost.json` + systemd `flux_agent.service` |\n| **Admin API** | `go-backend/` | Go Admin API (SQLite/PostgreSQL) |\n| **Web UI** | `vite-frontend/` | React/Vite dashboard (shadcn bridge + Tailwind v4) |\n| **UI Compatibility** | `vite-frontend/src/shadcn-bridge/heroui/` | HeroUI-compatible API wrappers backed by shadcn/radix |\n| **Theme Tokens** | `vite-frontend/src/styles/tailwind-theme.pcss` | Tailwind v4 `@theme inline` semantic color mapping |\n| **Go Agent** | `go-gost/` | Forwarding agent (forked gost + local x/) |\n| **Go Core** | `go-gost/x/` | Handlers/listeners/dialers + management API |\n| **Repository Layer** | `go-backend/internal/store/repo/` | GORM data access (repository.go 83k LOC) |\n| **Contract Tests** | `go-backend/tests/contract/` | Integration tests for auth, federation, tunnels |\n| **CI Workflows** | `.github/workflows/` | ci-build.yml, docker-build.yml, deploy-docs.yml |\n\n## CODE MAP\n| Symbol | Type | Location | Role |\n|--------|------|----------|------|\n| `flvx` | Project | `.` | Root directory |\n| `main` | Func | `go-backend/cmd/paneld/main.go` | Backend Entry |\n| `App` | Component | `vite-frontend/src/App.tsx` | Frontend Entry |\n| `main` | Func | `go-gost/main.go` | Agent Entry |\n| `Repository` | Struct | `go-backend/internal/store/repo/repository.go` | Data Access Layer |\n| `Handler` | Struct | `go-backend/internal/http/handler/handler.go` | HTTP Handlers |\n| `websocket_reporter` | Func | `go-gost/x/socket/websocket_reporter.go` | Panel Telemetry |\n\n## CONVENTIONS\n- **Skills & MCP**: Always prefer using available skills (via `skill` tool) and MCP tools when applicable. Check for relevant skills before implementing from scratch.\n- **Auth**: `Authorization` header carries the raw JWT token (no `Bearer` prefix) between `vite-frontend/` and `go-backend/`.\n- **Module Fork**: `go-gost/` uses `replace github.com/go-gost/x => ./x` and `go-gost/x/` is also its own Go module.\n- **Encryption**: Agent-to-panel communication uses AES encryption with node `secret` as PSK.\n- **API Envelope**: All REST responses follow `{code, msg, data, ts}` structure (code 0 = success).\n- **Frontend UI Layer**: Import UI primitives from `src/shadcn-bridge/heroui/*` (legacy-compatible facade), not direct `@heroui/*` packages.\n- **Tailwind v4 Semantic Colors**: `src/styles/globals.css` must import `src/styles/tailwind-theme.pcss`; removing it breaks semantic classes like `bg-primary`, `text-foreground`, and `border-input`.\n- **Go Versions**: `go-backend` uses Go 1.24, `go-gost` uses Go 1.23, `go-gost/x` uses Go 1.22.\n\n## ANTI-PATTERNS (THIS PROJECT)\n- **DO NOT EDIT** generated protobuf output: `go-gost/x/internal/util/grpc/proto/*.pb.go`, `go-gost/x/internal/util/grpc/proto/*_grpc.pb.go`.\n- **DO NOT ADD** `Bearer` prefix to Authorization header - expects raw JWT token.\n- **DO NOT MODIFY** `install.sh` or `panel_install.sh` locally - CI overwrites these on release.\n- **DO NOT** let backend handlers call `repo.DB()` directly — add a Repository method instead.\n- **DO NOT ADD** frontend tests - project has no test infrastructure (Vitest/Jest not configured).\n- **DO NOT REINTRODUCE** `@heroui/*` or `@nextui-org/*` dependencies; migration is now shadcn bridge-based.\n- **DO NOT** use `type:jsonb` or `type:serial` in GORM tags (SQLite incompatible).\n- **DO NOT** omit `TableName()` on new models — GORM pluralizes by default.\n\n## COMMANDS\n```bash\n# Panel (Docker)\ndocker compose -f docker-compose-v4.yml up -d\ndocker compose -f docker-compose-v6.yml up -d\n\n# Release-based install scripts\n./panel_install.sh\n./install.sh\n\n# Local dev (per subproject)\n(cd go-backend && make build)\n(cd vite-frontend && npm run dev)\n(cd go-gost && go run .)\n\n# Testing\n(cd go-backend && go test ./...)\n(cd go-backend && go test ./tests/contract/...)\n```\n\n## UNIQUE STYLES\n- **Flat Monorepo**: Language-prefixed dirs (`go-backend`, `go-gost`, `vite-frontend`) instead of `apps/`/`libs/`.\n- **Asymmetric Go Layout**: `go-backend` follows `cmd/<app>/main.go` while `go-gost` uses `root/main.go`.\n- **Frontend Hybrid Mode**: `App.tsx` detects \"H5 mode\" (mobile WebView) vs desktop, dictating layout strategy.\n- **Experimental Bundler**: `vite-frontend` uses `rolldown-vite` (Rust-based) instead of standard Vite.\n- **Non-minified Builds**: `vite.config.ts` sets `minify: false`, `treeshake: false` for debugging.\n\n## NOTES\n- LSP servers are not installed in this environment (gopls/typescript-language-server); rely on grep-based navigation.\n- `vite-frontend/vite.config.ts` sets `minify: false` and disables treeshake; expect larger bundles.\n- `vite-frontend` uses `rolldown-vite` (experimental Rust bundler) instead of standard Vite.\n- Install scripts (`install.sh`, `panel_install.sh`) self-delete after execution - common pattern in one-liner installs.\n- CI uses UPX compression (`--best --lzma`) on Go binaries before release.\n- CI dynamically injects `PINNED_VERSION` into install scripts and docker-compose files during releases.\n- `panel_install.sh` auto-detects IPv6 and modifies `/etc/docker/daemon.json` to enable IPv6 bridge.\n- Download proxy `https://gcode.hostcentral.cc/` used for GitHub downloads in China/restricted environments.\n- Backend has contract tests in `go-backend/tests/contract/` - frontend has no test infrastructure.\n- `analysis/3x-ui/` contains a separate git repo for reference/comparison - not part of FLVX core.\n- CI workflows: `ci-build.yml` (build check), `docker-build.yml` (multi-arch images + release), `deploy-docs.yml` (MkDocs).\n- PostgreSQL migration supported via `panel_install.sh` menu option using pgloader.\n- Repository layer is large: `repository.go` (83k LOC), `repository_mutations.go` (43k LOC).\n- Button visual parity relies on `vite-frontend/src/shadcn-bridge/heroui/button.tsx` color mapping + `vite-frontend/src/styles/tailwind-theme.pcss` token export.\n\n## PLAN DOCUMENT RULE\n- Every new implementation plan must have a dedicated Markdown plan document.\n- Store plan documents under `plans/`.\n- Use an incrementing numeric prefix and a short plan-summary name: `NNN-<plan-summary>.md` (for example, `001-auth-refactor.md`, `002-federation-api-cleanup.md`).\n- The numeric prefix must increase by 1 for each new plan.\n- In each plan document, keep a task checklist and mark each task as completed immediately after finishing it.\n",
+              "additions": 1,
+              "deletions": 0,
+              "status": "modified"
+            }
+          ]
+        },
+        "agent": "build",
+        "model": {
+          "providerID": "zai-coding-plan",
+          "modelID": "glm-5"
+        },
+        "id": "msg_ccd319759001DYxTM6rYrxoned",
+        "sessionID": "ses_332ce68b1ffe0R9vUQZ6yq5gUd"
+      },
+      "parts": [
+        {
+          "type": "text",
+          "text": "在agent.md中加上，尽量使用能使用的skills和mcp",
+          "id": "prt_ccd319759002aBxfVvVig6atBh",
+          "sessionID": "ses_332ce68b1ffe0R9vUQZ6yq5gUd",
+          "messageID": "msg_ccd319759001DYxTM6rYrxoned"
+        }
+      ]
+    },
+    {
+      "info": {
+        "role": "assistant",
+        "time": {
+          "created": 1772969105391,
+          "completed": 1772969111073
+        },
+        "parentID": "msg_ccd319759001DYxTM6rYrxoned",
+        "modelID": "glm-5",
+        "providerID": "zai-coding-plan",
+        "mode": "build",
+        "agent": "build",
+        "path": {
+          "cwd": "/Users/sagit/.local/share/opencode/worktree/13650be91caa3a9e08a2e63127fef62757658384/quiet-canyon",
+          "root": "/Users/sagit/.local/share/opencode/worktree/13650be91caa3a9e08a2e63127fef62757658384/quiet-canyon"
+        },
+        "cost": 0,
+        "tokens": {
+          "total": 20628,
+          "input": 52,
+          "output": 96,
+          "reasoning": 0,
+          "cache": {
+            "read": 20480,
+            "write": 0
+          }
+        },
+        "finish": "tool-calls",
+        "id": "msg_ccd3197ef001e4MMRJFLiJFH41",
+        "sessionID": "ses_332ce68b1ffe0R9vUQZ6yq5gUd"
+      },
+      "parts": [
+        {
+          "type": "step-start",
+          "snapshot": "92b5d9c60e6ac122514b9fbde31ef6fb4f9b59ce",
+          "id": "prt_ccd31a4f2001IRsakdoq79BGsT",
+          "sessionID": "ses_332ce68b1ffe0R9vUQZ6yq5gUd",
+          "messageID": "msg_ccd3197ef001e4MMRJFLiJFH41"
+        },
+        {
+          "type": "reasoning",
+          "text": "用户希望我在 AGENTS.md 文件中添加一条指示，说明应该尽量使用可用的 skills 和 MCP 工具。我需要先读取当前的 AGENTS.md 文件，然后添加这一内容。",
+          "time": {
+            "start": 1772969108723,
+            "end": 1772969111001
+          },
+          "id": "prt_ccd31a4f3001UvNMDELsLh5rp8",
+          "sessionID": "ses_332ce68b1ffe0R9vUQZ6yq5gUd",
+          "messageID": "msg_ccd3197ef001e4MMRJFLiJFH41"
+        },
+        {
+          "type": "tool",
+          "callID": "call_483e2583e98c4aaab48bbe51",
+          "tool": "read",
+          "state": {
+            "status": "completed",
+            "input": {
+              "filePath": "/Users/sagit/.local/share/opencode/worktree/13650be91caa3a9e08a2e63127fef62757658384/quiet-canyon/AGENTS.md"
+            },
+            "output": "<path>/Users/sagit/.local/share/opencode/worktree/13650be91caa3a9e08a2e63127fef62757658384/quiet-canyon/AGENTS.md</path>\n<type>file</type>\n<content>1: # PROJECT KNOWLEDGE BASE\n2: \n3: **Generated:** Thu Feb 26 2026\n4: **Commit:** 21008cc\n5: **Branch:** main\n6: **Tag:** 2.1.5-rc15\n7: \n8: ## OVERVIEW\n9: FLVX (formerly Flux Panel) is a traffic forwarding management system built on a forked GOST v3 stack. It ships as a Go-based admin API (SQLite/PostgreSQL) + Vite/React UI + Go forwarding agent, with optional mobile WebView wrappers.\n10: \n11: ## STRUCTURE\n12: ```\n13: ./\n14: ├── go-gost/               # Go forwarding agent (forked gost + local x/)\n15: │   └── x/                 # Local fork of github.com/go-gost/x (replace => ./x)\n16: ├── go-backend/            # Go Admin API (GORM + SQLite/PostgreSQL, net/http)\n17: │   └── tests/contract/    # Integration/contract tests\n18: ├── vite-frontend/         # React/Vite dashboard (shadcn bridge + Tailwind v4)\n19: │   └── src/shadcn-bridge/heroui/  # HeroUI-compatible facade\n20: ├── docker-compose-v4.yml  # Panel deploy (IPv4-only bridge)\n21: ├── docker-compose-v6.yml  # Panel deploy (IPv6-enabled bridge)\n22: ├── panel_install.sh       # Panel installer/upgrader (downloads compose)\n23: ├── install.sh             # Node installer/upgrader (downloads gost binary)\n24: └── .github/workflows/     # CI: build/test + Docker push + release artifacts\n25: ```\n26: \n27: ## WHERE TO LOOK\n28: | Task | Location | Notes |\n29: |------|----------|-------|\n30: | **Deploy (Docker)** | `docker-compose-v4.yml` | Env: `JWT_SECRET`, `BACKEND_PORT`, `FRONTEND_PORT` |\n31: | **Deploy (IPv6)** | `docker-compose-v6.yml` | Same as v4 + IPv6-enabled bridge |\n32: | **Panel install** | `panel_install.sh` | Picks v4/v6, generates `JWT_SECRET`, downloads compose |\n33: | **Node install** | `install.sh` | Installs `/etc/flux_agent/flux_agent` + writes `config.json`/`gost.json` + systemd `flux_agent.service` |\n34: | **Admin API** | `go-backend/` | Go Admin API (SQLite/PostgreSQL) |\n35: | **Web UI** | `vite-frontend/` | React/Vite dashboard (shadcn bridge + Tailwind v4) |\n36: | **UI Compatibility** | `vite-frontend/src/shadcn-bridge/heroui/` | HeroUI-compatible API wrappers backed by shadcn/radix |\n37: | **Theme Tokens** | `vite-frontend/src/styles/tailwind-theme.pcss` | Tailwind v4 `@theme inline` semantic color mapping |\n38: | **Go Agent** | `go-gost/` | Forwarding agent (forked gost + local x/) |\n39: | **Go Core** | `go-gost/x/` | Handlers/listeners/dialers + management API |\n40: | **Repository Layer** | `go-backend/internal/store/repo/` | GORM data access (repository.go 83k LOC) |\n41: | **Contract Tests** | `go-backend/tests/contract/` | Integration tests for auth, federation, tunnels |\n42: | **CI Workflows** | `.github/workflows/` | ci-build.yml, docker-build.yml, deploy-docs.yml |\n43: \n44: ## CODE MAP\n45: | Symbol | Type | Location | Role |\n46: |--------|------|----------|------|\n47: | `flvx` | Project | `.` | Root directory |\n48: | `main` | Func | `go-backend/cmd/paneld/main.go` | Backend Entry |\n49: | `App` | Component | `vite-frontend/src/App.tsx` | Frontend Entry |\n50: | `main` | Func | `go-gost/main.go` | Agent Entry |\n51: | `Repository` | Struct | `go-backend/internal/store/repo/repository.go` | Data Access Layer |\n52: | `Handler` | Struct | `go-backend/internal/http/handler/handler.go` | HTTP Handlers |\n53: | `websocket_reporter` | Func | `go-gost/x/socket/websocket_reporter.go` | Panel Telemetry |\n54: \n55: ## CONVENTIONS\n56: - **Auth**: `Authorization` header carries the raw JWT token (no `Bearer` prefix) between `vite-frontend/` and `go-backend/`.\n57: - **Module Fork**: `go-gost/` uses `replace github.com/go-gost/x => ./x` and `go-gost/x/` is also its own Go module.\n58: - **Encryption**: Agent-to-panel communication uses AES encryption with node `secret` as PSK.\n59: - **API Envelope**: All REST responses follow `{code, msg, data, ts}` structure (code 0 = success).\n60: - **Frontend UI Layer**: Import UI primitives from `src/shadcn-bridge/heroui/*` (legacy-compatible facade), not direct `@heroui/*` packages.\n61: - **Tailwind v4 Semantic Colors**: `src/styles/globals.css` must import `src/styles/tailwind-theme.pcss`; removing it breaks semantic classes like `bg-primary`, `text-foreground`, and `border-input`.\n62: - **Go Versions**: `go-backend` uses Go 1.24, `go-gost` uses Go 1.23, `go-gost/x` uses Go 1.22.\n63: \n64: ## ANTI-PATTERNS (THIS PROJECT)\n65: - **DO NOT EDIT** generated protobuf output: `go-gost/x/internal/util/grpc/proto/*.pb.go`, `go-gost/x/internal/util/grpc/proto/*_grpc.pb.go`.\n66: - **DO NOT ADD** `Bearer` prefix to Authorization header - expects raw JWT token.\n67: - **DO NOT MODIFY** `install.sh` or `panel_install.sh` locally - CI overwrites these on release.\n68: - **DO NOT** let backend handlers call `repo.DB()` directly — add a Repository method instead.\n69: - **DO NOT ADD** frontend tests - project has no test infrastructure (Vitest/Jest not configured).\n70: - **DO NOT REINTRODUCE** `@heroui/*` or `@nextui-org/*` dependencies; migration is now shadcn bridge-based.\n71: - **DO NOT** use `type:jsonb` or `type:serial` in GORM tags (SQLite incompatible).\n72: - **DO NOT** omit `TableName()` on new models — GORM pluralizes by default.\n73: \n74: ## COMMANDS\n75: ```bash\n76: # Panel (Docker)\n77: docker compose -f docker-compose-v4.yml up -d\n78: docker compose -f docker-compose-v6.yml up -d\n79: \n80: # Release-based install scripts\n81: ./panel_install.sh\n82: ./install.sh\n83: \n84: # Local dev (per subproject)\n85: (cd go-backend && make build)\n86: (cd vite-frontend && npm run dev)\n87: (cd go-gost && go run .)\n88: \n89: # Testing\n90: (cd go-backend && go test ./...)\n91: (cd go-backend && go test ./tests/contract/...)\n92: ```\n93: \n94: ## UNIQUE STYLES\n95: - **Flat Monorepo**: Language-prefixed dirs (`go-backend`, `go-gost`, `vite-frontend`) instead of `apps/`/`libs/`.\n96: - **Asymmetric Go Layout**: `go-backend` follows `cmd/<app>/main.go` while `go-gost` uses `root/main.go`.\n97: - **Frontend Hybrid Mode**: `App.tsx` detects \"H5 mode\" (mobile WebView) vs desktop, dictating layout strategy.\n98: - **Experimental Bundler**: `vite-frontend` uses `rolldown-vite` (Rust-based) instead of standard Vite.\n99: - **Non-minified Builds**: `vite.config.ts` sets `minify: false`, `treeshake: false` for debugging.\n100: \n101: ## NOTES\n102: - LSP servers are not installed in this environment (gopls/typescript-language-server); rely on grep-based navigation.\n103: - `vite-frontend/vite.config.ts` sets `minify: false` and disables treeshake; expect larger bundles.\n104: - `vite-frontend` uses `rolldown-vite` (experimental Rust bundler) instead of standard Vite.\n105: - Install scripts (`install.sh`, `panel_install.sh`) self-delete after execution - common pattern in one-liner installs.\n106: - CI uses UPX compression (`--best --lzma`) on Go binaries before release.\n107: - CI dynamically injects `PINNED_VERSION` into install scripts and docker-compose files during releases.\n108: - `panel_install.sh` auto-detects IPv6 and modifies `/etc/docker/daemon.json` to enable IPv6 bridge.\n109: - Download proxy `https://gcode.hostcentral.cc/` used for GitHub downloads in China/restricted environments.\n110: - Backend has contract tests in `go-backend/tests/contract/` - frontend has no test infrastructure.\n111: - `analysis/3x-ui/` contains a separate git repo for reference/comparison - not part of FLVX core.\n112: - CI workflows: `ci-build.yml` (build check), `docker-build.yml` (multi-arch images + release), `deploy-docs.yml` (MkDocs).\n113: - PostgreSQL migration supported via `panel_install.sh` menu option using pgloader.\n114: - Repository layer is large: `repository.go` (83k LOC), `repository_mutations.go` (43k LOC).\n115: - Button visual parity relies on `vite-frontend/src/shadcn-bridge/heroui/button.tsx` color mapping + `vite-frontend/src/styles/tailwind-theme.pcss` token export.\n116: \n117: ## PLAN DOCUMENT RULE\n118: - Every new implementation plan must have a dedicated Markdown plan document.\n119: - Store plan documents under `plans/`.\n120: - Use an incrementing numeric prefix and a short plan-summary name: `NNN-<plan-summary>.md` (for example, `001-auth-refactor.md`, `002-federation-api-cleanup.md`).\n121: - The numeric prefix must increase by 1 for each new plan.\n122: - In each plan document, keep a task checklist and mark each task as completed immediately after finishing it.\n\n(End of file - total 122 lines)\n</content>",
+            "title": "AGENTS.md",
+            "metadata": {
+              "preview": "# PROJECT KNOWLEDGE BASE\n\n**Generated:** Thu Feb 26 2026\n**Commit:** 21008cc\n**Branch:** main\n**Tag:** 2.1.5-rc15\n\n## OVERVIEW\nFLVX (formerly Flux Panel) is a traffic forwarding management system built on a forked GOST v3 stack. It ships as a Go-based admin API (SQLite/PostgreSQL) + Vite/React UI + Go forwarding agent, with optional mobile WebView wrappers.\n\n## STRUCTURE\n```\n./\n├── go-gost/               # Go forwarding agent (forked gost + local x/)\n│   └── x/                 # Local fork of github.com/go-gost/x (replace => ./x)\n├── go-backend/            # Go Admin API (GORM + SQLite/PostgreSQL, net/http)\n│   └── tests/contract/    # Integration/contract tests\n├── vite-frontend/         # React/Vite dashboard (shadcn bridge + Tailwind v4)\n│   └── src/shadcn-bridge/heroui/  # HeroUI-compatible facade\n├── docker-compose-v4.yml  # Panel deploy (IPv4-only bridge)",
+              "truncated": false,
+              "loaded": []
+            },
+            "time": {
+              "start": 1772969111000,
+              "end": 1772969111005
+            }
+          },
+          "id": "prt_ccd31add5001yn2FyGN4J5JT1F",
+          "sessionID": "ses_332ce68b1ffe0R9vUQZ6yq5gUd",
+          "messageID": "msg_ccd3197ef001e4MMRJFLiJFH41"
+        },
+        {
+          "type": "step-finish",
+          "reason": "tool-calls",
+          "snapshot": "92b5d9c60e6ac122514b9fbde31ef6fb4f9b59ce",
+          "cost": 0,
+          "tokens": {
+            "total": 20628,
+            "input": 52,
+            "output": 96,
+            "reasoning": 0,
+            "cache": {
+              "read": 20480,
+              "write": 0
+            }
+          },
+          "id": "prt_ccd31addf001m9GnKyYXhJnFiG",
+          "sessionID": "ses_332ce68b1ffe0R9vUQZ6yq5gUd",
+          "messageID": "msg_ccd3197ef001e4MMRJFLiJFH41"
+        }
+      ]
+    },
+    {
+      "info": {
+        "role": "assistant",
+        "time": {
+          "created": 1772969111073,
+          "completed": 1772969119123
+        },
+        "parentID": "msg_ccd319759001DYxTM6rYrxoned",
+        "modelID": "glm-5",
+        "providerID": "zai-coding-plan",
+        "mode": "build",
+        "agent": "build",
+        "path": {
+          "cwd": "/Users/sagit/.local/share/opencode/worktree/13650be91caa3a9e08a2e63127fef62757658384/quiet-canyon",
+          "root": "/Users/sagit/.local/share/opencode/worktree/13650be91caa3a9e08a2e63127fef62757658384/quiet-canyon"
+        },
+        "cost": 0,
+        "tokens": {
+          "total": 23295,
+          "input": 2588,
+          "output": 227,
+          "reasoning": 0,
+          "cache": {
+            "read": 20480,
+            "write": 0
+          }
+        },
+        "finish": "tool-calls",
+        "id": "msg_ccd31ae21001szI7TUv2Z4bsWt",
+        "sessionID": "ses_332ce68b1ffe0R9vUQZ6yq5gUd"
+      },
+      "parts": [
+        {
+          "type": "step-start",
+          "snapshot": "92b5d9c60e6ac122514b9fbde31ef6fb4f9b59ce",
+          "id": "prt_ccd31baae001NyndfAVjrhpQ6U",
+          "sessionID": "ses_332ce68b1ffe0R9vUQZ6yq5gUd",
+          "messageID": "msg_ccd31ae21001szI7TUv2Z4bsWt"
+        },
+        {
+          "type": "reasoning",
+          "text": "现在我需要在 AGENTS.md 中添加一条关于尽量使用 skills 和 MCP 的指示。我会把它放在 CONVENTIONS 部分或作为一个新的部分。考虑到这是一个工作流程相关的指示，放在 CONVENTIONS 部分比较合适。",
+          "time": {
+            "start": 1772969114287,
+            "end": 1772969118851
+          },
+          "id": "prt_ccd31baaf001V1TQTjiv5FCmN3",
+          "sessionID": "ses_332ce68b1ffe0R9vUQZ6yq5gUd",
+          "messageID": "msg_ccd31ae21001szI7TUv2Z4bsWt"
+        },
+        {
+          "type": "tool",
+          "callID": "call_b0638b3346bc467485de3ef4",
+          "tool": "edit",
+          "state": {
+            "status": "completed",
+            "input": {
+              "filePath": "/Users/sagit/.local/share/opencode/worktree/13650be91caa3a9e08a2e63127fef62757658384/quiet-canyon/AGENTS.md",
+              "oldString": "## CONVENTIONS\n- **Auth**: `Authorization` header carries the raw JWT token (no `Bearer` prefix) between `vite-frontend/` and `go-backend/`.",
+              "newString": "## CONVENTIONS\n- **Skills & MCP**: Always prefer using available skills (via `skill` tool) and MCP tools when applicable. Check for relevant skills before implementing from scratch.\n- **Auth**: `Authorization` header carries the raw JWT token (no `Bearer` prefix) between `vite-frontend/` and `go-backend/`."
+            },
+            "output": "Edit applied successfully.",
+            "title": "AGENTS.md",
+            "metadata": {
+              "diagnostics": {},
+              "diff": "Index: /Users/sagit/.local/share/opencode/worktree/13650be91caa3a9e08a2e63127fef62757658384/quiet-canyon/AGENTS.md\n===================================================================\n--- /Users/sagit/.local/share/opencode/worktree/13650be91caa3a9e08a2e63127fef62757658384/quiet-canyon/AGENTS.md\n+++ /Users/sagit/.local/share/opencode/worktree/13650be91caa3a9e08a2e63127fef62757658384/quiet-canyon/AGENTS.md\n@@ -52,8 +52,9 @@\n | `Handler` | Struct | `go-backend/internal/http/handler/handler.go` | HTTP Handlers |\n | `websocket_reporter` | Func | `go-gost/x/socket/websocket_reporter.go` | Panel Telemetry |\n \n ## CONVENTIONS\n+- **Skills & MCP**: Always prefer using available skills (via `skill` tool) and MCP tools when applicable. Check for relevant skills before implementing from scratch.\n - **Auth**: `Authorization` header carries the raw JWT token (no `Bearer` prefix) between `vite-frontend/` and `go-backend/`.\n - **Module Fork**: `go-gost/` uses `replace github.com/go-gost/x => ./x` and `go-gost/x/` is also its own Go module.\n - **Encryption**: Agent-to-panel communication uses AES encryption with node `secret` as PSK.\n - **API Envelope**: All REST responses follow `{code, msg, data, ts}` structure (code 0 = success).\n",
+              "filediff": {
+                "file": "/Users/sagit/.local/share/opencode/worktree/13650be91caa3a9e08a2e63127fef62757658384/quiet-canyon/AGENTS.md",
+                "before": "# PROJECT KNOWLEDGE BASE\n\n**Generated:** Thu Feb 26 2026\n**Commit:** 21008cc\n**Branch:** main\n**Tag:** 2.1.5-rc15\n\n## OVERVIEW\nFLVX (formerly Flux Panel) is a traffic forwarding management system built on a forked GOST v3 stack. It ships as a Go-based admin API (SQLite/PostgreSQL) + Vite/React UI + Go forwarding agent, with optional mobile WebView wrappers.\n\n## STRUCTURE\n```\n./\n├── go-gost/               # Go forwarding agent (forked gost + local x/)\n│   └── x/                 # Local fork of github.com/go-gost/x (replace => ./x)\n├── go-backend/            # Go Admin API (GORM + SQLite/PostgreSQL, net/http)\n│   └── tests/contract/    # Integration/contract tests\n├── vite-frontend/         # React/Vite dashboard (shadcn bridge + Tailwind v4)\n│   └── src/shadcn-bridge/heroui/  # HeroUI-compatible facade\n├── docker-compose-v4.yml  # Panel deploy (IPv4-only bridge)\n├── docker-compose-v6.yml  # Panel deploy (IPv6-enabled bridge)\n├── panel_install.sh       # Panel installer/upgrader (downloads compose)\n├── install.sh             # Node installer/upgrader (downloads gost binary)\n└── .github/workflows/     # CI: build/test + Docker push + release artifacts\n```\n\n## WHERE TO LOOK\n| Task | Location | Notes |\n|------|----------|-------|\n| **Deploy (Docker)** | `docker-compose-v4.yml` | Env: `JWT_SECRET`, `BACKEND_PORT`, `FRONTEND_PORT` |\n| **Deploy (IPv6)** | `docker-compose-v6.yml` | Same as v4 + IPv6-enabled bridge |\n| **Panel install** | `panel_install.sh` | Picks v4/v6, generates `JWT_SECRET`, downloads compose |\n| **Node install** | `install.sh` | Installs `/etc/flux_agent/flux_agent` + writes `config.json`/`gost.json` + systemd `flux_agent.service` |\n| **Admin API** | `go-backend/` | Go Admin API (SQLite/PostgreSQL) |\n| **Web UI** | `vite-frontend/` | React/Vite dashboard (shadcn bridge + Tailwind v4) |\n| **UI Compatibility** | `vite-frontend/src/shadcn-bridge/heroui/` | HeroUI-compatible API wrappers backed by shadcn/radix |\n| **Theme Tokens** | `vite-frontend/src/styles/tailwind-theme.pcss` | Tailwind v4 `@theme inline` semantic color mapping |\n| **Go Agent** | `go-gost/` | Forwarding agent (forked gost + local x/) |\n| **Go Core** | `go-gost/x/` | Handlers/listeners/dialers + management API |\n| **Repository Layer** | `go-backend/internal/store/repo/` | GORM data access (repository.go 83k LOC) |\n| **Contract Tests** | `go-backend/tests/contract/` | Integration tests for auth, federation, tunnels |\n| **CI Workflows** | `.github/workflows/` | ci-build.yml, docker-build.yml, deploy-docs.yml |\n\n## CODE MAP\n| Symbol | Type | Location | Role |\n|--------|------|----------|------|\n| `flvx` | Project | `.` | Root directory |\n| `main` | Func | `go-backend/cmd/paneld/main.go` | Backend Entry |\n| `App` | Component | `vite-frontend/src/App.tsx` | Frontend Entry |\n| `main` | Func | `go-gost/main.go` | Agent Entry |\n| `Repository` | Struct | `go-backend/internal/store/repo/repository.go` | Data Access Layer |\n| `Handler` | Struct | `go-backend/internal/http/handler/handler.go` | HTTP Handlers |\n| `websocket_reporter` | Func | `go-gost/x/socket/websocket_reporter.go` | Panel Telemetry |\n\n## CONVENTIONS\n- **Auth**: `Authorization` header carries the raw JWT token (no `Bearer` prefix) between `vite-frontend/` and `go-backend/`.\n- **Module Fork**: `go-gost/` uses `replace github.com/go-gost/x => ./x` and `go-gost/x/` is also its own Go module.\n- **Encryption**: Agent-to-panel communication uses AES encryption with node `secret` as PSK.\n- **API Envelope**: All REST responses follow `{code, msg, data, ts}` structure (code 0 = success).\n- **Frontend UI Layer**: Import UI primitives from `src/shadcn-bridge/heroui/*` (legacy-compatible facade), not direct `@heroui/*` packages.\n- **Tailwind v4 Semantic Colors**: `src/styles/globals.css` must import `src/styles/tailwind-theme.pcss`; removing it breaks semantic classes like `bg-primary`, `text-foreground`, and `border-input`.\n- **Go Versions**: `go-backend` uses Go 1.24, `go-gost` uses Go 1.23, `go-gost/x` uses Go 1.22.\n\n## ANTI-PATTERNS (THIS PROJECT)\n- **DO NOT EDIT** generated protobuf output: `go-gost/x/internal/util/grpc/proto/*.pb.go`, `go-gost/x/internal/util/grpc/proto/*_grpc.pb.go`.\n- **DO NOT ADD** `Bearer` prefix to Authorization header - expects raw JWT token.\n- **DO NOT MODIFY** `install.sh` or `panel_install.sh` locally - CI overwrites these on release.\n- **DO NOT** let backend handlers call `repo.DB()` directly — add a Repository method instead.\n- **DO NOT ADD** frontend tests - project has no test infrastructure (Vitest/Jest not configured).\n- **DO NOT REINTRODUCE** `@heroui/*` or `@nextui-org/*` dependencies; migration is now shadcn bridge-based.\n- **DO NOT** use `type:jsonb` or `type:serial` in GORM tags (SQLite incompatible).\n- **DO NOT** omit `TableName()` on new models — GORM pluralizes by default.\n\n## COMMANDS\n```bash\n# Panel (Docker)\ndocker compose -f docker-compose-v4.yml up -d\ndocker compose -f docker-compose-v6.yml up -d\n\n# Release-based install scripts\n./panel_install.sh\n./install.sh\n\n# Local dev (per subproject)\n(cd go-backend && make build)\n(cd vite-frontend && npm run dev)\n(cd go-gost && go run .)\n\n# Testing\n(cd go-backend && go test ./...)\n(cd go-backend && go test ./tests/contract/...)\n```\n\n## UNIQUE STYLES\n- **Flat Monorepo**: Language-prefixed dirs (`go-backend`, `go-gost`, `vite-frontend`) instead of `apps/`/`libs/`.\n- **Asymmetric Go Layout**: `go-backend` follows `cmd/<app>/main.go` while `go-gost` uses `root/main.go`.\n- **Frontend Hybrid Mode**: `App.tsx` detects \"H5 mode\" (mobile WebView) vs desktop, dictating layout strategy.\n- **Experimental Bundler**: `vite-frontend` uses `rolldown-vite` (Rust-based) instead of standard Vite.\n- **Non-minified Builds**: `vite.config.ts` sets `minify: false`, `treeshake: false` for debugging.\n\n## NOTES\n- LSP servers are not installed in this environment (gopls/typescript-language-server); rely on grep-based navigation.\n- `vite-frontend/vite.config.ts` sets `minify: false` and disables treeshake; expect larger bundles.\n- `vite-frontend` uses `rolldown-vite` (experimental Rust bundler) instead of standard Vite.\n- Install scripts (`install.sh`, `panel_install.sh`) self-delete after execution - common pattern in one-liner installs.\n- CI uses UPX compression (`--best --lzma`) on Go binaries before release.\n- CI dynamically injects `PINNED_VERSION` into install scripts and docker-compose files during releases.\n- `panel_install.sh` auto-detects IPv6 and modifies `/etc/docker/daemon.json` to enable IPv6 bridge.\n- Download proxy `https://gcode.hostcentral.cc/` used for GitHub downloads in China/restricted environments.\n- Backend has contract tests in `go-backend/tests/contract/` - frontend has no test infrastructure.\n- `analysis/3x-ui/` contains a separate git repo for reference/comparison - not part of FLVX core.\n- CI workflows: `ci-build.yml` (build check), `docker-build.yml` (multi-arch images + release), `deploy-docs.yml` (MkDocs).\n- PostgreSQL migration supported via `panel_install.sh` menu option using pgloader.\n- Repository layer is large: `repository.go` (83k LOC), `repository_mutations.go` (43k LOC).\n- Button visual parity relies on `vite-frontend/src/shadcn-bridge/heroui/button.tsx` color mapping + `vite-frontend/src/styles/tailwind-theme.pcss` token export.\n\n## PLAN DOCUMENT RULE\n- Every new implementation plan must have a dedicated Markdown plan document.\n- Store plan documents under `plans/`.\n- Use an incrementing numeric prefix and a short plan-summary name: `NNN-<plan-summary>.md` (for example, `001-auth-refactor.md`, `002-federation-api-cleanup.md`).\n- The numeric prefix must increase by 1 for each new plan.\n- In each plan document, keep a task checklist and mark each task as completed immediately after finishing it.\n",
+                "after": "# PROJECT KNOWLEDGE BASE\n\n**Generated:** Thu Feb 26 2026\n**Commit:** 21008cc\n**Branch:** main\n**Tag:** 2.1.5-rc15\n\n## OVERVIEW\nFLVX (formerly Flux Panel) is a traffic forwarding management system built on a forked GOST v3 stack. It ships as a Go-based admin API (SQLite/PostgreSQL) + Vite/React UI + Go forwarding agent, with optional mobile WebView wrappers.\n\n## STRUCTURE\n```\n./\n├── go-gost/               # Go forwarding agent (forked gost + local x/)\n│   └── x/                 # Local fork of github.com/go-gost/x (replace => ./x)\n├── go-backend/            # Go Admin API (GORM + SQLite/PostgreSQL, net/http)\n│   └── tests/contract/    # Integration/contract tests\n├── vite-frontend/         # React/Vite dashboard (shadcn bridge + Tailwind v4)\n│   └── src/shadcn-bridge/heroui/  # HeroUI-compatible facade\n├── docker-compose-v4.yml  # Panel deploy (IPv4-only bridge)\n├── docker-compose-v6.yml  # Panel deploy (IPv6-enabled bridge)\n├── panel_install.sh       # Panel installer/upgrader (downloads compose)\n├── install.sh             # Node installer/upgrader (downloads gost binary)\n└── .github/workflows/     # CI: build/test + Docker push + release artifacts\n```\n\n## WHERE TO LOOK\n| Task | Location | Notes |\n|------|----------|-------|\n| **Deploy (Docker)** | `docker-compose-v4.yml` | Env: `JWT_SECRET`, `BACKEND_PORT`, `FRONTEND_PORT` |\n| **Deploy (IPv6)** | `docker-compose-v6.yml` | Same as v4 + IPv6-enabled bridge |\n| **Panel install** | `panel_install.sh` | Picks v4/v6, generates `JWT_SECRET`, downloads compose |\n| **Node install** | `install.sh` | Installs `/etc/flux_agent/flux_agent` + writes `config.json`/`gost.json` + systemd `flux_agent.service` |\n| **Admin API** | `go-backend/` | Go Admin API (SQLite/PostgreSQL) |\n| **Web UI** | `vite-frontend/` | React/Vite dashboard (shadcn bridge + Tailwind v4) |\n| **UI Compatibility** | `vite-frontend/src/shadcn-bridge/heroui/` | HeroUI-compatible API wrappers backed by shadcn/radix |\n| **Theme Tokens** | `vite-frontend/src/styles/tailwind-theme.pcss` | Tailwind v4 `@theme inline` semantic color mapping |\n| **Go Agent** | `go-gost/` | Forwarding agent (forked gost + local x/) |\n| **Go Core** | `go-gost/x/` | Handlers/listeners/dialers + management API |\n| **Repository Layer** | `go-backend/internal/store/repo/` | GORM data access (repository.go 83k LOC) |\n| **Contract Tests** | `go-backend/tests/contract/` | Integration tests for auth, federation, tunnels |\n| **CI Workflows** | `.github/workflows/` | ci-build.yml, docker-build.yml, deploy-docs.yml |\n\n## CODE MAP\n| Symbol | Type | Location | Role |\n|--------|------|----------|------|\n| `flvx` | Project | `.` | Root directory |\n| `main` | Func | `go-backend/cmd/paneld/main.go` | Backend Entry |\n| `App` | Component | `vite-frontend/src/App.tsx` | Frontend Entry |\n| `main` | Func | `go-gost/main.go` | Agent Entry |\n| `Repository` | Struct | `go-backend/internal/store/repo/repository.go` | Data Access Layer |\n| `Handler` | Struct | `go-backend/internal/http/handler/handler.go` | HTTP Handlers |\n| `websocket_reporter` | Func | `go-gost/x/socket/websocket_reporter.go` | Panel Telemetry |\n\n## CONVENTIONS\n- **Skills & MCP**: Always prefer using available skills (via `skill` tool) and MCP tools when applicable. Check for relevant skills before implementing from scratch.\n- **Auth**: `Authorization` header carries the raw JWT token (no `Bearer` prefix) between `vite-frontend/` and `go-backend/`.\n- **Module Fork**: `go-gost/` uses `replace github.com/go-gost/x => ./x` and `go-gost/x/` is also its own Go module.\n- **Encryption**: Agent-to-panel communication uses AES encryption with node `secret` as PSK.\n- **API Envelope**: All REST responses follow `{code, msg, data, ts}` structure (code 0 = success).\n- **Frontend UI Layer**: Import UI primitives from `src/shadcn-bridge/heroui/*` (legacy-compatible facade), not direct `@heroui/*` packages.\n- **Tailwind v4 Semantic Colors**: `src/styles/globals.css` must import `src/styles/tailwind-theme.pcss`; removing it breaks semantic classes like `bg-primary`, `text-foreground`, and `border-input`.\n- **Go Versions**: `go-backend` uses Go 1.24, `go-gost` uses Go 1.23, `go-gost/x` uses Go 1.22.\n\n## ANTI-PATTERNS (THIS PROJECT)\n- **DO NOT EDIT** generated protobuf output: `go-gost/x/internal/util/grpc/proto/*.pb.go`, `go-gost/x/internal/util/grpc/proto/*_grpc.pb.go`.\n- **DO NOT ADD** `Bearer` prefix to Authorization header - expects raw JWT token.\n- **DO NOT MODIFY** `install.sh` or `panel_install.sh` locally - CI overwrites these on release.\n- **DO NOT** let backend handlers call `repo.DB()` directly — add a Repository method instead.\n- **DO NOT ADD** frontend tests - project has no test infrastructure (Vitest/Jest not configured).\n- **DO NOT REINTRODUCE** `@heroui/*` or `@nextui-org/*` dependencies; migration is now shadcn bridge-based.\n- **DO NOT** use `type:jsonb` or `type:serial` in GORM tags (SQLite incompatible).\n- **DO NOT** omit `TableName()` on new models — GORM pluralizes by default.\n\n## COMMANDS\n```bash\n# Panel (Docker)\ndocker compose -f docker-compose-v4.yml up -d\ndocker compose -f docker-compose-v6.yml up -d\n\n# Release-based install scripts\n./panel_install.sh\n./install.sh\n\n# Local dev (per subproject)\n(cd go-backend && make build)\n(cd vite-frontend && npm run dev)\n(cd go-gost && go run .)\n\n# Testing\n(cd go-backend && go test ./...)\n(cd go-backend && go test ./tests/contract/...)\n```\n\n## UNIQUE STYLES\n- **Flat Monorepo**: Language-prefixed dirs (`go-backend`, `go-gost`, `vite-frontend`) instead of `apps/`/`libs/`.\n- **Asymmetric Go Layout**: `go-backend` follows `cmd/<app>/main.go` while `go-gost` uses `root/main.go`.\n- **Frontend Hybrid Mode**: `App.tsx` detects \"H5 mode\" (mobile WebView) vs desktop, dictating layout strategy.\n- **Experimental Bundler**: `vite-frontend` uses `rolldown-vite` (Rust-based) instead of standard Vite.\n- **Non-minified Builds**: `vite.config.ts` sets `minify: false`, `treeshake: false` for debugging.\n\n## NOTES\n- LSP servers are not installed in this environment (gopls/typescript-language-server); rely on grep-based navigation.\n- `vite-frontend/vite.config.ts` sets `minify: false` and disables treeshake; expect larger bundles.\n- `vite-frontend` uses `rolldown-vite` (experimental Rust bundler) instead of standard Vite.\n- Install scripts (`install.sh`, `panel_install.sh`) self-delete after execution - common pattern in one-liner installs.\n- CI uses UPX compression (`--best --lzma`) on Go binaries before release.\n- CI dynamically injects `PINNED_VERSION` into install scripts and docker-compose files during releases.\n- `panel_install.sh` auto-detects IPv6 and modifies `/etc/docker/daemon.json` to enable IPv6 bridge.\n- Download proxy `https://gcode.hostcentral.cc/` used for GitHub downloads in China/restricted environments.\n- Backend has contract tests in `go-backend/tests/contract/` - frontend has no test infrastructure.\n- `analysis/3x-ui/` contains a separate git repo for reference/comparison - not part of FLVX core.\n- CI workflows: `ci-build.yml` (build check), `docker-build.yml` (multi-arch images + release), `deploy-docs.yml` (MkDocs).\n- PostgreSQL migration supported via `panel_install.sh` menu option using pgloader.\n- Repository layer is large: `repository.go` (83k LOC), `repository_mutations.go` (43k LOC).\n- Button visual parity relies on `vite-frontend/src/shadcn-bridge/heroui/button.tsx` color mapping + `vite-frontend/src/styles/tailwind-theme.pcss` token export.\n\n## PLAN DOCUMENT RULE\n- Every new implementation plan must have a dedicated Markdown plan document.\n- Store plan documents under `plans/`.\n- Use an incrementing numeric prefix and a short plan-summary name: `NNN-<plan-summary>.md` (for example, `001-auth-refactor.md`, `002-federation-api-cleanup.md`).\n- The numeric prefix must increase by 1 for each new plan.\n- In each plan document, keep a task checklist and mark each task as completed immediately after finishing it.\n",
+                "additions": 1,
+                "deletions": 0
+              },
+              "truncated": false
+            },
+            "time": {
+              "start": 1772969118848,
+              "end": 1772969118907
+            }
+          },
+          "id": "prt_ccd31cc670011W8Fmp1gtAu9ux",
+          "sessionID": "ses_332ce68b1ffe0R9vUQZ6yq5gUd",
+          "messageID": "msg_ccd31ae21001szI7TUv2Z4bsWt"
+        },
+        {
+          "type": "step-finish",
+          "reason": "tool-calls",
+          "snapshot": "1e786a94d94f245988d69a272b306e1f830f673b",
+          "cost": 0,
+          "tokens": {
+            "total": 23295,
+            "input": 2588,
+            "output": 227,
+            "reasoning": 0,
+            "cache": {
+              "read": 20480,
+              "write": 0
+            }
+          },
+          "id": "prt_ccd31ccbc001Stv9M1XvDjlixS",
+          "sessionID": "ses_332ce68b1ffe0R9vUQZ6yq5gUd",
+          "messageID": "msg_ccd31ae21001szI7TUv2Z4bsWt"
+        },
+        {
+          "type": "patch",
+          "hash": "92b5d9c60e6ac122514b9fbde31ef6fb4f9b59ce",
+          "files": [
+            "/Users/sagit/.local/share/opencode/worktree/13650be91caa3a9e08a2e63127fef62757658384/quiet-canyon/AGENTS.md"
+          ],
+          "id": "prt_ccd31cd86001vq91UDP55dUQtH",
+          "sessionID": "ses_332ce68b1ffe0R9vUQZ6yq5gUd",
+          "messageID": "msg_ccd31ae21001szI7TUv2Z4bsWt"
+        }
+      ]
+    },
+    {
+      "info": {
+        "role": "assistant",
+        "time": {
+          "created": 1772969119126,
+          "completed": 1772969123277
+        },
+        "parentID": "msg_ccd319759001DYxTM6rYrxoned",
+        "modelID": "glm-5",
+        "providerID": "zai-coding-plan",
+        "mode": "build",
+        "agent": "build",
+        "path": {
+          "cwd": "/Users/sagit/.local/share/opencode/worktree/13650be91caa3a9e08a2e63127fef62757658384/quiet-canyon",
+          "root": "/Users/sagit/.local/share/opencode/worktree/13650be91caa3a9e08a2e63127fef62757658384/quiet-canyon"
+        },
+        "cost": 0,
+        "tokens": {
+          "total": 23383,
+          "input": 4072,
+          "output": 47,
+          "reasoning": 0,
+          "cache": {
+            "read": 19264,
+            "write": 0
+          }
+        },
+        "finish": "stop",
+        "id": "msg_ccd31cd96001QiOVI7ac7omb1M",
+        "sessionID": "ses_332ce68b1ffe0R9vUQZ6yq5gUd"
+      },
+      "parts": [
+        {
+          "type": "step-start",
+          "snapshot": "1e786a94d94f245988d69a272b306e1f830f673b",
+          "id": "prt_ccd31d802001NJfwcKalSZDG2f",
+          "sessionID": "ses_332ce68b1ffe0R9vUQZ6yq5gUd",
+          "messageID": "msg_ccd31cd96001QiOVI7ac7omb1M"
+        },
+        {
+          "type": "reasoning",
+          "text": "成功添加了关于使用 skills 和 MCP 的指示。这个条目已经被添加到 CONVENTIONS 部分的最前面，作为第一条惯例。",
+          "time": {
+            "start": 1772969121799,
+            "end": 1772969123135
+          },
+          "id": "prt_ccd31d807001bE2PGqzkGwczfs",
+          "sessionID": "ses_332ce68b1ffe0R9vUQZ6yq5gUd",
+          "messageID": "msg_ccd31cd96001QiOVI7ac7omb1M"
+        },
+        {
+          "type": "text",
+          "text": "已添加到 `AGENTS.md` 的 CONVENTIONS 部分。",
+          "time": {
+            "start": 1772969123137,
+            "end": 1772969123137
+          },
+          "id": "prt_ccd31db4d001ERqwLl3hs33Bg2",
+          "sessionID": "ses_332ce68b1ffe0R9vUQZ6yq5gUd",
+          "messageID": "msg_ccd31cd96001QiOVI7ac7omb1M"
+        },
+        {
+          "type": "step-finish",
+          "reason": "stop",
+          "snapshot": "1e786a94d94f245988d69a272b306e1f830f673b",
+          "cost": 0,
+          "tokens": {
+            "total": 23383,
+            "input": 4072,
+            "output": 47,
+            "reasoning": 0,
+            "cache": {
+              "read": 19264,
+              "write": 0
+            }
+          },
+          "id": "prt_ccd31dd43001WuEoUEJjI7G8E5",
+          "sessionID": "ses_332ce68b1ffe0R9vUQZ6yq5gUd",
+          "messageID": "msg_ccd31cd96001QiOVI7ac7omb1M"
+        }
+      ]
+    }
+  ]
+}

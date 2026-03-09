@@ -675,7 +675,7 @@ export default function NodePage() {
       newErrors.name = "节点名称长度不能超过50位";
     }
 
-    if (
+if (
       (form.renewalCycle && !form.expiryTime) ||
       (!form.renewalCycle && form.expiryTime)
     ) {
@@ -1550,7 +1550,7 @@ export default function NodePage() {
                                 )}
                               </div>
                             )}
-                            {node.expiryTime &&
+{node.expiryTime &&
                               node.expiryTime > 0 &&
                               node.renewalCycle && (
                                 <div className="flex justify-between items-center text-sm">

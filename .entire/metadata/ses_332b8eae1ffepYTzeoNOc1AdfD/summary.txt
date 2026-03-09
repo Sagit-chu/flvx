@@ -1,0 +1,52 @@
+我看过 issue #280，也把前后端相关实现路径过了一遍。这个需求适合做成“后端补字段，前端直接消费”的小改动，不建议只在前端二次拼装。
+
+- 现在 `/forward/list` 的数据来自 `h.repo.ListForwards()`，对应查询在 `go-backend/internal/store/repo/repository.go:700`，当前只 `LEFT JOIN tunnel` 取了 `tunnel_name`，还没把 `tunnel.traffic_ratio` 带出来。
+- 前端规则页自己的 `Forward` 类型定义在 `vite-frontend/src/pages/forward.tsx:102`，`mapForwardApiItems` 在 `vite-frontend/src/pages/forward.tsx:507` 负责把接口结果映射成本地状态；这里目前也没有倍率字段。
+- 规则列表的主要展示点有 3 处：表格隧道列 `vite-frontend/src/pages/forward.tsx:3306`、卡片副标题 `vite-frontend/src/pages/forward.tsx:3469`、分组标题 `vite-frontend/src/pages/forward.tsx:2919`。如果只改一处，体验会不一致。
+- 隧道页已经有统一的倍率展示格式 `vite-frontend/src/pages/tunnel.tsx:1336`，直接沿用 `"{trafficRatio}x"` 最稳。
+
+建议实现方案
+
+- 后端优先：在 `go-backend/internal/store/repo/repository.go:705` 的 `fwdRow` 增加 `TrafficRatio float64`，并在 `Select(...)` 中补上 `COALESCE(tunnel.traffic_ratio, 1.0) AS traffic_ratio`。
+- 后端返回：在构造 `item` 的地方把 `trafficRatio` 以 `tunnelTrafficRatio` 键返回，保持前端语义清晰，避免和规则自身字段混淆。
+- 前端类型：给 `vite-frontend/src/api/types.ts:45` 的 `ForwardApiItem` 增加 `tunnelTrafficRatio?: number`；给 `vite-frontend/src/pages/forward.tsx:102` 的本地 `Forward` interface 同步增加该字段。
+- 前端映射：在 `vite-frontend/src/pages/forward.tsx:507` 的 `mapForwardApiItems` 里做默认值归一化，比如没有值时回退到 `1`，避免旧数据或异常响应导致显示空白。
+- 前端展示：优先把倍率放进“隧道名称展示块”里，而不是新增独立列。原因是当前表格列已经偏宽，issue 也接受“名称旁边显示”；卡片和分组视图也更容易保持一致。建议形式：
+  - 表格：`TunnelName` 主文案 + 小号次级 `1x`
+  - 卡片：副标题显示为 `隧道名 · 1x`
+  - 分组标题：`隧道名` 后加一个轻量 Chip / muted 文本 `1x`
+
+为什么不建议纯前端拼装
+
+- `forward.tsx` 虽然在 `loadData` 里已经请求了 `getTunnelList()` 和 `userTunnel()`，但 `refreshForwardList()` 是独立刷新的，规则状态刷新时不保证隧道缓存始终同步，容易出现倍率滞后。
+- 当前分组逻辑主要基于规则数据本身，若依赖前端再按 `tunnelId` 做二次映射，会把一个本来单接口即可闭环的信息拆成两份状态，后面维护更麻烦。
+- 后端本来已经 `JOIN tunnel` 取名字，只是顺手再取一个倍率字段，成本最低。
+
+推荐实施步骤
+
+- 后端：扩展 `/forward/list` 查询与返回结构，默认倍率回退 `1.0`。
+- 合约测试：在 `go-backend/tests/contract/forward_contract_test.go` 增加对 `/forward/list` 返回 `tunnelTrafficRatio` 的断言，至少覆盖一个非默认值例如 `2.5`。
+- 前端类型：同步更新 `ForwardApiItem` 和页面内 `Forward`。
+- 前端映射：在 `mapForwardApiItems` 里规范化 `tunnelTrafficRatio`。
+- 前端 UI：统一更新表格、卡片、分组标题 3 处展示，避免 direct/grouped 两种模式信息不一致。
+- 回归验证：确认管理员和普通用户视角下，`/forward/list` 权限过滤不受影响，因为过滤逻辑在 `go-backend/internal/http/handler/handler.go:395` 之后仅按 `userId` 过滤，不会受新增字段影响。
+
+风险和注意点
+
+- `ForwardApiItem` 现在是宽松结构，短期不会因新增字段报错，但如果只改页面本地类型不改 API 类型，后面别处复用时会产生类型漂移。
+- 分组标题 `ForwardTunnelGroup` 目前只有 `tunnelName`，如果要在分组头也显示倍率，最好给分组结构补一个 `tunnelTrafficRatio?: number`，并在构建分组时从首条规则或同组规则里带出。
+- 需要统一倍率格式，避免出现 `1`, `1.0`, `1.00` 混用。建议做一个小格式化函数：整数显示 `1x`，小数保留必要精度如 `0.5x`、`1.25x`。
+- 若某条规则关联的隧道已删除，后端 `COALESCE(..., 1.0)` 能保证页面仍可显示默认 `1x`，不会变成空。
+
+验收标准
+
+- `/api/v1/forward/list` 每条规则都带 `tunnelTrafficRatio`。
+- 规则页 direct 表格模式能看到倍率。
+- grouped 卡片模式和分组标题也能看到倍率，信息一致。
+- 隧道缺失或旧数据情况下仍稳定显示 `1x`。
+- 普通用户只能看到自己的规则，但倍率字段仍正常返回。
+
+如果你要我下一步继续，我建议按这个实现顺序做：
+1. 先补后端查询和 contract test
+2. 再补前端类型与统一展示
+3. 最后跑 `go test ./tests/contract/...` 和前端 build 做回归

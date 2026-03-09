@@ -1,0 +1,15 @@
+已完成。
+
+- 提交了当前代码变更，commit 是 `31ef861`
+- 已 push 到远端分支 `opencode/quiet-canyon`
+- 已更新 PR `https://github.com/Sagit-chu/flvx/pull/293`
+- PR 标题改为 `feat(nodes): add node metadata and expiry reminders`
+- PR 内容已改成这次节点备注/标签/到期提醒相关说明，并加入 `Closes #246` 关联 issue
+
+补充一点：
+- 工作区里还有未提交的 `.entire/metadata/...` 会话元数据文件，它们没有被加入这次提交
+
+如果你要，我下一步可以继续：
+1. 帮你检查这条 PR 的 diff 和描述是否还需要再精简
+2. 帮你补充 reviewer-friendly 的 PR checklist
+3. 帮你查看 CI / checks 状态

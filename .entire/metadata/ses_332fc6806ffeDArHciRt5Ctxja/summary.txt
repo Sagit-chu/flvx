@@ -1,0 +1,230 @@
+Concise audit for issue #276, focused on `vite-frontend/src/pages` and `src/api`.
+
+a) What already exists
+
+1. Dashboard traffic auto-refresh
+- Dashboard data is loaded via async API calls in a hook, not by page reload:
+  - `/Users/sagit/.local/share/opencode/worktree/13650be91caa3a9e08a2e63127fef62757658384/quiet-canyon/vite-frontend/src/pages/dashboard/use-dashboard-data.ts`
+  - `useDashboardData()` calls `getUserPackageInfo()` and `getAnnouncement()`.
+- The 24h traffic chart is already rendered from `statisticsFlows`:
+  - `/Users/sagit/.local/share/opencode/worktree/13650be91caa3a9e08a2e63127fef62757658384/quiet-canyon/vite-frontend/src/pages/dashboard.tsx`
+  - `/Users/sagit/.local/share/opencode/worktree/13650be91caa3a9e08a2e63127fef62757658384/quiet-canyon/vite-frontend/src/pages/dashboard/components/flow-chart-card.tsx`
+
+2. Node status real-time updates
+- This is the strongest existing area.
+- WebSocket realtime hook already exists:
+  - `/Users/sagit/.local/share/opencode/worktree/13650be91caa3a9e08a2e63127fef62757658384/quiet-canyon/vite-frontend/src/pages/node/use-node-realtime.ts`
+  - `useNodeRealtime()`
+- Offline debounce exists:
+  - `/Users/sagit/.local/share/opencode/worktree/13650be91caa3a9e08a2e63127fef62757658384/quiet-canyon/vite-frontend/src/pages/node/use-node-offline-timers.ts`
+- Node page consumes websocket messages and updates local state without reload:
+  - `/Users/sagit/.local/share/opencode/worktree/13650be91caa3a9e08a2e63127fef62757658384/quiet-canyon/vite-frontend/src/pages/node.tsx`
+  - `handleWebSocketMessage()`
+  - `loadNodes()`
+- Realtime also includes system info updates and upgrade progress updates.
+
+3. Form submissions without full page reload
+- Broadly already implemented across main CRUD pages using async handlers + modal close + state refresh.
+- Examples:
+  - Nodes: `/Users/sagit/.local/share/opencode/worktree/13650be91caa3a9e08a2e63127fef62757658384/quiet-canyon/vite-frontend/src/pages/node.tsx`
+    - `handleSubmit()`
+  - Tunnels: `/Users/sagit/.local/share/opencode/worktree/13650be91caa3a9e08a2e63127fef62757658384/quiet-canyon/vite-frontend/src/pages/tunnel.tsx`
+    - `handleSubmit()`
+  - Forwards: `/Users/sagit/.local/share/opencode/worktree/13650be91caa3a9e08a2e63127fef62757658384/quiet-canyon/vite-frontend/src/pages/forward.tsx`
+    - `handleSubmit()`
+  - Users: `/Users/sagit/.local/share/opencode/worktree/13650be91caa3a9e08a2e63127fef62757658384/quiet-canyon/vite-frontend/src/pages/user.tsx`
+    - `handleSubmitUser()`
+- I did not find page reload patterns in these CRUD pages (`location.reload` / `window.location.reload` absent there).
+
+4. Local/partial list refresh after CRUD/toggle
+- Some local optimistic/partial updates already exist:
+  - Node delete updates local state directly:
+    - `/Users/sagit/.local/share/opencode/worktree/13650be91caa3a9e08a2e63127fef62757658384/quiet-canyon/vite-frontend/src/pages/node.tsx`
+    - `confirmDelete()`
+  - Node edit updates local item directly:
+    - `handleSubmit()` edit branch
+  - Forward service toggle uses optimistic local update + rollback on failure:
+    - `/Users/sagit/.local/share/opencode/worktree/13650be91caa3a9e08a2e63127fef62757658384/quiet-canyon/vite-frontend/src/pages/forward.tsx`
+    - `handleServiceToggle()`
+  - Sorting persists locally and updates item `inx` in-memory after success:
+    - Node `handleDragEnd()`
+    - Tunnel `handleDragEnd()`
+    - Forward `handleDragEnd()`
+
+5. Batch operation progress UI
+- Node upgrade has actual per-node progress UI:
+  - `/Users/sagit/.local/share/opencode/worktree/13650be91caa3a9e08a2e63127fef62757658384/quiet-canyon/vite-frontend/src/pages/node.tsx`
+  - `upgradeProgress` state
+  - websocket `type === "upgrade_progress"` handling in `handleWebSocketMessage()`
+  - `<Progress />` render around lines ~1307+
+- Forward batch actions are factored and return structured outcomes:
+  - `/Users/sagit/.local/share/opencode/worktree/13650be91caa3a9e08a2e63127fef62757658384/quiet-canyon/vite-frontend/src/pages/forward/batch-actions.ts`
+
+6. Search/filter instant response
+- Instant client-side filtering already exists in:
+  - Nodes: `sortedNodes` memo filters by `searchKeyword`
+    - `/Users/sagit/.local/share/opencode/worktree/13650be91caa3a9e08a2e63127fef62757658384/quiet-canyon/vite-frontend/src/pages/node.tsx`
+  - Tunnels: `sortedTunnels`
+    - `/Users/sagit/.local/share/opencode/worktree/13650be91caa3a9e08a2e63127fef62757658384/quiet-canyon/vite-frontend/src/pages/tunnel.tsx`
+  - Forwards: `orderedForwards`
+    - `/Users/sagit/.local/share/opencode/worktree/13650be91caa3a9e08a2e63127fef62757658384/quiet-canyon/vite-frontend/src/pages/forward.tsx`
+- Forward also has instant client-side filter dropdowns (`filterUserId`, `filterTunnelId`).
+
+b) What is missing or partial
+
+1. Dashboard traffic auto-refresh: missing
+- `useDashboardData()` only fetches once on mount.
+- No polling, websocket, refetch trigger, focus refresh, or manual refresh hook.
+- So “AJAX no-refresh” exists only for initial load, not ongoing refresh.
+
+2. Node realtime: partial but good
+- Realtime status/system-info exists only for nodes.
+- It reconnects with limited retries (5 attempts) and then stops.
+- `loadNodes()` initially sets `systemInfo: null`, so a full reload can temporarily wipe metrics until WS catches up again.
+- No obvious fallback polling if websocket dies permanently.
+
+3. Form submission no full reload: mostly done
+- CRUD forms are already async and modal-driven.
+- But post-submit refresh style is inconsistent:
+  - some do local patch,
+  - many do full page-level list refetch (`loadData()`, `loadUsers()`, `loadNodes()`).
+
+4. Local/partial list refresh after CRUD/toggle: partial/inconsistent
+- Forward toggle is good and local.
+- Node edit/delete are relatively local.
+- But many operations still refetch the whole page dataset:
+  - Tunnel create/update/delete -> `loadData()`
+  - Forward create/update/delete -> `loadData()`
+  - User create/update/delete -> `loadUsers()`
+  - User tunnel assignment/update/remove -> `loadUserTunnels()`
+- This is AJAX and avoids full browser reload, but not “partial/local refresh” in the stronger UX sense.
+
+5. Batch operation progress UI: largely missing outside node upgrade
+- Tunnel batch delete/redeploy: only loading spinner/toast + full reload, no per-item progress/result panel.
+- Forward batch actions: summarized via toast and optional refresh, but no visible progress timeline/progress list.
+- User batch tunnel assignment: no progress UI beyond loading state.
+
+6. Search/filter instant response: mixed
+- Nodes/tunnels/forwards are instant client-side.
+- Users are not fully instant:
+  - `/Users/sagit/.local/share/opencode/worktree/13650be91caa3a9e08a2e63127fef62757658384/quiet-canyon/vite-frontend/src/pages/user.tsx`
+  - `loadUsers()` is server-driven and tied to `useEffect([pagination.current, pagination.size, searchKeyword])`
+  - Enter key also manually calls `handleSearch()`
+- So user search is AJAX but not purely local/instant in the same way.
+
+c) Specific file paths and functions to touch for an implementation plan
+
+Primary targets
+
+1. Dashboard auto-refresh
+- `/Users/sagit/.local/share/opencode/worktree/13650be91caa3a9e08a2e63127fef62757658384/quiet-canyon/vite-frontend/src/pages/dashboard/use-dashboard-data.ts`
+  - `useDashboardData()`
+  - extract `loadPackageData()` / `loadAnnouncement()` into stable callbacks
+  - add polling or visibility/focus-based refetch
+- `/Users/sagit/.local/share/opencode/worktree/13650be91caa3a9e08a2e63127fef62757658384/quiet-canyon/vite-frontend/src/pages/dashboard.tsx`
+  - if adding manual refresh indicator/button, this is the page entry
+- API source already exists:
+  - `/Users/sagit/.local/share/opencode/worktree/13650be91caa3a9e08a2e63127fef62757658384/quiet-canyon/vite-frontend/src/api/index.ts`
+  - `getUserPackageInfo()`, `getAnnouncement()`
+
+2. Node realtime hardening / fallback
+- `/Users/sagit/.local/share/opencode/worktree/13650be91caa3a9e08a2e63127fef62757658384/quiet-canyon/vite-frontend/src/pages/node/use-node-realtime.ts`
+  - `useNodeRealtime()`
+  - retry policy, reconnect strategy, possible fallback refresh trigger
+- `/Users/sagit/.local/share/opencode/worktree/13650be91caa3a9e08a2e63127fef62757658384/quiet-canyon/vite-frontend/src/pages/node.tsx`
+  - `handleWebSocketMessage()`
+  - `loadNodes()`
+  - `handleSubmit()`
+  - `confirmDelete()`
+  - `handleBatchDelete()`
+
+3. Replace whole-list reloads with local/partial updates
+- Tunnels:
+  - `/Users/sagit/.local/share/opencode/worktree/13650be91caa3a9e08a2e63127fef62757658384/quiet-canyon/vite-frontend/src/pages/tunnel.tsx`
+  - `loadData()`
+  - `handleSubmit()`
+  - `confirmDelete()`
+  - `handleBatchDelete()`
+  - `handleBatchRedeploy()`
+- Forwards:
+  - `/Users/sagit/.local/share/opencode/worktree/13650be91caa3a9e08a2e63127fef62757658384/quiet-canyon/vite-frontend/src/pages/forward.tsx`
+  - `loadData()`
+  - `handleSubmit()`
+  - `confirmDelete()`
+  - `handleServiceToggle()`
+  - `handleBatchDelete()`
+  - `handleBatchToggleService()`
+  - `handleBatchRedeploy()`
+  - `handleBatchChangeTunnel()`
+- Users:
+  - `/Users/sagit/.local/share/opencode/worktree/13650be91caa3a9e08a2e63127fef62757658384/quiet-canyon/vite-frontend/src/pages/user.tsx`
+  - `loadUsers()`
+  - `handleSubmitUser()`
+  - `handleConfirmDelete()`
+  - `loadUserTunnels()`
+  - `handleBatchAssignTunnel()`
+  - `handleUpdateTunnel()`
+  - `handleConfirmRemoveTunnel()`
+  - `handleConfirmResetFlow()`
+  - `handleConfirmResetTunnelFlow()`
+
+4. Batch progress/result UX
+- Nodes already have a model to copy:
+  - `/Users/sagit/.local/share/opencode/worktree/13650be91caa3a9e08a2e63127fef62757658384/quiet-canyon/vite-frontend/src/pages/node.tsx`
+  - `upgradeProgress`
+  - websocket `upgrade_progress`
+- Forward batch abstraction:
+  - `/Users/sagit/.local/share/opencode/worktree/13650be91caa3a9e08a2e63127fef62757658384/quiet-canyon/vite-frontend/src/pages/forward/batch-actions.ts`
+  - likely extend return shape if backend can expose richer progress/events
+- API endpoints involved:
+  - `/Users/sagit/.local/share/opencode/worktree/13650be91caa3a9e08a2e63127fef62757658384/quiet-canyon/vite-frontend/src/api/index.ts`
+  - `batchDeleteForwards()`
+  - `batchPauseForwards()`
+  - `batchResumeForwards()`
+  - `batchRedeployForwards()`
+  - `batchChangeTunnel()`
+  - `batchDeleteTunnels()`
+  - `batchRedeployTunnels()`
+  - `batchDeleteNodes()`
+  - `batchUpgradeNodes()`
+
+5. Search/filter behavior normalization
+- `/Users/sagit/.local/share/opencode/worktree/13650be91caa3a9e08a2e63127fef62757658384/quiet-canyon/vite-frontend/src/pages/user.tsx`
+  - `loadUsers()`
+  - `handleSearch()`
+  - search input around lines ~718+
+- Nodes/tunnels/forwards already have memo-based client filtering and are the pattern to follow.
+
+d) Notable risks / edge cases
+
+1. Dashboard polling could spam toasts
+- `checkExpirationNotifications()` runs inside package load flow.
+- If polling is added naively, expiration toasts could repeat or localStorage notification keys could churn unexpectedly.
+
+2. Dashboard chart semantics
+- `statisticsFlows` appears to be a snapshot list, not a stream API.
+- Frequent polling may redraw aggressively and may need dedupe/staleness handling.
+
+3. Node websocket auth/security
+- Realtime URL sends token in query string (`secret=${getToken()}`) in:
+  - `/Users/sagit/.local/share/opencode/worktree/13650be91caa3a9e08a2e63127fef62757658384/quiet-canyon/vite-frontend/src/pages/node/use-node-realtime.ts`
+- Any changes should be careful not to break backend expectations.
+
+4. Realtime/local state merge complexity
+- `loadNodes()` normalizes nodes and clears `systemInfo`.
+- If partial refetch is introduced, merging fetched node metadata with live websocket state must avoid wiping online metrics/progress.
+
+5. Batch APIs may not provide granular progress
+- Current batch helpers mostly return summary counts, not per-item progress.
+- True progress UI may require backend support, not only frontend work.
+
+6. Forward toggle consistency
+- `handleServiceToggle()` optimistically flips `serviceRunning` and later patches `status`.
+- If backend returns partial failure or delayed actual state, UI may drift until a refresh.
+
+7. User search behavior currently depends on backend pagination/search
+- Moving to fully instant local filtering may conflict with server-side pagination semantics and large datasets.
+
+Bottom line
+- Already present: async modal CRUD, no browser reloads, strong node realtime, optimistic forward toggle, instant search/filter on node/tunnel/forward pages.
+- Missing/partial for #276: dashboard traffic auto-refresh, consistent partial/local state updates after CRUD, batch progress UI outside node upgrade, and more unified instant-search UX on the user page.

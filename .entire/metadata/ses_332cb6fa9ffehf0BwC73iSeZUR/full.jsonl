@@ -1,0 +1,125 @@
+{
+  "info": {
+    "id": "ses_332cb6fa9ffehf0BwC73iSeZUR",
+    "slug": "proud-pixel",
+    "projectID": "03c3dd2e5791a80ef100ef53744e013d779d671c",
+    "directory": "/Users/sagit/.local/share/opencode/worktree/13650be91caa3a9e08a2e63127fef62757658384/quiet-canyon",
+    "title": "问候",
+    "version": "1.2.21",
+    "summary": {
+      "additions": 0,
+      "deletions": 0,
+      "files": 0
+    },
+    "time": {
+      "created": 1772969300054,
+      "updated": 1772969309055
+    }
+  },
+  "messages": [
+    {
+      "info": {
+        "role": "user",
+        "time": {
+          "created": 1772969305082
+        },
+        "summary": {
+          "diffs": []
+        },
+        "agent": "build",
+        "model": {
+          "providerID": "api",
+          "modelID": "gpt-5.4"
+        },
+        "variant": "high",
+        "id": "msg_27c12106663448898b7e25726a28ce04",
+        "sessionID": "ses_332cb6fa9ffehf0BwC73iSeZUR"
+      },
+      "parts": [
+        {
+          "type": "text",
+          "text": "你好",
+          "time": {
+            "start": 1772969305.0665522,
+            "end": 1772969305.066553
+          },
+          "id": "prt_ccd34a3fa0015dQBm2oO5f6vPN",
+          "sessionID": "ses_332cb6fa9ffehf0BwC73iSeZUR",
+          "messageID": "msg_27c12106663448898b7e25726a28ce04"
+        }
+      ]
+    },
+    {
+      "info": {
+        "role": "assistant",
+        "time": {
+          "created": 1772969305091,
+          "completed": 1772969309611
+        },
+        "parentID": "msg_27c12106663448898b7e25726a28ce04",
+        "modelID": "gpt-5.4",
+        "providerID": "api",
+        "mode": "build",
+        "agent": "build",
+        "path": {
+          "cwd": "/Users/sagit/.local/share/opencode/worktree/13650be91caa3a9e08a2e63127fef62757658384/quiet-canyon",
+          "root": "/Users/sagit/.local/share/opencode/worktree/13650be91caa3a9e08a2e63127fef62757658384/quiet-canyon"
+        },
+        "cost": 0,
+        "tokens": {
+          "total": 17138,
+          "input": 2210,
+          "output": 80,
+          "reasoning": 45,
+          "cache": {
+            "read": 14848,
+            "write": 0
+          }
+        },
+        "variant": "high",
+        "finish": "stop",
+        "id": "msg_ccd34a4030014dwF4qM30pkR3k",
+        "sessionID": "ses_332cb6fa9ffehf0BwC73iSeZUR"
+      },
+      "parts": [
+        {
+          "type": "step-start",
+          "snapshot": "d23faf4e134b40b649cf9ec6e7a21a632c4c61b1",
+          "id": "prt_ccd34b520001tv5ON6ERsriuUJ",
+          "sessionID": "ses_332cb6fa9ffehf0BwC73iSeZUR",
+          "messageID": "msg_ccd34a4030014dwF4qM30pkR3k"
+        },
+        {
+          "type": "text",
+          "text": "你好！我在这儿。要我帮你看代码、改功能、排查报错，还是跑命令都可以。",
+          "time": {
+            "start": 1772969309550,
+            "end": 1772969309550
+          },
+          "id": "prt_ccd34b521001WeBauxJnuorFa5",
+          "sessionID": "ses_332cb6fa9ffehf0BwC73iSeZUR",
+          "messageID": "msg_ccd34a4030014dwF4qM30pkR3k"
+        },
+        {
+          "type": "step-finish",
+          "reason": "stop",
+          "snapshot": "d23faf4e134b40b649cf9ec6e7a21a632c4c61b1",
+          "cost": 0,
+          "tokens": {
+            "total": 17138,
+            "input": 2210,
+            "output": 80,
+            "reasoning": 45,
+            "cache": {
+              "read": 14848,
+              "write": 0
+            }
+          },
+          "id": "prt_ccd34b56f001tUZXybdhjVzB22",
+          "sessionID": "ses_332cb6fa9ffehf0BwC73iSeZUR",
+          "messageID": "msg_ccd34a4030014dwF4qM30pkR3k"
+        }
+      ]
+    }
+  ]
+}

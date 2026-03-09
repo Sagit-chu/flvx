@@ -1,0 +1,8 @@
+已完成！
+
+**提交摘要：**
+- 10 个文件变更（939 行新增，173 行删除）
+- 新增计划文档 `plans/020-ajax-no-refresh-ux.md`
+- 新增工具函数 `vite-frontend/src/utils/list-state.ts`
+
+**PR 已创建：** https://github.com/Sagit-chu/flvx/pull/293

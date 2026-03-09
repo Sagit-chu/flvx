@@ -1,0 +1,1472 @@
+{
+  "info": {
+    "id": "ses_332bd2777ffe9fcceGxioLmq6U",
+    "slug": "kind-panda",
+    "projectID": "03c3dd2e5791a80ef100ef53744e013d779d671c",
+    "directory": "/Users/sagit/.local/share/opencode/worktree/13650be91caa3a9e08a2e63127fef62757658384/quiet-canyon",
+    "title": "提交推送并关联 PR 至 issue #246",
+    "version": "1.2.21",
+    "summary": {
+      "additions": 0,
+      "deletions": 0,
+      "files": 0
+    },
+    "time": {
+      "created": 1772970236041,
+      "updated": 1772970333464
+    }
+  },
+  "messages": [
+    {
+      "info": {
+        "role": "user",
+        "time": {
+          "created": 1772970236126
+        },
+        "summary": {
+          "diffs": []
+        },
+        "agent": "build",
+        "model": {
+          "providerID": "api",
+          "modelID": "gpt-5.4"
+        },
+        "id": "msg_ccd42d89c001xrWUspqGENYqWb",
+        "sessionID": "ses_332bd2777ffe9fcceGxioLmq6U"
+      },
+      "parts": [
+        {
+          "type": "text",
+          "text": "提交全部变更并且push，并且修改pr内容关联\nhttps://github.com/Sagit-chu/flvx/issues/246",
+          "id": "prt_ccd42d89c002ojmpkJKo1yswyw",
+          "sessionID": "ses_332bd2777ffe9fcceGxioLmq6U",
+          "messageID": "msg_ccd42d89c001xrWUspqGENYqWb"
+        }
+      ]
+    },
+    {
+      "info": {
+        "role": "assistant",
+        "time": {
+          "created": 1772970236149,
+          "completed": 1772970241783
+        },
+        "parentID": "msg_ccd42d89c001xrWUspqGENYqWb",
+        "modelID": "gpt-5.4",
+        "providerID": "api",
+        "mode": "build",
+        "agent": "build",
+        "path": {
+          "cwd": "/Users/sagit/.local/share/opencode/worktree/13650be91caa3a9e08a2e63127fef62757658384/quiet-canyon",
+          "root": "/Users/sagit/.local/share/opencode/worktree/13650be91caa3a9e08a2e63127fef62757658384/quiet-canyon"
+        },
+        "cost": 0,
+        "tokens": {
+          "total": 17271,
+          "input": 188,
+          "output": 187,
+          "reasoning": 84,
+          "cache": {
+            "read": 16896,
+            "write": 0
+          }
+        },
+        "finish": "tool-calls",
+        "id": "msg_ccd42d8f5001o4E75B7GnDtxV6",
+        "sessionID": "ses_332bd2777ffe9fcceGxioLmq6U"
+      },
+      "parts": [
+        {
+          "type": "step-start",
+          "snapshot": "4725cfa89403265d9c80bbf832449f4feb7b4cdd",
+          "id": "prt_ccd42e8000018gjq5N5S7MEo1W",
+          "sessionID": "ses_332bd2777ffe9fcceGxioLmq6U",
+          "messageID": "msg_ccd42d8f5001o4E75B7GnDtxV6"
+        },
+        {
+          "type": "reasoning",
+          "text": "**Organizing git tasks**\n\nI need to commit all changes and push them, while also modifying the PR content regarding an association issue. It's essential to inspect the git status and diff log first. Creating a to-do list might help organize the steps. If the user asked explicitly, I should clarify that. I should check the current branch, see if there's an existing PR, and verify the remote/upstream. So, I'll set up a to-do and handle the bash commands in parallel.",
+          "time": {
+            "start": 1772970240001,
+            "end": 1772970241681
+          },
+          "id": "prt_ccd42e801001crD5g2q3T2SmDW",
+          "sessionID": "ses_332bd2777ffe9fcceGxioLmq6U",
+          "messageID": "msg_ccd42d8f5001o4E75B7GnDtxV6"
+        },
+        {
+          "type": "tool",
+          "callID": "call_wDEgADTBb3s73IP9tFk0gUf4",
+          "tool": "todowrite",
+          "state": {
+            "status": "completed",
+            "input": {
+              "todos": [
+                {
+                  "content": "Inspect git status, diffs, branch state, and recent commit style",
+                  "status": "in_progress",
+                  "priority": "high"
+                },
+                {
+                  "content": "Create a commit for all relevant current changes",
+                  "status": "pending",
+                  "priority": "high"
+                },
+                {
+                  "content": "Push the branch to remote",
+                  "status": "pending",
+                  "priority": "high"
+                },
+                {
+                  "content": "Update the PR description to reference issue #246",
+                  "status": "pending",
+                  "priority": "high"
+                }
+              ]
+            },
+            "output": "[\n  {\n    \"content\": \"Inspect git status, diffs, branch state, and recent commit style\",\n    \"status\": \"in_progress\",\n    \"priority\": \"high\"\n  },\n  {\n    \"content\": \"Create a commit for all relevant current changes\",\n    \"status\": \"pending\",\n    \"priority\": \"high\"\n  },\n  {\n    \"content\": \"Push the branch to remote\",\n    \"status\": \"pending\",\n    \"priority\": \"high\"\n  },\n  {\n    \"content\": \"Update the PR description to reference issue #246\",\n    \"status\": \"pending\",\n    \"priority\": \"high\"\n  }\n]",
+            "title": "4 todos",
+            "metadata": {
+              "todos": [
+                {
+                  "content": "Inspect git status, diffs, branch state, and recent commit style",
+                  "status": "in_progress",
+                  "priority": "high"
+                },
+                {
+                  "content": "Create a commit for all relevant current changes",
+                  "status": "pending",
+                  "priority": "high"
+                },
+                {
+                  "content": "Push the branch to remote",
+                  "status": "pending",
+                  "priority": "high"
+                },
+                {
+                  "content": "Update the PR description to reference issue #246",
+                  "status": "pending",
+                  "priority": "high"
+                }
+              ],
+              "truncated": false
+            },
+            "time": {
+              "start": 1772970241580,
+              "end": 1772970241582
+            }
+          },
+          "id": "prt_ccd42edab001ECmdYenOJQ9anC",
+          "sessionID": "ses_332bd2777ffe9fcceGxioLmq6U",
+          "messageID": "msg_ccd42d8f5001o4E75B7GnDtxV6"
+        },
+        {
+          "type": "step-finish",
+          "reason": "tool-calls",
+          "snapshot": "4725cfa89403265d9c80bbf832449f4feb7b4cdd",
+          "cost": 0,
+          "tokens": {
+            "total": 17271,
+            "input": 188,
+            "output": 187,
+            "reasoning": 84,
+            "cache": {
+              "read": 16896,
+              "write": 0
+            }
+          },
+          "id": "prt_ccd42ee94001b8Pk9Ega7htyiZ",
+          "sessionID": "ses_332bd2777ffe9fcceGxioLmq6U",
+          "messageID": "msg_ccd42d8f5001o4E75B7GnDtxV6"
+        }
+      ]
+    },
+    {
+      "info": {
+        "role": "assistant",
+        "time": {
+          "created": 1772970241783,
+          "completed": 1772970248019
+        },
+        "parentID": "msg_ccd42d89c001xrWUspqGENYqWb",
+        "modelID": "gpt-5.4",
+        "providerID": "api",
+        "mode": "build",
+        "agent": "build",
+        "path": {
+          "cwd": "/Users/sagit/.local/share/opencode/worktree/13650be91caa3a9e08a2e63127fef62757658384/quiet-canyon",
+          "root": "/Users/sagit/.local/share/opencode/worktree/13650be91caa3a9e08a2e63127fef62757658384/quiet-canyon"
+        },
+        "cost": 0,
+        "tokens": {
+          "total": 17600,
+          "input": 437,
+          "output": 267,
+          "reasoning": 13,
+          "cache": {
+            "read": 16896,
+            "write": 0
+          }
+        },
+        "finish": "tool-calls",
+        "id": "msg_ccd42eef7001o0ITgDq2J0Y88Z",
+        "sessionID": "ses_332bd2777ffe9fcceGxioLmq6U"
+      },
+      "parts": [
+        {
+          "type": "step-start",
+          "snapshot": "4725cfa89403265d9c80bbf832449f4feb7b4cdd",
+          "id": "prt_ccd42f7b2001TdB6Ebo8XhqftD",
+          "sessionID": "ses_332bd2777ffe9fcceGxioLmq6U",
+          "messageID": "msg_ccd42eef7001o0ITgDq2J0Y88Z"
+        },
+        {
+          "type": "reasoning",
+          "text": "**Inspecting git**\n\nI'm thinking about how I need to inspect git using parallel bash, just as the instructions say. It's interesting to imagine how this will all work out; I want to make sure I'm doing it correctly. There might be a few paths I could explore to get everything set up properly, and I'm definitely looking to follow the instructions closely. I can’t forget to double-check the details to ensure everything is running smoothly!",
+          "time": {
+            "start": 1772970244018,
+            "end": 1772970247917
+          },
+          "id": "prt_ccd42f7b2002rpHpe3HXcpUEpG",
+          "sessionID": "ses_332bd2777ffe9fcceGxioLmq6U",
+          "messageID": "msg_ccd42eef7001o0ITgDq2J0Y88Z"
+        },
+        {
+          "type": "tool",
+          "callID": "call_VphiUNqsnnYe7sd07qhvqwnL",
+          "tool": "bash",
+          "state": {
+            "status": "completed",
+            "input": {
+              "command": "git status --short --branch",
+              "timeout": 120000,
+              "workdir": "/Users/sagit/.local/share/opencode/worktree/13650be91caa3a9e08a2e63127fef62757658384/quiet-canyon",
+              "description": "Shows branch and working tree status"
+            },
+            "output": "## opencode/quiet-canyon...origin/opencode/quiet-canyon\n M AGENTS.md\n M go-backend/internal/http/handler/mutations.go\n M go-backend/internal/store/model/model.go\n M go-backend/internal/store/repo/repository.go\n M go-backend/internal/store/repo/repository_mutations.go\n M vite-frontend/src/api/index.ts\n M vite-frontend/src/api/types.ts\n M vite-frontend/src/pages/dashboard.tsx\n M vite-frontend/src/pages/dashboard/use-dashboard-data.ts\n M vite-frontend/src/pages/node.tsx\n?? .entire/metadata/ses_332cb6fa9ffehf0BwC73iSeZUR/\n?? .entire/metadata/ses_332ce68b1ffe0R9vUQZ6yq5gUd/\n?? .entire/metadata/ses_332d83674ffeNMa9Z9UerwU3tq/\n?? .entire/metadata/ses_332d83689ffeJ93gRXNEEeOpSm/\n?? .entire/metadata/ses_332fc6806ffeDArHciRt5Ctxja/\n?? .entire/metadata/ses_332fdb603ffeYxhpzgAB64sSTN/\n?? plans/021-node-remarks-tags-expiry.md\n?? plans/022-node-expiry-highlights-dashboard-reminders.md\n",
+            "title": "Shows branch and working tree status",
+            "metadata": {
+              "output": "## opencode/quiet-canyon...origin/opencode/quiet-canyon\n M AGENTS.md\n M go-backend/internal/http/handler/mutations.go\n M go-backend/internal/store/model/model.go\n M go-backend/internal/store/repo/repository.go\n M go-backend/internal/store/repo/repository_mutations.go\n M vite-frontend/src/api/index.ts\n M vite-frontend/src/api/types.ts\n M vite-frontend/src/pages/dashboard.tsx\n M vite-frontend/src/pages/dashboard/use-dashboard-data.ts\n M vite-frontend/src/pages/node.tsx\n?? .entire/metadata/ses_332cb6fa9ffehf0BwC73iSeZUR/\n?? .entire/metadata/ses_332ce68b1ffe0R9vUQZ6yq5gUd/\n?? .entire/metadata/ses_332d83674ffeNMa9Z9UerwU3tq/\n?? .entire/metadata/ses_332d83689ffeJ93gRXNEEeOpSm/\n?? .entire/metadata/ses_332fc6806ffeDArHciRt5Ctxja/\n?? .entire/metadata/ses_332fdb603ffeYxhpzgAB64sSTN/\n?? plans/021-node-remarks-tags-expiry.md\n?? plans/022-node-expiry-highlights-dashboard-reminders.md\n",
+              "exit": 0,
+              "description": "Shows branch and working tree status",
+              "truncated": false
+            },
+            "time": {
+              "start": 1772970247907,
+              "end": 1772970247940
+            }
+          },
+          "id": "prt_ccd4306cc00165E0PGwyY3VVKo",
+          "sessionID": "ses_332bd2777ffe9fcceGxioLmq6U",
+          "messageID": "msg_ccd42eef7001o0ITgDq2J0Y88Z"
+        },
+        {
+          "type": "tool",
+          "callID": "call_FtZfaStDykg0J7tER8gdymkc",
+          "tool": "bash",
+          "state": {
+            "status": "completed",
+            "input": {
+              "command": "git diff --stat && git diff --cached --stat && git diff",
+              "timeout": 120000,
+              "workdir": "/Users/sagit/.local/share/opencode/worktree/13650be91caa3a9e08a2e63127fef62757658384/quiet-canyon",
+              "description": "Shows staged and unstaged changes"
+            },
+            "output": " AGENTS.md                                          |   1 +\n go-backend/internal/http/handler/mutations.go      |  13 +\n go-backend/internal/store/model/model.go           |   6 +\n go-backend/internal/store/repo/repository.go       |  14 +-\n .../internal/store/repo/repository_mutations.go    |  10 +-\n vite-frontend/src/api/index.ts                     |   2 +\n vite-frontend/src/api/types.ts                     |   6 +\n vite-frontend/src/pages/dashboard.tsx              | 145 +++++++++++\n .../src/pages/dashboard/use-dashboard-data.ts      |  79 +++++-\n vite-frontend/src/pages/node.tsx                   | 273 ++++++++++++++++++++-\n 10 files changed, 537 insertions(+), 12 deletions(-)\ndiff --git a/AGENTS.md b/AGENTS.md\nindex d88d47d..6131811 100644\n--- a/AGENTS.md\n+++ b/AGENTS.md\n@@ -53,6 +53,7 @@ FLVX (formerly Flux Panel) is a traffic forwarding management system built on a\n | `websocket_reporter` | Func | `go-gost/x/socket/websocket_reporter.go` | Panel Telemetry |\n \n ## CONVENTIONS\n+- **Skills & MCP**: Always prefer using available skills (via `skill` tool) and MCP tools when applicable. Check for relevant skills before implementing from scratch.\n - **Auth**: `Authorization` header carries the raw JWT token (no `Bearer` prefix) between `vite-frontend/` and `go-backend/`.\n - **Module Fork**: `go-gost/` uses `replace github.com/go-gost/x => ./x` and `go-gost/x/` is also its own Go module.\n - **Encryption**: Agent-to-panel communication uses AES encryption with node `secret` as PSK.\ndiff --git a/go-backend/internal/http/handler/mutations.go b/go-backend/internal/http/handler/mutations.go\nindex 9b4447c..1a6eeb7 100644\n--- a/go-backend/internal/http/handler/mutations.go\n+++ b/go-backend/internal/http/handler/mutations.go\n@@ -261,6 +261,9 @@ func (h *Handler) nodeCreate(w http.ResponseWriter, r *http.Request) {\n \t\tdefaultString(asString(req[\"port\"]), \"1000-65535\"),\n \t\tnullableText(asString(req[\"interfaceName\"])),\n \t\tnullableText(\"\"),\n+\t\tnullableText(strings.TrimSpace(asString(req[\"remark\"]))),\n+\t\tnullableText(strings.TrimSpace(asString(req[\"tags\"]))),\n+\t\tnullableUnixMilli(asInt64(req[\"expiryTime\"], 0)),\n \t\tasInt(req[\"http\"], 0),\n \t\tasInt(req[\"tls\"], 0),\n \t\tasInt(req[\"socks\"], 0),\n@@ -326,6 +329,9 @@ func (h *Handler) nodeUpdate(w http.ResponseWriter, r *http.Request) {\n \t\tdefaultString(asString(req[\"port\"]), \"1000-65535\"),\n \t\tnullableText(asString(req[\"interfaceName\"])),\n \t\tnullableText(asString(req[\"extraIPs\"])),\n+\t\tnullableText(strings.TrimSpace(asString(req[\"remark\"]))),\n+\t\tnullableText(strings.TrimSpace(asString(req[\"tags\"]))),\n+\t\tnullableUnixMilli(asInt64(req[\"expiryTime\"], 0)),\n \t\tnewHTTP,\n \t\tnewTLS,\n \t\tnewSocks,\n@@ -3534,6 +3540,13 @@ func nullableText(s string) interface{} {\n \treturn s\n }\n \n+func nullableUnixMilli(v int64) interface{} {\n+\tif v <= 0 {\n+\t\treturn nil\n+\t}\n+\treturn v\n+}\n+\n func nullableInt(v *int64) interface{} {\n \tif v == nil {\n \t\treturn nil\ndiff --git a/go-backend/internal/store/model/model.go b/go-backend/internal/store/model/model.go\nindex 8eb51a6..d69a6e1 100644\n--- a/go-backend/internal/store/model/model.go\n+++ b/go-backend/internal/store/model/model.go\n@@ -60,6 +60,9 @@ func (ForwardPort) TableName() string { return \"forward_port\" }\n type Node struct {\n \tID            int64          `gorm:\"primaryKey;autoIncrement\"`\n \tName          string         `gorm:\"type:varchar(100);not null\"`\n+\tRemark        sql.NullString `gorm:\"column:remark;type:text\"`\n+\tTags          sql.NullString `gorm:\"column:tags;type:text\"`\n+\tExpiryTime    sql.NullInt64  `gorm:\"column:expiry_time\"`\n \tSecret        string         `gorm:\"type:varchar(100);not null\"`\n \tServerIP      string         `gorm:\"column:server_ip;type:varchar(100);not null\"`\n \tServerIPV4    sql.NullString `gorm:\"column:server_ip_v4;type:varchar(100)\"`\n@@ -336,6 +339,9 @@ type UserBackup struct {\n type NodeBackup struct {\n \tID            int64  `json:\"id\"`\n \tName          string `json:\"name\"`\n+\tRemark        string `json:\"remark,omitempty\"`\n+\tTags          string `json:\"tags,omitempty\"`\n+\tExpiryTime    int64  `json:\"expiryTime,omitempty\"`\n \tSecret        string `json:\"secret\"`\n \tServerIP      string `json:\"serverIp\"`\n \tServerIPv4    string `json:\"serverIpV4,omitempty\"`\ndiff --git a/go-backend/internal/store/repo/repository.go b/go-backend/internal/store/repo/repository.go\nindex c2bff03..45cca03 100644\n--- a/go-backend/internal/store/repo/repository.go\n+++ b/go-backend/internal/store/repo/repository.go\n@@ -634,7 +634,10 @@ func (r *Repository) ListNodes() ([]map[string]interface{}, error) {\n \tfor _, n := range nodes {\n \t\titems = append(items, map[string]interface{}{\n \t\t\t\"id\": n.ID, \"inx\": n.Inx, \"name\": n.Name,\n-\t\t\t\"ip\": n.ServerIP, \"serverIp\": n.ServerIP,\n+\t\t\t\"remark\":     nullableString(n.Remark),\n+\t\t\t\"tags\":       nullableString(n.Tags),\n+\t\t\t\"expiryTime\": nullableInt64(n.ExpiryTime),\n+\t\t\t\"ip\":         n.ServerIP, \"serverIp\": n.ServerIP,\n \t\t\t\"serverIpV4\":    nullableString(n.ServerIPV4),\n \t\t\t\"serverIpV6\":    nullableString(n.ServerIPV6),\n \t\t\t\"extraIPs\":      nullableString(n.ExtraIPs),\n@@ -1814,11 +1817,15 @@ func (r *Repository) exportNodes() ([]model.NodeBackup, error) {\n \tfor _, n := range nodes {\n \t\tb := model.NodeBackup{\n \t\t\tID: n.ID, Name: n.Name, Secret: n.Secret, ServerIP: n.ServerIP,\n+\t\t\tRemark: n.Remark.String, Tags: n.Tags.String,\n \t\t\tPort: n.Port, HTTP: n.HTTP, TLS: n.TLS, Socks: n.Socks,\n \t\t\tCreatedTime: n.CreatedTime, Status: n.Status,\n \t\t\tTCPListenAddr: n.TCPListenAddr, UDPListenAddr: n.UDPListenAddr,\n \t\t\tInx: n.Inx, IsRemote: n.IsRemote,\n \t\t}\n+\t\tif n.ExpiryTime.Valid {\n+\t\t\tb.ExpiryTime = n.ExpiryTime.Int64\n+\t\t}\n \t\tif n.UpdatedTime.Valid {\n \t\t\tb.UpdatedTime = n.UpdatedTime.Int64\n \t\t}\n@@ -2168,6 +2175,9 @@ func importNodes(tx *gorm.DB, nodes []model.NodeBackup, now int64) (int, error)\n \t\titem := model.Node{\n \t\t\tID:            n.ID,\n \t\t\tName:          n.Name,\n+\t\t\tRemark:        sql.NullString{String: n.Remark, Valid: n.Remark != \"\"},\n+\t\t\tTags:          sql.NullString{String: n.Tags, Valid: n.Tags != \"\"},\n+\t\t\tExpiryTime:    sql.NullInt64{Int64: n.ExpiryTime, Valid: n.ExpiryTime > 0},\n \t\t\tSecret:        n.Secret,\n \t\t\tServerIP:      n.ServerIP,\n \t\t\tServerIPV4:    sql.NullString{String: n.ServerIPv4, Valid: true},\n@@ -2192,7 +2202,7 @@ func importNodes(tx *gorm.DB, nodes []model.NodeBackup, now int64) (int, error)\n \t\terr := tx.Clauses(clause.OnConflict{\n \t\t\tColumns: []clause.Column{{Name: \"id\"}},\n \t\t\tDoUpdates: clause.AssignmentColumns([]string{\n-\t\t\t\t\"name\", \"secret\", \"server_ip\", \"server_ip_v4\", \"server_ip_v6\", \"port\", \"interface_name\", \"version\",\n+\t\t\t\t\"name\", \"remark\", \"tags\", \"expiry_time\", \"secret\", \"server_ip\", \"server_ip_v4\", \"server_ip_v6\", \"port\", \"interface_name\", \"version\",\n \t\t\t\t\"http\", \"tls\", \"socks\", \"updated_time\", \"status\", \"tcp_listen_addr\", \"udp_listen_addr\",\n \t\t\t\t\"inx\", \"is_remote\", \"remote_url\", \"remote_token\", \"remote_config\",\n \t\t\t}),\ndiff --git a/go-backend/internal/store/repo/repository_mutations.go b/go-backend/internal/store/repo/repository_mutations.go\nindex ad29f59..985b08f 100644\n--- a/go-backend/internal/store/repo/repository_mutations.go\n+++ b/go-backend/internal/store/repo/repository_mutations.go\n@@ -196,12 +196,15 @@ func (r *Repository) GetUserDefaultsForTunnel(userID int64) (flow int64, num int\n \treturn user.Flow, user.Num, user.ExpTime, user.FlowResetTime, nil\n }\n \n-func (r *Repository) CreateNode(name, secret, serverIP string, serverIPV4, serverIPV6, port, interfaceName, version interface{}, httpFlag, tlsFlag, socksFlag int, now int64, status int, tcpAddr, udpAddr string, inx, isRemote int, remoteURL, remoteToken, remoteConfig, extraIPs interface{}) error {\n+func (r *Repository) CreateNode(name, secret, serverIP string, serverIPV4, serverIPV6, port, interfaceName, version, remark, tags, expiryTime interface{}, httpFlag, tlsFlag, socksFlag int, now int64, status int, tcpAddr, udpAddr string, inx, isRemote int, remoteURL, remoteToken, remoteConfig, extraIPs interface{}) error {\n \tif r == nil || r.db == nil {\n \t\treturn errors.New(\"repository not initialized\")\n \t}\n \tnode := model.Node{\n \t\tName:          name,\n+\t\tRemark:        nullStringFromInterface(remark),\n+\t\tTags:          nullStringFromInterface(tags),\n+\t\tExpiryTime:    nullInt64FromInterface(expiryTime),\n \t\tSecret:        secret,\n \t\tServerIP:      serverIP,\n \t\tServerIPV4:    nullStringFromInterface(serverIPV4),\n@@ -239,7 +242,7 @@ func (r *Repository) GetNodeStatusFields(nodeID int64) (status, httpFlag, tlsFla\n \treturn node.Status, node.HTTP, node.TLS, node.Socks, nil\n }\n \n-func (r *Repository) UpdateNode(id int64, name, serverIP string, serverIPV4, serverIPV6, port, interfaceName, extraIPs interface{}, httpFlag, tlsFlag, socksFlag int, tcpAddr, udpAddr string, now int64) error {\n+func (r *Repository) UpdateNode(id int64, name, serverIP string, serverIPV4, serverIPV6, port, interfaceName, extraIPs, remark, tags, expiryTime interface{}, httpFlag, tlsFlag, socksFlag int, tcpAddr, udpAddr string, now int64) error {\n \tif r == nil || r.db == nil {\n \t\treturn errors.New(\"repository not initialized\")\n \t}\n@@ -247,6 +250,9 @@ func (r *Repository) UpdateNode(id int64, name, serverIP string, serverIPV4, ser\n \t\tWhere(\"id = ?\", id).\n \t\tUpdates(map[string]interface{}{\n \t\t\t\"name\":            name,\n+\t\t\t\"remark\":          nullStringFromInterface(remark),\n+\t\t\t\"tags\":            nullStringFromInterface(tags),\n+\t\t\t\"expiry_time\":     nullInt64FromInterface(expiryTime),\n \t\t\t\"server_ip\":       serverIP,\n \t\t\t\"server_ip_v4\":    nullStringFromInterface(serverIPV4),\n \t\t\t\"server_ip_v6\":    nullStringFromInterface(serverIPV6),\ndiff --git a/vite-frontend/src/api/index.ts b/vite-frontend/src/api/index.ts\nindex 305d549..acddbec 100644\n--- a/vite-frontend/src/api/index.ts\n+++ b/vite-frontend/src/api/index.ts\n@@ -65,6 +65,8 @@ export const getUserPackageInfo = () =>\n export const createNode = (data: NodeMutationPayload) =>\n   Network.post(\"/node/create\", data);\n export const getNodeList = () => Network.post<NodeApiItem[]>(\"/node/list\");\n+export const getDashboardNodeExpiryList = () =>\n+  Network.post<NodeApiItem[]>(\"/node/list\", {});\n export const updateNode = (data: NodeMutationPayload) =>\n   Network.post(\"/node/update\", data);\n export const deleteNode = (id: number) => Network.post(\"/node/delete\", { id });\ndiff --git a/vite-frontend/src/api/types.ts b/vite-frontend/src/api/types.ts\nindex 94f817c..a15911f 100644\n--- a/vite-frontend/src/api/types.ts\n+++ b/vite-frontend/src/api/types.ts\n@@ -3,6 +3,9 @@ export interface NodeApiItem {\n   name: string;\n   status: number;\n   inx?: number;\n+  remark?: string;\n+  tags?: string;\n+  expiryTime?: number;\n   syncError?: string;\n   [key: string]: unknown;\n }\n@@ -214,6 +217,9 @@ export interface NodeMutationPayload {\n   name?: string;\n   status?: number;\n   inx?: number;\n+  remark?: string;\n+  tags?: string;\n+  expiryTime?: number;\n   serverIp?: string;\n   serverIpV4?: string;\n   serverIpV6?: string;\ndiff --git a/vite-frontend/src/pages/dashboard.tsx b/vite-frontend/src/pages/dashboard.tsx\nindex 889a481..f6f15e3 100644\n--- a/vite-frontend/src/pages/dashboard.tsx\n+++ b/vite-frontend/src/pages/dashboard.tsx\n@@ -17,6 +17,7 @@ import { MetricCard } from \"@/pages/dashboard/components/metric-card\";\n import {\n   useDashboardData,\n   type DashboardForward as Forward,\n+  type DashboardNodeExpiryItem,\n   type DashboardUserTunnel as UserTunnel,\n } from \"@/pages/dashboard/use-dashboard-data\";\n \n@@ -34,6 +35,7 @@ export default function DashboardPage() {\n     userTunnels,\n     forwardList,\n     statisticsFlows,\n+    nodeExpiryReminders,\n     isAdmin,\n     announcement,\n   } = useDashboardData();\n@@ -70,6 +72,103 @@ export default function DashboardPage() {\n     return value.toString();\n   };\n \n+  const getNodeExpiryStatus = (expiryTime?: number) => {\n+    if (!expiryTime) {\n+      return {\n+        label: \"永久有效\",\n+        badgeClassName:\n+          \"bg-default-100 text-default-700 dark:bg-default-50 dark:text-default-300\",\n+      };\n+    }\n+\n+    const diffMs = expiryTime - Date.now();\n+    const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));\n+\n+    if (diffDays <= 0) {\n+      return {\n+        label: \"已过期\",\n+        badgeClassName:\n+          \"bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-300\",\n+      };\n+    }\n+\n+    if (diffDays === 1) {\n+      return {\n+        label: \"明天到期\",\n+        badgeClassName:\n+          \"bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-300\",\n+      };\n+    }\n+\n+    return {\n+      label: `${diffDays}天后到期`,\n+      badgeClassName:\n+        diffDays <= 7\n+          ? \"bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-300\"\n+          : \"bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300\",\n+    };\n+  };\n+\n+  const parseNodeTags = (tags?: string) => {\n+    if (!tags) return [];\n+    return tags\n+      .split(\",\")\n+      .map((tag) => tag.trim())\n+      .filter(Boolean)\n+      .slice(0, 3);\n+  };\n+\n+  const renderNodeExpiryCard = (node: DashboardNodeExpiryItem) => {\n+    const expiryStatus = getNodeExpiryStatus(node.expiryTime);\n+    const tags = parseNodeTags(node.tags);\n+\n+    return (\n+      <div\n+        key={node.id}\n+        className=\"rounded-xl border border-amber-200/80 bg-gradient-to-br from-amber-50 via-white to-orange-50 p-4 shadow-sm dark:border-amber-500/20 dark:from-amber-950/20 dark:via-background dark:to-orange-950/10\"\n+      >\n+        <div className=\"flex items-start justify-between gap-3\">\n+          <div className=\"min-w-0\">\n+            <div className=\"text-sm font-semibold text-foreground truncate\">\n+              {node.name}\n+            </div>\n+            <div className=\"mt-1 text-xs text-default-500\">节点 ID: {node.id}</div>\n+          </div>\n+          <span\n+            className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-medium ${expiryStatus.badgeClassName}`}\n+          >\n+            {expiryStatus.label}\n+          </span>\n+        </div>\n+\n+        <div className=\"mt-3 text-sm text-default-700 dark:text-default-300\">\n+          {node.expiryTime\n+            ? new Date(node.expiryTime).toLocaleString()\n+            : \"未设置到期时间\"}\n+        </div>\n+\n+        {node.remark?.trim() && (\n+          <p className=\"mt-3 line-clamp-2 text-xs leading-5 text-default-600 dark:text-default-400\">\n+            {node.remark.trim()}\n+          </p>\n+        )}\n+\n+        {tags.length > 0 && (\n+          <div className=\"mt-3 flex flex-wrap gap-2\">\n+            {tags.map((tag) => (\n+              <span\n+                key={`${node.id}-${tag}`}\n+                className=\"rounded-full bg-white/80 px-2 py-1 text-[11px] text-default-600 ring-1 ring-amber-200/80 dark:bg-white/5 dark:text-default-300 dark:ring-amber-500/20\"\n+              >\n+                #{tag}\n+              </span>\n+            ))}\n+          </div>\n+        )}\n+      </div>\n+    );\n+  };\n+\n   // 处理24小时流量统计数据\n   const processFlowChartData = () => {\n     // 生成最近24小时的时间数组（从当前小时往前推24小时）\n@@ -661,6 +760,52 @@ export default function DashboardPage() {\n         statisticsFlowsCount={statisticsFlows.length}\n       />\n \n+      {isAdmin && nodeExpiryReminders.length > 0 && (\n+        <Card className=\"mb-6 lg:mb-8 border border-amber-200/80 bg-gradient-to-br from-amber-50/90 via-background to-orange-50/70 shadow-md dark:border-amber-500/20 dark:from-amber-950/10 dark:to-orange-950/10\">\n+          <CardHeader className=\"pb-3\">\n+            <div className=\"flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between w-full\">\n+              <div className=\"flex items-center gap-2\">\n+                <div className=\"flex h-10 w-10 items-center justify-center rounded-xl bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-300\">\n+                  <svg\n+                    aria-hidden=\"true\"\n+                    className=\"h-5 w-5\"\n+                    fill=\"currentColor\"\n+                    viewBox=\"0 0 20 20\"\n+                  >\n+                    <path\n+                      clipRule=\"evenodd\"\n+                      d=\"M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.981-1.742 2.981H4.42c-1.53 0-2.492-1.647-1.743-2.98l5.58-9.92zM11 13a1 1 0 10-2 0 1 1 0 002 0zm-1-7a1 1 0 00-1 1v3a1 1 0 102 0V7a1 1 0 00-1-1z\"\n+                      fillRule=\"evenodd\"\n+                    />\n+                  </svg>\n+                </div>\n+                <div>\n+                  <h2 className=\"text-lg lg:text-xl font-semibold text-foreground\">\n+                    节点到期提醒\n+                  </h2>\n+                  <p className=\"text-sm text-default-500\">\n+                    展示 7 天内到期或已过期的节点，便于提前续费或清理\n+                  </p>\n+                </div>\n+              </div>\n+              <span className=\"inline-flex w-fit items-center rounded-full bg-white/80 px-3 py-1 text-xs font-medium text-amber-700 ring-1 ring-amber-200/80 dark:bg-white/5 dark:text-amber-300 dark:ring-amber-500/20\">\n+                {nodeExpiryReminders.length} 个提醒\n+              </span>\n+            </div>\n+          </CardHeader>\n+          <CardBody className=\"pt-0\">\n+            <div className=\"grid grid-cols-1 gap-3 xl:grid-cols-2\">\n+              {nodeExpiryReminders.slice(0, 6).map(renderNodeExpiryCard)}\n+            </div>\n+            {nodeExpiryReminders.length > 6 && (\n+              <p className=\"mt-4 text-xs text-default-500\">\n+                还有 {nodeExpiryReminders.length - 6} 个节点未展开显示，可前往节点页面继续处理。\n+              </p>\n+            )}\n+          </CardBody>\n+        </Card>\n+      )}\n+\n       {/* 隧道权限 - 管理员不显示 */}\n       {!isAdmin && (\n         <Card className=\"mb-6 lg:mb-8 border border-gray-200 dark:border-default-200 shadow-md\">\ndiff --git a/vite-frontend/src/pages/dashboard/use-dashboard-data.ts b/vite-frontend/src/pages/dashboard/use-dashboard-data.ts\nindex 052f7fe..b5d644b 100644\n--- a/vite-frontend/src/pages/dashboard/use-dashboard-data.ts\n+++ b/vite-frontend/src/pages/dashboard/use-dashboard-data.ts\n@@ -1,10 +1,11 @@\n-import type { ForwardApiItem } from \"@/api/types\";\n+import type { ForwardApiItem, NodeApiItem } from \"@/api/types\";\n \n import { useCallback, useEffect, useRef, useState } from \"react\";\n import toast from \"react-hot-toast\";\n \n import {\n   getAnnouncement,\n+  getDashboardNodeExpiryList,\n   getUserPackageInfo,\n   type AnnouncementData,\n } from \"@/api\";\n@@ -52,6 +53,14 @@ export interface DashboardStatisticsFlow {\n   time: string;\n }\n \n+export interface DashboardNodeExpiryItem {\n+  id: number;\n+  name: string;\n+  remark?: string;\n+  tags?: string;\n+  expiryTime?: number;\n+}\n+\n const DASHBOARD_POLL_INTERVAL_MS = 5000;\n const EXPIRATION_NOTIFICATION_STORAGE_KEY =\n   \"dashboard:last-expiration-notification\";\n@@ -75,6 +84,7 @@ interface DashboardDataState {\n   userTunnels: DashboardUserTunnel[];\n   forwardList: DashboardForward[];\n   statisticsFlows: DashboardStatisticsFlow[];\n+  nodeExpiryReminders: DashboardNodeExpiryItem[];\n   isAdmin: boolean;\n   announcement: AnnouncementData | null;\n }\n@@ -193,6 +203,28 @@ const normalizeTunnelPermissions = (items: DashboardUserTunnel[]) => {\n   }));\n };\n \n+const normalizeNodeExpiryReminders = (items: NodeApiItem[]) => {\n+  const now = Date.now();\n+  const warningWindowMs = 7 * 24 * 60 * 60 * 1000;\n+\n+  return (items || [])\n+    .map((item) => ({\n+      id: item.id,\n+      name: item.name || \"\",\n+      remark: typeof item.remark === \"string\" ? item.remark : \"\",\n+      tags: typeof item.tags === \"string\" ? item.tags : \"\",\n+      expiryTime:\n+        typeof item.expiryTime === \"number\" && item.expiryTime > 0\n+          ? item.expiryTime\n+          : undefined,\n+    }))\n+    .filter((item) => {\n+      if (!item.expiryTime) return false;\n+      return item.expiryTime <= now + warningWindowMs;\n+    })\n+    .sort((a, b) => (a.expiryTime || 0) - (b.expiryTime || 0));\n+};\n+\n export const useDashboardData = (): DashboardDataState => {\n   const [loading, setLoading] = useState(true);\n   const [userInfo, setUserInfo] = useState<DashboardUserInfo>(\n@@ -203,12 +235,16 @@ export const useDashboardData = (): DashboardDataState => {\n   const [statisticsFlows, setStatisticsFlows] = useState<\n     DashboardStatisticsFlow[]\n   >([]);\n+  const [nodeExpiryReminders, setNodeExpiryReminders] = useState<\n+    DashboardNodeExpiryItem[]\n+  >([]);\n   const [isAdmin, setIsAdmin] = useState(false);\n   const [announcement, setAnnouncement] = useState<AnnouncementData | null>(\n     null,\n   );\n   const isMountedRef = useRef(true);\n   const packageRequestInFlightRef = useRef(false);\n+  const nodeExpiryRequestInFlightRef = useRef(false);\n \n   const applyPackageData = useCallback((data: {\n     userInfo?: DashboardUserInfo;\n@@ -291,18 +327,46 @@ export const useDashboardData = (): DashboardDataState => {\n     }\n   }, []);\n \n+  const loadNodeExpiryData = useCallback(async () => {\n+    if (nodeExpiryRequestInFlightRef.current) {\n+      return;\n+    }\n+\n+    nodeExpiryRequestInFlightRef.current = true;\n+\n+    try {\n+      const res = await getDashboardNodeExpiryList();\n+\n+      if (!isMountedRef.current) {\n+        return;\n+      }\n+\n+      if (res.code === 0 && Array.isArray(res.data)) {\n+        setNodeExpiryReminders(normalizeNodeExpiryReminders(res.data));\n+      }\n+    } catch {\n+    } finally {\n+      nodeExpiryRequestInFlightRef.current = false;\n+    }\n+  }, []);\n+\n   useEffect(() => {\n     isMountedRef.current = true;\n-    setIsAdmin(getAdminFlag());\n+    const adminFlag = getAdminFlag();\n+\n+    setIsAdmin(adminFlag);\n \n     void loadPackageData({ notifyOnError: true });\n     void loadAnnouncement();\n+    if (adminFlag) {\n+      void loadNodeExpiryData();\n+    }\n     localStorage.setItem(\"e\", \"/dashboard\");\n \n     return () => {\n       isMountedRef.current = false;\n     };\n-  }, [loadAnnouncement, loadPackageData]);\n+  }, [loadAnnouncement, loadNodeExpiryData, loadPackageData]);\n \n   useEffect(() => {\n     if (typeof document === \"undefined\") {\n@@ -312,6 +376,9 @@ export const useDashboardData = (): DashboardDataState => {\n     const handleVisibilityChange = () => {\n       if (document.visibilityState === \"visible\") {\n         void loadPackageData({ silent: true });\n+        if (isAdmin) {\n+          void loadNodeExpiryData();\n+        }\n       }\n     };\n \n@@ -321,6 +388,9 @@ export const useDashboardData = (): DashboardDataState => {\n       }\n \n       void loadPackageData({ silent: true });\n+      if (isAdmin) {\n+        void loadNodeExpiryData();\n+      }\n     }, DASHBOARD_POLL_INTERVAL_MS);\n \n     document.addEventListener(\"visibilitychange\", handleVisibilityChange);\n@@ -329,7 +399,7 @@ export const useDashboardData = (): DashboardDataState => {\n       window.clearInterval(interval);\n       document.removeEventListener(\"visibilitychange\", handleVisibilityChange);\n     };\n-  }, [loadPackageData]);\n+  }, [isAdmin, loadNodeExpiryData, loadPackageData]);\n \n   return {\n     loading,\n@@ -337,6 +407,7 @@ export const useDashboardData = (): DashboardDataState => {\n     userTunnels,\n     forwardList,\n     statisticsFlows,\n+    nodeExpiryReminders,\n     isAdmin,\n     announcement,\n   };\ndiff --git a/vite-frontend/src/pages/node.tsx b/vite-frontend/src/pages/node.tsx\nindex 096ab2c..d18be2d 100644\n--- a/vite-frontend/src/pages/node.tsx\n+++ b/vite-frontend/src/pages/node.tsx\n@@ -71,6 +71,9 @@ interface Node {\n   id: number;\n   inx?: number;\n   name: string;\n+  remark?: string;\n+  tags?: string;\n+  expiryTime?: number;\n   ip: string;\n   serverIp: string;\n   serverIpV4?: string;\n@@ -105,6 +108,9 @@ interface Node {\n interface NodeForm {\n   id: number | null;\n   name: string;\n+  remark: string;\n+  tags: string;\n+  expiryTime: number;\n   serverHost: string;\n   serverIpV4: string;\n   serverIpV6: string;\n@@ -118,6 +124,80 @@ interface NodeForm {\n   socks: number; // 0 关 1 开\n }\n \n+const formatNodeExpiry = (timestamp?: number): string => {\n+  if (!timestamp || timestamp <= 0) return \"永久有效\";\n+  return new Date(timestamp).toLocaleString();\n+};\n+\n+const EXPIRING_SOON_DAYS = 7;\n+\n+type NodeExpiryState = \"permanent\" | \"healthy\" | \"expiringSoon\" | \"expired\";\n+\n+type NodeFilterMode = \"all\" | \"expiringSoon\" | \"expired\" | \"withExpiry\";\n+\n+const getNodeExpiryMeta = (timestamp?: number) => {\n+  if (!timestamp || timestamp <= 0) {\n+    return {\n+      state: \"permanent\" as NodeExpiryState,\n+      label: \"永久有效\",\n+      tone: \"default\" as const,\n+      accentClassName: \"\",\n+      bannerClassName: \"\",\n+      isHighlighted: false,\n+      sortWeight: 3,\n+    };\n+  }\n+\n+  const diffMs = timestamp - Date.now();\n+  const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));\n+\n+  if (diffDays <= 0) {\n+    return {\n+      state: \"expired\" as NodeExpiryState,\n+      label: \"已过期\",\n+      tone: \"danger\" as const,\n+      accentClassName:\n+        \"border-red-300/80 bg-red-50/70 shadow-red-100 dark:border-red-500/40 dark:bg-red-950/20\",\n+      bannerClassName:\n+        \"bg-red-50 text-red-700 dark:bg-red-950/30 dark:text-red-300\",\n+      isHighlighted: true,\n+      sortWeight: 0,\n+    };\n+  }\n+\n+  if (diffDays <= EXPIRING_SOON_DAYS) {\n+    return {\n+      state: \"expiringSoon\" as NodeExpiryState,\n+      label: diffDays === 1 ? \"明天到期\" : `${diffDays}天后到期`,\n+      tone: \"warning\" as const,\n+      accentClassName:\n+        \"border-amber-300/80 bg-amber-50/80 shadow-amber-100 dark:border-amber-500/40 dark:bg-amber-950/20\",\n+      bannerClassName:\n+        \"bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-300\",\n+      isHighlighted: true,\n+      sortWeight: 1,\n+    };\n+  }\n+\n+  return {\n+    state: \"healthy\" as NodeExpiryState,\n+    label: `${diffDays}天后到期`,\n+    tone: \"success\" as const,\n+    accentClassName: \"\",\n+    bannerClassName: \"\",\n+    isHighlighted: false,\n+    sortWeight: 2,\n+  };\n+};\n+\n+const normalizeNodeTags = (tags?: string): string[] => {\n+  if (!tags) return [];\n+  return tags\n+    .split(\",\")\n+    .map((tag) => tag.trim())\n+    .filter(Boolean);\n+};\n+\n const mergeNodeRealtimeState = (\n   incomingNode: Node,\n   existingNode?: Node,\n@@ -182,6 +262,10 @@ export default function NodePage() {\n     \"node-search-keyword\",\n     \"\",\n   );\n+  const [nodeFilterMode, setNodeFilterMode] = useLocalStorageState<NodeFilterMode>(\n+    \"node-expiry-filter-mode\",\n+    \"all\",\n+  );\n   const [isSearchVisible, setIsSearchVisible] = useState(false);\n   const [dialogVisible, setDialogVisible] = useState(false);\n   const [dialogTitle, setDialogTitle] = useState(\"\");\n@@ -195,6 +279,9 @@ export default function NodePage() {\n   const [form, setForm] = useState<NodeForm>({\n     id: null,\n     name: \"\",\n+    remark: \"\",\n+    tags: \"\",\n+    expiryTime: 0,\n     serverHost: \"\",\n     serverIpV4: \"\",\n     serverIpV6: \"\",\n@@ -636,6 +723,9 @@ export default function NodePage() {\n     setForm({\n       id: node.id,\n       name: node.name,\n+      remark: node.remark || \"\",\n+      tags: node.tags || \"\",\n+      expiryTime: node.expiryTime || 0,\n       serverHost: normalizedHost,\n       serverIpV4: normalizedV4,\n       serverIpV6: normalizedV6,\n@@ -871,6 +961,9 @@ export default function NodePage() {\n       const { serverHost, ...rest } = form;\n       const data = {\n         ...rest,\n+        remark: form.remark.trim(),\n+        tags: form.tags.trim(),\n+        expiryTime: form.expiryTime,\n         extraIPs: form.extraIPs,\n         serverIp:\n           form.serverIpV4?.trim() ||\n@@ -892,6 +985,9 @@ export default function NodePage() {\n                 ? {\n                     ...n,\n                     name: form.name,\n+                    remark: form.remark.trim(),\n+                    tags: form.tags.trim(),\n+                    expiryTime: form.expiryTime,\n                     serverIp:\n                       form.serverIpV4?.trim() ||\n                       form.serverIpV6?.trim() ||\n@@ -928,6 +1024,9 @@ export default function NodePage() {\n     setForm({\n       id: null,\n       name: \"\",\n+      remark: \"\",\n+      tags: \"\",\n+      expiryTime: 0,\n       serverHost: \"\",\n       serverIpV4: \"\",\n       serverIpV6: \"\",\n@@ -1060,6 +1159,20 @@ export default function NodePage() {\n     }),\n   );\n \n+  const nodeExpiryStats = useMemo(() => {\n+    return nodeList.reduce(\n+      (acc, node) => {\n+        const meta = getNodeExpiryMeta(node.expiryTime);\n+\n+        if (meta.state === \"expired\") acc.expired += 1;\n+        if (meta.state === \"expiringSoon\") acc.expiringSoon += 1;\n+        if (node.expiryTime && node.expiryTime > 0) acc.withExpiry += 1;\n+        return acc;\n+      },\n+      { expired: 0, expiringSoon: 0, withExpiry: 0 },\n+    );\n+  }, [nodeList]);\n+\n   // 根据排序顺序获取节点列表\n   const sortedNodes = useMemo((): Node[] => {\n     if (!nodeList || nodeList.length === 0) return [];\n@@ -1072,13 +1185,40 @@ export default function NodePage() {\n       filteredNodes = filteredNodes.filter(\n         (n) =>\n           (n.name && n.name.toLowerCase().includes(lowerKeyword)) ||\n+          (n.remark && n.remark.toLowerCase().includes(lowerKeyword)) ||\n+          (n.tags && n.tags.toLowerCase().includes(lowerKeyword)) ||\n           (n.serverIp && n.serverIp.toLowerCase().includes(lowerKeyword)) ||\n           (n.serverIpV4 && n.serverIpV4.toLowerCase().includes(lowerKeyword)) ||\n           (n.serverIpV6 && n.serverIpV6.toLowerCase().includes(lowerKeyword)),\n       );\n     }\n \n+    if (nodeFilterMode !== \"all\") {\n+      filteredNodes = filteredNodes.filter((node) => {\n+        const expiryMeta = getNodeExpiryMeta(node.expiryTime);\n+\n+        switch (nodeFilterMode) {\n+          case \"expiringSoon\":\n+            return expiryMeta.state === \"expiringSoon\";\n+          case \"expired\":\n+            return expiryMeta.state === \"expired\";\n+          case \"withExpiry\":\n+            return !!node.expiryTime && node.expiryTime > 0;\n+          default:\n+            return true;\n+        }\n+      });\n+    }\n+\n     const sortedByDb = [...filteredNodes].sort((a, b) => {\n+      const expiryDiff =\n+        getNodeExpiryMeta(a.expiryTime).sortWeight -\n+        getNodeExpiryMeta(b.expiryTime).sortWeight;\n+\n+      if (expiryDiff !== 0) {\n+        return expiryDiff;\n+      }\n+\n       const aInx = a.inx ?? 0;\n       const bInx = b.inx ?? 0;\n \n@@ -1110,7 +1250,7 @@ export default function NodePage() {\n     }\n \n     return sortedByDb;\n-  }, [nodeList, nodeOrder, searchKeyword]);\n+  }, [nodeFilterMode, nodeList, nodeOrder, searchKeyword]);\n \n   const sortableNodeIds = useMemo(\n     () => sortedNodes.map((n) => n.id),\n@@ -1120,15 +1260,41 @@ export default function NodePage() {\n   return (\n     <AnimatedPage className=\"px-3 lg:px-6 py-8\">\n       <div className=\"flex flex-col sm:flex-row items-stretch sm:items-center justify-between mb-6 gap-3\">\n-        <div className=\"flex-1 max-w-sm flex items-center gap-2\">\n+        <div className=\"flex flex-1 flex-col gap-3 lg:flex-row lg:items-center\">\n           <SearchBar\n             isVisible={isSearchVisible}\n-            placeholder=\"搜索节点名称或IP\"\n+            placeholder=\"搜索名称、IP、备注或标签\"\n             value={searchKeyword}\n             onChange={setSearchKeyword}\n             onClose={() => setIsSearchVisible(false)}\n             onOpen={() => setIsSearchVisible(true)}\n           />\n+\n+          <Select\n+            className=\"w-full max-w-sm lg:w-56\"\n+            label=\"到期筛选\"\n+            selectedKeys={[nodeFilterMode]}\n+            size=\"sm\"\n+            variant=\"bordered\"\n+            onSelectionChange={(keys) => {\n+              const selected = Array.from(keys)[0] as NodeFilterMode | undefined;\n+\n+              setNodeFilterMode(selected || \"all\");\n+            }}\n+          >\n+            <SelectItem key=\"all\" textValue=\"全部节点\">\n+              全部节点\n+            </SelectItem>\n+            <SelectItem key=\"expiringSoon\" textValue=\"7天内到期\">\n+              7天内到期 ({nodeExpiryStats.expiringSoon})\n+            </SelectItem>\n+            <SelectItem key=\"expired\" textValue=\"已过期\">\n+              已过期 ({nodeExpiryStats.expired})\n+            </SelectItem>\n+            <SelectItem key=\"withExpiry\" textValue=\"已设置到期时间\">\n+              已设置到期时间 ({nodeExpiryStats.withExpiry})\n+            </SelectItem>\n+          </Select>\n         </div>\n \n         <div className=\"min-h-9 min-w-0 max-w-full overflow-x-auto touch-pan-x\">\n@@ -1239,13 +1405,14 @@ export default function NodePage() {\n             <div className=\"grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4\">\n               {sortedNodes.map((node) => {\n                 const isRemoteNode = node.isRemote === 1;\n+                const expiryMeta = getNodeExpiryMeta(node.expiryTime);\n \n                 return (\n                   <SortableItem key={node.id} id={node.id}>\n                     {(listeners) => (\n                       <Card\n                         key={node.id}\n-                        className=\"group shadow-sm border border-divider hover:shadow-md transition-shadow duration-200 overflow-hidden\"\n+                        className={`group shadow-sm border border-divider hover:shadow-md transition-shadow duration-200 overflow-hidden ${expiryMeta.accentClassName}`}\n                       >\n                         <CardHeader className=\"pb-2 md:pb-2\">\n                           <div className=\"flex justify-between items-start w-full\">\n@@ -1313,8 +1480,60 @@ export default function NodePage() {\n                               {getRemoteSyncErrorMessage(node.syncError)}\n                             </div>\n                           )}\n+                          {expiryMeta.isHighlighted && (\n+                            <div\n+                              className={`mb-3 flex items-center justify-between gap-3 rounded-md px-2 py-1.5 text-xs font-medium ${expiryMeta.bannerClassName}`}\n+                            >\n+                              <span>节点到期提醒</span>\n+                              <span>{expiryMeta.label}</span>\n+                            </div>\n+                          )}\n                           {/* 基础信息 */}\n                           <div className=\"space-y-2 mb-4\">\n+                            {(node.remark?.trim() || node.tags?.trim()) && (\n+                              <div className=\"rounded-lg border border-divider/80 bg-default-50/80 px-3 py-2\">\n+                                {node.remark?.trim() && (\n+                                  <div className=\"text-xs leading-5 text-default-700 whitespace-pre-wrap break-words\">\n+                                    {node.remark.trim()}\n+                                  </div>\n+                                )}\n+                                {normalizeNodeTags(node.tags).length > 0 && (\n+                                  <div className=\"mt-2 flex flex-wrap gap-1.5\">\n+                                    {normalizeNodeTags(node.tags).map((tag) => (\n+                                      <Chip\n+                                        key={`${node.id}-${tag}`}\n+                                        className=\"text-[11px]\"\n+                                        color=\"secondary\"\n+                                        size=\"sm\"\n+                                        variant=\"flat\"\n+                                      >\n+                                        #{tag}\n+                                      </Chip>\n+                                    ))}\n+                                  </div>\n+                                )}\n+                              </div>\n+                            )}\n+                            {node.expiryTime && node.expiryTime > 0 && (\n+                              <div className=\"flex justify-between text-sm\">\n+                                <span className=\"text-default-600\">到期时间</span>\n+                                <div className=\"text-right ml-2\">\n+                                  <div className=\"text-xs text-warning-700 dark:text-warning-400\">\n+                                    {formatNodeExpiry(node.expiryTime)}\n+                                  </div>\n+                                  <div className=\"mt-1\">\n+                                    <Chip\n+                                      className=\"text-[11px]\"\n+                                      color={expiryMeta.tone}\n+                                      size=\"sm\"\n+                                      variant=\"flat\"\n+                                    >\n+                                      {expiryMeta.label}\n+                                    </Chip>\n+                                  </div>\n+                                </div>\n+                              </div>\n+                            )}\n                             <div className=\"flex justify-between items-center text-sm min-w-0\">\n                               <span className=\"text-default-600 flex-shrink-0\">\n                                 IP\n@@ -1616,6 +1835,52 @@ export default function NodePage() {\n                 }\n               />\n \n+              <Textarea\n+                description=\"可记录供应商、用途、续费说明等补充信息\"\n+                label=\"备注\"\n+                maxRows={4}\n+                minRows={3}\n+                placeholder=\"例如: 搬瓦工年付，2026-12 续费，日本中转\"\n+                value={form.remark}\n+                variant=\"bordered\"\n+                onChange={(e) =>\n+                  setForm((prev) => ({ ...prev, remark: e.target.value }))\n+                }\n+              />\n+\n+              <div className=\"grid grid-cols-1 md:grid-cols-2 gap-4\">\n+                <Input\n+                  description=\"多个标签用逗号分隔，可用于搜索过滤\"\n+                  label=\"标签\"\n+                  placeholder=\"例如: 年付,日本中转,测试机\"\n+                  value={form.tags}\n+                  variant=\"bordered\"\n+                  onChange={(e) =>\n+                    setForm((prev) => ({ ...prev, tags: e.target.value }))\n+                  }\n+                />\n+\n+                <Input\n+                  description=\"留空表示永久有效，可用于记录节点到期时间\"\n+                  label=\"到期时间\"\n+                  type=\"datetime-local\"\n+                  value={\n+                    form.expiryTime > 0\n+                      ? new Date(form.expiryTime).toISOString().slice(0, 16)\n+                      : \"\"\n+                  }\n+                  variant=\"bordered\"\n+                  onChange={(e) =>\n+                    setForm((prev) => ({\n+                      ...prev,\n+                      expiryTime: e.target.value\n+                        ? new Date(e.target.value).getTime()\n+                        : 0,\n+                    }))\n+                  }\n+                />\n+              </div>\n+\n               <Input\n                 description=\"可选：不带协议、不带端口。建议在 IPv4 和 IPv6 都未填写时使用。至少填写一个 IPv4/IPv6/域名\"\n                 errorMessage={errors.serverHost}\n",
+            "title": "Shows staged and unstaged changes",
+            "metadata": {
+              "output": " AGENTS.md                                          |   1 +\n go-backend/internal/http/handler/mutations.go      |  13 +\n go-backend/internal/store/model/model.go           |   6 +\n go-backend/internal/store/repo/repository.go       |  14 +-\n .../internal/store/repo/repository_mutations.go    |  10 +-\n vite-frontend/src/api/index.ts                     |   2 +\n vite-frontend/src/api/types.ts                     |   6 +\n vite-frontend/src/pages/dashboard.tsx              | 145 +++++++++++\n .../src/pages/dashboard/use-dashboard-data.ts      |  79 +++++-\n vite-frontend/src/pages/node.tsx                   | 273 ++++++++++++++++++++-\n 10 files changed, 537 insertions(+), 12 deletions(-)\ndiff --git a/AGENTS.md b/AGENTS.md\nindex d88d47d..6131811 100644\n--- a/AGENTS.md\n+++ b/AGENTS.md\n@@ -53,6 +53,7 @@ FLVX (formerly Flux Panel) is a traffic forwarding management system built on a\n | `websocket_reporter` | Func | `go-gost/x/socket/websocket_reporter.go` | Panel Telemetry |\n \n ## CONVENTIONS\n+- **Skills & MCP**: Always prefer using available skills (via `skill` tool) and MCP tools when applicable. Check for relevant skills before implementing from scratch.\n - **Auth**: `Authorization` header carries the raw JWT token (no `Bearer` prefix) between `vite-frontend/` and `go-backend/`.\n - **Module Fork**: `go-gost/` uses `replace github.com/go-gost/x => ./x` and `go-gost/x/` is also its own Go module.\n - **Encryption**: Agent-to-panel communication uses AES encryption with node `secret` as PSK.\ndiff --git a/go-backend/internal/http/handler/mutations.go b/go-backend/internal/http/handler/mutations.go\nindex 9b4447c..1a6eeb7 100644\n--- a/go-backend/internal/http/handler/mutations.go\n+++ b/go-backend/internal/http/handler/mutations.go\n@@ -261,6 +261,9 @@ func (h *Handler) nodeCreate(w http.ResponseWriter, r *http.Request) {\n \t\tdefaultString(asString(req[\"port\"]), \"1000-65535\"),\n \t\tnullableText(asString(req[\"interfaceName\"])),\n \t\tnullableText(\"\"),\n+\t\tnullableText(strings.TrimSpace(asString(req[\"remark\"]))),\n+\t\tnullableText(strings.TrimSpace(asString(req[\"tags\"]))),\n+\t\tnullableUnixMilli(asInt64(req[\"expiryTime\"], 0)),\n \t\tasInt(req[\"http\"], 0),\n \t\tasInt(req[\"tls\"], 0),\n \t\tasInt(req[\"socks\"], 0),\n@@ -326,6 +329,9 @@ func (h *Handler) nodeUpdate(w http.ResponseWriter, r *http.Request) {\n \t\tdefaultString(asString(req[\"port\"]), \"1000-65535\"),\n \t\tnullableText(asString(req[\"interfaceName\"])),\n \t\tnullableText(asString(req[\"extraIPs\"])),\n+\t\tnullableText(strings.TrimSpace(asString(req[\"remark\"]))),\n+\t\tnullableText(strings.TrimSpace(asString(req[\"tags\"]))),\n+\t\tnullableUnixMilli(asInt64(req[\"expiryTime\"], 0)),\n \t\tnewHTTP,\n \t\tnewTLS,\n \t\tnewSocks,\n@@ -3534,6 +3540,13 @@ func nullableText(s string) interface{} {\n \treturn s\n }\n \n+func nullableUnixMilli(v int64) interface{} {\n+\tif v <= 0 {\n+\t\treturn nil\n+\t}\n+\treturn v\n+}\n+\n func nullableInt(v *int64) interface{} {\n \tif v == nil {\n \t\treturn nil\ndiff --git a/go-backend/internal/store/model/model.go b/go-backend/internal/store/model/model.go\nindex 8eb51a6..d69a6e1 100644\n--- a/go-backend/internal/store/model/model.go\n+++ b/go-backend/internal/store/model/model.go\n@@ -60,6 +60,9 @@ func (ForwardPort) TableName() string { return \"forward_port\" }\n type Node struct {\n \tID            int64          `gorm:\"primaryKey;autoIncrement\"`\n \tName          string         `gorm:\"type:varchar(100);not null\"`\n+\tRemark        sql.NullString `gorm:\"column:remark;type:text\"`\n+\tTags          sql.NullString `gorm:\"column:tags;type:text\"`\n+\tExpiryTime    sql.NullInt64  `gorm:\"column:expiry_time\"`\n \tSecret        string         `gorm:\"type:varchar(100);not null\"`\n \tServerIP      string         `gorm:\"column:server_ip;type:varchar(100);not null\"`\n \tServerIPV4    sql.NullString `gorm:\"column:server_ip_v4;type:varchar(100)\"`\n@@ -336,6 +339,9 @@ type UserBackup struct {\n type NodeBackup struct {\n \tID            int64  `json:\"id\"`\n \tName          string `json:\"name\"`\n+\tRemark        string `json:\"remark,omitempty\"`\n+\tTags          string `json:\"tags,omitempty\"`\n+\tExpiryTime    int64  `json:\"expiryTime,omitempty\"`\n \tSecret        string `json:\"secret\"`\n \tServerIP      string `json:\"serverIp\"`\n \tServerIPv4    string `json:\"serverIpV4,omitempty\"`\ndiff --git a/go-backend/internal/store/repo/repository.go b/go-backend/internal/store/repo/repository.go\nindex c2bff03..45cca03 100644\n--- a/go-backend/internal/store/repo/repository.go\n+++ b/go-backend/internal/store/repo/repository.go\n@@ -634,7 +634,10 @@ func (r *Repository) ListNodes() ([]map[string]interface{}, error) {\n \tfor _, n := range nodes {\n \t\titems = append(items, map[string]interface{}{\n \t\t\t\"id\": n.ID, \"inx\": n.Inx, \"name\": n.Name,\n-\t\t\t\"ip\": n.ServerIP, \"serverIp\": n.ServerIP,\n+\t\t\t\"remark\":     nullableString(n.Remark),\n+\t\t\t\"tags\":       nullableString(n.Tags),\n+\t\t\t\"expiryTime\": nullableInt64(n.ExpiryTime),\n+\t\t\t\"ip\":         n.ServerIP, \"serverIp\": n.ServerIP,\n \t\t\t\"serverIpV4\":    nullableString(n.ServerIPV4),\n \t\t\t\"serverIpV6\":    nullableString(n.ServerIPV6),\n \t\t\t\"extraIPs\":      nullableString(n.ExtraIPs),\n@@ -1814,11 +1817,15 @@ func (r *Repository) exportNodes() ([]model.NodeBackup, error) {\n \tfor _, n := range nodes {\n \t\tb := model.NodeBackup{\n \t\t\tID: n.ID, Name: n.Name, Secret: n.Secret, ServerIP: n.ServerIP,\n+\t\t\tRemark: n.Remark.String, Tags: n.Tags.String,\n \t\t\tPort: n.Port, HTTP: n.HTTP, TLS: n.TLS, Socks: n.Socks,\n \t\t\tCreatedTime: n.CreatedTime, Status: n.Status,\n \t\t\tTCPListenAddr: n.TCPListenAddr, UDPListenAddr: n.UDPListenAddr,\n \t\t\tInx: n.Inx, IsRemote: n.IsRemote,\n \t\t}\n+\t\tif n.ExpiryTime.Valid {\n+\t\t\tb.ExpiryTime = n.ExpiryTime.Int64\n+\t\t}\n \t\tif n.UpdatedTime.Valid {\n \t\t\tb.UpdatedTime = n.UpdatedTime.Int64\n \t\t}\n@@ -2168,6 +2175,9 @@ func importNodes(tx *gorm.DB, nodes []model.NodeBackup, now int64) (int, error)\n \t\titem := model.Node{\n \t\t\tID:            n.ID,\n \t\t\tName:          n.Name,\n+\t\t\tRemark:        sql.NullString{String: n.Remark, Valid: n.Remark != \"\"},\n+\t\t\tTags:          sql.NullString{String: n.Tags, Valid: n.Tags != \"\"},\n+\t\t\tExpiryTime:    sql.NullInt64{Int64: n.ExpiryTime, Valid: n.ExpiryTime > 0},\n \t\t\tSecret:        n.Secret,\n \t\t\tServerIP:      n.ServerIP,\n \t\t\tServerIPV4:    sql.NullString{String: n.ServerIPv4, Valid: true},\n@@ -2192,7 +2202,7 @@ func importNodes(tx *gorm.DB, nodes []model.NodeBackup, now int64) (int, error)\n \t\terr := tx.Clauses(clause.OnConflict{\n \t\t\tColumns: []clause.Column{{Name: \"id\"}},\n \t\t\tDoUpdates: clause.AssignmentColumns([]string{\n-\t\t\t\t\"name\", \"secret\", \"server_ip\", \"server_ip_v4\", \"server_ip_v6\", \"port\", \"interface_name\", \"version\",\n+\t\t\t\t\"name\", \"remark\", \"tags\", \"expiry_time\", \"secret\", \"server_ip\", \"server_ip_v4\", \"server_ip_v6\", \"port\", \"interface_name\", \"version\",\n \t\t\t\t\"http\", \"tls\", \"socks\", \"updated_time\", \"status\", \"tcp_listen_addr\", \"udp_listen_addr\",\n \t\t\t\t\"inx\", \"is_remote\", \"remote_url\", \"remote_token\", \"remote_config\",\n \t\t\t}),\ndiff --git a/go-backend/internal/store/repo/repository_mutations.go b/go-backend/internal/store/repo/repository_mutations.go\nindex ad29f59..985b08f 100644\n--- a/go-backend/internal/store/repo/repository_mutations.go\n+++ b/go-backend/internal/store/repo/repository_mutations.go\n@@ -196,12 +196,15 @@ func (r *Repository) GetUserDefaultsForTunnel(userID int64) (flow int64, num int\n \treturn user.Flow, user.Num, user.ExpTime, user.FlowResetTime, nil\n }\n \n-func (r *Repository) CreateNode(name, secret, serverIP string, serverIPV4, serverIPV6, port, interfaceName, version interface{}, httpFlag, tlsFlag, socksFlag int, now int64, status int, tcpAddr, udpAddr string, inx, isRemote int, remoteURL, remoteToken, remoteConfig, extraIPs interface{}) error {\n+func (r *Repository) CreateNode(name, secret, serverIP string, serverIPV4, serverIPV6, port, interfaceName, version, remark, tags, expiryTime interface{}, httpFlag, tlsFlag, socksFlag int, now int64, status int, tcpAddr, udpAddr string, inx, isRemote int, remoteURL, remoteToken, remoteConfig, extraIPs interface{}) error {\n \tif r == nil || r.db == nil {\n \t\treturn errors.New(\"repository not initialized\")\n \t}\n \tnode := model.Node{\n \t\tName:          name,\n+\t\tRemark:        nullStringFromInterface(remark),\n+\t\tTags:          nullStringFromInterface(tags),\n+\t\tExpiryTime:    nullInt64FromInterface(expiryTime),\n \t\tSecret:        secret,\n \t\tServerIP:      serverIP,\n \t\tServerIPV4:    nullStringFromInterface(serverIPV4),\n@@ -239,7 +242,7 @@ func (r *Repository) GetNodeStatusFields(nodeID int64) (status, httpFlag, tlsFla\n \treturn node.Status, node.HTTP, node.TLS, node.Socks, nil\n }\n \n-func (r *Repository) UpdateNode(id int64, name, serverIP string, serverIPV4, serverIPV6, port, interfaceName, extraIPs interface{}, httpFlag, tlsFlag, socksFlag int, tcpAddr, udpAddr string, now int64) error {\n+func (r *Repository) UpdateNode(id int64, name, serverIP string, serverIPV4, serverIPV6, port, interfaceName, extraIPs, remark, tags, expiryTime interface{}, httpFlag, tlsFlag, socksFlag int, tcpAddr, udpAddr string, now int64) error {\n \tif r == nil || r.db == nil {\n \t\treturn errors.New(\"repository not initialized\")\n \t}\n@@ -247,6 +250,9 @@ func (r *Repository) UpdateNode(id int64, name, serverIP string, serverIPV4, ser\n \t\tWhere(\"id = ?\", id).\n \t\tUpdates(map[string]interface{}{\n \t\t\t\"name\":            name,\n+\t\t\t\"remark\":          nullStringFromInterface(remark),\n+\t\t\t\"tags\":            nullStringFromInterface(tags),\n+\t\t\t\"expiry_time\":     nullInt64FromInterface(expiryTime),\n \t\t\t\"server_ip\":       serverIP,\n \t\t\t\"server_ip_v4\":    nullStringFromInterface(serverIPV4),\n \t\t\t\"server_ip_v6\":    nullStringFromInterface(serverIPV6),\ndiff --git a/vite-frontend/src/api/index.ts b/vite-frontend/src/api/index.ts\nindex 305d549..acddbec 100644\n--- a/vite-frontend/src/api/index.ts\n+++ b/vite-frontend/src/api/index.ts\n@@ -65,6 +65,8 @@ export const getUserPackageInfo = () =>\n export const createNode = (data: NodeMutationPayload) =>\n   Network.post(\"/node/create\", data);\n export const getNodeList = () => Network.post<NodeApiItem[]>(\"/node/list\");\n+export const getDashboardNodeExpiryList = () =>\n+  Network.post<NodeApiItem[]>(\"/node/list\", {});\n export const updateNode = (data: NodeMutationPayload) =>\n   Network.post(\"/node/update\", data);\n export const deleteNode = (id: number) => Network.post(\"/node/delete\", { id });\ndiff --git a/vite-frontend/src/api/types.ts b/vite-frontend/src/api/types.ts\nindex 94f817c..a15911f 100644\n--- a/vite-frontend/src/api/types.ts\n+++ b/vite-frontend/src/api/types.ts\n@@ -3,6 +3,9 @@ export interface NodeApiItem {\n   name: string;\n   status: number;\n   inx?: number;\n+  remark?: string;\n+  tags?: string;\n+  expiryTime?: number;\n   syncError?: string;\n   [key: string]: unknown;\n }\n@@ -214,6 +217,9 @@ export interface NodeMutationPayload {\n   name?: string;\n   status?: number;\n   inx?: number;\n+  remark?: string;\n+  tags?: string;\n+  expiryTime?: number;\n   serverIp?: string;\n   serverIpV4?: string;\n   serverIpV6?: string;\ndiff --git a/vite-frontend/src/pages/dashboard.tsx b/vite-frontend/src/pages/dashboard.tsx\nindex 889a481..f6f15e3 100644\n--- a/vite-frontend/src/pages/dashboard.tsx\n+++ b/vite-frontend/src/pages/dashboard.tsx\n@@ -17,6 +17,7 @@ import { MetricCard } from \"@/pages/dashboard/components/metric-card\";\n import {\n   useDashboardData,\n   type DashboardForward as Forward,\n+  type DashboardNodeExpiryItem,\n   type DashboardUserTunnel as UserTunnel,\n } from \"@/pages/dashboard/use-dashboard-data\";\n \n@@ -34,6 +35,7 @@ export default function DashboardPage() {\n     userTunnels,\n     forwardList,\n     statisticsFlows,\n+    nodeExpiryReminders,\n     isAdmin,\n     announcement,\n   } = useDashboardData();\n@@ -70,6 +72,103 @@ export default function DashboardPage() {\n     return value.toString();\n   };\n \n+  const getNodeExpiryStatus = (expiryTime?: number) => {\n+    if (!expiryTime) {\n+      return {\n+        label: \"永久有效\",\n+        badgeClassName:\n+          \"bg-default-100 text-default-700 dark:bg-default-50 dark:text-default-300\",\n+      };\n+    }\n+\n+    const diffMs = expiryTime - Date.now();\n+    const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));\n+\n+    if (diffDays <= 0) {\n+      return {\n+        label: \"已过期\",\n+        badgeClassName:\n+          \"bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-300\",\n+      };\n+    }\n+\n+    if (diffDays === 1) {\n+      return {\n+        label: \"明天到期\",\n+        badgeClassName:\n+          \"bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-300\",\n+      };\n+    }\n+\n+    return {\n+      label: `${diffDays}天后到期`,\n+      badgeClassName:\n+        diffDays <= 7\n+          ? \"bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-300\"\n+          : \"bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300\",\n+    };\n+  };\n+\n+  const parseNodeTags = (tags?: string) => {\n+    if (!tags) return [];\n+    return tags\n+      .split(\",\")\n+      .map((tag) => tag.trim())\n+      .filter(Boolean)\n+      .slice(0, 3);\n+  };\n+\n+  const renderNodeExpiryCard = (node: DashboardNodeExpiryItem) => {\n+    const expiryStatus = getNodeExpiryStatus(node.expiryTime);\n+    const tags = parseNodeTags(node.tags);\n+\n+    return (\n+      <div\n+        key={node.id}\n+        className=\"rounded-xl border border-amber-200/80 bg-gradient-to-br from-amber-50 via-white to-orange-50 p-4 shadow-sm dark:border-amber-500/20 dark:from-amber-950/20 dark:via-background dark:to-orange-950/10\"\n+      >\n+        <div className=\"flex items-start justify-between gap-3\">\n+          <div className=\"min-w-0\">\n+            <div className=\"text-sm font-semibold text-foreground truncate\">\n+              {node.name}\n+            </div>\n+            <div className=\"mt-1 text-xs text-default-500\">节点 ID: {node.id}</div>\n+          </div>\n+          <span\n+            className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-medium ${expiryStatus.badgeClassName}`}\n+          >\n+            {expiryStatus.label}\n+          </span>\n+        </div>\n+\n+        <div className=\"mt-3 text-sm text-default-700 dark:text-default-300\">\n+          {node.expiryTime\n+            ? new Date(node.expiryTime).toLocaleString()\n+            : \"未设置到期时间\"}\n+        </div>\n+\n+        {node.remark?.trim() && (\n+          <p className=\"mt-3 line-clamp-2 text-xs leading-5 text-default-600 dark:text-default-400\">\n+            {node.remark.trim()}\n+          </p>\n+        )}\n+\n+        {tags.length > 0 && (\n+          <div className=\"mt-3 flex flex-wrap gap-2\">\n+            {tags.map((tag) => (\n+              <span\n+                key={`${node.id}-${tag}`}\n+                className=\"rounded-full bg-white/80 px-2 py-1 text-[11px] text-default-600 ring-1 ring-amber-200/80 dark:bg-white/5 dark:text-default-300 dark:ring-amber-500/20\"\n+              >\n+                #{tag}\n+              </span>\n+            ))}\n+          </div>\n+        )}\n+      </div>\n+    );\n+  };\n+\n   // 处理24小时流量统计数据\n   const processFlowChartData = () => {\n     // 生成最近24小时的时间数组（从当前小时往前推24小时）\n@@ -661,6 +760,52 @@ export default function DashboardPage() {\n         statisticsFlowsCount={statisticsFlows.length}\n       />\n \n+      {isAdmin && nodeExpiryReminders.length > 0 && (\n+        <Card className=\"mb-6 lg:mb-8 border border-amber-200/80 bg-gradient-to-br from-amber-50/90 via-background to-orange-50/70 shadow-md dark:border-amber-500/20 dark:from-amber-950/10 dark:to-orange-950/10\">\n+          <CardHeader className=\"pb-3\">\n+            <div className=\"flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between w-full\">\n+              <div className=\"flex items-center gap-2\">\n+                <div className=\"flex h-10 w-10 items-center justify-center rounded-xl bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-300\">\n+                  <svg\n+                    aria-hidden=\"true\"\n+                    className=\"h-5 w-5\"\n+                    fill=\"currentColor\"\n+                    viewBox=\"0 0 20 20\"\n+                  >\n+                    <path\n+                      clipRule=\"evenodd\"\n+                      d=\"M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.981-1.742 2.981H4.42c-1.53 0-2.492-1.647-1.743-2.98l5.58-9.92zM11 13a1 1 0 10-2 0 1 1 0 002 0zm-1-7a1 1 0 00-1 1v3a1 1 0 102 0V7a1 1 0 00-1-1z\"\n+                      fillRule=\"evenodd\"\n+                    />\n+                  </svg>\n+                </div>\n+                <div>\n+                  <h2 className=\"text-lg lg:text-xl font-semibold text-foreground\">\n+                    节点到期提醒\n+                  </h2>\n+                  <p className=\"text-sm text-default-500\">\n+                    展示 7 天内到期或已过期的节点，便于提前续费或清理\n+                  </p>\n+                </div>\n+              </div>\n+              <span className=\"inline-flex w-fit items-center rounded-full bg-white/80 px-3 py-1 text-xs font-medium text-amber-700 ring-1 ring-amber-200/80 dark:bg-white/5 dark:text-amber-300 dark:ring-amber-500/20\">\n+                {nodeExpiryReminders.length} 个提醒\n+              </span>\n+            </div>\n+          </CardHeader>\n+          <CardBody className=\"pt-0\">\n+            <div className=\"grid grid-cols-1 gap-3 xl:grid-cols-2\">\n+              {nodeExpiryReminders.slice(0, 6).map(renderNodeExpiryCard)}\n+            </div>\n+            {nodeExpiryReminders.length > 6 && (\n+              <p className=\"mt-4 text-xs text-default-500\">\n+                还有 {nodeExpiryReminders.length - 6} 个节点未展开显示，可前往节点页面继续处理。\n+              </p>\n+            )}\n+          </CardBody>\n+        </Card>\n+      )}\n+\n       {/* 隧道权限 - 管理员不显示 */}\n       {!isAdmin && (\n         <Card className=\"mb-6 lg:mb-8 border border-gray-200 dark:border-default-200 shadow-md\">\ndiff --git a/vite-frontend/src/pages/dashboard/use-dashboard-data.ts b/vite-frontend/src/pages/dashboard/use-dashboard-data.ts\nindex 052f7fe..b5d644b 100644\n--- a/vite-frontend/src/pages/dashboard/use-dashboard-data.ts\n+++ b/vite-frontend/src/pages/dashboard/use-dashboard-data.ts\n@@ -1,10 +1,11 @@\n-import type { ForwardApiItem } from \"@/api/types\";\n+import type { ForwardApiItem, NodeApiItem } from \"@/api/types\";\n \n import { useCallback, useEffect, useRef, useState } from \"react\";\n import toast from \"react-hot-toast\";\n \n import {\n   getAnnouncement,\n+  getDashboardNodeExpiryList,\n   getUserPackageInfo,\n   type AnnouncementData,\n } from \"@/api\";\n@@ -52,6 +53,14 @@ export interface DashboardStatisticsFlow {\n   time: string;\n }\n \n+export interface DashboardNodeExpiryItem {\n+  id: number;\n+  name: string;\n+  remark?: string;\n+  tags?: string;\n+  expiryTime?: number;\n+}\n+\n const DASHBOARD_POLL_INTERVAL_MS = 5000;\n const EXPIRATION_NOTIFICATION_STORAGE_KEY =\n   \"dashboard:last-expiration-notification\";\n@@ -75,6 +84,7 @@ interface DashboardDataState {\n   userTunnels: DashboardUserTunnel[];\n   forwardList: DashboardForward[];\n   statisticsFlows: DashboardStatisticsFlow[];\n+  nodeExpiryReminders: DashboardNodeExpiryItem[];\n   isAdmin: boolean;\n   announcement: AnnouncementData | null;\n }\n@@ -193,6 +203,28 @@ const normalizeTunnelPermissions = (items: DashboardUserTunnel[]) => {\n   }));\n };\n \n+const normalizeNodeExpiryReminders = (items: NodeApiItem[]) => {\n+  const now = Date.now();\n+  const warningWindowMs = 7 * 24 * 60 * 60 * 1000;\n+\n+  return (items || [])\n+    .map((item) => ({\n+      id: item.id,\n+      name: item.name || \"\",\n+      remark: typeof item.remark === \"string\" ? item.remark : \"\",\n+      tags: typeof item.tags === \"string\" ? item.tags : \"\",\n+      expiryTime:\n+        typeof item.expiryTime === \"number\" && item.expiryTime > 0\n+          ? item.expiryTime\n+          : undefined,\n+    }))\n+    .filter((item) => {\n+      if (!item.expiryTime) return false;\n+      return item.expiryTime <= now + warningWindowMs;\n+    })\n+    .sort((a, b) => (a.expiryTime || 0) - (b.expiryTime || 0));\n+};\n+\n export const useDashboardData = (): DashboardDataState => {\n   const [loading, setLoading] = useState(true);\n   const [userInfo, setUserInfo] = useState<DashboardUserInfo>(\n@@ -203,12 +235,16 @@ export const useDashboardData = (): DashboardDataState => {\n   const [statisticsFlows, setStatisticsFlows] = useState<\n     DashboardStatisticsFlow[]\n   >([]);\n+  const [nodeExpiryReminders, setNodeExpiryReminders] = useState<\n+    DashboardNodeExpiryItem[]\n+  >([]);\n   const [isAdmin, setIsAdmin] = useState(false);\n   const [announcement, setAnnouncement] = useState<AnnouncementData | null>(\n     null,\n   );\n   const isMountedRef = useRef(true);\n   const packageRequestInFlightRef = useRef(false);\n+  const nodeExpiryRequestInFlightRef = useRef(false);\n \n   const applyPackageData = useCallback((data: {\n     userInfo?: DashboardUserInfo;\n@@ -291,18 +327,46 @@ export const useDashboardData = (): DashboardDataState => {\n     }\n   }, []);\n \n+  const loadNodeExpiryData = useCallback(async () => {\n+    if (nodeExpiryRequestInFlightRef.current) {\n+      return;\n+    }\n+\n+    nodeExpiryRequestInFlightRef.current = true;\n+\n+    try {\n+      const res = await getDashboardNodeExpiryList();\n+\n+      if (!isMountedRef.current) {\n+        return;\n+      }\n+\n+      if (res.code === 0 && Array.isArray(res.data)) {\n+        setNodeExpiryReminders(normalizeNodeExpiryReminders(res.data));\n+      }\n+    } catch {\n+    } finally {\n+      nodeExpiryRequestInFlightRef.current = false;\n+    }\n+  }, []);\n+\n   useEffect(() => {\n     isMountedRef.current = true;\n-    setIsAdmin(getAdminFlag());\n+    const adminFlag = getAdminFlag();\n+\n+    setIsAdmin(adminFlag);\n \n     void loadPackageData({ notifyOnError: true });\n     void loadAnnouncement();\n+    if (adminFlag) {\n+      void loadNodeExpiryData();\n+    }\n     localStorage.setItem(\"e\", \"/dashboard\");\n \n     return () => {\n       isMountedRef.current = false;\n     };\n-  }, [loadAnnouncement, loadPackageData]);\n+  }, [loadAnnouncement, loadNodeExpiryData, loadPackageData]);\n \n   useEffect(() => {\n     if (typeof document === \"undefined\") {\n@@ -312,6 +376,9 @@ export const useDashboardData = (): DashboardDataState => {\n     const handleVisibilityChange = () => {\n       if (document.visibilityState === \"visible\") {\n         void loadPackageData({ silent: true });\n+        if (isAdmin) {\n+          void loadNodeExpiryData();\n+        }\n       }\n     };\n \n@@ -321,6 +388,9 @@ export const useDashboardData = (): DashboardDataState => {\n       }\n \n       void loadPackageData({ silent: true });\n+      if (isAdmin) {\n+        void loadNodeExpiryData();\n+      }\n     }, DASHBOARD_POLL_INTERVAL_MS);\n \n     document.addEventListener(\"visibilitychange\", handleVisibilityChange);\n@@ -329,7 +399,7 @@ export const useDashboardData = (): DashboardDataState => {\n       window.clearInterval(interval);\n       document.removeEventListener(\"visibilitychange\", handleVisibilityChange);\n     };\n-  }, [loadPackageData]);\n+  }, [isAdmin, loadNodeExpiryData, loadPackageData]);\n \n   return {\n     loading,\n@@ -337,6 +407,7 @@ export const useDashboardData = (): DashboardDataState => {\n     userTunnels,\n     forwardList,\n     statisticsFlows,\n+    nodeExpiryReminders,\n     isAdmin,\n     announcement,\n   };\ndiff --git a/vite-frontend/src/pages/node.tsx b/vite-frontend/src/pages/node.tsx\nindex 096ab2c..d18be2d 100644\n--- a/vite-frontend/src/pages/node.tsx\n+++ b/vite-frontend/src/pages/node.tsx\n@@ -71,6 +71,9 @@ interface Node {\n   id: number;\n   inx?: number;\n   name: string;\n+  remark?: string;\n+  tags?: string;\n+  expiryTime?: number;\n   ip: string;\n   serverIp: string;\n   serverIpV4?: string;\n@@ -105,6 +108,9 @@ interface Node {\n interface NodeForm {\n   id: number | null;\n   name: string;\n+  remark: string;\n+  tags: string;\n+  expiryTime: number;\n   serverHost: string;\n   serverIpV4: string;\n   serverIpV6: string;\n@@ -118,6 +124,80 @@ interface NodeForm {\n   socks: number; // 0 关 1 开\n }\n \n+const formatNodeExpiry = (timestamp?: number): string => {\n+  if (!timestamp || timestamp <= 0) return \"永久有效\";\n+  return new Date(timestamp).toLocaleString();\n+};\n+\n+const EXPIRING_SOON_DAYS = 7;\n+\n+type NodeExpiryState = \"permanent\" | \"healthy\" | \"expiringSoon\" | \"expired\";\n+\n+type NodeFilterMode = \"all\" | \"expiringSoon\" | \"expired\" | \"withExpiry\";\n+\n+const getNodeExpiryMeta = (timestamp?: number) => {\n+  if (!timestamp || timestamp <= 0) {\n+    return {\n+      state: \"permanent\" as NodeExpiryState,\n+      label: \"永久有效\",\n+      tone: \"default\" as const,\n+      accentClassName: \"\",\n+      bannerClassName: \"\",\n+      isHighlighted: false,\n+      sortWeight: 3,\n+    };\n+  }\n+\n+  const diffMs = timestamp - Date.now();\n+  const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));\n+\n+  if (diffDays <= 0) {\n+    return {\n+      state: \"expired\" as NodeExpiryState,\n+      label: \"已过期\",\n+      tone: \"danger\" as const,\n+      accentClassName:\n+        \"border-red-300/80 bg-red-50/70 shadow-red-100 dark:border-red-500/40 dark:bg-red-950/20\",\n+      bannerClassName:\n+        \"bg-red-50 text-red-700 dark:bg-red-950/30 dark:text-red-300\",\n+      isHighlighted: true,\n+      sortWeight: 0,\n+    };\n+  }\n+\n+  if (diffDays <= EXPIRING_SOON_DAYS) {\n+    return {\n+      state: \"expiringSoon\" as NodeExpiryState,\n+      label: diffDays === 1 ? \"明天到期\" : `${diffDays}天后到期`,\n+      tone: \"warning\" as const,\n+      accentClassName:\n+        \"border-amber-300/80 bg-amber-50/80 shadow-amber-100 dark:border-amber-500/40 dark:bg-amber-950/20\",\n+      bannerClassName:\n+        \"bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-300\",\n+      isHighlighted: true,\n+      sortWeight: 1,\n+    };\n+  }\n+\n+  return {\n+    state: \"healthy\" as NodeExpiryState,\n+    label: `${diffDays}天后到期`,\n+    tone: \"success\" as const,\n+    accentClassName: \"\",\n+    bannerClassName: \"\",\n+    isHighlighted: false,\n+    sortWeight: 2,\n+  };\n+};\n+\n+const normalizeNodeTags = (tags?: string): string[] => {\n+  if (!tags) return [];\n+  return tags\n+    .split(\",\")\n+    .map((tag) => tag.trim())\n+    .filter(Boolean);\n+};\n+\n const mergeNodeRealtimeState = (\n   incomingNode: Node,\n   existingNode?: Node,\n@@ -182,6 +262,10 @@ export default function NodePage() {\n     \"node-search-keyword\",\n     \"\",\n   );\n+  const [nodeFilterMode, setNodeFilterMode] = useLocalStorageState<NodeFilterMode>(\n+    \"node-expiry-filter-mode\",\n+    \"all\",\n+  );\n   const [isSearchVisible, setIsSearchVisible] = useState(false);\n   const [dialogVisible, setDialogVisible] = useState(false);\n   const [dialogTitle, setDialogTitle] = useState(\"\");\n@@ -195,6 +279,9 @@ export default function NodePage() {\n   const [form, setForm] = useState<NodeForm>({\n     id: null,\n     name: \"\",\n+    remark: \"\",\n+    tags: \"\",\n+    expiryTime: 0,\n     serverHost: \"\",\n     serverIpV4: \"\",\n     serverIpV6: \"\",\n@@ -636,6 +723,9 @@ export default function NodePage() {\n     setForm({\n       id: node.id,\n       name: node.name,\n+      remark: node.remark || \"\",\n+      tags: node.tags || \"\",\n+      expiryTime: node.expiryTime || 0,\n       serverHost: normalizedHost,\n       serverIpV4: normalizedV4,\n       serverIpV6: normalizedV6,\n@@ -871,6 +961,9 @@ export default function NodePage() {\n       const { serverHost, ...rest } = form;\n       const data = {\n         ...rest,\n+        remark: form.remark.trim(),\n+        tags: form.tags.trim(),\n+        expiryTime: form.expiryTime,\n         extraIPs: form.extraIPs,\n         serverIp:\n           form.serverIpV4?.trim() ||\n@@ -892,6 +985,9 @@ export default function NodePage() {\n                 ? {\n                     ...n,\n                     name: form.name,\n+                    remark: form.remark.trim(),\n+                    tags: form.tags.trim(),\n+                    expiryTime: form.expiryTime,\n                     serverIp:\n                       form.serverIpV4?.trim() ||\n                       form.serverIpV6?.trim() ||\n@@ -928,6 +1024,9 @@ export default function NodePage() {\n     setForm({\n       id: null,\n       name: \"\",\n+      remark: \"\",\n+      tags: \"\",\n+      expiryTime: 0,\n       serverHost: \"\",\n       serverIpV4: \"\",\n       serverIpV6: \"\",\n@@ -1060,6 +1159,20 @@ export default function NodePage() {\n     }),\n   );\n \n+  const nodeExpiryStats = useMemo(() => {\n+    return nodeList.reduce(\n+      (acc, node) => {\n+        const meta = getNodeExpiryMeta(node.expiryTime);\n+\n+        if (meta.state === \"expired\") acc.expired += 1;\n+        if (meta.state === \"expiringSoon\") acc.expiringSoon += 1;\n+        if (node.expiryTime && node.expiryTime > 0) acc.withExpiry += 1;\n+        return acc;\n+      },\n+      { expired: 0, expiringSoon: 0, withExpiry: 0 },\n+    );\n+  }, [nodeList]);\n+\n   // 根据排序顺序获取节点列表\n   const sortedNodes = useMemo((): Node[] => {\n     if (!nodeList || nodeList.length === 0) return [];\n@@ -1072,13 +1185,40 @@ export default function NodePage() {\n       filteredNodes = filteredNodes.filter(\n         (n) =>\n           (n.name && n.name.toLowerCase().includes(lowerKeyword)) ||\n+          (n.remark && n.remark.toLowerCase().includes(lowerKeyword)) ||\n+          (n.tags && n.tags.toLowerCase().includes(lowerKeyword)) ||\n           (n.serverIp && n.serverIp.toLowerCase().includes(lowerKeyword)) ||\n           (n.serverIpV4 && n.serverIpV4.toLowerCase().includes(lowerKeyword)) ||\n           (n.serverIpV6 && n.serverIpV6.toLowerCase().includes(lowerKeyword)),\n       );\n     }\n \n+    if (nodeFilterMode !== \"all\") {\n+      filteredNodes = filteredNodes.filter((node) => {\n+        const expiryMeta = getNodeExpiryMeta(node.expiryTime);\n+\n+        switch (nodeFilterMode) {\n+          case \"expiringSoon\":\n+            return expiryMeta.state === \"expiringSoon\";\n+          case \"expired\":\n+            return expiryMeta.state === \"expired\";\n+          case \"withExpiry\":\n+            return !!node.expiryTime && node.expiryTime > 0;\n+          default:\n+            return true;\n+        }\n+      });\n+    }\n+\n     const sortedByDb = [...filteredNodes].sort((a, b) => {\n+      const expiryDiff =\n+        getNodeExpiryMeta(a.expiryTime).sortWeight -\n+        getNodeExpiryMeta(b.expiryTime).sortWeight;\n+\n+      if (expiryDiff !== 0) {\n+        return expiryDiff;\n+      }\n+\n       const aInx = a.inx ?? 0;\n       const bInx = b.inx ?? 0;\n \n@@ -1110,7 +1250,7 @@ export default\n\n...",
+              "exit": 0,
+              "description": "Shows staged and unstaged changes",
+              "truncated": false
+            },
+            "time": {
+              "start": 1772970247913,
+              "end": 1772970247968
+            }
+          },
+          "id": "prt_ccd4306e7001ixbmYSd7lyfWNW",
+          "sessionID": "ses_332bd2777ffe9fcceGxioLmq6U",
+          "messageID": "msg_ccd42eef7001o0ITgDq2J0Y88Z"
+        },
+        {
+          "type": "tool",
+          "callID": "call_vm5gTYlcwasMc5R7vuqMoUN1",
+          "tool": "bash",
+          "state": {
+            "status": "completed",
+            "input": {
+              "command": "git log --oneline -5",
+              "timeout": 120000,
+              "workdir": "/Users/sagit/.local/share/opencode/worktree/13650be91caa3a9e08a2e63127fef62757658384/quiet-canyon",
+              "description": "Shows recent commit messages"
+            },
+            "output": "f1bdb2e feat(frontend): implement AJAX no-refresh UX improvements (#276)\nbd30b61 fix(backend): migrate PostgreSQL traffic columns from int4 to bigint (#290)\ne0dd70a fix(backend): migrate PostgreSQL traffic columns from int4 to bigint\n4966a8a fix(backend): sync user tunnel status and relax forward speedId permission check (#288)\n3e11549 fix(backend): sync user tunnel status and relax forward speedId permission check\n",
+            "title": "Shows recent commit messages",
+            "metadata": {
+              "output": "f1bdb2e feat(frontend): implement AJAX no-refresh UX improvements (#276)\nbd30b61 fix(backend): migrate PostgreSQL traffic columns from int4 to bigint (#290)\ne0dd70a fix(backend): migrate PostgreSQL traffic columns from int4 to bigint\n4966a8a fix(backend): sync user tunnel status and relax forward speedId permission check (#288)\n3e11549 fix(backend): sync user tunnel status and relax forward speedId permission check\n",
+              "exit": 0,
+              "description": "Shows recent commit messages",
+              "truncated": false
+            },
+            "time": {
+              "start": 1772970247915,
+              "end": 1772970247936
+            }
+          },
+          "id": "prt_ccd4306ea001oqXhYYhe6vfdqt",
+          "sessionID": "ses_332bd2777ffe9fcceGxioLmq6U",
+          "messageID": "msg_ccd42eef7001o0ITgDq2J0Y88Z"
+        },
+        {
+          "type": "step-finish",
+          "reason": "tool-calls",
+          "snapshot": "4725cfa89403265d9c80bbf832449f4feb7b4cdd",
+          "cost": 0,
+          "tokens": {
+            "total": 17600,
+            "input": 437,
+            "output": 267,
+            "reasoning": 13,
+            "cache": {
+              "read": 16896,
+              "write": 0
+            }
+          },
+          "id": "prt_ccd430721001JwZnId6G7q3g2b",
+          "sessionID": "ses_332bd2777ffe9fcceGxioLmq6U",
+          "messageID": "msg_ccd42eef7001o0ITgDq2J0Y88Z"
+        }
+      ]
+    },
+    {
+      "info": {
+        "role": "assistant",
+        "time": {
+          "created": 1772970248020,
+          "completed": 1772970254153
+        },
+        "parentID": "msg_ccd42d89c001xrWUspqGENYqWb",
+        "modelID": "gpt-5.4",
+        "providerID": "api",
+        "mode": "build",
+        "agent": "build",
+        "path": {
+          "cwd": "/Users/sagit/.local/share/opencode/worktree/13650be91caa3a9e08a2e63127fef62757658384/quiet-canyon",
+          "root": "/Users/sagit/.local/share/opencode/worktree/13650be91caa3a9e08a2e63127fef62757658384/quiet-canyon"
+        },
+        "cost": 0,
+        "tokens": {
+          "total": 28635,
+          "input": 11491,
+          "output": 248,
+          "reasoning": 145,
+          "cache": {
+            "read": 16896,
+            "write": 0
+          }
+        },
+        "finish": "tool-calls",
+        "id": "msg_ccd430753001vzHPBFadVdJIM6",
+        "sessionID": "ses_332bd2777ffe9fcceGxioLmq6U"
+      },
+      "parts": [
+        {
+          "type": "step-start",
+          "snapshot": "4725cfa89403265d9c80bbf832449f4feb7b4cdd",
+          "id": "prt_ccd431a8e001qTBz8eJ0nBmn7H",
+          "sessionID": "ses_332bd2777ffe9fcceGxioLmq6U",
+          "messageID": "msg_ccd430753001vzHPBFadVdJIM6"
+        },
+        {
+          "type": "tool",
+          "callID": "call_6ZZCj4OWnD63VfNJV3HUNbLW",
+          "tool": "todowrite",
+          "state": {
+            "status": "completed",
+            "input": {
+              "todos": [
+                {
+                  "content": "Inspect git status, diffs, branch state, and recent commit style",
+                  "status": "completed",
+                  "priority": "high"
+                },
+                {
+                  "content": "Create a commit for all relevant current changes",
+                  "status": "in_progress",
+                  "priority": "high"
+                },
+                {
+                  "content": "Push the branch to remote",
+                  "status": "pending",
+                  "priority": "high"
+                },
+                {
+                  "content": "Update the PR description to reference issue #246",
+                  "status": "pending",
+                  "priority": "high"
+                }
+              ]
+            },
+            "output": "[\n  {\n    \"content\": \"Inspect git status, diffs, branch state, and recent commit style\",\n    \"status\": \"completed\",\n    \"priority\": \"high\"\n  },\n  {\n    \"content\": \"Create a commit for all relevant current changes\",\n    \"status\": \"in_progress\",\n    \"priority\": \"high\"\n  },\n  {\n    \"content\": \"Push the branch to remote\",\n    \"status\": \"pending\",\n    \"priority\": \"high\"\n  },\n  {\n    \"content\": \"Update the PR description to reference issue #246\",\n    \"status\": \"pending\",\n    \"priority\": \"high\"\n  }\n]",
+            "title": "3 todos",
+            "metadata": {
+              "todos": [
+                {
+                  "content": "Inspect git status, diffs, branch state, and recent commit style",
+                  "status": "completed",
+                  "priority": "high"
+                },
+                {
+                  "content": "Create a commit for all relevant current changes",
+                  "status": "in_progress",
+                  "priority": "high"
+                },
+                {
+                  "content": "Push the branch to remote",
+                  "status": "pending",
+                  "priority": "high"
+                },
+                {
+                  "content": "Update the PR description to reference issue #246",
+                  "status": "pending",
+                  "priority": "high"
+                }
+              ],
+              "truncated": false
+            },
+            "time": {
+              "start": 1772970253895,
+              "end": 1772970253897
+            }
+          },
+          "id": "prt_ccd431a8e002KpNrYhfvyhKpIq",
+          "sessionID": "ses_332bd2777ffe9fcceGxioLmq6U",
+          "messageID": "msg_ccd430753001vzHPBFadVdJIM6"
+        },
+        {
+          "type": "step-finish",
+          "reason": "tool-calls",
+          "snapshot": "4725cfa89403265d9c80bbf832449f4feb7b4cdd",
+          "cost": 0,
+          "tokens": {
+            "total": 28635,
+            "input": 11491,
+            "output": 248,
+            "reasoning": 145,
+            "cache": {
+              "read": 16896,
+              "write": 0
+            }
+          },
+          "id": "prt_ccd431eea001VfhoRX5Jbo5YiI",
+          "sessionID": "ses_332bd2777ffe9fcceGxioLmq6U",
+          "messageID": "msg_ccd430753001vzHPBFadVdJIM6"
+        }
+      ]
+    },
+    {
+      "info": {
+        "role": "assistant",
+        "time": {
+          "created": 1772970254154,
+          "completed": 1772970265286
+        },
+        "parentID": "msg_ccd42d89c001xrWUspqGENYqWb",
+        "modelID": "gpt-5.4",
+        "providerID": "api",
+        "mode": "build",
+        "agent": "build",
+        "path": {
+          "cwd": "/Users/sagit/.local/share/opencode/worktree/13650be91caa3a9e08a2e63127fef62757658384/quiet-canyon",
+          "root": "/Users/sagit/.local/share/opencode/worktree/13650be91caa3a9e08a2e63127fef62757658384/quiet-canyon"
+        },
+        "cost": 0,
+        "tokens": {
+          "total": 29038,
+          "input": 476,
+          "output": 402,
+          "reasoning": 216,
+          "cache": {
+            "read": 28160,
+            "write": 0
+          }
+        },
+        "finish": "tool-calls",
+        "id": "msg_ccd431f4a0010PvJBN6KgC7M02",
+        "sessionID": "ses_332bd2777ffe9fcceGxioLmq6U"
+      },
+      "parts": [
+        {
+          "type": "step-start",
+          "snapshot": "4725cfa89403265d9c80bbf832449f4feb7b4cdd",
+          "id": "prt_ccd4339d3001pdzhTDjJIS19Wl",
+          "sessionID": "ses_332bd2777ffe9fcceGxioLmq6U",
+          "messageID": "msg_ccd431f4a0010PvJBN6KgC7M02"
+        },
+        {
+          "type": "reasoning",
+          "text": "**Considering Git Commit Options**\n\nI need to commit all relevant changes, but I'm hesitant about including untracked metadata, which might be junk. The user asked for everything to be committed, though it might be best to leave out unrelated temporary files. I'll check git status to see the branch’s details and create a commit message based on the actual changes. I should inspect what should be ignored in .gitignore, and maybe I need to review the PR state after the push.\n\n**Checking Git Status and PR Details**\n\nI’m considering running `git status --short .entire` to inspect the state of that specific directory or file. Also, I want to use the command `gh pr view --json number,url,body,title,headRefName,baseRefName` to get detailed information about the current pull request. I think this will help me better understand what changes need to be committed and the status of the PR. It feels like a good plan to get clarity!",
+          "time": {
+            "start": 1772970260948,
+            "end": 1772970264234
+          },
+          "id": "prt_ccd4339d40014sqUDFGIivxIKN",
+          "sessionID": "ses_332bd2777ffe9fcceGxioLmq6U",
+          "messageID": "msg_ccd431f4a0010PvJBN6KgC7M02"
+        },
+        {
+          "type": "tool",
+          "callID": "call_y47XqXcPXfYQP6VmY8yfnorv",
+          "tool": "bash",
+          "state": {
+            "status": "completed",
+            "input": {
+              "command": "git status --short .entire plans",
+              "timeout": 120000,
+              "workdir": "/Users/sagit/.local/share/opencode/worktree/13650be91caa3a9e08a2e63127fef62757658384/quiet-canyon",
+              "description": "Checks untracked metadata and plans files"
+            },
+            "output": "?? .entire/metadata/ses_332cb6fa9ffehf0BwC73iSeZUR/\n?? .entire/metadata/ses_332ce68b1ffe0R9vUQZ6yq5gUd/\n?? .entire/metadata/ses_332d83674ffeNMa9Z9UerwU3tq/\n?? .entire/metadata/ses_332d83689ffeJ93gRXNEEeOpSm/\n?? .entire/metadata/ses_332fc6806ffeDArHciRt5Ctxja/\n?? .entire/metadata/ses_332fdb603ffeYxhpzgAB64sSTN/\n?? plans/021-node-remarks-tags-expiry.md\n?? plans/022-node-expiry-highlights-dashboard-reminders.md\n",
+            "title": "Checks untracked metadata and plans files",
+            "metadata": {
+              "output": "?? .entire/metadata/ses_332cb6fa9ffehf0BwC73iSeZUR/\n?? .entire/metadata/ses_332ce68b1ffe0R9vUQZ6yq5gUd/\n?? .entire/metadata/ses_332d83674ffeNMa9Z9UerwU3tq/\n?? .entire/metadata/ses_332d83689ffeJ93gRXNEEeOpSm/\n?? .entire/metadata/ses_332fc6806ffeDArHciRt5Ctxja/\n?? .entire/metadata/ses_332fdb603ffeYxhpzgAB64sSTN/\n?? plans/021-node-remarks-tags-expiry.md\n?? plans/022-node-expiry-highlights-dashboard-reminders.md\n",
+              "exit": 0,
+              "description": "Checks untracked metadata and plans files",
+              "truncated": false
+            },
+            "time": {
+              "start": 1772970264207,
+              "end": 1772970264239
+            }
+          },
+          "id": "prt_ccd434689001EK2374m8yHk6pC",
+          "sessionID": "ses_332bd2777ffe9fcceGxioLmq6U",
+          "messageID": "msg_ccd431f4a0010PvJBN6KgC7M02"
+        },
+        {
+          "type": "tool",
+          "callID": "call_jd9wzviUSKOmUVPmKb3YRkUj",
+          "tool": "bash",
+          "state": {
+            "status": "completed",
+            "input": {
+              "command": "gh pr view --json number,url,title,body,headRefName,baseRefName",
+              "timeout": 120000,
+              "workdir": "/Users/sagit/.local/share/opencode/worktree/13650be91caa3a9e08a2e63127fef62757658384/quiet-canyon",
+              "description": "Shows current pull request details"
+            },
+            "output": "{\"baseRefName\":\"main\",\"body\":\"## Summary\\n\\n- 实现了 Dashboard 自动刷新（5 秒轮询）和可见性感知的暂停机制\\n- 增强了节点实时监控的韧性：指数退避重连 + 轮询降级兜底\\n- 为 forward/tunnel/user 页面实现了局部状态更新，避免整页刷新\\n- 添加了批量操作进度反馈 UI\\n- 新增了共享的 list-state 辅助函数用于 replace/remove 操作\\n- 在服务端负载合并时保留了派生的 UI 状态\\n\\n## Changes\\n\\n### Phase 1 - Dashboard auto-refresh and node realtime resilience\\n- Dashboard 数据每 5 秒自动刷新，页面隐藏时暂停，显示时立即刷新\\n- 通知去重逻辑优化，避免每次轮询都触发到期提醒\\n- WebSocket 重连采用指数退避，5 次失败后切换为 15 秒轮询降级模式\\n\\n### Phase 2 - Local mutation updates\\n- Forward、Tunnel、User 页面的创建/编辑/删除操作现在直接更新本地状态\\n- 保留分组、排序、选中状态等派生 UI 状态\\n- 新增 `list-state.ts` 工具函数用于通用的列表更新操作\\n\\n### Phase 3 - Batch progress UX\\n- 批量操作（删除、启用/停用、重新下发、换隧道）现在显示进度条和状态反馈\\n- 成功/失败计数实时更新\\n\\n## Test Plan\\n\\n- [x] Dashboard 自动刷新正常工作，隐藏/显示切换正常\\n- [x] 节点监控 WebSocket 断开后能自动降级为轮询模式\\n- [x] Forward/Tunnel/User 的 CRUD 操作后列表立即更新\\n- [x] 批量操作显示进度反馈\\n- [x] `npm run build` 成功\\n\\nCloses #276\",\"headRefName\":\"opencode/quiet-canyon\",\"number\":293,\"title\":\"feat(frontend): implement AJAX no-refresh UX improvements\",\"url\":\"https://github.com/Sagit-chu/flvx/pull/293\"}\n",
+            "title": "Shows current pull request details",
+            "metadata": {
+              "output": "{\"baseRefName\":\"main\",\"body\":\"## Summary\\n\\n- 实现了 Dashboard 自动刷新（5 秒轮询）和可见性感知的暂停机制\\n- 增强了节点实时监控的韧性：指数退避重连 + 轮询降级兜底\\n- 为 forward/tunnel/user 页面实现了局部状态更新，避免整页刷新\\n- 添加了批量操作进度反馈 UI\\n- 新增了共享的 list-state 辅助函数用于 replace/remove 操作\\n- 在服务端负载合并时保留了派生的 UI 状态\\n\\n## Changes\\n\\n### Phase 1 - Dashboard auto-refresh and node realtime resilience\\n- Dashboard 数据每 5 秒自动刷新，页面隐藏时暂停，显示时立即刷新\\n- 通知去重逻辑优化，避免每次轮询都触发到期提醒\\n- WebSocket 重连采用指数退避，5 次失败后切换为 15 秒轮询降级模式\\n\\n### Phase 2 - Local mutation updates\\n- Forward、Tunnel、User 页面的创建/编辑/删除操作现在直接更新本地状态\\n- 保留分组、排序、选中状态等派生 UI 状态\\n- 新增 `list-state.ts` 工具函数用于通用的列表更新操作\\n\\n### Phase 3 - Batch progress UX\\n- 批量操作（删除、启用/停用、重新下发、换隧道）现在显示进度条和状态反馈\\n- 成功/失败计数实时更新\\n\\n## Test Plan\\n\\n- [x] Dashboard 自动刷新正常工作，隐藏/显示切换正常\\n- [x] 节点监控 WebSocket 断开后能自动降级为轮询模式\\n- [x] Forward/Tunnel/User 的 CRUD 操作后列表立即更新\\n- [x] 批量操作显示进度反馈\\n- [x] `npm run build` 成功\\n\\nCloses #276\",\"headRefName\":\"opencode/quiet-canyon\",\"number\":293,\"title\":\"feat(frontend): implement AJAX no-refresh UX improvements\",\"url\":\"https://github.com/Sagit-chu/flvx/pull/293\"}\n",
+              "exit": 0,
+              "description": "Shows current pull request details",
+              "truncated": false
+            },
+            "time": {
+              "start": 1772970264226,
+              "end": 1772970265194
+            }
+          },
+          "id": "prt_ccd4346a0001krtAXYTrIOfk5d",
+          "sessionID": "ses_332bd2777ffe9fcceGxioLmq6U",
+          "messageID": "msg_ccd431f4a0010PvJBN6KgC7M02"
+        },
+        {
+          "type": "step-finish",
+          "reason": "tool-calls",
+          "snapshot": "4725cfa89403265d9c80bbf832449f4feb7b4cdd",
+          "cost": 0,
+          "tokens": {
+            "total": 29038,
+            "input": 476,
+            "output": 402,
+            "reasoning": 216,
+            "cache": {
+              "read": 28160,
+              "write": 0
+            }
+          },
+          "id": "prt_ccd434a6e001HurSYdE4CSjroL",
+          "sessionID": "ses_332bd2777ffe9fcceGxioLmq6U",
+          "messageID": "msg_ccd431f4a0010PvJBN6KgC7M02"
+        }
+      ]
+    },
+    {
+      "info": {
+        "role": "assistant",
+        "time": {
+          "created": 1772970265288,
+          "completed": 1772970271823
+        },
+        "parentID": "msg_ccd42d89c001xrWUspqGENYqWb",
+        "modelID": "gpt-5.4",
+        "providerID": "api",
+        "mode": "build",
+        "agent": "build",
+        "path": {
+          "cwd": "/Users/sagit/.local/share/opencode/worktree/13650be91caa3a9e08a2e63127fef62757658384/quiet-canyon",
+          "root": "/Users/sagit/.local/share/opencode/worktree/13650be91caa3a9e08a2e63127fef62757658384/quiet-canyon"
+        },
+        "cost": 0,
+        "tokens": {
+          "total": 29774,
+          "input": 1334,
+          "output": 280,
+          "reasoning": 116,
+          "cache": {
+            "read": 28160,
+            "write": 0
+          }
+        },
+        "finish": "tool-calls",
+        "id": "msg_ccd434ac8001X8hPhPfM6SoM1T",
+        "sessionID": "ses_332bd2777ffe9fcceGxioLmq6U"
+      },
+      "parts": [
+        {
+          "type": "step-start",
+          "snapshot": "4725cfa89403265d9c80bbf832449f4feb7b4cdd",
+          "id": "prt_ccd435b4a001W5giiI87EqlDJJ",
+          "sessionID": "ses_332bd2777ffe9fcceGxioLmq6U",
+          "messageID": "msg_ccd434ac8001X8hPhPfM6SoM1T"
+        },
+        {
+          "type": "reasoning",
+          "text": "**Deciding on commit changes**\n\nI need to make sure to commit all relevant current changes, but I'm debating whether to include the entire metadata. The user mentioned \"提交全部变更,\" which likely means to commit all relevant changes. However, I suspect the metadata directories could be junk. I might want to exclude these and warn about it. It's also important to inspect plan files briefly to see if including them is appropriate. Ultimately, I plan to commit all tracked changes and exclude unnecessary metadata.",
+          "time": {
+            "start": 1772970269515,
+            "end": 1772970271745
+          },
+          "id": "prt_ccd435b4b001C7yCLxImZBin7V",
+          "sessionID": "ses_332bd2777ffe9fcceGxioLmq6U",
+          "messageID": "msg_ccd434ac8001X8hPhPfM6SoM1T"
+        },
+        {
+          "type": "tool",
+          "callID": "call_LwvTJxdrP3ol8PHVxIxbIsKb",
+          "tool": "read",
+          "state": {
+            "status": "completed",
+            "input": {
+              "filePath": "/Users/sagit/.local/share/opencode/worktree/13650be91caa3a9e08a2e63127fef62757658384/quiet-canyon/plans/021-node-remarks-tags-expiry.md",
+              "offset": 1,
+              "limit": 250
+            },
+            "output": "<path>/Users/sagit/.local/share/opencode/worktree/13650be91caa3a9e08a2e63127fef62757658384/quiet-canyon/plans/021-node-remarks-tags-expiry.md</path>\n<type>file</type>\n<content>1: # Node Remarks, Tags, and Expiry Plan\n2: \n3: - [x] Review issue #246 and inspect current node backend/frontend flow\n4: - [x] Extend node persistence and API payloads with remark, tags, and expiry fields\n5: - [x] Update node management UI to edit, display, and search the new metadata\n6: - [x] Verify the backend and frontend still build successfully\n\n(End of file - total 6 lines)\n</content>",
+            "title": "plans/021-node-remarks-tags-expiry.md",
+            "metadata": {
+              "preview": "# Node Remarks, Tags, and Expiry Plan\n\n- [x] Review issue #246 and inspect current node backend/frontend flow\n- [x] Extend node persistence and API payloads with remark, tags, and expiry fields\n- [x] Update node management UI to edit, display, and search the new metadata\n- [x] Verify the backend and frontend still build successfully",
+              "truncated": false,
+              "loaded": []
+            },
+            "time": {
+              "start": 1772970271723,
+              "end": 1772970271727
+            }
+          },
+          "id": "prt_ccd4363e80013wNPqtKycKSXex",
+          "sessionID": "ses_332bd2777ffe9fcceGxioLmq6U",
+          "messageID": "msg_ccd434ac8001X8hPhPfM6SoM1T"
+        },
+        {
+          "type": "tool",
+          "callID": "call_einJUB3JcOeJIwW3Xql5JO5y",
+          "tool": "read",
+          "state": {
+            "status": "completed",
+            "input": {
+              "filePath": "/Users/sagit/.local/share/opencode/worktree/13650be91caa3a9e08a2e63127fef62757658384/quiet-canyon/plans/022-node-expiry-highlights-dashboard-reminders.md",
+              "offset": 1,
+              "limit": 250
+            },
+            "output": "<path>/Users/sagit/.local/share/opencode/worktree/13650be91caa3a9e08a2e63127fef62757658384/quiet-canyon/plans/022-node-expiry-highlights-dashboard-reminders.md</path>\n<type>file</type>\n<content>1: # Node Expiry Highlights And Dashboard Reminders Plan\n2: \n3: - [x] Review current node page and dashboard data flow for expiry-related hooks\n4: - [x] Add node expiry status helpers plus expiring-soon filter/highlight in node management\n5: - [x] Load node expiry data on the dashboard for admins and render reminder card\n6: - [x] Verify frontend build and mark the plan complete\n\n(End of file - total 6 lines)\n</content>",
+            "title": "plans/022-node-expiry-highlights-dashboard-reminders.md",
+            "metadata": {
+              "preview": "# Node Expiry Highlights And Dashboard Reminders Plan\n\n- [x] Review current node page and dashboard data flow for expiry-related hooks\n- [x] Add node expiry status helpers plus expiring-soon filter/highlight in node management\n- [x] Load node expiry data on the dashboard for admins and render reminder card\n- [x] Verify frontend build and mark the plan complete",
+              "truncated": false,
+              "loaded": []
+            },
+            "time": {
+              "start": 1772970271733,
+              "end": 1772970271747
+            }
+          },
+          "id": "prt_ccd4363f4001NcWn09Jel10OdO",
+          "sessionID": "ses_332bd2777ffe9fcceGxioLmq6U",
+          "messageID": "msg_ccd434ac8001X8hPhPfM6SoM1T"
+        },
+        {
+          "type": "step-finish",
+          "reason": "tool-calls",
+          "snapshot": "4725cfa89403265d9c80bbf832449f4feb7b4cdd",
+          "cost": 0,
+          "tokens": {
+            "total": 29774,
+            "input": 1334,
+            "output": 280,
+            "reasoning": 116,
+            "cache": {
+              "read": 28160,
+              "write": 0
+            }
+          },
+          "id": "prt_ccd436403001J4K0GYjsoIe929",
+          "sessionID": "ses_332bd2777ffe9fcceGxioLmq6U",
+          "messageID": "msg_ccd434ac8001X8hPhPfM6SoM1T"
+        }
+      ]
+    },
+    {
+      "info": {
+        "role": "assistant",
+        "time": {
+          "created": 1772970271824,
+          "completed": 1772970288580
+        },
+        "parentID": "msg_ccd42d89c001xrWUspqGENYqWb",
+        "modelID": "gpt-5.4",
+        "providerID": "api",
+        "mode": "build",
+        "agent": "build",
+        "path": {
+          "cwd": "/Users/sagit/.local/share/opencode/worktree/13650be91caa3a9e08a2e63127fef62757658384/quiet-canyon",
+          "root": "/Users/sagit/.local/share/opencode/worktree/13650be91caa3a9e08a2e63127fef62757658384/quiet-canyon"
+        },
+        "cost": 0,
+        "tokens": {
+          "total": 30741,
+          "input": 831,
+          "output": 726,
+          "reasoning": 516,
+          "cache": {
+            "read": 29184,
+            "write": 0
+          }
+        },
+        "finish": "tool-calls",
+        "id": "msg_ccd436450001ZGiJiVFHZsg5DJ",
+        "sessionID": "ses_332bd2777ffe9fcceGxioLmq6U"
+      },
+      "parts": [
+        {
+          "type": "step-start",
+          "snapshot": "4725cfa89403265d9c80bbf832449f4feb7b4cdd",
+          "id": "prt_ccd4390dd001lg7kYrnMH9EY5j",
+          "sessionID": "ses_332bd2777ffe9fcceGxioLmq6U",
+          "messageID": "msg_ccd436450001ZGiJiVFHZsg5DJ"
+        },
+        {
+          "type": "reasoning",
+          "text": "**Finalizing code updates**\n\nI’m considering updating the summary to include node metadata and expiry reminders. I might want to add \"Closes #246\" while keeping #276, or possibly close both. Using `gh pr edit --body-file` seems like it could simplify things. I need to create a coherent updated body and decide if I should keep the current title or update it to reflect a broader scope. Alright, let's commit and push before editing the PR!",
+          "time": {
+            "start": 1772970283230,
+            "end": 1772970286367
+          },
+          "id": "prt_ccd4390de001GZJ1Tq66Kc4qH5",
+          "sessionID": "ses_332bd2777ffe9fcceGxioLmq6U",
+          "messageID": "msg_ccd436450001ZGiJiVFHZsg5DJ"
+        },
+        {
+          "type": "tool",
+          "callID": "call_JUQQtQBRo8g76hf3rMhNuf4O",
+          "tool": "bash",
+          "state": {
+            "status": "completed",
+            "input": {
+              "command": "git add AGENTS.md go-backend/internal/http/handler/mutations.go go-backend/internal/store/model/model.go go-backend/internal/store/repo/repository.go go-backend/internal/store/repo/repository_mutations.go vite-frontend/src/api/index.ts vite-frontend/src/api/types.ts vite-frontend/src/pages/dashboard.tsx vite-frontend/src/pages/dashboard/use-dashboard-data.ts vite-frontend/src/pages/node.tsx plans/021-node-remarks-tags-expiry.md plans/022-node-expiry-highlights-dashboard-reminders.md && git commit -m \"feat(nodes): add node metadata and expiry reminders (#246)\" && git status --short --branch",
+              "timeout": 120000,
+              "workdir": "/Users/sagit/.local/share/opencode/worktree/13650be91caa3a9e08a2e63127fef62757658384/quiet-canyon",
+              "description": "Stages changes, commits, and verifies status"
+            },
+            "output": "[opencode/quiet-canyon 31ef861] feat(nodes): add node metadata and expiry reminders (#246)\n 12 files changed, 549 insertions(+), 12 deletions(-)\n create mode 100644 plans/021-node-remarks-tags-expiry.md\n create mode 100644 plans/022-node-expiry-highlights-dashboard-reminders.md\n## opencode/quiet-canyon...origin/opencode/quiet-canyon [领先 1]\n?? .entire/metadata/ses_332cb6fa9ffehf0BwC73iSeZUR/\n?? .entire/metadata/ses_332ce68b1ffe0R9vUQZ6yq5gUd/\n?? .entire/metadata/ses_332d83674ffeNMa9Z9UerwU3tq/\n?? .entire/metadata/ses_332d83689ffeJ93gRXNEEeOpSm/\n?? .entire/metadata/ses_332fc6806ffeDArHciRt5Ctxja/\n?? .entire/metadata/ses_332fdb603ffeYxhpzgAB64sSTN/\n",
+            "title": "Stages changes, commits, and verifies status",
+            "metadata": {
+              "output": "[opencode/quiet-canyon 31ef861] feat(nodes): add node metadata and expiry reminders (#246)\n 12 files changed, 549 insertions(+), 12 deletions(-)\n create mode 100644 plans/021-node-remarks-tags-expiry.md\n create mode 100644 plans/022-node-expiry-highlights-dashboard-reminders.md\n## opencode/quiet-canyon...origin/opencode/quiet-canyon [领先 1]\n?? .entire/metadata/ses_332cb6fa9ffehf0BwC73iSeZUR/\n?? .entire/metadata/ses_332ce68b1ffe0R9vUQZ6yq5gUd/\n?? .entire/metadata/ses_332d83674ffeNMa9Z9UerwU3tq/\n?? .entire/metadata/ses_332d83689ffeJ93gRXNEEeOpSm/\n?? .entire/metadata/ses_332fc6806ffeDArHciRt5Ctxja/\n?? .entire/metadata/ses_332fdb603ffeYxhpzgAB64sSTN/\n",
+              "exit": 0,
+              "description": "Stages changes, commits, and verifies status",
+              "truncated": false
+            },
+            "time": {
+              "start": 1772970286233,
+              "end": 1772970288537
+            }
+          },
+          "id": "prt_ccd4395f9001uqGVDaKyJv5gZ0",
+          "sessionID": "ses_332bd2777ffe9fcceGxioLmq6U",
+          "messageID": "msg_ccd436450001ZGiJiVFHZsg5DJ"
+        },
+        {
+          "type": "step-finish",
+          "reason": "tool-calls",
+          "snapshot": "4725cfa89403265d9c80bbf832449f4feb7b4cdd",
+          "cost": 0,
+          "tokens": {
+            "total": 30741,
+            "input": 831,
+            "output": 726,
+            "reasoning": 516,
+            "cache": {
+              "read": 29184,
+              "write": 0
+            }
+          },
+          "id": "prt_ccd43a59a00184f6CRKRjNla79",
+          "sessionID": "ses_332bd2777ffe9fcceGxioLmq6U",
+          "messageID": "msg_ccd436450001ZGiJiVFHZsg5DJ"
+        }
+      ]
+    },
+    {
+      "info": {
+        "role": "assistant",
+        "time": {
+          "created": 1772970288581,
+          "completed": 1772970296940
+        },
+        "parentID": "msg_ccd42d89c001xrWUspqGENYqWb",
+        "modelID": "gpt-5.4",
+        "providerID": "api",
+        "mode": "build",
+        "agent": "build",
+        "path": {
+          "cwd": "/Users/sagit/.local/share/opencode/worktree/13650be91caa3a9e08a2e63127fef62757658384/quiet-canyon",
+          "root": "/Users/sagit/.local/share/opencode/worktree/13650be91caa3a9e08a2e63127fef62757658384/quiet-canyon"
+        },
+        "cost": 0,
+        "tokens": {
+          "total": 30780,
+          "input": 1297,
+          "output": 299,
+          "reasoning": 196,
+          "cache": {
+            "read": 29184,
+            "write": 0
+          }
+        },
+        "finish": "tool-calls",
+        "id": "msg_ccd43a5c5001v5eOCFXYt5vA8V",
+        "sessionID": "ses_332bd2777ffe9fcceGxioLmq6U"
+      },
+      "parts": [
+        {
+          "type": "step-start",
+          "snapshot": "4725cfa89403265d9c80bbf832449f4feb7b4cdd",
+          "id": "prt_ccd43bc66001S3A71wFZVe9dgR",
+          "sessionID": "ses_332bd2777ffe9fcceGxioLmq6U",
+          "messageID": "msg_ccd43a5c5001v5eOCFXYt5vA8V"
+        },
+        {
+          "type": "reasoning",
+          "text": "**Updating PR details**\n\nI need to push and update the PR, which is likely on the current branch. I’m considering including issue #246 in the title and body, especially since “关联” probably relates to the content. It might be useful to change the body to say \"Closes #246,\" and I need to check if I should replace #276 instead. If the PR is already related to #276 but now has changes, I need to modify the content accordingly. I’ll push and then edit the title and body to reflect all combined changes.",
+          "time": {
+            "start": 1772970294375,
+            "end": 1772970296867
+          },
+          "id": "prt_ccd43bc670013G6MFGCB1sayy2",
+          "sessionID": "ses_332bd2777ffe9fcceGxioLmq6U",
+          "messageID": "msg_ccd43a5c5001v5eOCFXYt5vA8V"
+        },
+        {
+          "type": "tool",
+          "callID": "call_g2ltbMM2oLeIDdRJdeZKJ26B",
+          "tool": "todowrite",
+          "state": {
+            "status": "completed",
+            "input": {
+              "todos": [
+                {
+                  "content": "Inspect git status, diffs, branch state, and recent commit style",
+                  "status": "completed",
+                  "priority": "high"
+                },
+                {
+                  "content": "Create a commit for all relevant current changes",
+                  "status": "completed",
+                  "priority": "high"
+                },
+                {
+                  "content": "Push the branch to remote",
+                  "status": "in_progress",
+                  "priority": "high"
+                },
+                {
+                  "content": "Update the PR description to reference issue #246",
+                  "status": "pending",
+                  "priority": "high"
+                }
+              ]
+            },
+            "output": "[\n  {\n    \"content\": \"Inspect git status, diffs, branch state, and recent commit style\",\n    \"status\": \"completed\",\n    \"priority\": \"high\"\n  },\n  {\n    \"content\": \"Create a commit for all relevant current changes\",\n    \"status\": \"completed\",\n    \"priority\": \"high\"\n  },\n  {\n    \"content\": \"Push the branch to remote\",\n    \"status\": \"in_progress\",\n    \"priority\": \"high\"\n  },\n  {\n    \"content\": \"Update the PR description to reference issue #246\",\n    \"status\": \"pending\",\n    \"priority\": \"high\"\n  }\n]",
+            "title": "2 todos",
+            "metadata": {
+              "todos": [
+                {
+                  "content": "Inspect git status, diffs, branch state, and recent commit style",
+                  "status": "completed",
+                  "priority": "high"
+                },
+                {
+                  "content": "Create a commit for all relevant current changes",
+                  "status": "completed",
+                  "priority": "high"
+                },
+                {
+                  "content": "Push the branch to remote",
+                  "status": "in_progress",
+                  "priority": "high"
+                },
+                {
+                  "content": "Update the PR description to reference issue #246",
+                  "status": "pending",
+                  "priority": "high"
+                }
+              ],
+              "truncated": false
+            },
+            "time": {
+              "start": 1772970296791,
+              "end": 1772970296792
+            }
+          },
+          "id": "prt_ccd43c5320016cpqkVF3Aursqi",
+          "sessionID": "ses_332bd2777ffe9fcceGxioLmq6U",
+          "messageID": "msg_ccd43a5c5001v5eOCFXYt5vA8V"
+        },
+        {
+          "type": "step-finish",
+          "reason": "tool-calls",
+          "snapshot": "4725cfa89403265d9c80bbf832449f4feb7b4cdd",
+          "cost": 0,
+          "tokens": {
+            "total": 30780,
+            "input": 1297,
+            "output": 299,
+            "reasoning": 196,
+            "cache": {
+              "read": 29184,
+              "write": 0
+            }
+          },
+          "id": "prt_ccd43c625001Ab4JkRWovnNXa2",
+          "sessionID": "ses_332bd2777ffe9fcceGxioLmq6U",
+          "messageID": "msg_ccd43a5c5001v5eOCFXYt5vA8V"
+        }
+      ]
+    },
+    {
+      "info": {
+        "role": "assistant",
+        "time": {
+          "created": 1772970296942,
+          "completed": 1772970312069
+        },
+        "parentID": "msg_ccd42d89c001xrWUspqGENYqWb",
+        "modelID": "gpt-5.4",
+        "providerID": "api",
+        "mode": "build",
+        "agent": "build",
+        "path": {
+          "cwd": "/Users/sagit/.local/share/opencode/worktree/13650be91caa3a9e08a2e63127fef62757658384/quiet-canyon",
+          "root": "/Users/sagit/.local/share/opencode/worktree/13650be91caa3a9e08a2e63127fef62757658384/quiet-canyon"
+        },
+        "cost": 0,
+        "tokens": {
+          "total": 30932,
+          "input": 522,
+          "output": 202,
+          "reasoning": 125,
+          "cache": {
+            "read": 30208,
+            "write": 0
+          }
+        },
+        "finish": "tool-calls",
+        "id": "msg_ccd43c66e001bwhlxty37it2gO",
+        "sessionID": "ses_332bd2777ffe9fcceGxioLmq6U"
+      },
+      "parts": [
+        {
+          "type": "step-start",
+          "snapshot": "4725cfa89403265d9c80bbf832449f4feb7b4cdd",
+          "id": "prt_ccd43dc140014Pezj485CsFdmN",
+          "sessionID": "ses_332bd2777ffe9fcceGxioLmq6U",
+          "messageID": "msg_ccd43c66e001bwhlxty37it2gO"
+        },
+        {
+          "type": "reasoning",
+          "text": "**Updating PR body**\n\nI need to push my branch and update the PR body. It looks like I should include something like \"closes #246\" while also keeping the existing summary. Since the user asked about modifying the PR content to associate with issue 246, I’ll mention that. I might also need to consider if I should remove \"closes #276\" since this branch now includes both. It’s a bit tricky, but I’ll figure it out! First, I'll push.",
+          "time": {
+            "start": 1772970302485,
+            "end": 1772970304109
+          },
+          "id": "prt_ccd43dc15001O57ErNqvrAWJsZ",
+          "sessionID": "ses_332bd2777ffe9fcceGxioLmq6U",
+          "messageID": "msg_ccd43c66e001bwhlxty37it2gO"
+        },
+        {
+          "type": "tool",
+          "callID": "call_K5jBO3e6qq5ujXDVygyTSgWr",
+          "tool": "bash",
+          "state": {
+            "status": "completed",
+            "input": {
+              "command": "git push",
+              "timeout": 120000,
+              "workdir": "/Users/sagit/.local/share/opencode/worktree/13650be91caa3a9e08a2e63127fef62757658384/quiet-canyon",
+              "description": "Pushes current branch to remote"
+            },
+            "output": "[entire] Pushing session logs to origin...\nTo github.com:Sagit-chu/flvx.git\n   f1bdb2e..31ef861  opencode/quiet-canyon -> opencode/quiet-canyon\n",
+            "title": "Pushes current branch to remote",
+            "metadata": {
+              "output": "[entire] Pushing session logs to origin...\nTo github.com:Sagit-chu/flvx.git\n   f1bdb2e..31ef861  opencode/quiet-canyon -> opencode/quiet-canyon\n",
+              "exit": 0,
+              "description": "Pushes current branch to remote",
+              "truncated": false
+            },
+            "time": {
+              "start": 1772970304035,
+              "end": 1772970311982
+            }
+          },
+          "id": "prt_ccd43e1a9001wO22KJ9lBmb6TO",
+          "sessionID": "ses_332bd2777ffe9fcceGxioLmq6U",
+          "messageID": "msg_ccd43c66e001bwhlxty37it2gO"
+        },
+        {
+          "type": "step-finish",
+          "reason": "tool-calls",
+          "snapshot": "4725cfa89403265d9c80bbf832449f4feb7b4cdd",
+          "cost": 0,
+          "tokens": {
+            "total": 30932,
+            "input": 522,
+            "output": 202,
+            "reasoning": 125,
+            "cache": {
+              "read": 30208,
+              "write": 0
+            }
+          },
+          "id": "prt_ccd4401310017bLwlI5S3WW0dn",
+          "sessionID": "ses_332bd2777ffe9fcceGxioLmq6U",
+          "messageID": "msg_ccd43c66e001bwhlxty37it2gO"
+        }
+      ]
+    },
+    {
+      "info": {
+        "role": "assistant",
+        "time": {
+          "created": 1772970312071,
+          "completed": 1772970317718
+        },
+        "parentID": "msg_ccd42d89c001xrWUspqGENYqWb",
+        "modelID": "gpt-5.4",
+        "providerID": "api",
+        "mode": "build",
+        "agent": "build",
+        "path": {
+          "cwd": "/Users/sagit/.local/share/opencode/worktree/13650be91caa3a9e08a2e63127fef62757658384/quiet-canyon",
+          "root": "/Users/sagit/.local/share/opencode/worktree/13650be91caa3a9e08a2e63127fef62757658384/quiet-canyon"
+        },
+        "cost": 0,
+        "tokens": {
+          "total": 30965,
+          "input": 656,
+          "output": 101,
+          "reasoning": 0,
+          "cache": {
+            "read": 30208,
+            "write": 0
+          }
+        },
+        "finish": "tool-calls",
+        "id": "msg_ccd440187001nHf60it7jyoepT",
+        "sessionID": "ses_332bd2777ffe9fcceGxioLmq6U"
+      },
+      "parts": [
+        {
+          "type": "step-start",
+          "snapshot": "4725cfa89403265d9c80bbf832449f4feb7b4cdd",
+          "id": "prt_ccd4410dd001eo498EDU7Okt9E",
+          "sessionID": "ses_332bd2777ffe9fcceGxioLmq6U",
+          "messageID": "msg_ccd440187001nHf60it7jyoepT"
+        },
+        {
+          "type": "tool",
+          "callID": "call_N4ey8uzJgEY3H50HomzfJyxL",
+          "tool": "todowrite",
+          "state": {
+            "status": "completed",
+            "input": {
+              "todos": [
+                {
+                  "content": "Inspect git status, diffs, branch state, and recent commit style",
+                  "status": "completed",
+                  "priority": "high"
+                },
+                {
+                  "content": "Create a commit for all relevant current changes",
+                  "status": "completed",
+                  "priority": "high"
+                },
+                {
+                  "content": "Push the branch to remote",
+                  "status": "completed",
+                  "priority": "high"
+                },
+                {
+                  "content": "Update the PR description to reference issue #246",
+                  "status": "in_progress",
+                  "priority": "high"
+                }
+              ]
+            },
+            "output": "[\n  {\n    \"content\": \"Inspect git status, diffs, branch state, and recent commit style\",\n    \"status\": \"completed\",\n    \"priority\": \"high\"\n  },\n  {\n    \"content\": \"Create a commit for all relevant current changes\",\n    \"status\": \"completed\",\n    \"priority\": \"high\"\n  },\n  {\n    \"content\": \"Push the branch to remote\",\n    \"status\": \"completed\",\n    \"priority\": \"high\"\n  },\n  {\n    \"content\": \"Update the PR description to reference issue #246\",\n    \"status\": \"in_progress\",\n    \"priority\": \"high\"\n  }\n]",
+            "title": "1 todos",
+            "metadata": {
+              "todos": [
+                {
+                  "content": "Inspect git status, diffs, branch state, and recent commit style",
+                  "status": "completed",
+                  "priority": "high"
+                },
+                {
+                  "content": "Create a commit for all relevant current changes",
+                  "status": "completed",
+                  "priority": "high"
+                },
+                {
+                  "content": "Push the branch to remote",
+                  "status": "completed",
+                  "priority": "high"
+                },
+                {
+                  "content": "Update the PR description to reference issue #246",
+                  "status": "in_progress",
+                  "priority": "high"
+                }
+              ],
+              "truncated": false
+            },
+            "time": {
+              "start": 1772970317484,
+              "end": 1772970317486
+            }
+          },
+          "id": "prt_ccd4410de001OqKAjEWfKxvmI7",
+          "sessionID": "ses_332bd2777ffe9fcceGxioLmq6U",
+          "messageID": "msg_ccd440187001nHf60it7jyoepT"
+        },
+        {
+          "type": "step-finish",
+          "reason": "tool-calls",
+          "snapshot": "4725cfa89403265d9c80bbf832449f4feb7b4cdd",
+          "cost": 0,
+          "tokens": {
+            "total": 30965,
+            "input": 656,
+            "output": 101,
+            "reasoning": 0,
+            "cache": {
+              "read": 30208,
+              "write": 0
+            }
+          },
+          "id": "prt_ccd44173d001Ki6N1swFKf534J",
+          "sessionID": "ses_332bd2777ffe9fcceGxioLmq6U",
+          "messageID": "msg_ccd440187001nHf60it7jyoepT"
+        }
+      ]
+    },
+    {
+      "info": {
+        "role": "assistant",
+        "time": {
+          "created": 1772970317720,
+          "completed": 1772970330061
+        },
+        "parentID": "msg_ccd42d89c001xrWUspqGENYqWb",
+        "modelID": "gpt-5.4",
+        "providerID": "api",
+        "mode": "build",
+        "agent": "build",
+        "path": {
+          "cwd": "/Users/sagit/.local/share/opencode/worktree/13650be91caa3a9e08a2e63127fef62757658384/quiet-canyon",
+          "root": "/Users/sagit/.local/share/opencode/worktree/13650be91caa3a9e08a2e63127fef62757658384/quiet-canyon"
+        },
+        "cost": 0,
+        "tokens": {
+          "total": 31487,
+          "input": 265,
+          "output": 374,
+          "reasoning": 0,
+          "cache": {
+            "read": 30848,
+            "write": 0
+          }
+        },
+        "finish": "tool-calls",
+        "id": "msg_ccd441798001nJUe6NDtIyhGQv",
+        "sessionID": "ses_332bd2777ffe9fcceGxioLmq6U"
+      },
+      "parts": [
+        {
+          "type": "step-start",
+          "snapshot": "4725cfa89403265d9c80bbf832449f4feb7b4cdd",
+          "id": "prt_ccd44241a001XdTwEA2ABwtTSD",
+          "sessionID": "ses_332bd2777ffe9fcceGxioLmq6U",
+          "messageID": "msg_ccd441798001nJUe6NDtIyhGQv"
+        },
+        {
+          "type": "tool",
+          "callID": "call_GlQgrrYIjEjlCUpzWCmNScTG",
+          "tool": "bash",
+          "state": {
+            "status": "completed",
+            "input": {
+              "command": "gh pr edit 293 --title \"feat(nodes): add node metadata and expiry reminders\" --body \"$(cat <<'EOF'\n## Summary\n\n- 为节点新增备注、标签、到期时间字段，并贯通后端存储、导入导出与前端 API\n- 节点管理页支持编辑、搜索、筛选并高亮即将到期或已过期节点\n- Dashboard 为管理员新增节点到期提醒卡片，集中展示 7 天内到期和已过期节点\n\n## Changes\n\n### Backend\n- `node/create` 和 `node/update` 支持 `remark`、`tags`、`expiryTime`\n- 节点列表接口返回新增字段\n- 节点导入导出保留备注、标签与到期时间\n\n### Frontend\n- 节点页面新增备注、标签、到期时间表单项\n- 节点列表支持按备注/标签搜索，并支持到期状态筛选\n- 节点卡片展示备注、标签、到期时间以及过期提醒样式\n- Dashboard 管理员视图新增节点到期提醒模块\n\n## Plans\n\n- `plans/021-node-remarks-tags-expiry.md`\n- `plans/022-node-expiry-highlights-dashboard-reminders.md`\n\n## Issue\n\nCloses #246\nEOF\n)\"",
+              "timeout": 120000,
+              "workdir": "/Users/sagit/.local/share/opencode/worktree/13650be91caa3a9e08a2e63127fef62757658384/quiet-canyon",
+              "description": "Updates PR title and body for issue link"
+            },
+            "output": "https://github.com/Sagit-chu/flvx/pull/293\n",
+            "title": "Updates PR title and body for issue link",
+            "metadata": {
+              "output": "https://github.com/Sagit-chu/flvx/pull/293\n",
+              "exit": 0,
+              "description": "Updates PR title and body for issue link",
+              "truncated": false
+            },
+            "time": {
+              "start": 1772970327291,
+              "end": 1772970329973
+            }
+          },
+          "id": "prt_ccd44241a002YOplMlk5sdHr62",
+          "sessionID": "ses_332bd2777ffe9fcceGxioLmq6U",
+          "messageID": "msg_ccd441798001nJUe6NDtIyhGQv"
+        },
+        {
+          "type": "step-finish",
+          "reason": "tool-calls",
+          "snapshot": "4725cfa89403265d9c80bbf832449f4feb7b4cdd",
+          "cost": 0,
+          "tokens": {
+            "total": 31487,
+            "input": 265,
+            "output": 374,
+            "reasoning": 0,
+            "cache": {
+              "read": 30848,
+              "write": 0
+            }
+          },
+          "id": "prt_ccd444777001IrwMAbBHB2Ddtx",
+          "sessionID": "ses_332bd2777ffe9fcceGxioLmq6U",
+          "messageID": "msg_ccd441798001nJUe6NDtIyhGQv"
+        }
+      ]
+    },
+    {
+      "info": {
+        "role": "assistant",
+        "time": {
+          "created": 1772970330063,
+          "completed": 1772970333450
+        },
+        "parentID": "msg_ccd42d89c001xrWUspqGENYqWb",
+        "modelID": "gpt-5.4",
+        "providerID": "api",
+        "mode": "build",
+        "agent": "build",
+        "path": {
+          "cwd": "/Users/sagit/.local/share/opencode/worktree/13650be91caa3a9e08a2e63127fef62757658384/quiet-canyon",
+          "root": "/Users/sagit/.local/share/opencode/worktree/13650be91caa3a9e08a2e63127fef62757658384/quiet-canyon"
+        },
+        "cost": 0,
+        "tokens": {
+          "total": 31613,
+          "input": 153,
+          "output": 100,
+          "reasoning": 0,
+          "cache": {
+            "read": 31360,
+            "write": 0
+          }
+        },
+        "finish": "tool-calls",
+        "id": "msg_ccd4447cf001sJIcOqbo6pRVOB",
+        "sessionID": "ses_332bd2777ffe9fcceGxioLmq6U"
+      },
+      "parts": [
+        {
+          "type": "step-start",
+          "snapshot": "4725cfa89403265d9c80bbf832449f4feb7b4cdd",
+          "id": "prt_ccd444ecc001qlJ7Lk77trQoZE",
+          "sessionID": "ses_332bd2777ffe9fcceGxioLmq6U",
+          "messageID": "msg_ccd4447cf001sJIcOqbo6pRVOB"
+        },
+        {
+          "type": "tool",
+          "callID": "call_M14PcGM7pmQR8sX6guMlvmqJ",
+          "tool": "todowrite",
+          "state": {
+            "status": "completed",
+            "input": {
+              "todos": [
+                {
+                  "content": "Inspect git status, diffs, branch state, and recent commit style",
+                  "status": "completed",
+                  "priority": "high"
+                },
+                {
+                  "content": "Create a commit for all relevant current changes",
+                  "status": "completed",
+                  "priority": "high"
+                },
+                {
+                  "content": "Push the branch to remote",
+                  "status": "completed",
+                  "priority": "high"
+                },
+                {
+                  "content": "Update the PR description to reference issue #246",
+                  "status": "completed",
+                  "priority": "high"
+                }
+              ]
+            },
+            "output": "[\n  {\n    \"content\": \"Inspect git status, diffs, branch state, and recent commit style\",\n    \"status\": \"completed\",\n    \"priority\": \"high\"\n  },\n  {\n    \"content\": \"Create a commit for all relevant current changes\",\n    \"status\": \"completed\",\n    \"priority\": \"high\"\n  },\n  {\n    \"content\": \"Push the branch to remote\",\n    \"status\": \"completed\",\n    \"priority\": \"high\"\n  },\n  {\n    \"content\": \"Update the PR description to reference issue #246\",\n    \"status\": \"completed\",\n    \"priority\": \"high\"\n  }\n]",
+            "title": "0 todos",
+            "metadata": {
+              "todos": [
+                {
+                  "content": "Inspect git status, diffs, branch state, and recent commit style",
+                  "status": "completed",
+                  "priority": "high"
+                },
+                {
+                  "content": "Create a commit for all relevant current changes",
+                  "status": "completed",
+                  "priority": "high"
+                },
+                {
+                  "content": "Push the branch to remote",
+                  "status": "completed",
+                  "priority": "high"
+                },
+                {
+                  "content": "Update the PR description to reference issue #246",
+                  "status": "completed",
+                  "priority": "high"
+                }
+              ],
+              "truncated": false
+            },
+            "time": {
+              "start": 1772970333228,
+              "end": 1772970333230
+            }
+          },
+          "id": "prt_ccd444ecc0028oSQmJ0yUN6IBC",
+          "sessionID": "ses_332bd2777ffe9fcceGxioLmq6U",
+          "messageID": "msg_ccd4447cf001sJIcOqbo6pRVOB"
+        },
+        {
+          "type": "step-finish",
+          "reason": "tool-calls",
+          "snapshot": "4725cfa89403265d9c80bbf832449f4feb7b4cdd",
+          "cost": 0,
+          "tokens": {
+            "total": 31613,
+            "input": 153,
+            "output": 100,
+            "reasoning": 0,
+            "cache": {
+              "read": 31360,
+              "write": 0
+            }
+          },
+          "id": "prt_ccd4454b3001u5dTddi1clhESU",
+          "sessionID": "ses_332bd2777ffe9fcceGxioLmq6U",
+          "messageID": "msg_ccd4447cf001sJIcOqbo6pRVOB"
+        }
+      ]
+    },
+    {
+      "info": {
+        "role": "assistant",
+        "time": {
+          "created": 1772970333451,
+          "completed": 1772970345813
+        },
+        "parentID": "msg_ccd42d89c001xrWUspqGENYqWb",
+        "modelID": "gpt-5.4",
+        "providerID": "api",
+        "mode": "build",
+        "agent": "build",
+        "path": {
+          "cwd": "/Users/sagit/.local/share/opencode/worktree/13650be91caa3a9e08a2e63127fef62757658384/quiet-canyon",
+          "root": "/Users/sagit/.local/share/opencode/worktree/13650be91caa3a9e08a2e63127fef62757658384/quiet-canyon"
+        },
+        "cost": 0,
+        "tokens": {
+          "total": 31952,
+          "input": 272,
+          "output": 192,
+          "reasoning": 0,
+          "cache": {
+            "read": 31488,
+            "write": 0
+          }
+        },
+        "finish": "stop",
+        "id": "msg_ccd44550b001WUll2bEnY0uwJK",
+        "sessionID": "ses_332bd2777ffe9fcceGxioLmq6U"
+      },
+      "parts": [
+        {
+          "type": "step-start",
+          "snapshot": "4725cfa89403265d9c80bbf832449f4feb7b4cdd",
+          "id": "prt_ccd447781001Xv40uzTuDPcVY8",
+          "sessionID": "ses_332bd2777ffe9fcceGxioLmq6U",
+          "messageID": "msg_ccd44550b001WUll2bEnY0uwJK"
+        },
+        {
+          "type": "text",
+          "text": "已完成。\n\n- 提交了当前代码变更，commit 是 `31ef861`\n- 已 push 到远端分支 `opencode/quiet-canyon`\n- 已更新 PR `https://github.com/Sagit-chu/flvx/pull/293`\n- PR 标题改为 `feat(nodes): add node metadata and expiry reminders`\n- PR 内容已改成这次节点备注/标签/到期提醒相关说明，并加入 `Closes #246` 关联 issue\n\n补充一点：\n- 工作区里还有未提交的 `.entire/metadata/...` 会话元数据文件，它们没有被加入这次提交\n\n如果你要，我下一步可以继续：\n1. 帮你检查这条 PR 的 diff 和描述是否还需要再精简\n2. 帮你补充 reviewer-friendly 的 PR checklist\n3. 帮你查看 CI / checks 状态",
+          "time": {
+            "start": 1772970345717,
+            "end": 1772970345717
+          },
+          "id": "prt_ccd447782001nnuchNzg6H43ni",
+          "sessionID": "ses_332bd2777ffe9fcceGxioLmq6U",
+          "messageID": "msg_ccd44550b001WUll2bEnY0uwJK"
+        },
+        {
+          "type": "step-finish",
+          "reason": "stop",
+          "snapshot": "4725cfa89403265d9c80bbf832449f4feb7b4cdd",
+          "cost": 0,
+          "tokens": {
+            "total": 31952,
+            "input": 272,
+            "output": 192,
+            "reasoning": 0,
+            "cache": {
+              "read": 31488,
+              "write": 0
+            }
+          },
+          "id": "prt_ccd4484f8001cVvp2XykunARu8",
+          "sessionID": "ses_332bd2777ffe9fcceGxioLmq6U",
+          "messageID": "msg_ccd44550b001WUll2bEnY0uwJK"
+        }
+      ]
+    }
+  ]
+}

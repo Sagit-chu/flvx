@@ -1,0 +1,888 @@
+{
+  "info": {
+    "id": "ses_32fb5ccb7ffeA2yIu6Y2POVCPd",
+    "slug": "kind-comet",
+    "projectID": "03c3dd2e5791a80ef100ef53744e013d779d671c",
+    "directory": "/Users/sagit/.local/share/opencode/worktree/13650be91caa3a9e08a2e63127fef62757658384/quiet-canyon",
+    "title": "提交全部变更并推送，创建 PR",
+    "version": "1.2.21",
+    "summary": {
+      "additions": 0,
+      "deletions": 0,
+      "files": 0
+    },
+    "time": {
+      "created": 1773021049672,
+      "updated": 1773021122746
+    }
+  },
+  "messages": [
+    {
+      "info": {
+        "role": "user",
+        "time": {
+          "created": 1773021049833
+        },
+        "summary": {
+          "diffs": []
+        },
+        "agent": "build",
+        "model": {
+          "providerID": "bailian-coding-plan-test",
+          "modelID": "glm-5"
+        },
+        "id": "msg_cd04a3363001KHCMHVby6ODqz2",
+        "sessionID": "ses_32fb5ccb7ffeA2yIu6Y2POVCPd"
+      },
+      "parts": [
+        {
+          "type": "text",
+          "text": "提交全部变更并且push，创建pr",
+          "id": "prt_cd04a3363002qAr3tzSF268RZH",
+          "sessionID": "ses_32fb5ccb7ffeA2yIu6Y2POVCPd",
+          "messageID": "msg_cd04a3363001KHCMHVby6ODqz2"
+        }
+      ]
+    },
+    {
+      "info": {
+        "role": "assistant",
+        "time": {
+          "created": 1773021049840,
+          "completed": 1773021059619
+        },
+        "parentID": "msg_cd04a3363001KHCMHVby6ODqz2",
+        "modelID": "glm-5",
+        "providerID": "bailian-coding-plan-test",
+        "mode": "build",
+        "agent": "build",
+        "path": {
+          "cwd": "/Users/sagit/.local/share/opencode/worktree/13650be91caa3a9e08a2e63127fef62757658384/quiet-canyon",
+          "root": "/Users/sagit/.local/share/opencode/worktree/13650be91caa3a9e08a2e63127fef62757658384/quiet-canyon"
+        },
+        "cost": 0,
+        "tokens": {
+          "total": 20832,
+          "input": 20180,
+          "output": 155,
+          "reasoning": 0,
+          "cache": {
+            "read": 497,
+            "write": 0
+          }
+        },
+        "finish": "tool-calls",
+        "id": "msg_cd04a33f0001ZJoii5m4D43ze5",
+        "sessionID": "ses_32fb5ccb7ffeA2yIu6Y2POVCPd"
+      },
+      "parts": [
+        {
+          "type": "step-start",
+          "snapshot": "0c16ed718e5fa510f685e502c16bc95fc962be96",
+          "id": "prt_cd04a4c29001f4EMViSAqbW7G1",
+          "sessionID": "ses_32fb5ccb7ffeA2yIu6Y2POVCPd",
+          "messageID": "msg_cd04a33f0001ZJoii5m4D43ze5"
+        },
+        {
+          "type": "reasoning",
+          "text": "用户要求提交全部变更、push，并创建 PR。我需要：\n1. 运行 git status 查看未跟踪文件\n2. 运行 git diff 查看已修改的变更\n3. 运行 git log 查看最近的提交消息风格\n4. 分析变更并创建提交\n5. Push 到远程\n6. 使用 gh 创建 PR\n\n首先让我查看当前的 git 状态和变更。",
+          "metadata": {
+            "anthropic": {
+              "signature": ""
+            }
+          },
+          "time": {
+            "start": 1773021056042,
+            "end": 1773021058481
+          },
+          "id": "prt_cd04a4c2a001ppdiuuzmiy8wUR",
+          "sessionID": "ses_32fb5ccb7ffeA2yIu6Y2POVCPd",
+          "messageID": "msg_cd04a33f0001ZJoii5m4D43ze5"
+        },
+        {
+          "type": "tool",
+          "callID": "toolu_tool-9836d77664d64c5bb30c94205c81eba9",
+          "tool": "bash",
+          "state": {
+            "status": "completed",
+            "input": {
+              "command": "git status",
+              "description": "Check git status for changes"
+            },
+            "output": "位于分支 opencode/quiet-canyon\n您的分支领先 'origin/opencode/quiet-canyon' 共 1 个提交。\n  （使用 \"git push\" 来发布您的本地提交）\n\n尚未暂存以备提交的变更：\n  （使用 \"git add <文件>...\" 更新要提交的内容）\n  （使用 \"git restore <文件>...\" 丢弃工作区的改动）\n\t修改：     vite-frontend/src/pages/dashboard.tsx\n\t修改：     vite-frontend/src/pages/dashboard/use-dashboard-data.ts\n\t修改：     vite-frontend/src/pages/node.tsx\n\t修改：     vite-frontend/src/pages/node/renewal.ts\n\t修改：     vite-frontend/src/pages/tunnel.tsx\n\t修改：     vite-frontend/src/pages/user.tsx\n\n未跟踪的文件:\n  （使用 \"git add <文件>...\" 以包含要提交的内容）\n\t.entire/metadata/ses_32fb9de62ffeXG3aOGlPDusGE8/\n\t.entire/metadata/ses_32fc86844ffef0HwT9ZEJRIN06/\n\t.entire/metadata/ses_3323e2b06ffeI9V7enA83UMWHr/\n\t.entire/metadata/ses_332ae6c1bffei5r2p7YJkd9PRh/\n\t.entire/metadata/ses_332b8eae1ffepYTzeoNOc1AdfD/\n\t.entire/metadata/ses_332bd2777ffe9fcceGxioLmq6U/\n\t.entire/metadata/ses_332cb6fa9ffehf0BwC73iSeZUR/\n\t.entire/metadata/ses_332ce68b1ffe0R9vUQZ6yq5gUd/\n\t.entire/metadata/ses_332d83674ffeNMa9Z9UerwU3tq/\n\t.entire/metadata/ses_332d83689ffeJ93gRXNEEeOpSm/\n\t.entire/metadata/ses_332fc6806ffeDArHciRt5Ctxja/\n\t.entire/metadata/ses_332fdb603ffeYxhpzgAB64sSTN/\n\n修改尚未加入提交（使用 \"git add\" 和/或 \"git commit -a\"）\n",
+            "title": "Check git status for changes",
+            "metadata": {
+              "output": "位于分支 opencode/quiet-canyon\n您的分支领先 'origin/opencode/quiet-canyon' 共 1 个提交。\n  （使用 \"git push\" 来发布您的本地提交）\n\n尚未暂存以备提交的变更：\n  （使用 \"git add <文件>...\" 更新要提交的内容）\n  （使用 \"git restore <文件>...\" 丢弃工作区的改动）\n\t修改：     vite-frontend/src/pages/dashboard.tsx\n\t修改：     vite-frontend/src/pages/dashboard/use-dashboard-data.ts\n\t修改：     vite-frontend/src/pages/node.tsx\n\t修改：     vite-frontend/src/pages/node/renewal.ts\n\t修改：     vite-frontend/src/pages/tunnel.tsx\n\t修改：     vite-frontend/src/pages/user.tsx\n\n未跟踪的文件:\n  （使用 \"git add <文件>...\" 以包含要提交的内容）\n\t.entire/metadata/ses_32fb9de62ffeXG3aOGlPDusGE8/\n\t.entire/metadata/ses_32fc86844ffef0HwT9ZEJRIN06/\n\t.entire/metadata/ses_3323e2b06ffeI9V7enA83UMWHr/\n\t.entire/metadata/ses_332ae6c1bffei5r2p7YJkd9PRh/\n\t.entire/metadata/ses_332b8eae1ffepYTzeoNOc1AdfD/\n\t.entire/metadata/ses_332bd2777ffe9fcceGxioLmq6U/\n\t.entire/metadata/ses_332cb6fa9ffehf0BwC73iSeZUR/\n\t.entire/metadata/ses_332ce68b1ffe0R9vUQZ6yq5gUd/\n\t.entire/metadata/ses_332d83674ffeNMa9Z9UerwU3tq/\n\t.entire/metadata/ses_332d83689ffeJ93gRXNEEeOpSm/\n\t.entire/metadata/ses_332fc6806ffeDArHciRt5Ctxja/\n\t.entire/metadata/ses_332fdb603ffeYxhpzgAB64sSTN/\n\n修改尚未加入提交（使用 \"git add\" 和/或 \"git commit -a\"）\n",
+              "exit": 0,
+              "description": "Check git status for changes",
+              "truncated": false
+            },
+            "time": {
+              "start": 1773021059317,
+              "end": 1773021059370
+            }
+          },
+          "id": "prt_cd04a55b30012c72kLoAuDYXOX",
+          "sessionID": "ses_32fb5ccb7ffeA2yIu6Y2POVCPd",
+          "messageID": "msg_cd04a33f0001ZJoii5m4D43ze5"
+        },
+        {
+          "type": "tool",
+          "callID": "toolu_tool-3973232d8f26431082c9674154213afd",
+          "tool": "bash",
+          "state": {
+            "status": "completed",
+            "input": {
+              "command": "git diff",
+              "description": "Check unstaged changes"
+            },
+            "output": "diff --git a/vite-frontend/src/pages/dashboard.tsx b/vite-frontend/src/pages/dashboard.tsx\nindex 8ebb67f..ce52c6d 100644\n--- a/vite-frontend/src/pages/dashboard.tsx\n+++ b/vite-frontend/src/pages/dashboard.tsx\n@@ -90,7 +90,9 @@ export default function DashboardPage() {\n       };\n     }\n \n-    const diffDays = Math.ceil((nextDueTime - Date.now()) / (1000 * 60 * 60 * 24));\n+    const diffDays = Math.ceil(\n+      (nextDueTime - Date.now()) / (1000 * 60 * 60 * 24),\n+    );\n \n     if (renewalState === \"expired\" || diffDays <= 0) {\n       return {\n@@ -122,6 +124,7 @@ export default function DashboardPage() {\n \n   const parseNodeTags = (tags?: string) => {\n     if (!tags) return [];\n+\n     return tags\n       .split(\",\")\n       .map((tag) => tag.trim())\n@@ -150,7 +153,9 @@ export default function DashboardPage() {\n             <div className=\"text-sm font-semibold text-foreground truncate\">\n               {node.name}\n             </div>\n-            <div className=\"mt-1 text-xs text-default-500\">节点 ID: {node.id}</div>\n+            <div className=\"mt-1 text-xs text-default-500\">\n+              节点 ID: {node.id}\n+            </div>\n           </div>\n           <span\n             className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-medium ${expiryStatus.badgeClassName}`}\n@@ -804,7 +809,8 @@ export default function DashboardPage() {\n                     节点到期提醒\n                   </h2>\n                   <p className=\"text-sm text-default-500\">\n-                    展示 7 天内需要续费或已经逾期的节点，基于月付/季付/年付周期自动推算\n+                    展示 7\n+                    天内需要续费或已经逾期的节点，基于月付/季付/年付周期自动推算\n                   </p>\n                 </div>\n               </div>\n@@ -819,7 +825,8 @@ export default function DashboardPage() {\n             </div>\n             {nodeExpiryReminders.length > 6 && (\n               <p className=\"mt-4 text-xs text-default-500\">\n-                还有 {nodeExpiryReminders.length - 6} 个节点未展开显示，可前往节点页面继续处理。\n+                还有 {nodeExpiryReminders.length - 6}{\" \"}\n+                个节点未展开显示，可前往节点页面继续处理。\n               </p>\n             )}\n           </CardBody>\ndiff --git a/vite-frontend/src/pages/dashboard/use-dashboard-data.ts b/vite-frontend/src/pages/dashboard/use-dashboard-data.ts\nindex 5d32ee0..324db10 100644\n--- a/vite-frontend/src/pages/dashboard/use-dashboard-data.ts\n+++ b/vite-frontend/src/pages/dashboard/use-dashboard-data.ts\n@@ -231,14 +231,20 @@ const normalizeNodeExpiryReminders = (items: NodeApiItem[]) => {\n     }))\n     .filter((item) => {\n       if (!item.expiryTime || !item.renewalCycle) return false;\n-      const snapshot = getNodeRenewalSnapshot(item.expiryTime, item.renewalCycle);\n+      const snapshot = getNodeRenewalSnapshot(\n+        item.expiryTime,\n+        item.renewalCycle,\n+      );\n \n       if (!snapshot.nextDueTime) return false;\n+\n       return snapshot.nextDueTime <= now + warningWindowMs;\n     })\n     .sort((a, b) => {\n-      const aDue = getNodeRenewalSnapshot(a.expiryTime, a.renewalCycle).nextDueTime || 0;\n-      const bDue = getNodeRenewalSnapshot(b.expiryTime, b.renewalCycle).nextDueTime || 0;\n+      const aDue =\n+        getNodeRenewalSnapshot(a.expiryTime, a.renewalCycle).nextDueTime || 0;\n+      const bDue =\n+        getNodeRenewalSnapshot(b.expiryTime, b.renewalCycle).nextDueTime || 0;\n \n       return aDue - bDue;\n     });\n@@ -265,31 +271,34 @@ export const useDashboardData = (): DashboardDataState => {\n   const packageRequestInFlightRef = useRef(false);\n   const nodeExpiryRequestInFlightRef = useRef(false);\n \n-  const applyPackageData = useCallback((data: {\n-    userInfo?: DashboardUserInfo;\n-    tunnelPermissions?: DashboardUserTunnel[];\n-    forwards?: ForwardApiItem[];\n-    statisticsFlows?: DashboardStatisticsFlow[];\n-  }) => {\n-    const normalizedTunnelPermissions = normalizeTunnelPermissions(\n-      data.tunnelPermissions || [],\n-    );\n-    const normalizedForwards = normalizeForwards(data.forwards || []);\n-\n-    if (!isMountedRef.current) {\n-      return;\n-    }\n+  const applyPackageData = useCallback(\n+    (data: {\n+      userInfo?: DashboardUserInfo;\n+      tunnelPermissions?: DashboardUserTunnel[];\n+      forwards?: ForwardApiItem[];\n+      statisticsFlows?: DashboardStatisticsFlow[];\n+    }) => {\n+      const normalizedTunnelPermissions = normalizeTunnelPermissions(\n+        data.tunnelPermissions || [],\n+      );\n+      const normalizedForwards = normalizeForwards(data.forwards || []);\n+\n+      if (!isMountedRef.current) {\n+        return;\n+      }\n \n-    setUserInfo(data.userInfo || ({} as DashboardUserInfo));\n-    setUserTunnels(normalizedTunnelPermissions);\n-    setForwardList(normalizedForwards);\n-    setStatisticsFlows(data.statisticsFlows || []);\n+      setUserInfo(data.userInfo || ({} as DashboardUserInfo));\n+      setUserTunnels(normalizedTunnelPermissions);\n+      setForwardList(normalizedForwards);\n+      setStatisticsFlows(data.statisticsFlows || []);\n \n-    checkExpirationNotifications(\n-      data.userInfo || ({} as DashboardUserInfo),\n-      normalizedTunnelPermissions,\n-    );\n-  }, []);\n+      checkExpirationNotifications(\n+        data.userInfo || ({} as DashboardUserInfo),\n+        normalizedTunnelPermissions,\n+      );\n+    },\n+    [],\n+  );\n \n   const loadPackageData = useCallback(\n     async ({ silent = false, notifyOnError = false } = {}) => {\ndiff --git a/vite-frontend/src/pages/node.tsx b/vite-frontend/src/pages/node.tsx\nindex dd2b310..d6f64c8 100644\n--- a/vite-frontend/src/pages/node.tsx\n+++ b/vite-frontend/src/pages/node.tsx\n@@ -202,6 +202,7 @@ const getNodeExpiryMeta = (timestamp?: number, cycle?: NodeRenewalCycle) => {\n \n const normalizeNodeTags = (tags?: string): string[] => {\n   if (!tags) return [];\n+\n   return tags\n     .split(\",\")\n     .map((tag) => tag.trim())\n@@ -257,7 +258,8 @@ const SortableItem = ({\n       ref={setNodeRef}\n       style={style}\n       {...attributes}\n-      className=\"overflow-hidden\"\n+      className=\"overflow-hidden h-full\"\n+      {...listeners}\n     >\n       {children(listeners)}\n     </div>\n@@ -272,10 +274,8 @@ export default function NodePage() {\n     \"node-search-keyword\",\n     \"\",\n   );\n-  const [nodeFilterMode, setNodeFilterMode] = useLocalStorageState<NodeFilterMode>(\n-    \"node-expiry-filter-mode\",\n-    \"all\",\n-  );\n+  const [nodeFilterMode, setNodeFilterMode] =\n+    useLocalStorageState<NodeFilterMode>(\"node-expiry-filter-mode\", \"all\");\n   const [isSearchVisible, setIsSearchVisible] = useState(false);\n   const [dialogVisible, setDialogVisible] = useState(false);\n   const [dialogTitle, setDialogTitle] = useState(\"\");\n@@ -675,7 +675,10 @@ export default function NodePage() {\n       newErrors.name = \"节点名称长度不能超过50位\";\n     }\n \n-    if ((form.renewalCycle && !form.expiryTime) || (!form.renewalCycle && form.expiryTime)) {\n+    if (\n+      (form.renewalCycle && !form.expiryTime) ||\n+      (!form.renewalCycle && form.expiryTime)\n+    ) {\n       newErrors.expiryTime = \"请同时设置续费周期和续费基准时间\";\n     }\n \n@@ -1188,6 +1191,7 @@ export default function NodePage() {\n         if (getNodeReminderEnabled(node)) {\n           acc.withExpiry += 1;\n         }\n+\n         return acc;\n       },\n       { expired: 0, expiringSoon: 0, withExpiry: 0 },\n@@ -1216,7 +1220,10 @@ export default function NodePage() {\n \n     if (nodeFilterMode !== \"all\") {\n       filteredNodes = filteredNodes.filter((node) => {\n-        const expiryMeta = getNodeExpiryMeta(node.expiryTime, node.renewalCycle);\n+        const expiryMeta = getNodeExpiryMeta(\n+          node.expiryTime,\n+          node.renewalCycle,\n+        );\n \n         switch (nodeFilterMode) {\n           case \"expiringSoon\":\n@@ -1298,7 +1305,9 @@ export default function NodePage() {\n             size=\"sm\"\n             variant=\"bordered\"\n             onSelectionChange={(keys) => {\n-              const selected = Array.from(keys)[0] as NodeFilterMode | undefined;\n+              const selected = Array.from(keys)[0] as\n+                | NodeFilterMode\n+                | undefined;\n \n               setNodeFilterMode(selected || \"all\");\n             }}\n@@ -1436,7 +1445,7 @@ export default function NodePage() {\n                     {(listeners) => (\n                       <Card\n                         key={node.id}\n-                        className={`group shadow-sm border border-divider hover:shadow-md transition-shadow duration-200 overflow-hidden ${expiryMeta.accentClassName}`}\n+                        className={`group shadow-sm border border-divider hover:shadow-md transition-shadow duration-200 overflow-hidden h-full flex flex-col ${expiryMeta.accentClassName}`}\n                       >\n                         <CardHeader className=\"pb-2 md:pb-2\">\n                           <div className=\"flex justify-between items-start w-full\">\n@@ -1498,7 +1507,7 @@ export default function NodePage() {\n                           </div>\n                         </CardHeader>\n \n-                        <CardBody className=\"pt-0 pb-3 md:pt-0 md:pb-3\">\n+                        <CardBody className=\"pt-0 pb-3 md:pt-0 md:pb-3 flex-1 flex flex-col\">\n                           {isRemoteNode && node.syncError && (\n                             <div className=\"mb-3 px-2 py-1.5 rounded-md bg-warning-50 dark:bg-warning-100/10 text-warning-700 dark:text-warning-400 text-xs\">\n                               {getRemoteSyncErrorMessage(node.syncError)}\n@@ -1517,7 +1526,10 @@ export default function NodePage() {\n                             {(node.remark?.trim() || node.tags?.trim()) && (\n                               <div className=\"rounded-lg border border-divider/80 bg-default-50/80 px-3 py-2\">\n                                 {node.remark?.trim() && (\n-                                  <div className=\"text-xs leading-5 text-default-700 whitespace-pre-wrap break-words\">\n+                                  <div\n+                                    className=\"text-xs leading-5 text-default-700 line-clamp-1 break-all\"\n+                                    title={node.remark.trim()}\n+                                  >\n                                     {node.remark.trim()}\n                                   </div>\n                                 )}\n@@ -1538,29 +1550,24 @@ export default function NodePage() {\n                                 )}\n                               </div>\n                             )}\n-                            {node.expiryTime && node.expiryTime > 0 && node.renewalCycle && (\n-                              <div className=\"flex justify-between text-sm\">\n-                                <span className=\"text-default-600\">下次续费</span>\n-                                <div className=\"text-right ml-2\">\n-                                  <div className=\"text-xs text-warning-700 dark:text-warning-400\">\n-                                    {formatNodeRenewalTime(expiryMeta.nextDueTime)}\n-                                  </div>\n-                                  <div className=\"mt-1\">\n-                                    <Chip\n-                                      className=\"text-[11px]\"\n-                                      color={expiryMeta.tone}\n-                                      size=\"sm\"\n-                                      variant=\"flat\"\n-                                    >\n-                                      {expiryMeta.label}\n-                                    </Chip>\n-                                  </div>\n-                                  <div className=\"mt-1 text-[11px] text-default-500\">\n-                                    {getNodeRenewalCycleLabel(node.renewalCycle)}\n-                                  </div>\n+                            {node.expiryTime &&\n+                              node.expiryTime > 0 &&\n+                              node.renewalCycle && (\n+                                <div className=\"flex justify-between items-center text-sm\">\n+                                  <span className=\"text-default-600\">\n+                                    下次续费\n+                                  </span>\n+                                  <Chip\n+                                    className=\"text-[11px]\"\n+                                    color={expiryMeta.tone}\n+                                    size=\"sm\"\n+                                    title={`${formatNodeRenewalTime(expiryMeta.nextDueTime)} (${getNodeRenewalCycleLabel(node.renewalCycle)})`}\n+                                    variant=\"flat\"\n+                                  >\n+                                    {expiryMeta.label}\n+                                  </Chip>\n                                 </div>\n-                              </div>\n-                            )}\n+                              )}\n                             <div className=\"flex justify-between items-center text-sm min-w-0\">\n                               <span className=\"text-default-600 flex-shrink-0\">\n                                 IP\n@@ -1758,7 +1765,7 @@ export default function NodePage() {\n                           )}\n \n                           {/* 操作按钮 */}\n-                          <div className=\"space-y-1.5\">\n+                          <div className=\"space-y-1.5 mt-auto\">\n                             {!isRemoteNode && (\n                               <div className=\"grid grid-cols-3 gap-1.5\">\n                                 <Button\n@@ -1943,18 +1950,6 @@ export default function NodePage() {\n                 variant=\"flat\"\n               />\n \n-              <Input\n-                description=\"留空表示未设置续费提醒；只有同时设置周期和基准时间才会参与提醒与筛选\"\n-                label=\"说明\"\n-                readOnly\n-                value={\n-                  form.renewalCycle && form.expiryTime > 0\n-                    ? `当前按${getNodeRenewalCycleLabel(form.renewalCycle)}循环计算`\n-                    : \"未启用循环续费提醒\"\n-                }\n-                variant=\"bordered\"\n-              />\n-\n               <Input\n                 description=\"可选：不带协议、不带端口。建议在 IPv4 和 IPv6 都未填写时使用。至少填写一个 IPv4/IPv6/域名\"\n                 errorMessage={errors.serverHost}\ndiff --git a/vite-frontend/src/pages/node/renewal.ts b/vite-frontend/src/pages/node/renewal.ts\nindex f4e434a..a8371ed 100644\n--- a/vite-frontend/src/pages/node/renewal.ts\n+++ b/vite-frontend/src/pages/node/renewal.ts\n@@ -14,6 +14,7 @@ const addMonths = (timestamp: number, months: number): number => {\n   const next = new Date(date);\n \n   next.setMonth(next.getMonth() + months);\n+\n   return next.getTime();\n };\n \n@@ -72,7 +73,9 @@ export const getNodeRenewalSnapshot = (\n     nextDueTime = advanced;\n   }\n \n-  const diffDays = Math.ceil((nextDueTime - Date.now()) / (1000 * 60 * 60 * 24));\n+  const diffDays = Math.ceil(\n+    (nextDueTime - Date.now()) / (1000 * 60 * 60 * 24),\n+  );\n \n   if (diffDays <= 0) {\n     return {\n@@ -110,5 +113,6 @@ export const formatNodeRenewalTime = (timestamp?: number): string => {\n   if (!timestamp || timestamp <= 0) {\n     return \"未设置\";\n   }\n+\n   return new Date(timestamp).toLocaleString();\n };\ndiff --git a/vite-frontend/src/pages/tunnel.tsx b/vite-frontend/src/pages/tunnel.tsx\nindex cf96635..4ffc5c7 100644\n--- a/vite-frontend/src/pages/tunnel.tsx\n+++ b/vite-frontend/src/pages/tunnel.tsx\n@@ -265,27 +265,30 @@ export default function TunnelPage() {\n     );\n   }, []);\n \n-  const refreshTunnelList = useCallback(async (withLoading = true) => {\n-    if (withLoading) {\n-      setLoading(true);\n-    }\n+  const refreshTunnelList = useCallback(\n+    async (withLoading = true) => {\n+      if (withLoading) {\n+        setLoading(true);\n+      }\n \n-    try {\n-      const tunnelsRes = await getTunnelList();\n+      try {\n+        const tunnelsRes = await getTunnelList();\n \n-      if (tunnelsRes.code === 0) {\n-        applyTunnelList(mapTunnelApiItems(tunnelsRes.data || []));\n-      } else {\n-        toast.error(tunnelsRes.msg || \"获取隧道列表失败\");\n-      }\n-    } catch {\n-      toast.error(\"获取隧道列表失败\");\n-    } finally {\n-      if (withLoading) {\n-        setLoading(false);\n+        if (tunnelsRes.code === 0) {\n+          applyTunnelList(mapTunnelApiItems(tunnelsRes.data || []));\n+        } else {\n+          toast.error(tunnelsRes.msg || \"获取隧道列表失败\");\n+        }\n+      } catch {\n+        toast.error(\"获取隧道列表失败\");\n+      } finally {\n+        if (withLoading) {\n+          setLoading(false);\n+        }\n       }\n-    }\n-  }, [applyTunnelList]);\n+    },\n+    [applyTunnelList],\n+  );\n \n   const refreshNodes = useCallback(async () => {\n     try {\n@@ -381,12 +384,14 @@ export default function TunnelPage() {\n           const next = prev.filter((id) => id !== tunnelToDelete.id);\n \n           saveOrder(TUNNEL_ORDER_KEY, next);\n+\n           return next;\n         });\n         setSelectedIds((prev) => {\n           const next = new Set(prev);\n \n           next.delete(tunnelToDelete.id);\n+\n           return next;\n         });\n       } else {\n@@ -858,11 +863,14 @@ export default function TunnelPage() {\n             label: `删除完成：成功 ${result.successCount} 项`,\n             percent: 100,\n           });\n-          setTunnels((prev) => prev.filter((tunnel) => !selectedIds.has(tunnel.id)));\n+          setTunnels((prev) =>\n+            prev.filter((tunnel) => !selectedIds.has(tunnel.id)),\n+          );\n           setTunnelOrder((prev) => {\n             const next = prev.filter((id) => !selectedIds.has(id));\n \n             saveOrder(TUNNEL_ORDER_KEY, next);\n+\n             return next;\n           });\n         } else {\ndiff --git a/vite-frontend/src/pages/user.tsx b/vite-frontend/src/pages/user.tsx\nindex ec6bd69..264fa39 100644\n--- a/vite-frontend/src/pages/user.tsx\n+++ b/vite-frontend/src/pages/user.tsx\n@@ -66,10 +66,7 @@ import {\n } from \"@/components/icons\";\n import { PageLoadingState } from \"@/components/page-state\";\n import { useLocalStorageState } from \"@/hooks/use-local-storage-state\";\n-import {\n-  removeItemsById,\n-  replaceItemById,\n-} from \"@/utils/list-state\";\n+import { removeItemsById, replaceItemById } from \"@/utils/list-state\";\n \n // 工具函数\n const formatFlow = (value: number, unit: string = \"bytes\"): string => {\n@@ -304,30 +301,30 @@ export default function UserPage() {\n   // 数据加载函数\n   const loadUsers = useCallback(\n     async (keywordOverride?: string) => {\n-    setLoading(true);\n-    try {\n-      const keyword = keywordOverride ?? searchKeyword;\n-      const response = await getAllUsers({\n-        current: pagination.current,\n-        size: pagination.size,\n-        keyword,\n-      });\n-\n-      if (response.code === 0) {\n-        const nextUsers = Array.isArray(response.data)\n-          ? response.data.map((item) => normalizeUserItem(item))\n-          : [];\n-\n-        setUsers(nextUsers);\n-        setPagination((prev) => ({ ...prev, total: nextUsers.length }));\n-      } else {\n-        toast.error(response.msg || \"获取用户列表失败\");\n+      setLoading(true);\n+      try {\n+        const keyword = keywordOverride ?? searchKeyword;\n+        const response = await getAllUsers({\n+          current: pagination.current,\n+          size: pagination.size,\n+          keyword,\n+        });\n+\n+        if (response.code === 0) {\n+          const nextUsers = Array.isArray(response.data)\n+            ? response.data.map((item) => normalizeUserItem(item))\n+            : [];\n+\n+          setUsers(nextUsers);\n+          setPagination((prev) => ({ ...prev, total: nextUsers.length }));\n+        } else {\n+          toast.error(response.msg || \"获取用户列表失败\");\n+        }\n+      } catch {\n+        toast.error(\"获取用户列表失败\");\n+      } finally {\n+        setLoading(false);\n       }\n-    } catch {\n-      toast.error(\"获取用户列表失败\");\n-    } finally {\n-      setLoading(false);\n-    }\n     },\n     [pagination.current, pagination.size],\n   );\n@@ -411,6 +408,7 @@ export default function UserPage() {\n       setPagination((prev) => {\n         if (prev.current === 1) {\n           void loadUsers(searchKeyword);\n+\n           return prev;\n         }\n \n@@ -667,7 +665,8 @@ export default function UserPage() {\n               normalizeSpeedId(editTunnelForm.speedId) !== null\n                 ? speedLimits.find(\n                     (speedLimit) =>\n-                      speedLimit.id === normalizeSpeedId(editTunnelForm.speedId),\n+                      speedLimit.id ===\n+                      normalizeSpeedId(editTunnelForm.speedId),\n                   )?.name\n                 : undefined,\n           });\n@@ -733,7 +732,9 @@ export default function UserPage() {\n \n         setUsers((prev) =>\n           prev.map((user) =>\n-            user.id === targetUserId ? { ...user, inFlow: 0, outFlow: 0 } : user,\n+            user.id === targetUserId\n+              ? { ...user, inFlow: 0, outFlow: 0 }\n+              : user,\n           ),\n         );\n         setUserToReset(null);\n",
+            "title": "Check unstaged changes",
+            "metadata": {
+              "output": "diff --git a/vite-frontend/src/pages/dashboard.tsx b/vite-frontend/src/pages/dashboard.tsx\nindex 8ebb67f..ce52c6d 100644\n--- a/vite-frontend/src/pages/dashboard.tsx\n+++ b/vite-frontend/src/pages/dashboard.tsx\n@@ -90,7 +90,9 @@ export default function DashboardPage() {\n       };\n     }\n \n-    const diffDays = Math.ceil((nextDueTime - Date.now()) / (1000 * 60 * 60 * 24));\n+    const diffDays = Math.ceil(\n+      (nextDueTime - Date.now()) / (1000 * 60 * 60 * 24),\n+    );\n \n     if (renewalState === \"expired\" || diffDays <= 0) {\n       return {\n@@ -122,6 +124,7 @@ export default function DashboardPage() {\n \n   const parseNodeTags = (tags?: string) => {\n     if (!tags) return [];\n+\n     return tags\n       .split(\",\")\n       .map((tag) => tag.trim())\n@@ -150,7 +153,9 @@ export default function DashboardPage() {\n             <div className=\"text-sm font-semibold text-foreground truncate\">\n               {node.name}\n             </div>\n-            <div className=\"mt-1 text-xs text-default-500\">节点 ID: {node.id}</div>\n+            <div className=\"mt-1 text-xs text-default-500\">\n+              节点 ID: {node.id}\n+            </div>\n           </div>\n           <span\n             className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-medium ${expiryStatus.badgeClassName}`}\n@@ -804,7 +809,8 @@ export default function DashboardPage() {\n                     节点到期提醒\n                   </h2>\n                   <p className=\"text-sm text-default-500\">\n-                    展示 7 天内需要续费或已经逾期的节点，基于月付/季付/年付周期自动推算\n+                    展示 7\n+                    天内需要续费或已经逾期的节点，基于月付/季付/年付周期自动推算\n                   </p>\n                 </div>\n               </div>\n@@ -819,7 +825,8 @@ export default function DashboardPage() {\n             </div>\n             {nodeExpiryReminders.length > 6 && (\n               <p className=\"mt-4 text-xs text-default-500\">\n-                还有 {nodeExpiryReminders.length - 6} 个节点未展开显示，可前往节点页面继续处理。\n+                还有 {nodeExpiryReminders.length - 6}{\" \"}\n+                个节点未展开显示，可前往节点页面继续处理。\n               </p>\n             )}\n           </CardBody>\ndiff --git a/vite-frontend/src/pages/dashboard/use-dashboard-data.ts b/vite-frontend/src/pages/dashboard/use-dashboard-data.ts\nindex 5d32ee0..324db10 100644\n--- a/vite-frontend/src/pages/dashboard/use-dashboard-data.ts\n+++ b/vite-frontend/src/pages/dashboard/use-dashboard-data.ts\n@@ -231,14 +231,20 @@ const normalizeNodeExpiryReminders = (items: NodeApiItem[]) => {\n     }))\n     .filter((item) => {\n       if (!item.expiryTime || !item.renewalCycle) return false;\n-      const snapshot = getNodeRenewalSnapshot(item.expiryTime, item.renewalCycle);\n+      const snapshot = getNodeRenewalSnapshot(\n+        item.expiryTime,\n+        item.renewalCycle,\n+      );\n \n       if (!snapshot.nextDueTime) return false;\n+\n       return snapshot.nextDueTime <= now + warningWindowMs;\n     })\n     .sort((a, b) => {\n-      const aDue = getNodeRenewalSnapshot(a.expiryTime, a.renewalCycle).nextDueTime || 0;\n-      const bDue = getNodeRenewalSnapshot(b.expiryTime, b.renewalCycle).nextDueTime || 0;\n+      const aDue =\n+        getNodeRenewalSnapshot(a.expiryTime, a.renewalCycle).nextDueTime || 0;\n+      const bDue =\n+        getNodeRenewalSnapshot(b.expiryTime, b.renewalCycle).nextDueTime || 0;\n \n       return aDue - bDue;\n     });\n@@ -265,31 +271,34 @@ export const useDashboardData = (): DashboardDataState => {\n   const packageRequestInFlightRef = useRef(false);\n   const nodeExpiryRequestInFlightRef = useRef(false);\n \n-  const applyPackageData = useCallback((data: {\n-    userInfo?: DashboardUserInfo;\n-    tunnelPermissions?: DashboardUserTunnel[];\n-    forwards?: ForwardApiItem[];\n-    statisticsFlows?: DashboardStatisticsFlow[];\n-  }) => {\n-    const normalizedTunnelPermissions = normalizeTunnelPermissions(\n-      data.tunnelPermissions || [],\n-    );\n-    const normalizedForwards = normalizeForwards(data.forwards || []);\n-\n-    if (!isMountedRef.current) {\n-      return;\n-    }\n+  const applyPackageData = useCallback(\n+    (data: {\n+      userInfo?: DashboardUserInfo;\n+      tunnelPermissions?: DashboardUserTunnel[];\n+      forwards?: ForwardApiItem[];\n+      statisticsFlows?: DashboardStatisticsFlow[];\n+    }) => {\n+      const normalizedTunnelPermissions = normalizeTunnelPermissions(\n+        data.tunnelPermissions || [],\n+      );\n+      const normalizedForwards = normalizeForwards(data.forwards || []);\n+\n+      if (!isMountedRef.current) {\n+        return;\n+      }\n \n-    setUserInfo(data.userInfo || ({} as DashboardUserInfo));\n-    setUserTunnels(normalizedTunnelPermissions);\n-    setForwardList(normalizedForwards);\n-    setStatisticsFlows(data.statisticsFlows || []);\n+      setUserInfo(data.userInfo || ({} as DashboardUserInfo));\n+      setUserTunnels(normalizedTunnelPermissions);\n+      setForwardList(normalizedForwards);\n+      setStatisticsFlows(data.statisticsFlows || []);\n \n-    checkExpirationNotifications(\n-      data.userInfo || ({} as DashboardUserInfo),\n-      normalizedTunnelPermissions,\n-    );\n-  }, []);\n+      checkExpirationNotifications(\n+        data.userInfo || ({} as DashboardUserInfo),\n+        normalizedTunnelPermissions,\n+      );\n+    },\n+    [],\n+  );\n \n   const loadPackageData = useCallback(\n     async ({ silent = false, notifyOnError = false } = {}) => {\ndiff --git a/vite-frontend/src/pages/node.tsx b/vite-frontend/src/pages/node.tsx\nindex dd2b310..d6f64c8 100644\n--- a/vite-frontend/src/pages/node.tsx\n+++ b/vite-frontend/src/pages/node.tsx\n@@ -202,6 +202,7 @@ const getNodeExpiryMeta = (timestamp?: number, cycle?: NodeRenewalCycle) => {\n \n const normalizeNodeTags = (tags?: string): string[] => {\n   if (!tags) return [];\n+\n   return tags\n     .split(\",\")\n     .map((tag) => tag.trim())\n@@ -257,7 +258,8 @@ const SortableItem = ({\n       ref={setNodeRef}\n       style={style}\n       {...attributes}\n-      className=\"overflow-hidden\"\n+      className=\"overflow-hidden h-full\"\n+      {...listeners}\n     >\n       {children(listeners)}\n     </div>\n@@ -272,10 +274,8 @@ export default function NodePage() {\n     \"node-search-keyword\",\n     \"\",\n   );\n-  const [nodeFilterMode, setNodeFilterMode] = useLocalStorageState<NodeFilterMode>(\n-    \"node-expiry-filter-mode\",\n-    \"all\",\n-  );\n+  const [nodeFilterMode, setNodeFilterMode] =\n+    useLocalStorageState<NodeFilterMode>(\"node-expiry-filter-mode\", \"all\");\n   const [isSearchVisible, setIsSearchVisible] = useState(false);\n   const [dialogVisible, setDialogVisible] = useState(false);\n   const [dialogTitle, setDialogTitle] = useState(\"\");\n@@ -675,7 +675,10 @@ export default function NodePage() {\n       newErrors.name = \"节点名称长度不能超过50位\";\n     }\n \n-    if ((form.renewalCycle && !form.expiryTime) || (!form.renewalCycle && form.expiryTime)) {\n+    if (\n+      (form.renewalCycle && !form.expiryTime) ||\n+      (!form.renewalCycle && form.expiryTime)\n+    ) {\n       newErrors.expiryTime = \"请同时设置续费周期和续费基准时间\";\n     }\n \n@@ -1188,6 +1191,7 @@ export default function NodePage() {\n         if (getNodeReminderEnabled(node)) {\n           acc.withExpiry += 1;\n         }\n+\n         return acc;\n       },\n       { expired: 0, expiringSoon: 0, withExpiry: 0 },\n@@ -1216,7 +1220,10 @@ export default function NodePage() {\n \n     if (nodeFilterMode !== \"all\") {\n       filteredNodes = filteredNodes.filter((node) => {\n-        const expiryMeta = getNodeExpiryMeta(node.expiryTime, node.renewalCycle);\n+        const expiryMeta = getNodeExpiryMeta(\n+          node.expiryTime,\n+          node.renewalCycle,\n+        );\n \n         switch (nodeFilterMode) {\n           case \"expiringSoon\":\n@@ -1298,7 +1305,9 @@ export default function NodePage() {\n             size=\"sm\"\n             variant=\"bordered\"\n             onSelectionChange={(keys) => {\n-              const selected = Array.from(keys)[0] as NodeFilterMode | undefined;\n+              const selected = Array.from(keys)[0] as\n+                | NodeFilterMode\n+                | undefined;\n \n               setNodeFilterMode(selected || \"all\");\n             }}\n@@ -1436,7 +1445,7 @@ export default function NodePage() {\n                     {(listeners) => (\n                       <Card\n                         key={node.id}\n-                        className={`group shadow-sm border border-divider hover:shadow-md transition-shadow duration-200 overflow-hidden ${expiryMeta.accentClassName}`}\n+                        className={`group shadow-sm border border-divider hover:shadow-md transition-shadow duration-200 overflow-hidden h-full flex flex-col ${expiryMeta.accentClassName}`}\n                       >\n                         <CardHeader className=\"pb-2 md:pb-2\">\n                           <div className=\"flex justify-between items-start w-full\">\n@@ -1498,7 +1507,7 @@ export default function NodePage() {\n                           </div>\n                         </CardHeader>\n \n-                        <CardBody className=\"pt-0 pb-3 md:pt-0 md:pb-3\">\n+                        <CardBody className=\"pt-0 pb-3 md:pt-0 md:pb-3 flex-1 flex flex-col\">\n                           {isRemoteNode && node.syncError && (\n                             <div className=\"mb-3 px-2 py-1.5 rounded-md bg-warning-50 dark:bg-warning-100/10 text-warning-700 dark:text-warning-400 text-xs\">\n                               {getRemoteSyncErrorMessage(node.syncError)}\n@@ -1517,7 +1526,10 @@ export default function NodePage() {\n                             {(node.remark?.trim() || node.tags?.trim()) && (\n                               <div className=\"rounded-lg border border-divider/80 bg-default-50/80 px-3 py-2\">\n                                 {node.remark?.trim() && (\n-                                  <div className=\"text-xs leading-5 text-default-700 whitespace-pre-wrap break-words\">\n+                                  <div\n+                                    className=\"text-xs leading-5 text-default-700 line-clamp-1 break-all\"\n+                                    title={node.remark.trim()}\n+                                  >\n                                     {node.remark.trim()}\n                                   </div>\n                                 )}\n@@ -1538,29 +1550,24 @@ export default function NodePage() {\n                                 )}\n                               </div>\n                             )}\n-                            {node.expiryTime && node.expiryTime > 0 && node.renewalCycle && (\n-                              <div className=\"flex justify-between text-sm\">\n-                                <span className=\"text-default-600\">下次续费</span>\n-                                <div className=\"text-right ml-2\">\n-                                  <div className=\"text-xs text-warning-700 dark:text-warning-400\">\n-                                    {formatNodeRenewalTime(expiryMeta.nextDueTime)}\n-                                  </div>\n-                                  <div className=\"mt-1\">\n-                                    <Chip\n-                                      className=\"text-[11px]\"\n-                                      color={expiryMeta.tone}\n-                                      size=\"sm\"\n-                                      variant=\"flat\"\n-                                    >\n-                                      {expiryMeta.label}\n-                                    </Chip>\n-                                  </div>\n-                                  <div className=\"mt-1 text-[11px] text-default-500\">\n-                                    {getNodeRenewalCycleLabel(node.renewalCycle)}\n-                                  </div>\n+                            {node.expiryTime &&\n+                              node.expiryTime > 0 &&\n+                              node.renewalCycle && (\n+                                <div className=\"flex justify-between items-center text-sm\">\n+                                  <span className=\"text-default-600\">\n+                                    下次续费\n+                                  </span>\n+                                  <Chip\n+                                    className=\"text-[11px]\"\n+                                    color={expiryMeta.tone}\n+                                    size=\"sm\"\n+                                    title={`${formatNodeRenewalTime(expiryMeta.nextDueTime)} (${getNodeRenewalCycleLabel(node.renewalCycle)})`}\n+                                    variant=\"flat\"\n+                                  >\n+                                    {expiryMeta.label}\n+                                  </Chip>\n                                 </div>\n-                              </div>\n-                            )}\n+                              )}\n                             <div className=\"flex justify-between items-center text-sm min-w-0\">\n                               <span className=\"text-default-600 flex-shrink-0\">\n                                 IP\n@@ -1758,7 +1765,7 @@ export default function NodePage() {\n                           )}\n \n                           {/* 操作按钮 */}\n-                          <div className=\"space-y-1.5\">\n+                          <div className=\"space-y-1.5 mt-auto\">\n                             {!isRemoteNode && (\n                               <div className=\"grid grid-cols-3 gap-1.5\">\n                                 <Button\n@@ -1943,18 +1950,6 @@ export default function NodePage() {\n                 variant=\"flat\"\n               />\n \n-              <Input\n-                description=\"留空表示未设置续费提醒；只有同时设置周期和基准时间才会参与提醒与筛选\"\n-                label=\"说明\"\n-                readOnly\n-                value={\n-                  form.renewalCycle && form.expiryTime > 0\n-                    ? `当前按${getNodeRenewalCycleLabel(form.renewalCycle)}循环计算`\n-                    : \"未启用循环续费提醒\"\n-                }\n-                variant=\"bordered\"\n-              />\n-\n               <Input\n                 description=\"可选：不带协议、不带端口。建议在 IPv4 和 IPv6 都未填写时使用。至少填写一个 IPv4/IPv6/域名\"\n                 errorMessage={errors.serverHost}\ndiff --git a/vite-frontend/src/pages/node/renewal.ts b/vite-frontend/src/pages/node/renewal.ts\nindex f4e434a..a8371ed 100644\n--- a/vite-frontend/src/pages/node/renewal.ts\n+++ b/vite-frontend/src/pages/node/renewal.ts\n@@ -14,6 +14,7 @@ const addMonths = (timestamp: number, months: number): number => {\n   const next = new Date(date);\n \n   next.setMonth(next.getMonth() + months);\n+\n   return next.getTime();\n };\n \n@@ -72,7 +73,9 @@ export const getNodeRenewalSnapshot = (\n     nextDueTime = advanced;\n   }\n \n-  const diffDays = Math.ceil((nextDueTime - Date.now()) / (1000 * 60 * 60 * 24));\n+  const diffDays = Math.ceil(\n+    (nextDueTime - Date.now()) / (1000 * 60 * 60 * 24),\n+  );\n \n   if (diffDays <= 0) {\n     return {\n@@ -110,5 +113,6 @@ export const formatNodeRenewalTime = (timestamp?: number): string => {\n   if (!timestamp || timestamp <= 0) {\n     return \"未设置\";\n   }\n+\n   return new Date(timestamp).toLocaleString();\n };\ndiff --git a/vite-frontend/src/pages/tunnel.tsx b/vite-frontend/src/pages/tunnel.tsx\nindex cf96635..4ffc5c7 100644\n--- a/vite-frontend/src/pages/tunnel.tsx\n+++ b/vite-frontend/src/pages/tunnel.tsx\n@@ -265,27 +265,30 @@ export default function TunnelPage() {\n     );\n   }, []);\n \n-  const refreshTunnelList = useCallback(async (withLoading = true) => {\n-    if (withLoading) {\n-      setLoading(true);\n-    }\n+  const refreshTunnelList = useCallback(\n+    async (withLoading = true) => {\n+      if (withLoading) {\n+        setLoading(true);\n+      }\n \n-    try {\n-      const tunnelsRes = await getTunnelList();\n+      try {\n+        const tunnelsRes = await getTunnelList();\n \n-      if (tunnelsRes.code === 0) {\n-        applyTunnelList(mapTunnelApiItems(tunnelsRes.data || []));\n-      } else {\n-        toast.error(tunnelsRes.msg || \"获取隧道列表失败\");\n-      }\n-    } catch {\n-      toast.error(\"获取隧道列表失败\");\n-    } finally {\n-      if (withLoading) {\n-        setLoading(false);\n+        if (tunnelsRes.code === 0) {\n+          applyTunnelList(mapTunnelApiItems(tunnelsRes.data || []));\n+        } else {\n+          toast.error(tunnelsRes.msg || \"获取隧道列表失败\");\n+        }\n+      } catch {\n+        toast.error(\"获取隧道列表失败\");\n+      } finally {\n+        if (withLoading) {\n+          setLoading(false);\n+        }\n       }\n-    }\n-  }, [applyTunnelList]);\n+    },\n+    [applyTunnelList],\n+  );\n \n   const refreshNodes = useCallback(async () => {\n     try {\n@@ -381,12 +384,14 @@ export default function TunnelPage() {\n           const next = prev.filter((id) => id !== tunnelToDelete.id);\n \n           saveOrder(TUNNEL_ORDER_KEY, next);\n+\n           return next;\n         });\n         setSelectedIds((prev) => {\n           const next = new Set(prev);\n \n           next.delete(tunnelToDelete.id);\n+\n           return next;\n         });\n       } else {\n@@ -858,11 +863,14 @@ export default function TunnelPage() {\n             label: `删除完成：成功 ${result.successCount} 项`,\n             percent: 100,\n           });\n-          setTunnels((prev) => prev.filter((tunnel) => !selectedIds.has(tunnel.id)));\n+          setTunnels((prev) =>\n+            prev.filter((tunnel) => !selectedIds.has(tunnel.id)),\n+          );\n           setTunnelOrder((prev) => {\n             const next = prev.filter((id) => !selectedIds.has(id));\n \n             saveOrder(TUNNEL_ORDER_KEY, next);\n+\n             return next;\n           });\n         } else {\ndiff --git a/vite-frontend/src/pages/user.tsx b/vite-frontend/src/pages/user.tsx\nindex ec6bd69..264fa39 100644\n--- a/vite-frontend/src/pages/user.tsx\n+++ b/vite-frontend/src/pages/user.tsx\n@@ -66,10 +66,7 @@ import {\n } from \"@/components/icons\";\n import { PageLoadingState } from \"@/components/page-state\";\n import { useLocalStorageState } from \"@/hooks/use-local-storage-state\";\n-import {\n-  removeItemsById,\n-  replaceItemById,\n-} from \"@/utils/list-state\";\n+import { removeItemsById, replaceItemById } from \"@/utils/list-state\";\n \n // 工具函数\n const formatFlow = (value: number, unit: string = \"bytes\"): string => {\n@@ -304,30 +301,30 @@ export default function UserPage() {\n   // 数据加载函数\n   const loadUsers = useCallback(\n     async (keywordOverride?: string) => {\n-    setLoading(true);\n-    try {\n-      const keyword = keywordOverride ?? searchKeyword;\n-      const response = await getAllUsers({\n-        current: pagination.current,\n-        size: pagination.size,\n-        keyword,\n-      });\n-\n-      if (response.code === 0) {\n-        const nextUsers = Array.isArray(response.data)\n-          ? response.data.map((item) => normalizeUserItem(item))\n-          : [];\n-\n-        setUsers(nextUsers);\n-        setPagination((prev) => ({ ...prev, total: nextUsers.length }));\n-      } else {\n-        toast.error(response.msg || \"获取用户列表失败\");\n+      setLoading(true);\n+      try {\n+        const keyword = keywordOverride ?? searchKeyword;\n+        const response = await getAllUsers({\n+          current: pagination.current,\n+          size: pagination.size,\n+          keyword,\n+        });\n+\n+        if (response.code === 0) {\n+          const nextUsers = Array.isArray(response.data)\n+            ? response.data.map((item) => normalizeUserItem(item))\n+            : [];\n+\n+          setUsers(nextUsers);\n+          setPagination((prev) => ({ ...prev, total: nextUsers.length }));\n+        } else {\n+          toast.error(response.msg || \"获取用户列表失败\");\n+        }\n+      } catch {\n+        toast.error(\"获取用户列表失败\");\n+      } finally {\n+        setLoading(false);\n       }\n-    } catch {\n-      toast.error(\"获取用户列表失败\");\n-    } finally {\n-      setLoading(false);\n-    }\n     },\n     [pagination.current, pagination.size],\n   );\n@@ -411,6 +408,7 @@ export default function UserPage() {\n       setPagination((prev) => {\n         if (prev.current === 1) {\n           void loadUsers(searchKeyword);\n+\n           return prev;\n         }\n \n@@ -667,7 +665,8 @@ export default function UserPage() {\n               normalizeSpeedId(editTunnelForm.speedId) !== null\n                 ? speedLimits.find(\n                     (speedLimit) =>\n-                      speedLimit.id === normalizeSpeedId(editTunnelForm.speedId),\n+                      speedLimit.id ===\n+                      normalizeSpeedId(editTunnelForm.speedId),\n                   )?.name\n                 : undefined,\n           });\n@@ -733,7 +732,9 @@ export default function UserPage() {\n \n         setUsers((prev) =>\n           prev.map((user) =>\n-            user.id === targetUserId ? { ...user, inFlow: 0, outFlow: 0 } : user,\n+            user.id === targetUserId\n+              ? { ...user, inFlow: 0, outFlow: 0 }\n+              : user,\n           ),\n         );\n         setUserToReset(null);\n",
+              "exit": 0,
+              "description": "Check unstaged changes",
+              "truncated": false
+            },
+            "time": {
+              "start": 1773021059323,
+              "end": 1773021059363
+            }
+          },
+          "id": "prt_cd04a570c001mdLOKbOKXCvbv0",
+          "sessionID": "ses_32fb5ccb7ffeA2yIu6Y2POVCPd",
+          "messageID": "msg_cd04a33f0001ZJoii5m4D43ze5"
+        },
+        {
+          "type": "tool",
+          "callID": "toolu_tool-eb9bf0da7a034861852b53e6d666e042",
+          "tool": "bash",
+          "state": {
+            "status": "completed",
+            "input": {
+              "command": "git log --oneline -10",
+              "description": "View recent commit messages"
+            },
+            "output": "50e4107 fix(frontend): show rule count in compact view mode for forward pages\nbfac640 feat(nodes): add renewal cycle and auto-advance scheduling\nd606550 feat(forward): display tunnel traffic ratio on forward page\n31ef861 feat(nodes): add node metadata and expiry reminders (#246)\nf1bdb2e feat(frontend): implement AJAX no-refresh UX improvements (#276)\nbd30b61 fix(backend): migrate PostgreSQL traffic columns from int4 to bigint (#290)\ne0dd70a fix(backend): migrate PostgreSQL traffic columns from int4 to bigint\n4966a8a fix(backend): sync user tunnel status and relax forward speedId permission check (#288)\n3e11549 fix(backend): sync user tunnel status and relax forward speedId permission check\naddf83a fix(ui): improve date input parsing and add missing back navigation (#284)\n",
+            "title": "View recent commit messages",
+            "metadata": {
+              "output": "50e4107 fix(frontend): show rule count in compact view mode for forward pages\nbfac640 feat(nodes): add renewal cycle and auto-advance scheduling\nd606550 feat(forward): display tunnel traffic ratio on forward page\n31ef861 feat(nodes): add node metadata and expiry reminders (#246)\nf1bdb2e feat(frontend): implement AJAX no-refresh UX improvements (#276)\nbd30b61 fix(backend): migrate PostgreSQL traffic columns from int4 to bigint (#290)\ne0dd70a fix(backend): migrate PostgreSQL traffic columns from int4 to bigint\n4966a8a fix(backend): sync user tunnel status and relax forward speedId permission check (#288)\n3e11549 fix(backend): sync user tunnel status and relax forward speedId permission check\naddf83a fix(ui): improve date input parsing and add missing back navigation (#284)\n",
+              "exit": 0,
+              "description": "View recent commit messages",
+              "truncated": false
+            },
+            "time": {
+              "start": 1773021059327,
+              "end": 1773021059358
+            }
+          },
+          "id": "prt_cd04a58dd00138wLT3B0S1kGro",
+          "sessionID": "ses_32fb5ccb7ffeA2yIu6Y2POVCPd",
+          "messageID": "msg_cd04a33f0001ZJoii5m4D43ze5"
+        },
+        {
+          "type": "step-finish",
+          "reason": "tool-calls",
+          "snapshot": "0c16ed718e5fa510f685e502c16bc95fc962be96",
+          "cost": 0,
+          "tokens": {
+            "total": 20832,
+            "input": 20180,
+            "output": 155,
+            "reasoning": 0,
+            "cache": {
+              "read": 497,
+              "write": 0
+            }
+          },
+          "id": "prt_cd04a592b001oHWosuBZcMWCp6",
+          "sessionID": "ses_32fb5ccb7ffeA2yIu6Y2POVCPd",
+          "messageID": "msg_cd04a33f0001ZJoii5m4D43ze5"
+        }
+      ]
+    },
+    {
+      "info": {
+        "role": "assistant",
+        "time": {
+          "created": 1773021059620,
+          "completed": 1773021070910
+        },
+        "parentID": "msg_cd04a3363001KHCMHVby6ODqz2",
+        "modelID": "glm-5",
+        "providerID": "bailian-coding-plan-test",
+        "mode": "build",
+        "agent": "build",
+        "path": {
+          "cwd": "/Users/sagit/.local/share/opencode/worktree/13650be91caa3a9e08a2e63127fef62757658384/quiet-canyon",
+          "root": "/Users/sagit/.local/share/opencode/worktree/13650be91caa3a9e08a2e63127fef62757658384/quiet-canyon"
+        },
+        "cost": 0,
+        "tokens": {
+          "total": 26849,
+          "input": 5898,
+          "output": 275,
+          "reasoning": 0,
+          "cache": {
+            "read": 20676,
+            "write": 0
+          }
+        },
+        "finish": "tool-calls",
+        "id": "msg_cd04a5a24001kbyDVjYpKlQr4f",
+        "sessionID": "ses_32fb5ccb7ffeA2yIu6Y2POVCPd"
+      },
+      "parts": [
+        {
+          "type": "step-start",
+          "snapshot": "0c16ed718e5fa510f685e502c16bc95fc962be96",
+          "id": "prt_cd04a6a30001kRLfaSnxQxlLVd",
+          "sessionID": "ses_32fb5ccb7ffeA2yIu6Y2POVCPd",
+          "messageID": "msg_cd04a5a24001kbyDVjYpKlQr4f"
+        },
+        {
+          "type": "reasoning",
+          "text": "好的，我看到：\n\n1. **当前分支**: `opencode/quiet-canyon`，已经领先远程 1 个提交\n2. **变更**: 有 6 个修改的文件（dashboard.tsx, use-dashboard-data.ts, node.tsx, renewal.ts, tunnel.tsx, user.tsx）和一堆 `.entire/metadata/` 未跟踪文件\n3. **变更内容**: 看起来主要是代码格式化和一些小的 UI 改进：\n   - 代码格式化（Prettier 格式化）\n   - node.tsx 中添加了一些样式类（`h-full`, `flex flex-col`, `mt-auto`）用于布局\n   - 节点续费相关显示的一些调整\n\n我需要：\n1. 不提交 `.entire/metadata/` 目录（看起来是临时文件）\n2. 只提交源代码变更\n3. 创建一个描述性的提交消息\n4. Push 并创建 PR\n\n让我先检查是否有 `.gitignore` 文件，以及 `.entire` 目录是否应该被忽略。",
+          "metadata": {
+            "anthropic": {
+              "signature": ""
+            }
+          },
+          "time": {
+            "start": 1773021063729,
+            "end": 1773021070621
+          },
+          "id": "prt_cd04a6a31001eLfxsM8DMr0Ms0",
+          "sessionID": "ses_32fb5ccb7ffeA2yIu6Y2POVCPd",
+          "messageID": "msg_cd04a5a24001kbyDVjYpKlQr4f"
+        },
+        {
+          "type": "tool",
+          "callID": "toolu_tool-38a5f2ba77d54a209032f94389a397d5",
+          "tool": "bash",
+          "state": {
+            "status": "completed",
+            "input": {
+              "command": "cat .gitignore 2>/dev/null | grep -E \"(entire|metadata)\" || echo \"No .entire pattern in .gitignore\"",
+              "description": "Check if .entire is ignored"
+            },
+            "output": ".metadata\n",
+            "title": "Check if .entire is ignored",
+            "metadata": {
+              "output": ".metadata\n",
+              "exit": 0,
+              "description": "Check if .entire is ignored",
+              "truncated": false
+            },
+            "time": {
+              "start": 1773021070643,
+              "end": 1773021070676
+            }
+          },
+          "id": "prt_cd04a8520001pBNvbuSoEAfl8m",
+          "sessionID": "ses_32fb5ccb7ffeA2yIu6Y2POVCPd",
+          "messageID": "msg_cd04a5a24001kbyDVjYpKlQr4f"
+        },
+        {
+          "type": "step-finish",
+          "reason": "tool-calls",
+          "snapshot": "0c16ed718e5fa510f685e502c16bc95fc962be96",
+          "cost": 0,
+          "tokens": {
+            "total": 26849,
+            "input": 5898,
+            "output": 275,
+            "reasoning": 0,
+            "cache": {
+              "read": 20676,
+              "write": 0
+            }
+          },
+          "id": "prt_cd04a8555001b2qJU87hJ6TYIs",
+          "sessionID": "ses_32fb5ccb7ffeA2yIu6Y2POVCPd",
+          "messageID": "msg_cd04a5a24001kbyDVjYpKlQr4f"
+        }
+      ]
+    },
+    {
+      "info": {
+        "role": "assistant",
+        "time": {
+          "created": 1773021070911,
+          "completed": 1773021080567
+        },
+        "parentID": "msg_cd04a3363001KHCMHVby6ODqz2",
+        "modelID": "glm-5",
+        "providerID": "bailian-coding-plan-test",
+        "mode": "build",
+        "agent": "build",
+        "path": {
+          "cwd": "/Users/sagit/.local/share/opencode/worktree/13650be91caa3a9e08a2e63127fef62757658384/quiet-canyon",
+          "root": "/Users/sagit/.local/share/opencode/worktree/13650be91caa3a9e08a2e63127fef62757658384/quiet-canyon"
+        },
+        "cost": 0,
+        "tokens": {
+          "total": 27114,
+          "input": 282,
+          "output": 259,
+          "reasoning": 0,
+          "cache": {
+            "read": 26573,
+            "write": 0
+          }
+        },
+        "finish": "tool-calls",
+        "id": "msg_cd04a863f001SgyfDBB9QaFQAB",
+        "sessionID": "ses_32fb5ccb7ffeA2yIu6Y2POVCPd"
+      },
+      "parts": [
+        {
+          "type": "step-start",
+          "snapshot": "0c16ed718e5fa510f685e502c16bc95fc962be96",
+          "id": "prt_cd04a927b001L8c1FRaHpNcZ5W",
+          "sessionID": "ses_32fb5ccb7ffeA2yIu6Y2POVCPd",
+          "messageID": "msg_cd04a863f001SgyfDBB9QaFQAB"
+        },
+        {
+          "type": "reasoning",
+          "text": "`.gitignore` 中有 `.metadata`，但没有 `.entire`。不过从上下文看，这些 `.entire/metadata/ses_*` 目录看起来像是会话或临时文件，不应该提交。\n\n我应该只提交代码变更。让我：\n1. 添加修改的源代码文件\n2. 创建提交\n3. Push\n4. 创建 PR\n\n根据 diff 内容，变更主要是：\n- 代码格式化（Prettier）\n- node.tsx 中改进卡片布局（添加 flex 布局相关类，修复卡片高度一致性）\n- 节点续费信息显示简化（移除冗余的 Input 组件，改用 Chip title 属性）\n\n我会创建一个简洁的提交消息。",
+          "metadata": {
+            "anthropic": {
+              "signature": ""
+            }
+          },
+          "time": {
+            "start": 1773021074044,
+            "end": 1773021079543
+          },
+          "id": "prt_cd04a927c001FJfZ4cBH5Bd8xa",
+          "sessionID": "ses_32fb5ccb7ffeA2yIu6Y2POVCPd",
+          "messageID": "msg_cd04a863f001SgyfDBB9QaFQAB"
+        },
+        {
+          "type": "tool",
+          "callID": "toolu_tool-cc761c9c34e64c908137c832207af052",
+          "tool": "bash",
+          "state": {
+            "status": "completed",
+            "input": {
+              "command": "git add vite-frontend/src/pages/dashboard.tsx vite-frontend/src/pages/dashboard/use-dashboard-data.ts vite-frontend/src/pages/node.tsx vite-frontend/src/pages/node/renewal.ts vite-frontend/src/pages/tunnel.tsx vite-frontend/src/pages/user.tsx",
+              "description": "Stage source code changes"
+            },
+            "output": "",
+            "title": "Stage source code changes",
+            "metadata": {
+              "output": "",
+              "exit": 0,
+              "description": "Stage source code changes",
+              "truncated": false
+            },
+            "time": {
+              "start": 1773021080300,
+              "end": 1773021080335
+            }
+          },
+          "id": "prt_cd04aa7f800106a4rHqQeYIq8x",
+          "sessionID": "ses_32fb5ccb7ffeA2yIu6Y2POVCPd",
+          "messageID": "msg_cd04a863f001SgyfDBB9QaFQAB"
+        },
+        {
+          "type": "tool",
+          "callID": "toolu_tool-a49155906f7b49b7a2024d62e1b4d51b",
+          "tool": "bash",
+          "state": {
+            "status": "completed",
+            "input": {
+              "command": "git commit -m \"style(frontend): format code and improve node card layout\"",
+              "description": "Create commit with message"
+            },
+            "output": "致命错误：无法创建 '/Users/sagit/Documents/github/flvx/.git/worktrees/quiet-canyon/index.lock'：File exists。\n\n似乎另外一个 git 进程在这个仓库中运行，例如：'git commit' 命令打\n开了一个编辑器。请确认所有进程都已经关闭然后重试。如果仍然报错，\n可能之前有一个 git 进程在这个仓库中异常退出：\n手动删除这个文件再继续。\n",
+            "title": "Create commit with message",
+            "metadata": {
+              "output": "致命错误：无法创建 '/Users/sagit/Documents/github/flvx/.git/worktrees/quiet-canyon/index.lock'：File exists。\n\n似乎另外一个 git 进程在这个仓库中运行，例如：'git commit' 命令打\n开了一个编辑器。请确认所有进程都已经关闭然后重试。如果仍然报错，\n可能之前有一个 git 进程在这个仓库中异常退出：\n手动删除这个文件再继续。\n",
+              "exit": 128,
+              "description": "Create commit with message",
+              "truncated": false
+            },
+            "time": {
+              "start": 1773021080305,
+              "end": 1773021080333
+            }
+          },
+          "id": "prt_cd04aaad5001vh43An3qPzJMQi",
+          "sessionID": "ses_32fb5ccb7ffeA2yIu6Y2POVCPd",
+          "messageID": "msg_cd04a863f001SgyfDBB9QaFQAB"
+        },
+        {
+          "type": "step-finish",
+          "reason": "tool-calls",
+          "snapshot": "0c16ed718e5fa510f685e502c16bc95fc962be96",
+          "cost": 0,
+          "tokens": {
+            "total": 27114,
+            "input": 282,
+            "output": 259,
+            "reasoning": 0,
+            "cache": {
+              "read": 26573,
+              "write": 0
+            }
+          },
+          "id": "prt_cd04aab10001u3mR1Lb3Kv7J17",
+          "sessionID": "ses_32fb5ccb7ffeA2yIu6Y2POVCPd",
+          "messageID": "msg_cd04a863f001SgyfDBB9QaFQAB"
+        }
+      ]
+    },
+    {
+      "info": {
+        "role": "assistant",
+        "time": {
+          "created": 1773021080568,
+          "completed": 1773021090765
+        },
+        "parentID": "msg_cd04a3363001KHCMHVby6ODqz2",
+        "modelID": "glm-5",
+        "providerID": "bailian-coding-plan-test",
+        "mode": "build",
+        "agent": "build",
+        "path": {
+          "cwd": "/Users/sagit/.local/share/opencode/worktree/13650be91caa3a9e08a2e63127fef62757658384/quiet-canyon",
+          "root": "/Users/sagit/.local/share/opencode/worktree/13650be91caa3a9e08a2e63127fef62757658384/quiet-canyon"
+        },
+        "cost": 0,
+        "tokens": {
+          "total": 27283,
+          "input": 26827,
+          "output": 73,
+          "reasoning": 0,
+          "cache": {
+            "read": 383,
+            "write": 0
+          }
+        },
+        "finish": "tool-calls",
+        "id": "msg_cd04aabf8001LVRMRMHCEZ2GbP",
+        "sessionID": "ses_32fb5ccb7ffeA2yIu6Y2POVCPd"
+      },
+      "parts": [
+        {
+          "type": "step-start",
+          "snapshot": "0c16ed718e5fa510f685e502c16bc95fc962be96",
+          "id": "prt_cd04ac29d001hHpjwbsPSgLgfI",
+          "sessionID": "ses_32fb5ccb7ffeA2yIu6Y2POVCPd",
+          "messageID": "msg_cd04aabf8001LVRMRMHCEZ2GbP"
+        },
+        {
+          "type": "reasoning",
+          "text": "看起来有一个 Git 锁文件存在。我需要删除它。",
+          "metadata": {
+            "anthropic": {
+              "signature": ""
+            }
+          },
+          "time": {
+            "start": 1773021086365,
+            "end": 1773021088043
+          },
+          "id": "prt_cd04ac29d002iFGxyUPneb5efW",
+          "sessionID": "ses_32fb5ccb7ffeA2yIu6Y2POVCPd",
+          "messageID": "msg_cd04aabf8001LVRMRMHCEZ2GbP"
+        },
+        {
+          "type": "tool",
+          "callID": "toolu_tool-65c28958db3a4aa985a0d952a3f749ee",
+          "tool": "bash",
+          "state": {
+            "status": "completed",
+            "input": {
+              "command": "rm -f /Users/sagit/Documents/github/flvx/.git/worktrees/quiet-canyon/index.lock && git commit -m \"style(frontend): format code and improve node card layout\"",
+              "description": "Remove git lock and commit"
+            },
+            "output": "[opencode/quiet-canyon e7548e7] style(frontend): format code and improve node card layout\n 6 files changed, 149 insertions(+), 125 deletions(-)\n",
+            "title": "Remove git lock and commit",
+            "metadata": {
+              "output": "[opencode/quiet-canyon e7548e7] style(frontend): format code and improve node card layout\n 6 files changed, 149 insertions(+), 125 deletions(-)\n",
+              "exit": 0,
+              "description": "Remove git lock and commit",
+              "truncated": false
+            },
+            "time": {
+              "start": 1773021088104,
+              "end": 1773021090579
+            }
+          },
+          "id": "prt_cd04ac92c001dMm3IXjYMcJ1Ih",
+          "sessionID": "ses_32fb5ccb7ffeA2yIu6Y2POVCPd",
+          "messageID": "msg_cd04aabf8001LVRMRMHCEZ2GbP"
+        },
+        {
+          "type": "step-finish",
+          "reason": "tool-calls",
+          "snapshot": "0c16ed718e5fa510f685e502c16bc95fc962be96",
+          "cost": 0,
+          "tokens": {
+            "total": 27283,
+            "input": 26827,
+            "output": 73,
+            "reasoning": 0,
+            "cache": {
+              "read": 383,
+              "write": 0
+            }
+          },
+          "id": "prt_cd04ad313001cGIp1MATsxN5Cb",
+          "sessionID": "ses_32fb5ccb7ffeA2yIu6Y2POVCPd",
+          "messageID": "msg_cd04aabf8001LVRMRMHCEZ2GbP"
+        }
+      ]
+    },
+    {
+      "info": {
+        "role": "assistant",
+        "time": {
+          "created": 1773021090766,
+          "completed": 1773021106310
+        },
+        "parentID": "msg_cd04a3363001KHCMHVby6ODqz2",
+        "modelID": "glm-5",
+        "providerID": "bailian-coding-plan-test",
+        "mode": "build",
+        "agent": "build",
+        "path": {
+          "cwd": "/Users/sagit/.local/share/opencode/worktree/13650be91caa3a9e08a2e63127fef62757658384/quiet-canyon",
+          "root": "/Users/sagit/.local/share/opencode/worktree/13650be91caa3a9e08a2e63127fef62757658384/quiet-canyon"
+        },
+        "cost": 0,
+        "tokens": {
+          "total": 27453,
+          "input": 195,
+          "output": 123,
+          "reasoning": 0,
+          "cache": {
+            "read": 27135,
+            "write": 0
+          }
+        },
+        "finish": "tool-calls",
+        "id": "msg_cd04ad3ce001strWAVlSmJNcG1",
+        "sessionID": "ses_32fb5ccb7ffeA2yIu6Y2POVCPd"
+      },
+      "parts": [
+        {
+          "type": "step-start",
+          "snapshot": "0c16ed718e5fa510f685e502c16bc95fc962be96",
+          "id": "prt_cd04ae280001qOUiLtmu4UG5b4",
+          "sessionID": "ses_32fb5ccb7ffeA2yIu6Y2POVCPd",
+          "messageID": "msg_cd04ad3ce001strWAVlSmJNcG1"
+        },
+        {
+          "type": "reasoning",
+          "text": "好的，提交成功了。现在我需要：\n1. Push 到远程\n2. 获取当前分支与主分支的差异，以便创建 PR\n\n让我先检查主分支名称，然后 push 并创建 PR。",
+          "metadata": {
+            "anthropic": {
+              "signature": ""
+            }
+          },
+          "time": {
+            "start": 1773021094529,
+            "end": 1773021096077
+          },
+          "id": "prt_cd04ae2810013Y9KamCa65Czfj",
+          "sessionID": "ses_32fb5ccb7ffeA2yIu6Y2POVCPd",
+          "messageID": "msg_cd04ad3ce001strWAVlSmJNcG1"
+        },
+        {
+          "type": "tool",
+          "callID": "toolu_tool-9d3f72b2dacd4a0391e299e76171537f",
+          "tool": "bash",
+          "state": {
+            "status": "completed",
+            "input": {
+              "command": "git push -u origin opencode/quiet-canyon",
+              "description": "Push branch to remote"
+            },
+            "output": "[entire] Pushing session logs to origin...\nTo github.com:Sagit-chu/flvx.git\n   bfac640..e7548e7  opencode/quiet-canyon -> opencode/quiet-canyon\n分支 'opencode/quiet-canyon' 设置为跟踪 'origin/opencode/quiet-canyon'。\n",
+            "title": "Push branch to remote",
+            "metadata": {
+              "output": "[entire] Pushing session logs to origin...\nTo github.com:Sagit-chu/flvx.git\n   bfac640..e7548e7  opencode/quiet-canyon -> opencode/quiet-canyon\n分支 'opencode/quiet-canyon' 设置为跟踪 'origin/opencode/quiet-canyon'。\n",
+              "exit": 0,
+              "description": "Push branch to remote",
+              "truncated": false
+            },
+            "time": {
+              "start": 1773021097121,
+              "end": 1773021106063
+            }
+          },
+          "id": "prt_cd04ae88f0014FJXyQHXblv95g",
+          "sessionID": "ses_32fb5ccb7ffeA2yIu6Y2POVCPd",
+          "messageID": "msg_cd04ad3ce001strWAVlSmJNcG1"
+        },
+        {
+          "type": "tool",
+          "callID": "toolu_tool-80f6082a303a4b2aa305fbb97ff19951",
+          "tool": "bash",
+          "state": {
+            "status": "completed",
+            "input": {
+              "command": "git log main..HEAD --oneline",
+              "description": "View commits in this branch"
+            },
+            "output": "e7548e7 style(frontend): format code and improve node card layout\n50e4107 fix(frontend): show rule count in compact view mode for forward pages\nbfac640 feat(nodes): add renewal cycle and auto-advance scheduling\nd606550 feat(forward): display tunnel traffic ratio on forward page\n31ef861 feat(nodes): add node metadata and expiry reminders (#246)\nf1bdb2e feat(frontend): implement AJAX no-refresh UX improvements (#276)\n",
+            "title": "View commits in this branch",
+            "metadata": {
+              "output": "e7548e7 style(frontend): format code and improve node card layout\n50e4107 fix(frontend): show rule count in compact view mode for forward pages\nbfac640 feat(nodes): add renewal cycle and auto-advance scheduling\nd606550 feat(forward): display tunnel traffic ratio on forward page\n31ef861 feat(nodes): add node metadata and expiry reminders (#246)\nf1bdb2e feat(frontend): implement AJAX no-refresh UX improvements (#276)\n",
+              "exit": 0,
+              "description": "View commits in this branch",
+              "truncated": false
+            },
+            "time": {
+              "start": 1773021097127,
+              "end": 1773021097160
+            }
+          },
+          "id": "prt_cd04aeab6001E1u5lKjrN4bzmA",
+          "sessionID": "ses_32fb5ccb7ffeA2yIu6Y2POVCPd",
+          "messageID": "msg_cd04ad3ce001strWAVlSmJNcG1"
+        },
+        {
+          "type": "tool",
+          "callID": "toolu_tool-605f0396e5574ebbbf000db294a431a4",
+          "tool": "bash",
+          "state": {
+            "status": "completed",
+            "input": {
+              "command": "git diff main...HEAD --stat",
+              "description": "View changed files summary"
+            },
+            "output": " AGENTS.md                                          |   1 +\n go-backend/internal/http/handler/jobs.go           |  39 +-\n .../internal/http/handler/jobs_renewal_test.go     |  55 ++\n go-backend/internal/http/handler/mutations.go      |  24 +\n go-backend/internal/store/model/model.go           |   8 +\n go-backend/internal/store/repo/repository.go       |  52 +-\n .../internal/store/repo/repository_migrate_test.go |  47 ++\n .../internal/store/repo/repository_mutations.go    |  69 +-\n go-backend/tests/contract/forward_contract_test.go |   9 +-\n plans/020-ajax-no-refresh-ux.md                    | 164 +++++\n plans/021-node-remarks-tags-expiry.md              |   6 +\n ...2-node-expiry-highlights-dashboard-reminders.md |   6 +\n plans/023-forward-page-tunnel-traffic-ratio.md     |   6 +\n plans/024-node-renewal-cycle-and-schema-fix.md     |   7 +\n plans/025-node-renewal-auto-advance.md             |   7 +\n vite-frontend/src/api/index.ts                     |   2 +\n vite-frontend/src/api/types.ts                     |   9 +\n vite-frontend/src/pages/dashboard.tsx              | 172 +++++\n .../src/pages/dashboard/use-dashboard-data.ts      | 275 ++++++--\n vite-frontend/src/pages/forward.tsx                | 778 ++++++++++++++-------\n vite-frontend/src/pages/forward/batch-actions.ts   |  10 +\n vite-frontend/src/pages/node.tsx                   | 418 ++++++++++-\n vite-frontend/src/pages/node/renewal.ts            | 118 ++++\n vite-frontend/src/pages/node/use-node-realtime.ts  |  27 +-\n vite-frontend/src/pages/tunnel.tsx                 | 208 ++++--\n vite-frontend/src/pages/user.tsx                   | 233 ++++--\n vite-frontend/src/utils/list-state.ts              |  33 +\n vite-frontend/src/vite-env.d.ts                    |   1 +\n 28 files changed, 2339 insertions(+), 445 deletions(-)\n",
+            "title": "View changed files summary",
+            "metadata": {
+              "output": " AGENTS.md                                          |   1 +\n go-backend/internal/http/handler/jobs.go           |  39 +-\n .../internal/http/handler/jobs_renewal_test.go     |  55 ++\n go-backend/internal/http/handler/mutations.go      |  24 +\n go-backend/internal/store/model/model.go           |   8 +\n go-backend/internal/store/repo/repository.go       |  52 +-\n .../internal/store/repo/repository_migrate_test.go |  47 ++\n .../internal/store/repo/repository_mutations.go    |  69 +-\n go-backend/tests/contract/forward_contract_test.go |   9 +-\n plans/020-ajax-no-refresh-ux.md                    | 164 +++++\n plans/021-node-remarks-tags-expiry.md              |   6 +\n ...2-node-expiry-highlights-dashboard-reminders.md |   6 +\n plans/023-forward-page-tunnel-traffic-ratio.md     |   6 +\n plans/024-node-renewal-cycle-and-schema-fix.md     |   7 +\n plans/025-node-renewal-auto-advance.md             |   7 +\n vite-frontend/src/api/index.ts                     |   2 +\n vite-frontend/src/api/types.ts                     |   9 +\n vite-frontend/src/pages/dashboard.tsx              | 172 +++++\n .../src/pages/dashboard/use-dashboard-data.ts      | 275 ++++++--\n vite-frontend/src/pages/forward.tsx                | 778 ++++++++++++++-------\n vite-frontend/src/pages/forward/batch-actions.ts   |  10 +\n vite-frontend/src/pages/node.tsx                   | 418 ++++++++++-\n vite-frontend/src/pages/node/renewal.ts            | 118 ++++\n vite-frontend/src/pages/node/use-node-realtime.ts  |  27 +-\n vite-frontend/src/pages/tunnel.tsx                 | 208 ++++--\n vite-frontend/src/pages/user.tsx                   | 233 ++++--\n vite-frontend/src/utils/list-state.ts              |  33 +\n vite-frontend/src/vite-env.d.ts                    |   1 +\n 28 files changed, 2339 insertions(+), 445 deletions(-)\n",
+              "exit": 0,
+              "description": "View changed files summary",
+              "truncated": false
+            },
+            "time": {
+              "start": 1773021097131,
+              "end": 1773021097178
+            }
+          },
+          "id": "prt_cd04aec5f001lNctSMFFeoLKqj",
+          "sessionID": "ses_32fb5ccb7ffeA2yIu6Y2POVCPd",
+          "messageID": "msg_cd04ad3ce001strWAVlSmJNcG1"
+        },
+        {
+          "type": "step-finish",
+          "reason": "tool-calls",
+          "snapshot": "0c16ed718e5fa510f685e502c16bc95fc962be96",
+          "cost": 0,
+          "tokens": {
+            "total": 27453,
+            "input": 195,
+            "output": 123,
+            "reasoning": 0,
+            "cache": {
+              "read": 27135,
+              "write": 0
+            }
+          },
+          "id": "prt_cd04b0f91001VKYF1ChfTADaEf",
+          "sessionID": "ses_32fb5ccb7ffeA2yIu6Y2POVCPd",
+          "messageID": "msg_cd04ad3ce001strWAVlSmJNcG1"
+        }
+      ]
+    },
+    {
+      "info": {
+        "role": "assistant",
+        "time": {
+          "created": 1773021106311,
+          "completed": 1773021122722
+        },
+        "parentID": "msg_cd04a3363001KHCMHVby6ODqz2",
+        "modelID": "glm-5",
+        "providerID": "bailian-coding-plan-test",
+        "mode": "build",
+        "agent": "build",
+        "path": {
+          "cwd": "/Users/sagit/.local/share/opencode/worktree/13650be91caa3a9e08a2e63127fef62757658384/quiet-canyon",
+          "root": "/Users/sagit/.local/share/opencode/worktree/13650be91caa3a9e08a2e63127fef62757658384/quiet-canyon"
+        },
+        "cost": 0,
+        "tokens": {
+          "total": 28518,
+          "input": 849,
+          "output": 406,
+          "reasoning": 0,
+          "cache": {
+            "read": 27263,
+            "write": 0
+          }
+        },
+        "finish": "tool-calls",
+        "id": "msg_cd04b1087001xULYbOUAE7ZVFE",
+        "sessionID": "ses_32fb5ccb7ffeA2yIu6Y2POVCPd"
+      },
+      "parts": [
+        {
+          "type": "step-start",
+          "snapshot": "0c16ed718e5fa510f685e502c16bc95fc962be96",
+          "id": "prt_cd04b1e1c001u2LCSTBEsM6qeY",
+          "sessionID": "ses_32fb5ccb7ffeA2yIu6Y2POVCPd",
+          "messageID": "msg_cd04b1087001xULYbOUAE7ZVFE"
+        },
+        {
+          "type": "reasoning",
+          "text": "好的，现在我需要创建 PR。从提交历史来看，这个分支包含了多个功能：\n- 节点元数据和到期提醒\n- AJAX 无刷新 UX 改进\n- 转发页面隧道流量比\n- 节点续费周期和自动推进\n- 转发页面紧凑视图规则计数\n- 代码格式化和节点卡片布局改进\n\n我需要创建一个 PR 来总结这些变更。让我使用 gh 命令创建 PR。",
+          "metadata": {
+            "anthropic": {
+              "signature": ""
+            }
+          },
+          "time": {
+            "start": 1773021109788,
+            "end": 1773021119807
+          },
+          "id": "prt_cd04b1e1c0024J284HbA5VwvT1",
+          "sessionID": "ses_32fb5ccb7ffeA2yIu6Y2POVCPd",
+          "messageID": "msg_cd04b1087001xULYbOUAE7ZVFE"
+        },
+        {
+          "type": "tool",
+          "callID": "toolu_tool-9d8efaf9550e43ff943bc45dc54d9b61",
+          "tool": "bash",
+          "state": {
+            "status": "completed",
+            "input": {
+              "command": "gh pr create --title \"feat: node management enhancements and UX improvements\" --body \"$(cat <<'EOF'\n## Summary\n\n- **Node Management**: Add node metadata (tags, remarks), expiry tracking with dashboard reminders, and renewal cycle scheduling with auto-advance\n- **UX Improvements**: Implement AJAX no-refresh patterns across dashboard, node, tunnel, and user pages for smoother interactions\n- **Forward Page**: Display tunnel traffic ratio and rule count in compact view mode\n- **Code Quality**: Format frontend code with Prettier and improve node card layout consistency with flexbox\n\n## Changes\n\n### Backend\n- Add renewal cycle fields to node model with auto-advance scheduling\n- Implement background jobs for renewal state updates\n- Add contract tests for renewal and migration logic\n\n### Frontend\n- Dashboard: Node expiry reminders with 7-day warning window\n- Node page: Enhanced card layout with flexbox for consistent heights\n- Forward page: Traffic ratio display and compact view improvements\n- All pages: AJAX-based data refresh without full page reloads\n\n## Test Plan\n\n- [ ] Verify node expiry reminders appear on dashboard\n- [ ] Test renewal cycle scheduling with different intervals (monthly/quarterly/yearly)\n- [ ] Confirm node cards maintain consistent heights in grid layout\n- [ ] Check traffic ratio display on forward page\n- [ ] Validate AJAX refresh works across all modified pages\nEOF\n)\"",
+              "description": "Create pull request with summary"
+            },
+            "output": "Warning: 12 uncommitted changes\nhttps://github.com/Sagit-chu/flvx/pull/297\n",
+            "title": "Create pull request with summary",
+            "metadata": {
+              "output": "Warning: 12 uncommitted changes\nhttps://github.com/Sagit-chu/flvx/pull/297\n",
+              "exit": 0,
+              "description": "Create pull request with summary",
+              "truncated": false
+            },
+            "time": {
+              "start": 1773021119828,
+              "end": 1773021122468
+            }
+          },
+          "id": "prt_cd04b4540001iHu01TnJJkbEPC",
+          "sessionID": "ses_32fb5ccb7ffeA2yIu6Y2POVCPd",
+          "messageID": "msg_cd04b1087001xULYbOUAE7ZVFE"
+        },
+        {
+          "type": "step-finish",
+          "reason": "tool-calls",
+          "snapshot": "0c16ed718e5fa510f685e502c16bc95fc962be96",
+          "cost": 0,
+          "tokens": {
+            "total": 28518,
+            "input": 849,
+            "output": 406,
+            "reasoning": 0,
+            "cache": {
+              "read": 27263,
+              "write": 0
+            }
+          },
+          "id": "prt_cd04b4fa6001YmCWpVDJlqY5Po",
+          "sessionID": "ses_32fb5ccb7ffeA2yIu6Y2POVCPd",
+          "messageID": "msg_cd04b1087001xULYbOUAE7ZVFE"
+        }
+      ]
+    },
+    {
+      "info": {
+        "role": "assistant",
+        "time": {
+          "created": 1773021122725,
+          "completed": 1773021131501
+        },
+        "parentID": "msg_cd04a3363001KHCMHVby6ODqz2",
+        "modelID": "glm-5",
+        "providerID": "bailian-coding-plan-test",
+        "mode": "build",
+        "agent": "build",
+        "path": {
+          "cwd": "/Users/sagit/.local/share/opencode/worktree/13650be91caa3a9e08a2e63127fef62757658384/quiet-canyon",
+          "root": "/Users/sagit/.local/share/opencode/worktree/13650be91caa3a9e08a2e63127fef62757658384/quiet-canyon"
+        },
+        "cost": 0,
+        "tokens": {
+          "total": 28752,
+          "input": 1692,
+          "output": 206,
+          "reasoning": 0,
+          "cache": {
+            "read": 26854,
+            "write": 0
+          }
+        },
+        "finish": "stop",
+        "id": "msg_cd04b50a50010qBhbdJR45LS8m",
+        "sessionID": "ses_32fb5ccb7ffeA2yIu6Y2POVCPd"
+      },
+      "parts": [
+        {
+          "type": "step-start",
+          "snapshot": "0c16ed718e5fa510f685e502c16bc95fc962be96",
+          "id": "prt_cd04b5d53001XvsgVRMcN7lyxo",
+          "sessionID": "ses_32fb5ccb7ffeA2yIu6Y2POVCPd",
+          "messageID": "msg_cd04b50a50010qBhbdJR45LS8m"
+        },
+        {
+          "type": "reasoning",
+          "text": "完美！PR 已创建成功，链接是 https://github.com/Sagit-chu/flvx/pull/297。\n\n我注意到有警告 \"12 uncommitted changes\"，这应该是那些 `.entire/metadata/ses_*` 未跟踪文件。不过这些看起来是会话临时文件，不应该提交。\n\n让我总结一下完成的操作：\n1. ✅ 提交了源代码变更（6个文件）\n2. ✅ Push 到远程分支\n3. ✅ 创建了 PR",
+          "metadata": {
+            "anthropic": {
+              "signature": ""
+            }
+          },
+          "time": {
+            "start": 1773021125971,
+            "end": 1773021128702
+          },
+          "id": "prt_cd04b5d53002lIa8rmflZAsnUC",
+          "sessionID": "ses_32fb5ccb7ffeA2yIu6Y2POVCPd",
+          "messageID": "msg_cd04b50a50010qBhbdJR45LS8m"
+        },
+        {
+          "type": "text",
+          "text": "✅ 已完成！\n- 提交: `e7548e7` - style(frontend): format code and improve node card layout\n- 推送到: `origin/opencode/quiet-canyon`\n- PR 创建成功: https://github.com/Sagit-chu/flvx/pull/297\n\n注意: 有 12 个未跟踪的 `.entire/metadata/ses_*` 文件，这些看起来是会话临时文件，未包含在提交中。",
+          "time": {
+            "start": 1773021131255,
+            "end": 1773021131255
+          },
+          "id": "prt_cd04b6800001G5133lSmJbadPP",
+          "sessionID": "ses_32fb5ccb7ffeA2yIu6Y2POVCPd",
+          "messageID": "msg_cd04b50a50010qBhbdJR45LS8m"
+        },
+        {
+          "type": "step-finish",
+          "reason": "stop",
+          "snapshot": "0c16ed718e5fa510f685e502c16bc95fc962be96",
+          "cost": 0,
+          "tokens": {
+            "total": 28752,
+            "input": 1692,
+            "output": 206,
+            "reasoning": 0,
+            "cache": {
+              "read": 26854,
+              "write": 0
+            }
+          },
+          "id": "prt_cd04b71fb001L6LDpyVFSdH3RX",
+          "sessionID": "ses_32fb5ccb7ffeA2yIu6Y2POVCPd",
+          "messageID": "msg_cd04b50a50010qBhbdJR45LS8m"
+        }
+      ]
+    }
+  ]
+}

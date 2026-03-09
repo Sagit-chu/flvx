@@ -1,0 +1,10 @@
+https://github.com/Sagit-chu/flvx/issues/276
+计划一下这个issue实现
+
+---
+
+写出 plans/020-ajax-no-refresh-ux.md 的完整实施计划内容
+
+---
+
+开始实施
