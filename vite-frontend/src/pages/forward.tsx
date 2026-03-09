@@ -538,9 +538,7 @@ const mapForwardApiItems = (items: ForwardApiItem[]): Forward[] => {
     name: forward.name,
     tunnelId: forward.tunnelId ?? 0,
     tunnelName: forward.tunnelName || "",
-    tunnelTrafficRatio: normalizeTunnelTrafficRatio(
-      forward.tunnelTrafficRatio,
-    ),
+    tunnelTrafficRatio: normalizeTunnelTrafficRatio(forward.tunnelTrafficRatio),
     inIp: forward.inIp || "",
     inPort: forward.inPort ?? 0,
     remoteAddr: forward.remoteAddr || "",
@@ -776,7 +774,10 @@ export default function ForwardPage() {
       currentTunnel.portRangeMin > 0 &&
       currentTunnel.portRangeMax > 0
     ) {
-      return { min: currentTunnel.portRangeMin, max: currentTunnel.portRangeMax };
+      return {
+        min: currentTunnel.portRangeMin,
+        max: currentTunnel.portRangeMax,
+      };
     }
 
     return null;
@@ -1036,183 +1037,184 @@ export default function ForwardPage() {
     return Number.isFinite(shareId) && shareId > 0 ? shareId : null;
   };
 
-  const mergeFederationShareFlow = useCallback(async (
-    forwardsData: Forward[],
-  ): Promise<Forward[]> => {
-    if (forwardsData.length === 0) {
-      return forwardsData;
-    }
-
-    try {
-      const [usageRes, localShareRes] = await Promise.all([
-        getPeerRemoteUsageList(),
-        getPeerShareList(),
-      ]);
-
-      const flowByShare = new Map<number, number>();
-      const shareIdsByTunnel = new Map<number, Set<number>>();
-
-      if (usageRes.code === 0 && Array.isArray(usageRes.data)) {
-        usageRes.data.forEach((item: Record<string, unknown>) => {
-          const shareId = Number(item.shareId || 0);
-          const currentFlow = Number(item.currentFlow || 0);
-
-          if (
-            Number.isFinite(shareId) &&
-            shareId > 0 &&
-            Number.isFinite(currentFlow) &&
-            currentFlow > 0
-          ) {
-            const prev = flowByShare.get(shareId) || 0;
-
-            flowByShare.set(shareId, Math.max(prev, currentFlow));
-          }
-
-          if (Number.isFinite(shareId) && shareId > 0) {
-            const bindings = Array.isArray(item.bindings)
-              ? (item.bindings as Array<Record<string, unknown>>)
-              : [];
-
-            bindings.forEach((binding) => {
-              const tunnelId = Number(binding.tunnelId || 0);
-              const chainType = Number(binding.chainType || 0);
-
-              if (!Number.isFinite(tunnelId) || tunnelId <= 0) {
-                return;
-              }
-
-              if (Number.isFinite(chainType) && chainType !== 1) {
-                return;
-              }
-
-              let shareSet = shareIdsByTunnel.get(tunnelId);
-
-              if (!shareSet) {
-                shareSet = new Set<number>();
-                shareIdsByTunnel.set(tunnelId, shareSet);
-              }
-
-              shareSet.add(shareId);
-            });
-          }
-        });
-      }
-
-      if (localShareRes.code === 0 && Array.isArray(localShareRes.data)) {
-        localShareRes.data.forEach((item: Record<string, unknown>) => {
-          const shareId = Number(item.id || 0);
-          const currentFlow = Number(item.currentFlow || 0);
-
-          if (
-            Number.isFinite(shareId) &&
-            shareId > 0 &&
-            Number.isFinite(currentFlow) &&
-            currentFlow > 0
-          ) {
-            const prev = flowByShare.get(shareId) || 0;
-
-            flowByShare.set(shareId, Math.max(prev, currentFlow));
-          }
-        });
-      }
-
-      if (flowByShare.size === 0) {
+  const mergeFederationShareFlow = useCallback(
+    async (forwardsData: Forward[]): Promise<Forward[]> => {
+      if (forwardsData.length === 0) {
         return forwardsData;
       }
 
-      const resolveShareIdForForward = (forward: Forward): number | null => {
-        const candidates = new Set<number>();
-        const shareIdFromName = parseShareIdFromTunnelName(
-          forward.tunnelName || "",
-        );
+      try {
+        const [usageRes, localShareRes] = await Promise.all([
+          getPeerRemoteUsageList(),
+          getPeerShareList(),
+        ]);
 
-        if (shareIdFromName) {
-          candidates.add(shareIdFromName);
-        }
+        const flowByShare = new Map<number, number>();
+        const shareIdsByTunnel = new Map<number, Set<number>>();
 
-        const tunnelId = Number(forward.tunnelId || 0);
-        const shareSetByTunnel = shareIdsByTunnel.get(tunnelId);
+        if (usageRes.code === 0 && Array.isArray(usageRes.data)) {
+          usageRes.data.forEach((item: Record<string, unknown>) => {
+            const shareId = Number(item.shareId || 0);
+            const currentFlow = Number(item.currentFlow || 0);
 
-        if (shareSetByTunnel && shareSetByTunnel.size > 0) {
-          shareSetByTunnel.forEach((shareId) => {
+            if (
+              Number.isFinite(shareId) &&
+              shareId > 0 &&
+              Number.isFinite(currentFlow) &&
+              currentFlow > 0
+            ) {
+              const prev = flowByShare.get(shareId) || 0;
+
+              flowByShare.set(shareId, Math.max(prev, currentFlow));
+            }
+
             if (Number.isFinite(shareId) && shareId > 0) {
-              candidates.add(shareId);
+              const bindings = Array.isArray(item.bindings)
+                ? (item.bindings as Array<Record<string, unknown>>)
+                : [];
+
+              bindings.forEach((binding) => {
+                const tunnelId = Number(binding.tunnelId || 0);
+                const chainType = Number(binding.chainType || 0);
+
+                if (!Number.isFinite(tunnelId) || tunnelId <= 0) {
+                  return;
+                }
+
+                if (Number.isFinite(chainType) && chainType !== 1) {
+                  return;
+                }
+
+                let shareSet = shareIdsByTunnel.get(tunnelId);
+
+                if (!shareSet) {
+                  shareSet = new Set<number>();
+                  shareIdsByTunnel.set(tunnelId, shareSet);
+                }
+
+                shareSet.add(shareId);
+              });
             }
           });
         }
 
-        if (candidates.size === 0) {
-          return null;
+        if (localShareRes.code === 0 && Array.isArray(localShareRes.data)) {
+          localShareRes.data.forEach((item: Record<string, unknown>) => {
+            const shareId = Number(item.id || 0);
+            const currentFlow = Number(item.currentFlow || 0);
+
+            if (
+              Number.isFinite(shareId) &&
+              shareId > 0 &&
+              Number.isFinite(currentFlow) &&
+              currentFlow > 0
+            ) {
+              const prev = flowByShare.get(shareId) || 0;
+
+              flowByShare.set(shareId, Math.max(prev, currentFlow));
+            }
+          });
         }
 
-        let bestShareId: number | null = null;
-        let bestFlow = 0;
+        if (flowByShare.size === 0) {
+          return forwardsData;
+        }
 
-        candidates.forEach((shareId) => {
-          const shareFlow = flowByShare.get(shareId) || 0;
+        const resolveShareIdForForward = (forward: Forward): number | null => {
+          const candidates = new Set<number>();
+          const shareIdFromName = parseShareIdFromTunnelName(
+            forward.tunnelName || "",
+          );
 
-          if (shareFlow > bestFlow) {
-            bestFlow = shareFlow;
-            bestShareId = shareId;
+          if (shareIdFromName) {
+            candidates.add(shareIdFromName);
+          }
+
+          const tunnelId = Number(forward.tunnelId || 0);
+          const shareSetByTunnel = shareIdsByTunnel.get(tunnelId);
+
+          if (shareSetByTunnel && shareSetByTunnel.size > 0) {
+            shareSetByTunnel.forEach((shareId) => {
+              if (Number.isFinite(shareId) && shareId > 0) {
+                candidates.add(shareId);
+              }
+            });
+          }
+
+          if (candidates.size === 0) {
+            return null;
+          }
+
+          let bestShareId: number | null = null;
+          let bestFlow = 0;
+
+          candidates.forEach((shareId) => {
+            const shareFlow = flowByShare.get(shareId) || 0;
+
+            if (shareFlow > bestFlow) {
+              bestFlow = shareFlow;
+              bestShareId = shareId;
+            }
+          });
+
+          return bestShareId;
+        };
+
+        const resolvedShareByForwardId = new Map<number, number>();
+
+        forwardsData.forEach((forward) => {
+          const shareId = resolveShareIdForForward(forward);
+
+          if (shareId) {
+            resolvedShareByForwardId.set(forward.id, shareId);
           }
         });
 
-        return bestShareId;
-      };
+        const forwardCountByShare = new Map<number, number>();
 
-      const resolvedShareByForwardId = new Map<number, number>();
+        forwardsData.forEach((forward) => {
+          const shareId = resolvedShareByForwardId.get(forward.id) || null;
 
-      forwardsData.forEach((forward) => {
-        const shareId = resolveShareIdForForward(forward);
+          if (!shareId || !flowByShare.has(shareId)) {
+            return;
+          }
 
-        if (shareId) {
-          resolvedShareByForwardId.set(forward.id, shareId);
-        }
-      });
+          forwardCountByShare.set(
+            shareId,
+            (forwardCountByShare.get(shareId) || 0) + 1,
+          );
+        });
 
-      const forwardCountByShare = new Map<number, number>();
+        return forwardsData.map((forward) => {
+          const shareId = resolvedShareByForwardId.get(forward.id) || null;
 
-      forwardsData.forEach((forward) => {
-        const shareId = resolvedShareByForwardId.get(forward.id) || null;
+          if (!shareId) {
+            return { ...forward, federationShareFlow: undefined };
+          }
 
-        if (!shareId || !flowByShare.has(shareId)) {
-          return;
-        }
+          const shareFlow = flowByShare.get(shareId) || 0;
 
-        forwardCountByShare.set(
-          shareId,
-          (forwardCountByShare.get(shareId) || 0) + 1,
-        );
-      });
+          if (shareFlow <= 0) {
+            return { ...forward, federationShareFlow: undefined };
+          }
 
-      return forwardsData.map((forward) => {
-        const shareId = resolvedShareByForwardId.get(forward.id) || null;
+          const directFlow = (forward.inFlow || 0) + (forward.outFlow || 0);
 
-        if (!shareId) {
-          return { ...forward, federationShareFlow: undefined };
-        }
+          if (directFlow > 0) {
+            return { ...forward, federationShareFlow: undefined };
+          }
 
-        const shareFlow = flowByShare.get(shareId) || 0;
+          const count = forwardCountByShare.get(shareId) || 1;
+          const estimated = Math.max(1, Math.floor(shareFlow / count));
 
-        if (shareFlow <= 0) {
-          return { ...forward, federationShareFlow: undefined };
-        }
-
-        const directFlow = (forward.inFlow || 0) + (forward.outFlow || 0);
-
-        if (directFlow > 0) {
-          return { ...forward, federationShareFlow: undefined };
-        }
-
-        const count = forwardCountByShare.get(shareId) || 1;
-        const estimated = Math.max(1, Math.floor(shareFlow / count));
-
-        return { ...forward, federationShareFlow: estimated };
-      });
-    } catch {
-      return forwardsData;
-    }
-  }, []);
+          return { ...forward, federationShareFlow: estimated };
+        });
+      } catch {
+        return forwardsData;
+      }
+    },
+    [],
+  );
 
   const getForwardDisplayFlow = (forward: Forward): number => {
     const directFlow = (forward.inFlow || 0) + (forward.outFlow || 0);
@@ -1283,45 +1285,48 @@ export default function ForwardPage() {
   );
 
   // 加载所有数据
-  const loadData = useCallback(async (lod = true) => {
-    setLoading(lod);
-    try {
-      const [tunnelsRes, speedLimitsRes] = await Promise.all([
-        userTunnel(),
-        getSpeedLimitList(),
-      ]);
-      const [allTunnelsRes, nodesRes] = await Promise.allSettled([
-        getTunnelList(),
-        getNodeList(),
-      ]);
+  const loadData = useCallback(
+    async (lod = true) => {
+      setLoading(lod);
+      try {
+        const [tunnelsRes, speedLimitsRes] = await Promise.all([
+          userTunnel(),
+          getSpeedLimitList(),
+        ]);
+        const [allTunnelsRes, nodesRes] = await Promise.allSettled([
+          getTunnelList(),
+          getNodeList(),
+        ]);
 
-      await refreshForwardList(false);
+        await refreshForwardList(false);
 
-      if (tunnelsRes.code === 0) {
-        setTunnels(tunnelsRes.data || []);
-      } else {
+        if (tunnelsRes.code === 0) {
+          setTunnels(tunnelsRes.data || []);
+        } else {
+        }
+
+        if (
+          allTunnelsRes.status === "fulfilled" &&
+          allTunnelsRes.value.code === 0
+        ) {
+          setAllTunnels((allTunnelsRes.value.data || []) as Tunnel[]);
+        }
+
+        if (nodesRes.status === "fulfilled" && nodesRes.value.code === 0) {
+          setNodes((nodesRes.value.data || []) as Node[]);
+        }
+
+        if (speedLimitsRes.code === 0) {
+          setSpeedLimits(speedLimitsRes.data || []);
+        }
+      } catch {
+        toast.error("加载数据失败");
+      } finally {
+        setLoading(false);
       }
-
-      if (
-        allTunnelsRes.status === "fulfilled" &&
-        allTunnelsRes.value.code === 0
-      ) {
-        setAllTunnels((allTunnelsRes.value.data || []) as Tunnel[]);
-      }
-
-      if (nodesRes.status === "fulfilled" && nodesRes.value.code === 0) {
-        setNodes((nodesRes.value.data || []) as Node[]);
-      }
-
-      if (speedLimitsRes.code === 0) {
-        setSpeedLimits(speedLimitsRes.data || []);
-      }
-    } catch {
-      toast.error("加载数据失败");
-    } finally {
-      setLoading(false);
-    }
-  }, [refreshForwardList]);
+    },
+    [refreshForwardList],
+  );
 
   useEffect(() => {
     loadData();
@@ -1389,8 +1394,16 @@ export default function ForwardPage() {
       newErrors.tunnelId = "请选择关联隧道";
     }
 
-    if (form.inPort !== null && form.inPort !== undefined && form.inPort > 0 && currentTunnelPortRange) {
-      if (form.inPort < currentTunnelPortRange.min || form.inPort > currentTunnelPortRange.max) {
+    if (
+      form.inPort !== null &&
+      form.inPort !== undefined &&
+      form.inPort > 0 &&
+      currentTunnelPortRange
+    ) {
+      if (
+        form.inPort < currentTunnelPortRange.min ||
+        form.inPort > currentTunnelPortRange.max
+      ) {
         newErrors.inPort = `端口 ${currentTunnelPortRange.min}-${currentTunnelPortRange.max} 超出允许范围`;
       }
     }
@@ -1485,17 +1498,21 @@ export default function ForwardPage() {
         toast.success("删除成功");
         setDeleteModalOpen(false);
         setForwardToDelete(null);
-        setForwards((prev) => prev.filter((forward) => forward.id !== forwardToDelete.id));
+        setForwards((prev) =>
+          prev.filter((forward) => forward.id !== forwardToDelete.id),
+        );
         setForwardOrder((prev) => {
           const next = prev.filter((id) => id !== forwardToDelete.id);
 
           saveOrder(FORWARD_ORDER_KEY, next);
+
           return next;
         });
         setSelectedIds((prev) => {
           const next = new Set(prev);
 
           next.delete(forwardToDelete.id);
+
           return next;
         });
       } else {
@@ -1518,12 +1535,14 @@ export default function ForwardPage() {
               const next = prev.filter((id) => id !== forwardToDelete.id);
 
               saveOrder(FORWARD_ORDER_KEY, next);
+
               return next;
             });
             setSelectedIds((prev) => {
               const next = new Set(prev);
 
               next.delete(forwardToDelete.id);
+
               return next;
             });
           } else {
@@ -1597,6 +1616,7 @@ export default function ForwardPage() {
           strategy: addressCount > 1 ? form.strategy : "fifo",
           speedId: normalizedSpeedId,
         };
+
         res = await createForward(createData);
       }
 
@@ -2787,7 +2807,8 @@ export default function ForwardPage() {
       }
 
       if (
-        normalizeTunnelTrafficRatio(existingTunnelGroup.tunnelTrafficRatio) === 1 &&
+        normalizeTunnelTrafficRatio(existingTunnelGroup.tunnelTrafficRatio) ===
+          1 &&
         normalizeTunnelTrafficRatio(forward.tunnelTrafficRatio) !== 1
       ) {
         existingTunnelGroup.tunnelTrafficRatio = normalizeTunnelTrafficRatio(
@@ -4032,66 +4053,76 @@ export default function ForwardPage() {
       {compactMode ? (
         viewMode === "grouped" ? (
           sortedForwards.length > 0 ? (
-            <div className="overflow-hidden rounded-xl border border-divider bg-content1 shadow-md">
-              <DndContext
-                collisionDetection={closestCenter}
-                sensors={sensors}
-                onDragEnd={handleDragEnd}
-              >
-                <SortableContext
-                  items={sortableForwardIds}
-                  strategy={verticalListSortingStrategy}
+            <>
+              <div className="flex items-center justify-between px-1 mb-3">
+                <span className="text-sm font-semibold text-foreground">
+                  全部规则
+                </span>
+                <span className="text-xs text-default-600">
+                  {sortedForwards.length} 条规则
+                </span>
+              </div>
+              <div className="overflow-hidden rounded-xl border border-divider bg-content1 shadow-md">
+                <DndContext
+                  collisionDetection={closestCenter}
+                  sensors={sensors}
+                  onDragEnd={handleDragEnd}
                 >
-                  <Table
-                    aria-label="全部规则列表"
-                    classNames={{
-                      th: "bg-default-100/50 text-default-600 font-semibold text-sm border-b border-divider py-3 uppercase tracking-wider",
-                      td: "py-3 border-b border-divider/50 group-data-[last=true]:border-b-0",
-                      tr: "hover:bg-default-50/50 transition-colors",
-                    }}
+                  <SortableContext
+                    items={sortableForwardIds}
+                    strategy={verticalListSortingStrategy}
                   >
-                    <TableHeader>
-                      {selectMode && (
-                        <TableColumn className="w-14">选择</TableColumn>
-                      )}
-                      <TableColumn className="w-10 pl-4" />
-                      <TableColumn>用户</TableColumn>
-                      <TableColumn>名称</TableColumn>
-                      <TableColumn>隧道</TableColumn>
-                      <TableColumn>入口</TableColumn>
-                      <TableColumn>目标</TableColumn>
-                      <TableColumn>策略</TableColumn>
-                      <TableColumn>总流量</TableColumn>
-                      <TableColumn>状态</TableColumn>
-                      <TableColumn className="text-right">操作</TableColumn>
-                    </TableHeader>
-                    <TableBody
-                      emptyContent="暂无规则配置"
-                      items={sortedForwards}
+                    <Table
+                      aria-label="全部规则列表"
+                      classNames={{
+                        th: "bg-default-100/50 text-default-600 font-semibold text-sm border-b border-divider py-3 uppercase tracking-wider",
+                        td: "py-3 border-b border-divider/50 group-data-[last=true]:border-b-0",
+                        tr: "hover:bg-default-50/50 transition-colors",
+                      }}
                     >
-                      {(forward) => (
-                        <SortableCompactTableRow
-                          formatFlow={formatFlow}
-                          formatInAddress={formatInAddress}
-                          formatRemoteAddress={formatRemoteAddress}
-                          forward={forward}
-                          getStrategyDisplay={getStrategyDisplay}
-                          handleDelete={handleDelete}
-                          handleDiagnose={handleDiagnose}
-                          handleEdit={handleEdit}
-                          handleServiceToggle={handleServiceToggle}
-                          hasMultipleAddresses={hasMultipleAddresses}
-                          selectMode={selectMode}
-                          selectedIds={selectedIds}
-                          showAddressModal={showAddressModal}
-                          toggleSelect={toggleSelect}
-                        />
-                      )}
-                    </TableBody>
-                  </Table>
-                </SortableContext>
-              </DndContext>
-            </div>
+                      <TableHeader>
+                        {selectMode && (
+                          <TableColumn className="w-14">选择</TableColumn>
+                        )}
+                        <TableColumn className="w-10 pl-4" />
+                        <TableColumn>用户</TableColumn>
+                        <TableColumn>名称</TableColumn>
+                        <TableColumn>隧道</TableColumn>
+                        <TableColumn>入口</TableColumn>
+                        <TableColumn>目标</TableColumn>
+                        <TableColumn>策略</TableColumn>
+                        <TableColumn>总流量</TableColumn>
+                        <TableColumn>状态</TableColumn>
+                        <TableColumn className="text-right">操作</TableColumn>
+                      </TableHeader>
+                      <TableBody
+                        emptyContent="暂无规则配置"
+                        items={sortedForwards}
+                      >
+                        {(forward) => (
+                          <SortableCompactTableRow
+                            formatFlow={formatFlow}
+                            formatInAddress={formatInAddress}
+                            formatRemoteAddress={formatRemoteAddress}
+                            forward={forward}
+                            getStrategyDisplay={getStrategyDisplay}
+                            handleDelete={handleDelete}
+                            handleDiagnose={handleDiagnose}
+                            handleEdit={handleEdit}
+                            handleServiceToggle={handleServiceToggle}
+                            hasMultipleAddresses={hasMultipleAddresses}
+                            selectMode={selectMode}
+                            selectedIds={selectedIds}
+                            showAddressModal={showAddressModal}
+                            toggleSelect={toggleSelect}
+                          />
+                        )}
+                      </TableBody>
+                    </Table>
+                  </SortableContext>
+                </DndContext>
+              </div>
+            </>
           ) : (
             <Card className="shadow-sm border border-gray-200 dark:border-gray-700 bg-default-50/50">
               <CardBody className="text-center py-20 flex flex-col items-center justify-center min-h-[240px]">
