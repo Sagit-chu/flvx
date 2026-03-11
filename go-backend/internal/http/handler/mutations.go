@@ -758,6 +758,7 @@ func (h *Handler) tunnelUpdate(w http.ResponseWriter, r *http.Request) {
 
 	newEntryNodeIDs, _ := h.tunnelEntryNodeIDs(id)
 	if !sameInt64Set(oldEntryNodeIDs, newEntryNodeIDs) {
+		h.cleanupTunnelForwardRuntimesOnRemovedEntryNodes(id, oldEntryNodeIDs, newEntryNodeIDs)
 		h.syncTunnelForwardsEntryPorts(id, newEntryNodeIDs)
 	}
 
@@ -837,6 +838,50 @@ func uniqueInt64s(input []int64) []int64 {
 		out = append(out, v)
 	}
 	return out
+}
+
+func diffInt64s(base, subtract []int64) []int64 {
+	if len(base) == 0 {
+		return nil
+	}
+	seen := make(map[int64]struct{}, len(subtract))
+	for _, v := range subtract {
+		seen[v] = struct{}{}
+	}
+	out := make([]int64, 0, len(base))
+	for _, v := range base {
+		if _, ok := seen[v]; ok {
+			continue
+		}
+		out = append(out, v)
+	}
+	return uniqueInt64s(out)
+}
+
+func (h *Handler) cleanupTunnelForwardRuntimesOnRemovedEntryNodes(tunnelID int64, oldEntryNodeIDs, newEntryNodeIDs []int64) {
+	if h == nil || h.repo == nil || tunnelID <= 0 {
+		return
+	}
+
+	removedNodeIDs := diffInt64s(oldEntryNodeIDs, newEntryNodeIDs)
+	if len(removedNodeIDs) == 0 {
+		return
+	}
+
+	forwards, err := h.listForwardsByTunnel(tunnelID)
+	if err != nil || len(forwards) == 0 {
+		return
+	}
+
+	for i := range forwards {
+		f := &forwards[i]
+		if f == nil {
+			continue
+		}
+		for _, nodeID := range removedNodeIDs {
+			_ = h.deleteForwardServicesOnNode(f, nodeID)
+		}
+	}
 }
 
 func (h *Handler) syncTunnelForwardsEntryPorts(tunnelID int64, entryNodeIDs []int64) {
