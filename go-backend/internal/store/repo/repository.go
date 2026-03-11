@@ -167,6 +167,7 @@ func autoMigrateAll(db *gorm.DB) error {
 		&model.SpeedLimit{},
 		&model.StatisticsFlow{},
 		&model.Tunnel{},
+		&model.TunnelQuota{},
 		&model.ChainTunnel{},
 		&model.UserTunnel{},
 		&model.TunnelGroup{},
@@ -957,6 +958,7 @@ func (r *Repository) ListTunnels() ([]map[string]interface{}, error) {
 
 	tunnelMap := make(map[int64]map[string]interface{})
 	orderedIDs := make([]int64, 0, len(tunnels))
+	tunnelIDs := make([]int64, 0, len(tunnels))
 
 	for _, t := range tunnels {
 		tunnelMap[t.ID] = map[string]interface{}{
@@ -970,6 +972,24 @@ func (r *Repository) ListTunnels() ([]map[string]interface{}, error) {
 			"chainNodes":   make([][]map[string]interface{}, 0),
 		}
 		orderedIDs = append(orderedIDs, t.ID)
+		tunnelIDs = append(tunnelIDs, t.ID)
+	}
+
+	quotaMap, err := r.ListTunnelQuotaViewsByTunnelIDs(tunnelIDs, time.Now())
+	if err != nil {
+		return nil, err
+	}
+	for tunnelID, quota := range quotaMap {
+		item := tunnelMap[tunnelID]
+		if item == nil || quota == nil {
+			continue
+		}
+		item["dailyQuotaGB"] = quota.DailyLimitGB
+		item["monthlyQuotaGB"] = quota.MonthlyLimitGB
+		item["dailyUsedBytes"] = quota.DailyUsedBytes
+		item["monthlyUsedBytes"] = quota.MonthlyUsedBytes
+		item["disabledByQuota"] = quota.DisabledByQuota
+		item["quotaDisabledAt"] = quota.DisabledAt
 	}
 
 	// Build node IP map
@@ -1862,6 +1882,14 @@ func (r *Repository) exportTunnels() ([]model.TunnelBackup, error) {
 	if err := r.db.Order("inx ASC, id ASC").Find(&tunnels).Error; err != nil {
 		return nil, err
 	}
+	quotaIDs := make([]int64, 0, len(tunnels))
+	for _, t := range tunnels {
+		quotaIDs = append(quotaIDs, t.ID)
+	}
+	quotaMap, err := r.ListTunnelQuotaViewsByTunnelIDs(quotaIDs, time.Now())
+	if err != nil {
+		return nil, err
+	}
 	out := make([]model.TunnelBackup, 0, len(tunnels))
 	for _, t := range tunnels {
 		b := model.TunnelBackup{
@@ -1869,6 +1897,12 @@ func (r *Repository) exportTunnels() ([]model.TunnelBackup, error) {
 			Type: t.Type, Protocol: t.Protocol, Flow: t.Flow,
 			CreatedTime: t.CreatedTime, UpdatedTime: t.UpdatedTime,
 			Status: t.Status, Inx: t.Inx, IPPreference: t.IPPreference,
+		}
+		if quota := quotaMap[t.ID]; quota != nil {
+			b.DailyQuotaGB = quota.DailyLimitGB
+			b.MonthlyQuotaGB = quota.MonthlyLimitGB
+			b.DisabledByQuota = quota.DisabledByQuota
+			b.QuotaDisabledAt = quota.DisabledAt
 		}
 		if t.InIP.Valid {
 			b.InIP = t.InIP.String
@@ -2240,6 +2274,26 @@ func importTunnels(tx *gorm.DB, tunnels []model.TunnelBackup, now int64) (int, e
 				"name", "traffic_ratio", "type", "protocol", "flow", "updated_time", "status", "in_ip", "inx", "ip_preference",
 			}),
 		}).Create(&item).Error
+		if err != nil {
+			return count, err
+		}
+		quotaItem := model.TunnelQuota{
+			TunnelID:        t.ID,
+			DailyLimitGB:    t.DailyQuotaGB,
+			MonthlyLimitGB:  t.MonthlyQuotaGB,
+			DisabledByQuota: t.DisabledByQuota,
+			DisabledAt:      t.QuotaDisabledAt,
+			DayKey:          int64(time.Now().Year()*10000 + int(time.Now().Month())*100 + time.Now().Day()),
+			MonthKey:        int64(time.Now().Year()*100 + int(time.Now().Month())),
+			CreatedTime:     now,
+			UpdatedTime:     now,
+		}
+		err = tx.Clauses(clause.OnConflict{
+			Columns: []clause.Column{{Name: "tunnel_id"}},
+			DoUpdates: clause.AssignmentColumns([]string{
+				"daily_limit_gb", "monthly_limit_gb", "disabled_by_quota", "disabled_at", "updated_time",
+			}),
+		}).Create(&quotaItem).Error
 		if err != nil {
 			return count, err
 		}

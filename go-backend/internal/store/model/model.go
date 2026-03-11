@@ -129,6 +129,23 @@ type Tunnel struct {
 
 func (Tunnel) TableName() string { return "tunnel" }
 
+type TunnelQuota struct {
+	TunnelID         int64  `gorm:"column:tunnel_id;primaryKey"`
+	DailyLimitGB     int64  `gorm:"column:daily_limit_gb;not null;default:0"`
+	MonthlyLimitGB   int64  `gorm:"column:monthly_limit_gb;not null;default:0"`
+	DailyUsedBytes   int64  `gorm:"column:daily_used_bytes;not null;default:0"`
+	MonthlyUsedBytes int64  `gorm:"column:monthly_used_bytes;not null;default:0"`
+	DayKey           int64  `gorm:"column:day_key;not null;default:0"`
+	MonthKey         int64  `gorm:"column:month_key;not null;default:0"`
+	DisabledByQuota  int    `gorm:"column:disabled_by_quota;not null;default:0"`
+	DisabledAt       int64  `gorm:"column:disabled_at;not null;default:0"`
+	PausedForwardIDs string `gorm:"column:paused_forward_ids;type:text;not null;default:''"`
+	CreatedTime      int64  `gorm:"column:created_time;not null"`
+	UpdatedTime      int64  `gorm:"column:updated_time;not null"`
+}
+
+func (TunnelQuota) TableName() string { return "tunnel_quota" }
+
 type ChainTunnel struct {
 	ID        int64          `gorm:"primaryKey;autoIncrement"`
 	TunnelID  int64          `gorm:"column:tunnel_id;not null"`
@@ -366,19 +383,23 @@ type NodeBackup struct {
 }
 
 type TunnelBackup struct {
-	ID           int64               `json:"id"`
-	Name         string              `json:"name"`
-	TrafficRatio float64             `json:"trafficRatio"`
-	Type         int                 `json:"type"`
-	Protocol     string              `json:"protocol"`
-	Flow         int64               `json:"flow"`
-	CreatedTime  int64               `json:"createdTime"`
-	UpdatedTime  int64               `json:"updatedTime"`
-	Status       int                 `json:"status"`
-	InIP         string              `json:"inIp,omitempty"`
-	Inx          int                 `json:"inx"`
-	IPPreference string              `json:"ipPreference,omitempty"`
-	ChainTunnels []ChainTunnelBackup `json:"chainTunnels,omitempty"`
+	ID              int64               `json:"id"`
+	Name            string              `json:"name"`
+	TrafficRatio    float64             `json:"trafficRatio"`
+	Type            int                 `json:"type"`
+	Protocol        string              `json:"protocol"`
+	Flow            int64               `json:"flow"`
+	CreatedTime     int64               `json:"createdTime"`
+	UpdatedTime     int64               `json:"updatedTime"`
+	Status          int                 `json:"status"`
+	InIP            string              `json:"inIp,omitempty"`
+	Inx             int                 `json:"inx"`
+	IPPreference    string              `json:"ipPreference,omitempty"`
+	DailyQuotaGB    int64               `json:"dailyQuotaGB,omitempty"`
+	MonthlyQuotaGB  int64               `json:"monthlyQuotaGB,omitempty"`
+	DisabledByQuota int                 `json:"disabledByQuota,omitempty"`
+	QuotaDisabledAt int64               `json:"quotaDisabledAt,omitempty"`
+	ChainTunnels    []ChainTunnelBackup `json:"chainTunnels,omitempty"`
 }
 
 type ChainTunnelBackup struct {
@@ -514,6 +535,19 @@ type TunnelRecord struct {
 	Status       int
 	Flow         int64
 	TrafficRatio float64
+}
+
+type TunnelQuotaView struct {
+	TunnelID         int64
+	DailyLimitGB     int64
+	MonthlyLimitGB   int64
+	DailyUsedBytes   int64
+	MonthlyUsedBytes int64
+	DayKey           int64
+	MonthKey         int64
+	DisabledByQuota  int
+	DisabledAt       int64
+	PausedForwardIDs string
 }
 
 // ForwardPortRecord is a forward port mapping used by control plane.

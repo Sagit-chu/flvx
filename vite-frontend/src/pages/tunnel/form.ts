@@ -8,6 +8,8 @@ interface TunnelFormInput {
   inNodeId: TunnelChainNode[];
   outNodeId?: TunnelChainNode[];
   trafficRatio: number;
+  dailyQuotaGB?: number;
+  monthlyQuotaGB?: number;
 }
 
 interface TunnelNodeInput {
@@ -24,6 +26,8 @@ export const createTunnelFormDefaults = () => {
     chainNodes: [],
     flow: 1,
     trafficRatio: 1.0,
+    dailyQuotaGB: 0,
+    monthlyQuotaGB: 0,
     inIp: "",
     ipPreference: "",
     status: 1,
@@ -58,6 +62,14 @@ export const validateTunnelForm = (
 
   if (form.trafficRatio <= 0 || form.trafficRatio > 100.0) {
     errors.trafficRatio = "流量倍率须大于0，支持小数（如 0.5）";
+  }
+
+  if ((form.dailyQuotaGB ?? 0) < 0) {
+    errors.dailyQuotaGB = "每日配额不能小于 0";
+  }
+
+  if ((form.monthlyQuotaGB ?? 0) < 0) {
+    errors.monthlyQuotaGB = "每月配额不能小于 0";
   }
 
   if (form.type === 2) {

@@ -18,6 +18,7 @@ import type {
   UserMutationPayload,
   NodeMutationPayload,
   TunnelMutationPayload,
+  TunnelQuotaResetPayload,
   UserTunnelAssignPayload,
   UserTunnelListQuery,
   UserTunnelRemovePayload,
@@ -117,6 +118,8 @@ export const getTunnelById = (id: number) =>
   Network.post<TunnelApiItem>("/tunnel/get", { id });
 export const updateTunnel = (data: TunnelMutationPayload) =>
   Network.post("/tunnel/update", data);
+export const resetTunnelQuota = (data: TunnelQuotaResetPayload) =>
+  Network.post("/tunnel/quota/reset", data);
 export const deleteTunnel = (id: number) =>
   Network.post("/tunnel/delete", { id });
 export const diagnoseTunnel = (tunnelId: number) =>

@@ -132,6 +132,7 @@ func (h *Handler) Register(mux *http.ServeMux) {
 	mux.HandleFunc("/api/v1/tunnel/create", h.tunnelCreate)
 	mux.HandleFunc("/api/v1/tunnel/get", h.tunnelGet)
 	mux.HandleFunc("/api/v1/tunnel/update", h.tunnelUpdate)
+	mux.HandleFunc("/api/v1/tunnel/quota/reset", h.tunnelQuotaReset)
 	mux.HandleFunc("/api/v1/tunnel/delete", h.tunnelDelete)
 	mux.HandleFunc("/api/v1/tunnel/diagnose", h.tunnelDiagnose)
 	mux.HandleFunc("/api/v1/tunnel/diagnose/stream", h.tunnelDiagnoseStream)

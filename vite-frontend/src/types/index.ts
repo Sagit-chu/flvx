@@ -83,6 +83,11 @@ export interface Tunnel {
   exitNodeName?: string;
   status?: number;
   flow?: number; // 流量计算类型
+  dailyQuotaGB?: number;
+  monthlyQuotaGB?: number;
+  dailyUsedBytes?: number;
+  monthlyUsedBytes?: number;
+  disabledByQuota?: number;
 }
 
 export interface SpeedLimit {

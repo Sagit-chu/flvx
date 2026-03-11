@@ -41,6 +41,7 @@ import {
   createTunnel,
   getTunnelList,
   updateTunnel,
+  resetTunnelQuota,
   deleteTunnel,
   getNodeList,
   diagnoseTunnel,
@@ -87,6 +88,12 @@ interface Tunnel {
   protocol?: string;
   flow: number; // 1: 单向, 2: 双向
   trafficRatio: number;
+  dailyQuotaGB?: number;
+  monthlyQuotaGB?: number;
+  dailyUsedBytes?: number;
+  monthlyUsedBytes?: number;
+  disabledByQuota?: number;
+  quotaDisabledAt?: number;
   ipPreference?: string;
   status: number;
   createdTime: string;
@@ -111,6 +118,8 @@ interface TunnelForm {
   chainNodes?: ChainTunnel[][]; // 转发链节点列表，二维数组，外层是跳数，内层是该跳的节点
   flow: number;
   trafficRatio: number;
+  dailyQuotaGB: number;
+  monthlyQuotaGB: number;
   inIp: string; // 入口IP
   ipPreference: string;
   status: number;
@@ -124,6 +133,32 @@ interface BatchProgressState {
 
 const TUNNEL_ORDER_KEY = "tunnel-order";
 
+const formatBytes = (bytes?: number) => {
+  const value = Number(bytes ?? 0);
+
+  if (!Number.isFinite(value) || value <= 0) {
+    return "0 B";
+  }
+
+  const units = ["B", "KB", "MB", "GB", "TB"];
+  const index = Math.min(
+    Math.floor(Math.log(value) / Math.log(1024)),
+    units.length - 1,
+  );
+
+  return `${(value / 1024 ** index).toFixed(index === 0 ? 0 : 2)} ${units[index]}`;
+};
+
+const formatQuotaLimit = (value?: number) => {
+  const limit = Number(value ?? 0);
+
+  if (!Number.isFinite(limit) || limit <= 0) {
+    return "不限";
+  }
+
+  return `${limit} GB`;
+};
+
 const mapTunnelApiItems = (items: any[]): Tunnel[] => {
   return (items || []).map((tunnel) => ({
     ...tunnel,
@@ -134,6 +169,12 @@ const mapTunnelApiItems = (items: any[]): Tunnel[] => {
     inIp: tunnel.inIp || "",
     flow: tunnel.flow ?? 1,
     trafficRatio: tunnel.trafficRatio ?? 1,
+    dailyQuotaGB: tunnel.dailyQuotaGB ?? 0,
+    monthlyQuotaGB: tunnel.monthlyQuotaGB ?? 0,
+    dailyUsedBytes: tunnel.dailyUsedBytes ?? 0,
+    monthlyUsedBytes: tunnel.monthlyUsedBytes ?? 0,
+    disabledByQuota: tunnel.disabledByQuota ?? 0,
+    quotaDisabledAt: tunnel.quotaDisabledAt ?? 0,
     status: typeof tunnel.status === "number" ? tunnel.status : 0,
     createdTime: tunnel.createdTime || "",
   }));
@@ -156,6 +197,7 @@ export default function TunnelPage() {
   const [diagnosisModalOpen, setDiagnosisModalOpen] = useState(false);
   const [isEdit, setIsEdit] = useState(false);
   const [submitLoading, setSubmitLoading] = useState(false);
+  const [quotaResetLoading, setQuotaResetLoading] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [diagnosisLoading, setDiagnosisLoading] = useState(false);
   const [tunnelToDelete, setTunnelToDelete] = useState<Tunnel | null>(null);
@@ -325,6 +367,11 @@ export default function TunnelPage() {
     return Object.keys(newErrors).length === 0;
   };
 
+  const editingTunnel = useMemo(
+    () => tunnels.find((item) => item.id === form.id) || null,
+    [form.id, tunnels],
+  );
+
   // 新增隧道
   const handleAdd = () => {
     setIsEdit(false);
@@ -347,6 +394,8 @@ export default function TunnelPage() {
       chainNodes: tunnel.chainNodes || [],
       flow: tunnel.flow,
       trafficRatio: tunnel.trafficRatio,
+      dailyQuotaGB: tunnel.dailyQuotaGB ?? 0,
+      monthlyQuotaGB: tunnel.monthlyQuotaGB ?? 0,
       inIp: tunnel.inIp
         ? tunnel.inIp
             .split(",")
@@ -401,6 +450,28 @@ export default function TunnelPage() {
       toast.error("删除失败");
     } finally {
       setDeleteLoading(false);
+    }
+  };
+
+  const handleQuotaReset = async (scope: "daily" | "monthly" | "all") => {
+    if (!form.id) {
+      return;
+    }
+
+    setQuotaResetLoading(true);
+    try {
+      const response = await resetTunnelQuota({ tunnelId: form.id, scope });
+
+      if (response.code === 0) {
+        toast.success("隧道配额已重置");
+        await refreshTunnelList(false);
+      } else {
+        toast.error(response.msg || "重置隧道配额失败");
+      }
+    } catch {
+      toast.error("重置隧道配额失败");
+    } finally {
+      setQuotaResetLoading(false);
     }
   };
 
@@ -1357,6 +1428,29 @@ export default function TunnelPage() {
                                 </div>
                               )}
                             </div>
+
+                            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 mt-2">
+                              <div className="rounded bg-default-50 dark:bg-default-100/30 p-2">
+                                <div className="text-xs text-default-500">
+                                  每日配额
+                                </div>
+                                <div className="mt-0.5 text-sm font-semibold text-foreground">
+                                  {formatBytes(tunnel.dailyUsedBytes)} / {formatQuotaLimit(tunnel.dailyQuotaGB)}
+                                </div>
+                              </div>
+                              <div className="rounded bg-default-50 dark:bg-default-100/30 p-2">
+                                <div className="text-xs text-default-500">
+                                  每月配额
+                                </div>
+                                <div className="mt-0.5 text-sm font-semibold text-foreground">
+                                  {formatBytes(tunnel.monthlyUsedBytes)} / {formatQuotaLimit(tunnel.monthlyQuotaGB)}
+                                </div>
+                              </div>
+                            </div>
+
+                            {tunnel.disabledByQuota ? (
+                              <Alert color="danger" title="已因流量配额超额自动禁用并暂停相关转发" />
+                            ) : null}
                           </div>
 
                           <div className="flex gap-1.5 mt-3">
@@ -1553,6 +1647,111 @@ export default function TunnelPage() {
                       }
                     />
                   </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <Input
+                      errorMessage={errors.dailyQuotaGB}
+                      isInvalid={!!errors.dailyQuotaGB}
+                      label="每日配额 (GB)"
+                      min={0}
+                      placeholder="0 表示不限"
+                      type="number"
+                      value={String(form.dailyQuotaGB ?? 0)}
+                      variant="bordered"
+                      onChange={(e) =>
+                        setForm((prev) => ({
+                          ...prev,
+                          dailyQuotaGB: Math.max(0, Number(e.target.value) || 0),
+                        }))
+                      }
+                    />
+
+                    <Input
+                      errorMessage={errors.monthlyQuotaGB}
+                      isInvalid={!!errors.monthlyQuotaGB}
+                      label="每月配额 (GB)"
+                      min={0}
+                      placeholder="0 表示不限"
+                      type="number"
+                      value={String(form.monthlyQuotaGB ?? 0)}
+                      variant="bordered"
+                      onChange={(e) =>
+                        setForm((prev) => ({
+                          ...prev,
+                          monthlyQuotaGB: Math.max(0, Number(e.target.value) || 0),
+                        }))
+                      }
+                    />
+                  </div>
+
+                  {isEdit && editingTunnel && (
+                    <div className="space-y-3 rounded-xl border border-default-200 bg-default-50/60 p-4">
+                      <div className="flex items-center justify-between gap-3">
+                        <div>
+                          <h3 className="text-sm font-semibold text-foreground">
+                            当前配额状态
+                          </h3>
+                          <p className="text-xs text-default-500">
+                            按现有计费口径统计，重置后会自动恢复该次配额暂停的转发
+                          </p>
+                        </div>
+                        {editingTunnel.disabledByQuota ? (
+                          <Chip color="danger" size="sm" variant="flat">
+                            配额已触发禁用
+                          </Chip>
+                        ) : (
+                          <Chip color="success" size="sm" variant="flat">
+                            配额正常
+                          </Chip>
+                        )}
+                      </div>
+
+                      <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                        <div className="rounded-lg bg-background p-3">
+                          <div className="text-xs text-default-500">每日用量</div>
+                          <div className="mt-1 text-sm font-semibold text-foreground">
+                            {formatBytes(editingTunnel.dailyUsedBytes)} / {formatQuotaLimit(editingTunnel.dailyQuotaGB)}
+                          </div>
+                        </div>
+                        <div className="rounded-lg bg-background p-3">
+                          <div className="text-xs text-default-500">每月用量</div>
+                          <div className="mt-1 text-sm font-semibold text-foreground">
+                            {formatBytes(editingTunnel.monthlyUsedBytes)} / {formatQuotaLimit(editingTunnel.monthlyQuotaGB)}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex flex-wrap gap-2">
+                        <Button
+                          color="warning"
+                          isLoading={quotaResetLoading}
+                          size="sm"
+                          variant="flat"
+                          onPress={() => handleQuotaReset("daily")}
+                        >
+                          重置每日配额
+                        </Button>
+                        <Button
+                          color="warning"
+                          isLoading={quotaResetLoading}
+                          size="sm"
+                          variant="flat"
+                          onPress={() => handleQuotaReset("monthly")}
+                        >
+                          重置每月配额
+                        </Button>
+                        <Button
+                          color="primary"
+                          isLoading={quotaResetLoading}
+                          size="sm"
+                          variant="flat"
+                          onPress={() => handleQuotaReset("all")}
+                        >
+                          全部重置并恢复
+                        </Button>
+                      </div>
+                    </div>
+                  )}
 
                   <Textarea
                     description="入口IP由系统自动从入口节点采集，无需手动填写。支持多个IP，每行一个地址，留空则使用入口节点IP"
