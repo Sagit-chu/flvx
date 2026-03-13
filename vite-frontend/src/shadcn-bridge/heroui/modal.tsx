@@ -145,6 +145,7 @@ export function ModalContent({
 
   return (
     <BaseDialogContent
+      {...props}
       className={cn(
         mapSize(resolvedSize),
         context?.classNames?.base,
@@ -157,7 +158,9 @@ export function ModalContent({
         className,
       )}
       showCloseButton={false}
-      {...props}
+      onCloseAutoFocus={(e) => {
+        e.preventDefault();
+      }}
     >
       {renderedChildren}
     </BaseDialogContent>
