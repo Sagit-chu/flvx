@@ -802,13 +802,25 @@ func (h *Handler) tunnelUpdate(w http.ResponseWriter, r *http.Request) {
 		response.WriteJSON(w, response.Err(-2, err.Error()))
 		return
 	}
+
+	newEntryNodeIDs := make([]int64, 0, len(runtimeState.InNodes))
+	for _, in := range runtimeState.InNodes {
+		if in.NodeID > 0 {
+			newEntryNodeIDs = append(newEntryNodeIDs, in.NodeID)
+		}
+	}
+	if err := h.validateTunnelEntryPortConflictsForNewEntries(id, oldEntryNodeIDs, newEntryNodeIDs); err != nil {
+		response.WriteJSON(w, response.ErrDefault(err.Error()))
+		return
+	}
+
 	if err := tx.Commit().Error; err != nil {
 		h.releaseFederationRuntimeRefs(federationReleaseRefs)
 		response.WriteJSON(w, response.Err(-2, err.Error()))
 		return
 	}
 
-	newEntryNodeIDs, _ := h.tunnelEntryNodeIDs(id)
+	newEntryNodeIDs, _ = h.tunnelEntryNodeIDs(id)
 	if !sameInt64Set(oldEntryNodeIDs, newEntryNodeIDs) {
 		h.cleanupTunnelForwardRuntimesOnRemovedEntryNodes(id, oldEntryNodeIDs, newEntryNodeIDs)
 		h.syncTunnelForwardsEntryPorts(id, newEntryNodeIDs)
@@ -983,6 +995,52 @@ func (h *Handler) cleanupTunnelForwardRuntimesOnRemovedEntryNodes(tunnelID int64
 			_ = h.deleteForwardServicesOnNode(f, nodeID)
 		}
 	}
+}
+
+func (h *Handler) validateTunnelEntryPortConflictsForNewEntries(tunnelID int64, oldEntryNodeIDs, newEntryNodeIDs []int64) error {
+	if h == nil || h.repo == nil || tunnelID <= 0 {
+		return nil
+	}
+
+	addedNodeIDs := diffInt64s(newEntryNodeIDs, oldEntryNodeIDs)
+	if len(addedNodeIDs) == 0 {
+		return nil
+	}
+
+	forwards, err := h.listForwardsByTunnel(tunnelID)
+	if err != nil || len(forwards) == 0 {
+		return nil
+	}
+
+	for i := range forwards {
+		f := &forwards[i]
+		if f == nil {
+			continue
+		}
+		oldPorts, portsErr := h.listForwardPorts(f.ID)
+		if portsErr != nil {
+			continue
+		}
+		port := pickForwardPortFromRecords(oldPorts)
+		if port <= 0 {
+			continue
+		}
+
+		for _, nodeID := range addedNodeIDs {
+			node, nodeErr := h.getNodeRecord(nodeID)
+			if nodeErr != nil {
+				continue
+			}
+			if err := validateLocalNodePort(node, port); err != nil {
+				return fmt.Errorf("转发 %s 入口端口冲突: %w", f.Name, err)
+			}
+			if err := h.validateForwardPortAvailability(node, port, f.ID); err != nil {
+				return fmt.Errorf("转发 %s 入口端口冲突: %w", f.Name, err)
+			}
+		}
+	}
+
+	return nil
 }
 
 func (h *Handler) syncTunnelForwardsEntryPorts(tunnelID int64, entryNodeIDs []int64) {
