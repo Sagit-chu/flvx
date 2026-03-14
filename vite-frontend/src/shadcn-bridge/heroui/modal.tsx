@@ -158,6 +158,9 @@ export function ModalContent({
         className,
       )}
       showCloseButton={false}
+      onOpenAutoFocus={(e) => {
+        e.preventDefault();
+      }}
       onCloseAutoFocus={(e) => {
         e.preventDefault();
       }}
