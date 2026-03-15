@@ -227,6 +227,60 @@ func TestPrepareTunnelCreateStateAllowsOfflineRemoteMiddleNode(t *testing.T) {
 	}
 }
 
+func TestBuildFederationServiceConfig_MiddleRoleWithMultipleTargets_SetsRetries(t *testing.T) {
+	service := buildFederationServiceConfig("svc-middle", ":40000", "tls", "middle", "chain-next", 3, "")
+	handler := service["handler"].(map[string]interface{})
+	if handler["chain"] != "chain-next" {
+		t.Fatalf("expected chain 'chain-next', got %v", handler["chain"])
+	}
+	if handler["retries"] != 2 {
+		t.Fatalf("expected retries 2 for 3 targets, got %v", handler["retries"])
+	}
+}
+
+func TestBuildFederationServiceConfig_MiddleRoleWithSingleTarget_NoRetries(t *testing.T) {
+	service := buildFederationServiceConfig("svc-middle", ":40000", "tls", "middle", "chain-next", 1, "")
+	handler := service["handler"].(map[string]interface{})
+	if handler["chain"] != "chain-next" {
+		t.Fatalf("expected chain 'chain-next', got %v", handler["chain"])
+	}
+	if _, hasRetries := handler["retries"]; hasRetries {
+		t.Fatalf("expected no retries for single target, got %v", handler["retries"])
+	}
+}
+
+func TestBuildFederationServiceConfig_ExitRole_NoRetriesRegardlessOfTargets(t *testing.T) {
+	service := buildFederationServiceConfig("svc-exit", ":40000", "tls", "exit", "", 3, "eth0")
+	handler := service["handler"].(map[string]interface{})
+	if _, hasChain := handler["chain"]; hasChain {
+		t.Fatalf("expected no chain for exit role, got %v", handler["chain"])
+	}
+	if _, hasRetries := handler["retries"]; hasRetries {
+		t.Fatalf("expected no retries for exit role, got %v", handler["retries"])
+	}
+	metadata := service["metadata"].(map[string]interface{})
+	if metadata["interface"] != "eth0" {
+		t.Fatalf("expected interface 'eth0', got %v", metadata["interface"])
+	}
+}
+
+func TestBuildFederationServiceConfig_TLSTunnelProtocol_SetsNodelay(t *testing.T) {
+	service := buildFederationServiceConfig("svc-tls", ":40000", "tls", "middle", "chain-next", 2, "")
+	handler := service["handler"].(map[string]interface{})
+	meta := handler["metadata"].(map[string]interface{})
+	if meta["nodelay"] != true {
+		t.Fatalf("expected nodelay=true for TLS protocol, got %v", meta["nodelay"])
+	}
+}
+
+func TestBuildFederationServiceConfig_NonTLSProtocol_NoNodelay(t *testing.T) {
+	service := buildFederationServiceConfig("svc-tcp", ":40000", "tcp", "middle", "chain-next", 2, "")
+	handler := service["handler"].(map[string]interface{})
+	if _, hasMeta := handler["metadata"]; hasMeta {
+		t.Fatalf("expected no metadata for non-TLS protocol, got %v", handler["metadata"])
+	}
+}
+
 func TestFederationRuntimeReservePortRejectsWhenShareFlowExceeded(t *testing.T) {
 	r, err := repo.Open(filepath.Join(t.TempDir(), "panel.db"))
 	if err != nil {

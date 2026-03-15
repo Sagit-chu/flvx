@@ -141,6 +141,32 @@ type remoteUsageNodeItem struct {
 	SyncError        string                   `json:"syncError,omitempty"`
 }
 
+func buildFederationServiceConfig(serviceName, addr, protocol, role, chainName string, targetCount int, interfaceName string) map[string]interface{} {
+	service := map[string]interface{}{
+		"name": serviceName,
+		"addr": addr,
+		"handler": map[string]interface{}{
+			"type": "relay",
+		},
+		"listener": map[string]interface{}{
+			"type": protocol,
+		},
+	}
+	if isTLSTunnelProtocol(protocol) {
+		service["handler"].(map[string]interface{})["metadata"] = map[string]interface{}{"nodelay": true}
+	}
+	if role == "middle" {
+		service["handler"].(map[string]interface{})["chain"] = chainName
+		if targetCount > 1 {
+			service["handler"].(map[string]interface{})["retries"] = targetCount - 1
+		}
+	}
+	if role == "exit" && strings.TrimSpace(interfaceName) != "" {
+		service["metadata"] = map[string]interface{}{"interface": interfaceName}
+	}
+	return service
+}
+
 func (h *Handler) federationShareList(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		response.WriteJSON(w, response.ErrDefault("Invalid method"))
@@ -1096,25 +1122,16 @@ func (h *Handler) federationRuntimeApplyRole(w http.ResponseWriter, r *http.Requ
 		}
 	}
 
-	service := map[string]interface{}{
-		"name": serviceName,
-		"addr": fmt.Sprintf("%s:%d", node.TCPListenAddr, runtime.Port),
-		"handler": map[string]interface{}{
-			"type": "relay",
-		},
-		"listener": map[string]interface{}{
-			"type": protocol,
-		},
-	}
-	if isTLSTunnelProtocol(protocol) {
-		service["handler"].(map[string]interface{})["metadata"] = map[string]interface{}{"nodelay": true}
-	}
-	if req.Role == "middle" {
-		service["handler"].(map[string]interface{})["chain"] = chainName
-	}
-	if req.Role == "exit" && strings.TrimSpace(node.InterfaceName) != "" {
-		service["metadata"] = map[string]interface{}{"interface": node.InterfaceName}
-	}
+	targetCount := len(req.Targets)
+	service := buildFederationServiceConfig(
+		serviceName,
+		fmt.Sprintf("%s:%d", node.TCPListenAddr, runtime.Port),
+		protocol,
+		req.Role,
+		chainName,
+		targetCount,
+		node.InterfaceName,
+	)
 	if _, err := h.sendNodeCommand(share.NodeID, "AddService", []map[string]interface{}{service}, true, false); err != nil {
 		if req.Role == "middle" {
 			_, _ = h.sendNodeCommand(share.NodeID, "DeleteChains", map[string]interface{}{"chain": chainName}, false, true)
