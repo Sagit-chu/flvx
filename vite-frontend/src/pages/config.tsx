@@ -882,12 +882,23 @@ export default function ConfigPage() {
 
       <Card className="shadow-md">
         <CardHeader className="pb-6">
-          <div className="flex items-center w-full">
+          <div className="flex justify-between items-center w-full">
             <div>
               <h2 className="text-xl font-semibold">基本设置</h2>
               <p className="text-sm text-gray-600 dark:text-gray-400">
                 配置网站的基本信息，这些设置会影响网站的显示效果
               </p>
+            </div>
+            <div className="flex gap-2">
+              <Button
+                color="primary"
+                disabled={!hasChanges}
+                isLoading={saving}
+                startContent={<SaveIcon className="w-4 h-4" />}
+                onPress={handleSave}
+              >
+                {saving ? "保存中..." : "保存配置"}
+              </Button>
             </div>
           </div>
         </CardHeader>
@@ -964,29 +975,19 @@ export default function ConfigPage() {
               </SelectItem>
             </Select>
           </div>
-
-          <div className="flex justify-end pt-6 border-t border-divider/50 mt-4">
-            <Button
-              color="primary"
-              disabled={!hasChanges}
-              isLoading={saving}
-              startContent={<SaveIcon className="w-4 h-4" />}
-              onPress={handleSave}
-            >
-              {saving ? "保存中..." : "保存配置"}
-            </Button>
-          </div>
         </CardBody>
       </Card>
 
       {hasChanges && (
-        <Card className="mt-4 bg-warning-50 dark:bg-warning-900/20 border-warning-200 dark:border-warning-800 shadow-sm overflow-hidden">
-          <div className="h-10 flex items-center justify-center gap-2 text-warning-700 dark:text-warning-300">
-            <div className="w-2 h-2 bg-warning-500 rounded-full animate-pulse flex-shrink-0" />
-            <span className="text-sm font-medium leading-none">
-              检测到配置变更，请记得保存您的修改
-            </span>
-          </div>
+        <Card className="mt-4 bg-warning-50 dark:bg-warning-900/20 border-warning-200 dark:border-warning-800">
+          <CardBody className="py-3">
+            <div className="w-full flex items-center justify-center gap-2 text-warning-700 dark:text-warning-300">
+              <div className="w-2 h-2 bg-warning-500 rounded-full animate-pulse" />
+              <span className="text-sm font-medium">
+                检测到配置变更，请记得保存您的修改
+              </span>
+            </div>
+          </CardBody>
         </Card>
       )}
 
@@ -1044,7 +1045,7 @@ export default function ConfigPage() {
                 公告支持 Markdown 语法，链接会在新标签页打开
               </p>
 
-              <div className="flex justify-end mt-4 pt-4 border-t border-divider/50">
+              <div className="flex justify-end">
                 <Button
                   color="primary"
                   isLoading={announcementSaving}
@@ -1085,7 +1086,7 @@ export default function ConfigPage() {
               当前已选 {exportTypes.length} / {BACKUP_TYPE_VALUES.length}
             </p>
 
-            <div className="flex justify-end gap-3 pt-4">
+            <div className="flex gap-3">
               <Button
                 color="primary"
                 isLoading={exporting}
@@ -1116,7 +1117,7 @@ export default function ConfigPage() {
               onChange={handleFileChange}
             />
 
-            <div className="flex justify-end gap-3 pt-4">
+            <div className="flex gap-3">
               <Button
                 color="primary"
                 isLoading={importing}
@@ -1135,14 +1136,7 @@ export default function ConfigPage() {
         </CardBody>
       </Card>
 
-      <Modal
-        backdrop="blur"
-        classNames={{
-          base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-2xl overflow-hidden",
-        }}
-        isOpen={exportSelectorOpen}
-        onOpenChange={setExportSelectorOpen}
-      >
+      <Modal isOpen={exportSelectorOpen} onOpenChange={setExportSelectorOpen}>
         <ModalContent>
           {(onClose) => (
             <>
@@ -1167,14 +1161,7 @@ export default function ConfigPage() {
         </ModalContent>
       </Modal>
 
-      <Modal
-        backdrop="blur"
-        classNames={{
-          base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-2xl overflow-hidden",
-        }}
-        isOpen={importSelectorOpen}
-        onOpenChange={setImportSelectorOpen}
-      >
+      <Modal isOpen={importSelectorOpen} onOpenChange={setImportSelectorOpen}>
         <ModalContent>
           {(onClose) => (
             <>

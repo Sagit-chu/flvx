@@ -247,14 +247,14 @@ export default function TunnelPage() {
   const [selectMode, setSelectMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [batchDeleteModalOpen, setBatchDeleteModalOpen] = useState(false);
+  const [batchResultModal, setBatchResultModal] =
+    useState<BatchResultModalState>(EMPTY_BATCH_RESULT_MODAL_STATE);
   const [batchLoading, setBatchLoading] = useState(false);
   const [batchProgress, setBatchProgress] = useState<BatchProgressState>({
     active: false,
     label: "",
     percent: 0,
   });
-  const [batchResultModal, setBatchResultModal] =
-    useState<BatchResultModalState>(EMPTY_BATCH_RESULT_MODAL_STATE);
 
   useEffect(() => {
     return () => {
@@ -1263,7 +1263,7 @@ export default function TunnelPage() {
                               </div>
                             </div>
                             <div
-                              className="cursor-grab active:cursor-grabbing p-1 -mr-1 text-default-400 hover:text-default-600 transition-colors touch-manipulation flex-shrink-0"
+                              className="cursor-grab active:cursor-grabbing p-2 text-default-400 hover:text-default-600 transition-colors touch-manipulation opacity-100 sm:opacity-0 sm:group-hover:opacity-100"
                               {...listeners}
                               style={{ touchAction: "none" }}
                               title="拖拽排序"
@@ -1515,9 +1515,6 @@ export default function TunnelPage() {
       {/* 新增/编辑模态框 */}
       <Modal
         backdrop="blur"
-        classNames={{
-          base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-2xl overflow-hidden",
-        }}
         isOpen={modalOpen}
         placement="center"
         scrollBehavior="outside"
@@ -2452,9 +2449,6 @@ export default function TunnelPage() {
       {/* 删除确认模态框 */}
       <Modal
         backdrop="blur"
-        classNames={{
-          base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-2xl overflow-hidden",
-        }}
         isOpen={deleteModalOpen}
         placement="center"
         scrollBehavior="outside"
@@ -2497,7 +2491,10 @@ export default function TunnelPage() {
       <Modal
         backdrop="blur"
         classNames={{
-          base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-2xl overflow-hidden",
+          base: "rounded-2xl",
+          header: "rounded-t-2xl",
+          body: "rounded-none",
+          footer: "rounded-b-2xl",
         }}
         isOpen={diagnosisModalOpen}
         placement="center"
@@ -3080,10 +3077,6 @@ export default function TunnelPage() {
       </Modal>
 
       <Modal
-        backdrop="blur"
-        classNames={{
-          base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-2xl overflow-hidden",
-        }}
         isOpen={batchDeleteModalOpen}
         onOpenChange={setBatchDeleteModalOpen}
       >
@@ -3125,6 +3118,7 @@ export default function TunnelPage() {
 
             return;
           }
+
           setBatchResultModal(EMPTY_BATCH_RESULT_MODAL_STATE);
         }}
       />

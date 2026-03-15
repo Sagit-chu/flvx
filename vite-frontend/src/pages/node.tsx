@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import toast from "react-hot-toast";
+import { parseDate } from "@internationalized/date";
 import {
   DndContext,
   KeyboardSensor,
@@ -39,6 +40,7 @@ import { Progress } from "@/shadcn-bridge/heroui/progress";
 import { Accordion, AccordionItem } from "@/shadcn-bridge/heroui/accordion";
 import { Select, SelectItem } from "@/shadcn-bridge/heroui/select";
 import { Checkbox } from "@/shadcn-bridge/heroui/checkbox";
+import { DatePicker } from "@/shadcn-bridge/heroui/date-picker";
 import {
   createNode,
   getNodeList,
@@ -250,7 +252,7 @@ const SortableItem = ({
   children,
 }: {
   id: number;
-  children: (listeners: any, attributes?: any) => any;
+  children: (listeners: any) => any;
 }) => {
   const {
     attributes,
@@ -275,8 +277,14 @@ const SortableItem = ({
   };
 
   return (
-    <div ref={setNodeRef} className="overflow-visible h-full" style={style}>
-      {children(listeners, attributes)}
+    <div
+      ref={setNodeRef}
+      style={style}
+      {...attributes}
+      className="overflow-visible h-full"
+      {...listeners}
+    >
+      {children(listeners)}
     </div>
   );
 };
@@ -310,8 +318,6 @@ export default function NodePage() {
   const [submitLoading, setSubmitLoading] = useState(false);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
-  const [rollbackModalOpen, setRollbackModalOpen] = useState(false);
-  const [nodeToRollback, setNodeToRollback] = useState<Node | null>(null);
   const [nodeToDelete, setNodeToDelete] = useState<Node | null>(null);
   const [protocolDisabled, setProtocolDisabled] = useState(false);
   const [protocolDisabledReason, setProtocolDisabledReason] = useState("");
@@ -324,7 +330,7 @@ export default function NodePage() {
     serverHost: "",
     serverIpV4: "",
     serverIpV6: "",
-    port: "10000-65535",
+    port: "1000-65535",
     tcpListenAddr: "[::]",
     udpListenAddr: "[::]",
     interfaceName: "",
@@ -374,6 +380,40 @@ export default function NodePage() {
   const [upgradeProgress, setUpgradeProgress] = useState<
     Record<number, { stage: string; percent: number; message: string }>
   >({});
+  const [infoPopoverPlacement, setInfoPopoverPlacement] = useState<
+    Record<number, "left" | "bottom">
+  >({});
+
+  const updateInfoPopoverPlacement = useCallback(
+    (nodeId: number, triggerElement: HTMLElement | null) => {
+      if (!triggerElement) {
+        return;
+      }
+
+      const rect = triggerElement.getBoundingClientRect();
+      const cardElement = triggerElement.closest("[data-node-card='true']");
+      const cardRect =
+        cardElement instanceof HTMLElement
+          ? cardElement.getBoundingClientRect()
+          : null;
+      const estimatedPanelWidth = 288;
+      const containerPadding = 16;
+      const availableLeftSpace = cardRect
+        ? rect.left - cardRect.left
+        : rect.left;
+      const nextPlacement: "left" | "bottom" =
+        availableLeftSpace >= estimatedPanelWidth + containerPadding
+          ? "left"
+          : "bottom";
+
+      setInfoPopoverPlacement((prev) =>
+        prev[nodeId] === nextPlacement
+          ? prev
+          : { ...prev, [nodeId]: nextPlacement },
+      );
+    },
+    [],
+  );
 
   const handleNodeOffline = useCallback((nodeId: number) => {
     setNodeList((prev) =>
@@ -825,7 +865,7 @@ export default function NodePage() {
       serverHost: normalizedHost,
       serverIpV4: normalizedV4,
       serverIpV6: normalizedV6,
-      port: node.port || "10000-65535",
+      port: node.port || "1000-65535",
       tcpListenAddr: node.tcpListenAddr || "[::]",
       udpListenAddr: node.udpListenAddr || "[::]",
       interfaceName: (node as any).interfaceName || "",
@@ -1056,16 +1096,7 @@ export default function NodePage() {
   };
 
   // 回退节点
-  const handleRollbackNode = (node: Node) => {
-    setNodeToRollback(node);
-    setRollbackModalOpen(true);
-  };
-
-  const confirmRollback = async () => {
-    if (!nodeToRollback) return;
-    const node = nodeToRollback;
-
-    setRollbackModalOpen(false);
+  const handleRollbackNode = async (node: Node) => {
     setNodeList((prev) =>
       prev.map((n) => (n.id === node.id ? { ...n, rollbackLoading: true } : n)),
     );
@@ -1085,7 +1116,6 @@ export default function NodePage() {
           n.id === node.id ? { ...n, rollbackLoading: false } : n,
         ),
       );
-      setNodeToRollback(null);
     }
   };
 
@@ -1169,7 +1199,7 @@ export default function NodePage() {
       serverHost: "",
       serverIpV4: "",
       serverIpV6: "",
-      port: "10000-65535",
+      port: "1000-65535",
       tcpListenAddr: "[::]",
       udpListenAddr: "[::]",
       interfaceName: "",
@@ -1476,11 +1506,7 @@ export default function NodePage() {
             onPress={() => setActiveTab("local")}
           >
             本地节点
-            <Chip
-              className="ml-1 shrink-0 whitespace-nowrap"
-              size="sm"
-              variant="flat"
-            >
+            <Chip className="ml-1" size="sm" variant="flat">
               {localNodes.length}
             </Chip>
           </Button>
@@ -1492,11 +1518,7 @@ export default function NodePage() {
             onPress={() => setActiveTab("remote")}
           >
             远程节点
-            <Chip
-              className="ml-1 shrink-0 whitespace-nowrap"
-              size="sm"
-              variant="flat"
-            >
+            <Chip className="ml-1" size="sm" variant="flat">
               {remoteNodes.length}
             </Chip>
           </Button>
@@ -1518,17 +1540,7 @@ export default function NodePage() {
               value={currentSearchKeyword}
               onChange={setCurrentSearchKeyword}
               onClose={() => setIsSearchVisible(false)}
-              onOpen={() => {
-                setIsSearchVisible(true);
-                setTimeout(() => {
-                  // 精准抓取带有“搜索”字样的输入框并强制聚焦
-                  const searchInput = document.querySelector(
-                    'input[placeholder*="搜索"]',
-                  );
-
-                  if (searchInput) (searchInput as HTMLElement).focus();
-                }, 150); // 150ms 刚好是 CSS 展开动画的时间
-              }}
+              onOpen={() => setIsSearchVisible(true)}
             />
           </div>
 
@@ -1710,10 +1722,12 @@ export default function NodePage() {
                     !node.expiryReminderDismissed,
                 );
                 const hasInfoTrigger = hasRemark || hasExpiryInfo;
+                const infoCount = Number(hasExpiryInfo) + Number(hasRemark);
+                const infoPlacement = infoPopoverPlacement[node.id] ?? "left";
 
                 return (
                   <SortableItem key={node.id} id={node.id}>
-                    {(listeners, attributes) => (
+                    {(listeners) => (
                       <Card
                         key={node.id}
                         className={`group relative overflow-visible shadow-sm border border-divider hover:shadow-md transition-shadow duration-200 h-full flex flex-col ${expiryMeta.accentClassName}`}
@@ -1722,6 +1736,21 @@ export default function NodePage() {
                         <CardHeader className="pb-3 md:pb-3">
                           <div className="flex justify-between items-start w-full gap-3">
                             <div className="flex items-start gap-2 flex-1 min-w-0">
+                              <div
+                                className="cursor-grab active:cursor-grabbing p-2 -ml-2 -mt-1 text-default-400 hover:text-default-600 transition-colors touch-manipulation opacity-100 sm:opacity-0 sm:group-hover:opacity-100 flex-shrink-0"
+                                {...listeners}
+                                style={{ touchAction: "none" }}
+                                title="拖拽排序"
+                              >
+                                <svg
+                                  aria-hidden="true"
+                                  className="w-4 h-4"
+                                  fill="currentColor"
+                                  viewBox="0 0 20 20"
+                                >
+                                  <path d="M7 2a2 2 0 1 1 .001 4.001A2 2 0 0 1 7 2zm0 6a2 2 0 1 1 .001 4.001A2 2 0 0 1 7 8zm0 6a2 2 0 1 1 .001 4.001A2 2 0 0 1 7 14zm6-8a2 2 0 1 1-.001-4.001A2 2 0 0 1 13 6zm0 2a2 2 0 1 1 .001 4.001A2 2 0 0 1 13 8zm0 6a2 2 0 1 1 .001 4.001A2 2 0 0 1 13 14z" />
+                                </svg>
+                              </div>
                               {selectMode && (
                                 <Checkbox
                                   className="mt-0.5"
@@ -1741,23 +1770,107 @@ export default function NodePage() {
                                 </div>
                               </div>
                             </div>
-                            <div className="ml-2 flex-shrink-0 self-start flex items-center gap-1.5">
-                              <div
-                                className="cursor-grab active:cursor-grabbing p-1 ml-1 shrink-0 text-default-400 hover:text-default-600 transition-colors touch-manipulation flex-shrink-0"
-                                {...attributes}
-                                {...listeners}
-                                style={{ touchAction: "none" }}
-                                title="拖拽排序"
-                              >
-                                <svg
-                                  aria-hidden="true"
-                                  className="w-4 h-4"
-                                  fill="currentColor"
-                                  viewBox="0 0 20 20"
-                                >
-                                  <path d="M7 2a2 2 0 1 1 .001 4.001A2 2 0 0 1 7 2zm0 6a2 2 0 1 1 .001 4.001A2 2 0 0 1 7 8zm0 6a2 2 0 1 1 .001 4.001A2 2 0 0 1 7 14zm6-8a2 2 0 1 1-.001-4.001A2 2 0 0 1 13 6zm0 2a2 2 0 1 1 .001 4.001A2 2 0 0 1 13 8zm0 6a2 2 0 1 1 .001 4.001A2 2 0 0 1 13 14z" />
-                                </svg>
-                              </div>
+                            <div className="ml-2 flex-shrink-0 self-start">
+                              {hasInfoTrigger && (
+                                <div className="group/info relative">
+                                  <button
+                                    aria-label={`查看节点信息，共 ${infoCount} 项`}
+                                    className="relative flex h-7 w-7 items-center justify-center rounded-full border border-divider/80 bg-background/95 text-default-500 shadow-sm transition hover:border-default-300 hover:text-foreground focus-visible:border-default-300 focus-visible:text-foreground focus-visible:outline-none"
+                                    type="button"
+                                    onFocus={(event) =>
+                                      updateInfoPopoverPlacement(
+                                        node.id,
+                                        event.currentTarget,
+                                      )
+                                    }
+                                    onMouseEnter={(event) =>
+                                      updateInfoPopoverPlacement(
+                                        node.id,
+                                        event.currentTarget,
+                                      )
+                                    }
+                                  >
+                                    <svg
+                                      aria-hidden="true"
+                                      className="h-3.5 w-3.5"
+                                      fill="none"
+                                      stroke="currentColor"
+                                      viewBox="0 0 24 24"
+                                    >
+                                      <path
+                                        d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        strokeWidth={1.8}
+                                      />
+                                    </svg>
+                                    {hasRemark && (
+                                      <span className="absolute -right-1 -top-1 flex h-2.5 w-2.5 rounded-full border border-background bg-default-300 shadow-sm dark:bg-default-500" />
+                                    )}
+                                  </button>
+                                  <div
+                                    className={`pointer-events-none invisible absolute z-[60] w-72 max-w-[min(18rem,calc(100vw-4rem))] rounded-xl border border-divider/80 bg-background/98 p-3 opacity-0 shadow-xl backdrop-blur transition-all duration-150 group-hover/info:visible group-hover/info:pointer-events-auto group-hover/info:opacity-100 group-focus-within/info:visible group-focus-within/info:pointer-events-auto group-focus-within/info:opacity-100 ${
+                                      infoPlacement === "bottom"
+                                        ? "right-0 top-[calc(100%+0.75rem)] translate-y-1 group-hover/info:translate-y-0 group-focus-within/info:translate-y-0"
+                                        : "right-[calc(100%+0.75rem)] top-1/2 -translate-y-1/2 translate-x-1 group-hover/info:translate-x-0 group-focus-within/info:translate-x-0"
+                                    }`}
+                                  >
+                                    <div className="space-y-3">
+                                      {hasExpiryInfo && (
+                                        <div className="space-y-2">
+                                          <div className="flex items-center justify-between">
+                                            <div className="text-[11px] font-medium text-default-500">
+                                              到期提醒
+                                            </div>
+                                            <button
+                                              className="text-[10px] text-default-400 hover:text-default-600 transition-colors"
+                                              type="button"
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                handleDismissExpiryReminder(
+                                                  node.id,
+                                                );
+                                              }}
+                                            >
+                                              关闭提醒
+                                            </button>
+                                          </div>
+                                          <div className="flex flex-wrap gap-1.5">
+                                            <Chip
+                                              className="text-[10px] h-5 px-1 flex-shrink-0"
+                                              color={expiryMeta.tone}
+                                              size="sm"
+                                              title={`${formatNodeRenewalTime(expiryMeta.nextDueTime)} (${getNodeRenewalCycleLabel(node.renewalCycle)})`}
+                                              variant="flat"
+                                            >
+                                              {expiryMeta.label}
+                                            </Chip>
+                                          </div>
+                                          <div className="rounded-lg border border-divider/80 bg-default-50/80 px-3 py-2 text-xs leading-5 text-default-700">
+                                            {formatNodeRenewalTime(
+                                              expiryMeta.nextDueTime,
+                                            )}
+                                          </div>
+                                        </div>
+                                      )}
+
+                                      {hasRemark && (
+                                        <div className="space-y-2">
+                                          <div className="text-[11px] font-medium text-default-500">
+                                            备注
+                                          </div>
+                                          <div
+                                            className="max-h-32 overflow-y-auto rounded-lg border border-divider/80 bg-default-50/80 px-3 py-2 text-xs leading-5 text-default-700 break-all [scrollbar-width:thin]"
+                                            title={node.remark?.trim()}
+                                          >
+                                            {node.remark?.trim()}
+                                          </div>
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+                                </div>
+                              )}
                             </div>
                           </div>
                         </CardHeader>
@@ -1917,7 +2030,7 @@ export default function NodePage() {
                                           {remoteUsage.usedPorts.map((port) => (
                                             <Chip
                                               key={`${node.id}-port-${port}`}
-                                              className="font-mono shrink-0 whitespace-nowrap"
+                                              className="font-mono"
                                               size="sm"
                                               variant="flat"
                                             >
@@ -2114,60 +2227,6 @@ export default function NodePage() {
                             </>
                           )}
 
-                          {hasInfoTrigger && (
-                            <div className="mt-2 mb-3 space-y-2 p-2.5">
-                              {hasExpiryInfo && (
-                                <div className="space-y-2">
-                                  <div className="flex items-center justify-between">
-                                    <div className="text-[11px] font-medium text-default-500">
-                                      到期提醒
-                                    </div>
-                                    <button
-                                      className="text-[10px] text-default-400 hover:text-default-600 transition-colors"
-                                      type="button"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        handleDismissExpiryReminder(node.id);
-                                      }}
-                                    >
-                                      关闭提醒
-                                    </button>
-                                  </div>
-                                  <div className="flex flex-wrap gap-1.5">
-                                    <Chip
-                                      className="text-[10px] h-5 px-1 flex-shrink-0"
-                                      color={expiryMeta.tone}
-                                      size="sm"
-                                      title={`${formatNodeRenewalTime(expiryMeta.nextDueTime)} (${getNodeRenewalCycleLabel(node.renewalCycle)})`}
-                                      variant="flat"
-                                    >
-                                      {expiryMeta.label}
-                                    </Chip>
-                                  </div>
-                                  <div className="rounded-lg border border-divider/80 bg-default-50/80 px-3 py-2 text-xs leading-5 text-default-700">
-                                    {formatNodeRenewalTime(
-                                      expiryMeta.nextDueTime,
-                                    )}
-                                  </div>
-                                </div>
-                              )}
-
-                              {hasRemark && (
-                                <div className="space-y-2">
-                                  <div className="text-[11px] font-medium text-default-500">
-                                    备注
-                                  </div>
-                                  <div
-                                    className="max-h-32 overflow-y-auto rounded-lg border border-divider/80 bg-default-50/80 px-3 py-2 text-xs leading-5 text-default-700 break-all [scrollbar-width:thin]"
-                                    title={node.remark?.trim()}
-                                  >
-                                    {node.remark?.trim()}
-                                  </div>
-                                </div>
-                              )}
-                            </div>
-                          )}
-
                           <div className="mt-auto space-y-3">
                             {/* 操作按钮 */}
                             <div className="space-y-1.5">
@@ -2253,9 +2312,6 @@ export default function NodePage() {
       {/* 新增/编辑节点对话框 */}
       <Modal
         backdrop="blur"
-        classNames={{
-          base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-2xl overflow-hidden",
-        }}
         isOpen={dialogVisible}
         placement="center"
         scrollBehavior="outside"
@@ -2320,27 +2376,37 @@ export default function NodePage() {
                 </Select>
               </div>
 
-              <Input
+              <DatePicker
+                showMonthAndYearPickers
                 description="填写最近一次续费时间或周期起始时间，系统会按月/季/年自动推算下次续费"
                 errorMessage={errors.expiryTime}
                 isInvalid={!!errors.expiryTime}
                 label="续费基准时间"
-                max="9999-12-31"
-                type="date"
                 value={
                   form.expiryTime > 0
-                    ? new Date(form.expiryTime).toISOString().slice(0, 10)
-                    : ""
+                    ? (parseDate(
+                        new Date(form.expiryTime).toISOString().split("T")[0],
+                      ) as any)
+                    : null
                 }
-                variant="bordered"
-                onChange={(e) =>
-                  setForm((prev) => ({
-                    ...prev,
-                    expiryTime: e.target.value
-                      ? new Date(e.target.value).getTime()
-                      : 0,
-                  }))
-                }
+                onChange={(date) => {
+                  if (date) {
+                    const jsDate = new Date(
+                      date.year,
+                      date.month - 1,
+                      date.day,
+                    );
+                    setForm((prev) => ({
+                      ...prev,
+                      expiryTime: jsDate.getTime(),
+                    }));
+                  } else {
+                    setForm((prev) => ({
+                      ...prev,
+                      expiryTime: 0,
+                    }));
+                  }
+                }}
               />
 
               <Alert
@@ -2350,11 +2416,11 @@ export default function NodePage() {
               />
 
               <Input
-                description="可选：不带协议、不带端口。建议在 IPv4 和 IPv6 都未填写时使用。至少填写一个 IPv4/IPv6 域名"
+                description="可选：不带协议、不带端口。建议在 IPv4 和 IPv6 都未填写时使用。至少填写一个 IPv4/IPv6/域名"
                 errorMessage={errors.serverHost}
                 isInvalid={!!errors.serverHost}
-                label="域名/主机名"
-                placeholder="例如: test.example.com"
+                label="服务器域名/主机名"
+                placeholder="例如: node.example.com"
                 value={form.serverHost}
                 variant="bordered"
                 onChange={(e) =>
@@ -2364,11 +2430,11 @@ export default function NodePage() {
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <Input
-                  description="填写一个 IPv4 地址"
+                  description="双栈节点组隧道时优先使用 IPv4"
                   errorMessage={errors.serverIpV4}
                   isInvalid={!!errors.serverIpV4}
-                  label="IPv4 地址"
-                  placeholder="例如: 192.168.1.100"
+                  label="服务器IPv4"
+                  placeholder="例如: 203.0.113.10"
                   value={form.serverIpV4}
                   variant="bordered"
                   onChange={(e) =>
@@ -2377,10 +2443,10 @@ export default function NodePage() {
                 />
 
                 <Input
-                  description="填写一个 IPv6 地址"
+                  description="至少填写一个 IPv4/IPv6/域名"
                   errorMessage={errors.serverIpV6}
                   isInvalid={!!errors.serverIpV6}
-                  label="IPv6 地址"
+                  label="服务器IPv6"
                   placeholder="例如: 2001:db8::10"
                   value={form.serverIpV6}
                   variant="bordered"
@@ -2394,11 +2460,11 @@ export default function NodePage() {
                 classNames={{
                   input: "font-mono",
                 }}
-                description="支持单个端口(80)、多个端口(80,443)或端口范围(10000-65535)，多个可用逗号分隔"
+                description="支持单个端口(80)、多个端口(80,443)或端口范围(1000-65535)，多个可用逗号分隔"
                 errorMessage={errors.port}
                 isInvalid={!!errors.port}
                 label="可用端口"
-                placeholder="例如: 80,443,10000-65535"
+                placeholder="例如: 80,443,1000-65535"
                 value={form.port}
                 variant="bordered"
                 onChange={(e) =>
@@ -2651,7 +2717,7 @@ export default function NodePage() {
               <Alert
                 className="mt-4"
                 color="primary"
-                description="节点ip地址是你要添加的入口/出口的ip地址，不是面板的ip地址。"
+                description="服务器ip是你要添加的服务器的ip地址，不是面板的ip地址。"
                 variant="flat"
               />
             </div>
@@ -2671,53 +2737,9 @@ export default function NodePage() {
         </ModalContent>
       </Modal>
 
-      {/* 回退确认模态框 */}
-      <Modal
-        backdrop="blur"
-        classNames={{
-          base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-2xl overflow-hidden",
-        }}
-        isOpen={rollbackModalOpen}
-        placement="center"
-        scrollBehavior="outside"
-        size="2xl"
-        onOpenChange={setRollbackModalOpen}
-      >
-        <ModalContent>
-          {(onClose) => (
-            <>
-              <ModalHeader className="flex flex-col gap-1">
-                <h2 className="text-xl font-bold">确认回退</h2>
-              </ModalHeader>
-              <ModalBody>
-                <p>
-                  确定要将节点{" "}
-                  <strong>&quot;{nodeToRollback?.name}&quot;</strong>{" "}
-                  回退到上一个版本吗？
-                </p>
-                <p className="text-small text-default-500">
-                  节点将执行版本回退并自动重启，期间会导致节点短暂离线。
-                </p>
-              </ModalBody>
-              <ModalFooter>
-                <Button variant="light" onPress={onClose}>
-                  取消
-                </Button>
-                <Button color="secondary" onPress={confirmRollback}>
-                  确认回退
-                </Button>
-              </ModalFooter>
-            </>
-          )}
-        </ModalContent>
-      </Modal>
-
       {/* 删除确认模态框 */}
       <Modal
         backdrop="blur"
-        classNames={{
-          base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-2xl overflow-hidden",
-        }}
         isOpen={deleteModalOpen}
         placement="center"
         scrollBehavior="outside"
@@ -2758,9 +2780,6 @@ export default function NodePage() {
 
       <Modal
         backdrop="blur"
-        classNames={{
-          base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-2xl overflow-hidden",
-        }}
         isOpen={installSelectorOpen}
         placement="center"
         size="md"
@@ -2811,9 +2830,6 @@ export default function NodePage() {
       {/* 安装命令模态框 */}
       <Modal
         backdrop="blur"
-        classNames={{
-          base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-2xl overflow-hidden",
-        }}
         isOpen={installCommandModal}
         placement="center"
         scrollBehavior="outside"
@@ -2868,9 +2884,6 @@ export default function NodePage() {
       {/* 版本选择升级模态框 */}
       <Modal
         backdrop="blur"
-        classNames={{
-          base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-2xl overflow-hidden",
-        }}
         isOpen={upgradeModalOpen}
         placement="center"
         scrollBehavior="outside"
@@ -2933,7 +2946,7 @@ export default function NodePage() {
                                 : ""}
                               {r.channel === "dev" && (
                                 <Chip
-                                  className="ml-1 shrink-0 whitespace-nowrap"
+                                  className="ml-1"
                                   color="warning"
                                   size="sm"
                                   variant="flat"
@@ -2974,9 +2987,6 @@ export default function NodePage() {
       {/* 批量删除确认模态框 */}
       <Modal
         backdrop="blur"
-        classNames={{
-          base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-2xl overflow-hidden",
-        }}
         isOpen={batchDeleteModalOpen}
         placement="center"
         scrollBehavior="outside"
@@ -3016,9 +3026,6 @@ export default function NodePage() {
       </Modal>
 
       <Modal
-        classNames={{
-          base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-2xl overflow-hidden",
-        }}
         isOpen={isFilterModalOpen}
         placement="center"
         size="md"
