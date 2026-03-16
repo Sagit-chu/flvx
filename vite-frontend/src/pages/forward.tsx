@@ -651,7 +651,7 @@ const SortableTunnelGroupContainer = ({
           </Button>
           {/* 倍率 */}
           <span className={titleClassName}>{tunnel.tunnelName}</span>
-          <span className="text-primary font-bold text-[10px] mr-1.5">
+          <span className="text-default-500 font-semibold text-[10px] mr-1.5">
             [{formatTunnelTrafficRatio(tunnel.tunnelTrafficRatio)}]
           </span>
         </div>
@@ -753,7 +753,7 @@ const SortableTableRow = ({
         <TableCell className={FORWARD_GROUPED_TABLE_COLUMN_CLASS.select}>
           <Checkbox
             isSelected={selectedIds.has(forward.id)}
-            onValueChange={() => toggleSelect(forward.id)}
+            onValueChange={(checked) => toggleSelect(forward.id, checked)}
           />
         </TableCell>
       )}
@@ -775,13 +775,13 @@ const SortableTableRow = ({
         </div>
       </TableCell>
       <TableCell
-        className={`${selectedIds.has(forward.id) ? "bg-primary-50/70 dark:bg-primary-900/40" : ""} ${FORWARD_GROUPED_TABLE_COLUMN_CLASS.name} whitespace-nowrap text-foreground cursor-pointer hover:text-primary transition-colors`}
+        className={`${FORWARD_GROUPED_TABLE_COLUMN_CLASS.name} whitespace-nowrap text-foreground cursor-pointer hover:text-primary transition-colors`}
         onClick={() => copyToClipboard(forward.name, "规则名")}
       >
         {forward.name}
       </TableCell>
       <TableCell
-        className={`${FORWARD_GROUPED_TABLE_COLUMN_CLASS.inbound} max-w-[280px] ${selectedIds.has(forward.id) ? "bg-primary-50/70 dark:bg-primary-900/40" : ""}`}
+        className={`${FORWARD_GROUPED_TABLE_COLUMN_CLASS.inbound} max-w-[280px]`}
       >
         <button
           className="w-full truncate rounded-md bg-default-100/50 px-2.5 py-1.5 text-left font-mono text-xs font-medium text-default-700 transition-all hover:bg-default-200 hover:shadow-sm cursor-pointer"
@@ -795,7 +795,7 @@ const SortableTableRow = ({
         </button>
       </TableCell>
       <TableCell
-        className={`${FORWARD_GROUPED_TABLE_COLUMN_CLASS.target} max-w-[280px] ${selectedIds.has(forward.id) ? "bg-primary-50/70 dark:bg-primary-900/40" : ""}`}
+        className={`${FORWARD_GROUPED_TABLE_COLUMN_CLASS.target} max-w-[280px]`}
       >
         <button
           className="w-full truncate rounded-md bg-default-100/50 px-2.5 py-1.5 text-left font-mono text-xs font-medium text-default-700 transition-all hover:bg-default-200 hover:shadow-sm cursor-pointer"
@@ -817,7 +817,7 @@ const SortableTableRow = ({
         </Chip>
       </TableCell>
       <TableCell
-        className={`${FORWARD_GROUPED_TABLE_COLUMN_CLASS.totalFlow} whitespace-nowrap ${selectedIds.has(forward.id) ? "bg-primary-50/70 dark:bg-primary-900/40" : ""}`}
+        className={`${FORWARD_GROUPED_TABLE_COLUMN_CLASS.totalFlow} whitespace-nowrap`}
       >
         <span className="text-sm font-medium text-default-600 font-mono">
           {formatFlow(getForwardDisplayFlow(forward))}
@@ -948,12 +948,10 @@ const SortableCompactTableRow = ({
   return (
     <TableRow key={forward.id} ref={setNodeRef} style={style}>
       {true && (
-        <TableCell
-          className={`${selectedIds.has(forward.id) ? "bg-primary-50/70 dark:bg-primary-900/40" : ""}`}
-        >
+        <TableCell>
           <Checkbox
             isSelected={selectedIds.has(forward.id)}
-            onValueChange={() => toggleSelect(forward.id)}
+            onValueChange={(checked) => toggleSelect(forward.id, checked)}
           />
         </TableCell>
       )}
@@ -3069,15 +3067,22 @@ export default function ForwardPage() {
       }
     }
   };
-  const toggleSelect = (id: number) => {
-    const newSet = new Set(selectedIds);
+  const toggleSelect = (id: number, explicitSelected?: boolean) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      const shouldSelect =
+        typeof explicitSelected === "boolean"
+          ? explicitSelected
+          : !next.has(id);
 
-    if (newSet.has(id)) {
-      newSet.delete(id);
-    } else {
-      newSet.add(id);
-    }
-    setSelectedIds(newSet);
+      if (shouldSelect) {
+        next.add(id);
+      } else {
+        next.delete(id);
+      }
+
+      return next;
+    });
   };
   const deselectAll = () => {
     setSelectedIds(new Set());
@@ -3691,7 +3696,7 @@ export default function ForwardPage() {
               <Checkbox
                 className="mr-2"
                 isSelected={selectedIds.has(forward.id)}
-                onValueChange={() => toggleSelect(forward.id)}
+                onValueChange={(checked) => toggleSelect(forward.id, checked)}
               />
             )}
             <div className="flex-1 min-w-0">
@@ -4358,6 +4363,42 @@ export default function ForwardPage() {
                           const tunnelSortableForwardIds = tunnel.items
                             .map((item) => item.id)
                             .filter((id) => id > 0);
+                          const tunnelSelectedCount =
+                            tunnelSortableForwardIds.reduce(
+                              (count, id) =>
+                                count + (selectedIds.has(id) ? 1 : 0),
+                              0,
+                            );
+                          const isTunnelAllSelected =
+                            tunnelSortableForwardIds.length > 0 &&
+                            tunnelSelectedCount ===
+                              tunnelSortableForwardIds.length;
+                          const isTunnelIndeterminate =
+                            tunnelSelectedCount > 0 &&
+                            tunnelSelectedCount <
+                              tunnelSortableForwardIds.length;
+
+                          const handleTunnelSelectAllToggle = (
+                            isSelected: boolean,
+                          ) => {
+                            setSelectedIds((prev) => {
+                              const next = new Set(prev);
+
+                              if (isSelected) {
+                                tunnelSortableForwardIds.forEach((id) => {
+                                  next.add(id);
+                                });
+
+                                return next;
+                              }
+
+                              tunnelSortableForwardIds.forEach((id) => {
+                                next.delete(id);
+                              });
+
+                              return next;
+                            });
+                          };
                           const collapsed =
                             sanitizedCollapsedTunnelGroups[
                               buildTunnelGroupCollapseKey(
@@ -4371,12 +4412,12 @@ export default function ForwardPage() {
                               key={`grouped-table-${group.userId}-${tunnel.tunnelKey}`}
                               bodyClassName=""
                               collapsed={collapsed}
-                              countClassName="text-xs text-secondary-700"
+                              countClassName="text-xs text-default-600"
                               groupUserId={group.userId}
-                              headerClassName="flex items-center justify-between border-b border-secondary/20 bg-secondary/10 px-4 py-2.5"
-                              titleClassName="truncate text-sm font-semibold text-secondary-700"
+                              headerClassName="flex items-center justify-between border-b border-divider bg-default-100/60 px-4 py-2.5"
+                              titleClassName="truncate text-sm font-semibold text-default-700"
                               tunnel={tunnel}
-                              wrapperClassName="overflow-hidden rounded-lg border border-secondary/20 bg-secondary/5"
+                              wrapperClassName="overflow-hidden rounded-lg border border-divider bg-default-50/60"
                               onToggleCollapsed={() =>
                                 toggleTunnelGroupCollapsed(
                                   group.userId,
@@ -4389,92 +4430,95 @@ export default function ForwardPage() {
                                 sensors={sensors}
                                 onDragEnd={handleDragEnd}
                               >
-                                <Table
-                                  aria-label={`${group.userName}-${tunnel.tunnelName}规则列表`}
-                                  className={`table-fixed ${FORWARD_GROUPED_TABLE_MIN_WIDTH_CLASS}`}
-                                  classNames={{
-                                    th: "bg-default-100/50 text-default-600 font-semibold text-sm border-b border-divider py-3 uppercase tracking-wider",
-                                    td: "py-3 border-b border-divider/50 group-data-[last=true]:border-b-0",
-                                    tr: "hover:bg-default-50/50 transition-colors",
-                                  }}
+                                <SortableContext
+                                  items={tunnelSortableForwardIds}
+                                  strategy={verticalListSortingStrategy}
                                 >
-                                  <TableHeader>
-                                    {true && (
-                                      <TableColumn className="w-14">
-                                        {/* @ts-ignore */}
-                                        <Checkbox
-                                          aria-label="全选"
-                                          isIndeterminate={isIndeterminate}
-                                          isSelected={isAllSelected}
-                                          onValueChange={handleSelectAllToggle}
-                                        />
-                                      </TableColumn>
-                                    )}
-                                    <TableColumn
-                                      className={
-                                        FORWARD_GROUPED_TABLE_COLUMN_CLASS.drag
-                                      }
-                                    />
-                                    <TableColumn
-                                      className={
-                                        FORWARD_GROUPED_TABLE_COLUMN_CLASS.name
-                                      }
-                                    >
-                                      名称
-                                    </TableColumn>
-                                    <TableColumn
-                                      className={
-                                        FORWARD_GROUPED_TABLE_COLUMN_CLASS.inbound
-                                      }
-                                    >
-                                      入口
-                                    </TableColumn>
-                                    <TableColumn
-                                      className={
-                                        FORWARD_GROUPED_TABLE_COLUMN_CLASS.target
-                                      }
-                                    >
-                                      目标
-                                    </TableColumn>
-                                    <TableColumn
-                                      className={
-                                        FORWARD_GROUPED_TABLE_COLUMN_CLASS.strategy
-                                      }
-                                    >
-                                      策略
-                                    </TableColumn>
-                                    <TableColumn
-                                      className={
-                                        FORWARD_GROUPED_TABLE_COLUMN_CLASS.totalFlow
-                                      }
-                                    >
-                                      总流量
-                                    </TableColumn>
-                                    <TableColumn
-                                      className={
-                                        FORWARD_GROUPED_TABLE_COLUMN_CLASS.status
-                                      }
-                                    >
-                                      状态
-                                    </TableColumn>
-                                    <TableColumn
-                                      className={
-                                        FORWARD_GROUPED_TABLE_COLUMN_CLASS.actions
-                                      }
-                                    >
-                                      操作
-                                    </TableColumn>
-                                  </TableHeader>
-                                  <TableBody
-                                    emptyContent="暂无规则配置"
-                                    items={tunnel.items}
+                                  <Table
+                                    aria-label={`${group.userName}-${tunnel.tunnelName}规则列表`}
+                                    className={`table-fixed ${FORWARD_GROUPED_TABLE_MIN_WIDTH_CLASS}`}
+                                    classNames={{
+                                      th: "bg-default-100/50 text-default-600 font-semibold text-sm border-b border-divider py-3 uppercase tracking-wider",
+                                      td: "py-3 border-b border-divider/50 group-data-[last=true]:border-b-0",
+                                      tr: "hover:bg-default-50/50 transition-colors",
+                                    }}
                                   >
-                                    {(forward) => (
-                                      <SortableContext
-                                        key={forward.id}
-                                        items={tunnelSortableForwardIds}
-                                        strategy={verticalListSortingStrategy}
+                                    <TableHeader>
+                                      {true && (
+                                        <TableColumn className="w-14">
+                                          {/* @ts-ignore */}
+                                          <Checkbox
+                                            aria-label="全选"
+                                            isIndeterminate={
+                                              isTunnelIndeterminate
+                                            }
+                                            isSelected={isTunnelAllSelected}
+                                            onValueChange={
+                                              handleTunnelSelectAllToggle
+                                            }
+                                          />
+                                        </TableColumn>
+                                      )}
+                                      <TableColumn
+                                        className={
+                                          FORWARD_GROUPED_TABLE_COLUMN_CLASS.drag
+                                        }
+                                      />
+                                      <TableColumn
+                                        className={
+                                          FORWARD_GROUPED_TABLE_COLUMN_CLASS.name
+                                        }
                                       >
+                                        名称
+                                      </TableColumn>
+                                      <TableColumn
+                                        className={
+                                          FORWARD_GROUPED_TABLE_COLUMN_CLASS.inbound
+                                        }
+                                      >
+                                        入口
+                                      </TableColumn>
+                                      <TableColumn
+                                        className={
+                                          FORWARD_GROUPED_TABLE_COLUMN_CLASS.target
+                                        }
+                                      >
+                                        目标
+                                      </TableColumn>
+                                      <TableColumn
+                                        className={
+                                          FORWARD_GROUPED_TABLE_COLUMN_CLASS.strategy
+                                        }
+                                      >
+                                        策略
+                                      </TableColumn>
+                                      <TableColumn
+                                        className={
+                                          FORWARD_GROUPED_TABLE_COLUMN_CLASS.totalFlow
+                                        }
+                                      >
+                                        总流量
+                                      </TableColumn>
+                                      <TableColumn
+                                        className={
+                                          FORWARD_GROUPED_TABLE_COLUMN_CLASS.status
+                                        }
+                                      >
+                                        状态
+                                      </TableColumn>
+                                      <TableColumn
+                                        className={
+                                          FORWARD_GROUPED_TABLE_COLUMN_CLASS.actions
+                                        }
+                                      >
+                                        操作
+                                      </TableColumn>
+                                    </TableHeader>
+                                    <TableBody
+                                      emptyContent="暂无规则配置"
+                                      items={tunnel.items}
+                                    >
+                                      {(forward) => (
                                         <SortableTableRow
                                           copyToClipboard={copyToClipboard}
                                           formatFlow={formatFlow}
@@ -4500,10 +4544,10 @@ export default function ForwardPage() {
                                           showAddressModal={showAddressModal}
                                           toggleSelect={toggleSelect}
                                         />
-                                      </SortableContext>
-                                    )}
-                                  </TableBody>
-                                </Table>
+                                      )}
+                                    </TableBody>
+                                  </Table>
+                                </SortableContext>
                               </DndContext>
                             </SortableTunnelGroupContainer>
                           );
@@ -4590,12 +4634,12 @@ export default function ForwardPage() {
                             key={`direct-group-${group.userId}-${tunnel.tunnelKey}`}
                             bodyClassName="p-3"
                             collapsed={collapsed}
-                            countClassName="text-xs text-secondary-700"
+                            countClassName="text-xs text-default-600"
                             groupUserId={group.userId}
-                            headerClassName="flex items-center justify-between rounded-lg bg-secondary/10 px-3 py-2"
-                            titleClassName="truncate text-sm font-semibold text-secondary-700"
+                            headerClassName="flex items-center justify-between rounded-lg bg-default-100/60 px-3 py-2"
+                            titleClassName="truncate text-sm font-semibold text-default-700"
                             tunnel={tunnel}
-                            wrapperClassName="rounded-xl border border-secondary/20 bg-secondary/5 space-y-3"
+                            wrapperClassName="rounded-xl border border-divider bg-default-50/60 space-y-3"
                             onToggleCollapsed={() =>
                               toggleTunnelGroupCollapsed(
                                 group.userId,
