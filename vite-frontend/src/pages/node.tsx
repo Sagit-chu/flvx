@@ -375,6 +375,41 @@ export default function NodePage() {
     Record<number, { stage: string; percent: number; message: string }>
   >({});
 
+  const [infoPopoverPlacement, setInfoPopoverPlacement] = useState<
+    Record<number, "left" | "bottom">
+  >({});
+
+  const updateInfoPopoverPlacement = useCallback(
+    (nodeId: number, triggerElement: HTMLElement | null) => {
+      if (!triggerElement) {
+        return;
+      }
+
+      const rect = triggerElement.getBoundingClientRect();
+      const cardElement = triggerElement.closest("[data-node-card='true']");
+      const cardRect =
+        cardElement instanceof HTMLElement
+          ? cardElement.getBoundingClientRect()
+          : null;
+      const estimatedPanelWidth = 288;
+      const containerPadding = 16;
+      const availableLeftSpace = cardRect
+        ? rect.left - cardRect.left
+        : rect.left;
+      const nextPlacement: "left" | "bottom" =
+        availableLeftSpace >= estimatedPanelWidth + containerPadding
+          ? "left"
+          : "bottom";
+
+      setInfoPopoverPlacement((prev) =>
+        prev[nodeId] === nextPlacement
+          ? prev
+          : { ...prev, [nodeId]: nextPlacement },
+      );
+    },
+    [],
+  );
+
   const handleNodeOffline = useCallback((nodeId: number) => {
     setNodeList((prev) =>
       prev.map((node) => {
@@ -1710,10 +1745,12 @@ export default function NodePage() {
                     !node.expiryReminderDismissed,
                 );
                 const hasInfoTrigger = hasRemark || hasExpiryInfo;
+                const infoCount = Number(hasExpiryInfo) + Number(hasRemark);
+                const infoPlacement = infoPopoverPlacement[node.id] ?? "left";
 
                 return (
                   <SortableItem key={node.id} id={node.id}>
-                    {(listeners, attributes) => (
+                    {(listeners) => (
                       <Card
                         key={node.id}
                         className={`group relative overflow-visible shadow-sm border border-divider hover:shadow-md transition-shadow duration-200 h-full flex flex-col ${expiryMeta.accentClassName}`}
@@ -1722,6 +1759,21 @@ export default function NodePage() {
                         <CardHeader className="pb-3 md:pb-3">
                           <div className="flex justify-between items-start w-full gap-3">
                             <div className="flex items-start gap-2 flex-1 min-w-0">
+                              <div
+                                className="cursor-grab active:cursor-grabbing p-2 -ml-2 -mt-1 text-default-400 hover:text-default-600 transition-colors touch-manipulation opacity-100 sm:opacity-0 sm:group-hover:opacity-100 flex-shrink-0"
+                                {...listeners}
+                                style={{ touchAction: "none" }}
+                                title="拖拽排序"
+                              >
+                                <svg
+                                  aria-hidden="true"
+                                  className="w-4 h-4"
+                                  fill="currentColor"
+                                  viewBox="0 0 20 20"
+                                >
+                                  <path d="M7 2a2 2 0 1 1 .001 4.001A2 2 0 0 1 7 2zm0 6a2 2 0 1 1 .001 4.001A2 2 0 0 1 7 8zm0 6a2 2 0 1 1 .001 4.001A2 2 0 0 1 7 14zm6-8a2 2 0 1 1-.001-4.001A2 2 0 0 1 13 6zm0 2a2 2 0 1 1 .001 4.001A2 2 0 0 1 13 8zm0 6a2 2 0 1 1 .001 4.001A2 2 0 0 1 13 14z" />
+                                </svg>
+                              </div>
                               {selectMode && (
                                 <Checkbox
                                   className="mt-0.5"
@@ -1741,23 +1793,105 @@ export default function NodePage() {
                                 </div>
                               </div>
                             </div>
-                            <div className="ml-2 flex-shrink-0 self-start flex items-center gap-1.5">
-                              <div
-                                className="cursor-grab active:cursor-grabbing p-1 ml-1 shrink-0 text-default-400 hover:text-default-600 transition-colors touch-manipulation flex-shrink-0"
-                                {...attributes}
-                                {...listeners}
-                                style={{ touchAction: "none" }}
-                                title="拖拽排序"
-                              >
-                                <svg
-                                  aria-hidden="true"
-                                  className="w-4 h-4"
-                                  fill="currentColor"
-                                  viewBox="0 0 20 20"
-                                >
-                                  <path d="M7 2a2 2 0 1 1 .001 4.001A2 2 0 0 1 7 2zm0 6a2 2 0 1 1 .001 4.001A2 2 0 0 1 7 8zm0 6a2 2 0 1 1 .001 4.001A2 2 0 0 1 7 14zm6-8a2 2 0 1 1-.001-4.001A2 2 0 0 1 13 6zm0 2a2 2 0 1 1 .001 4.001A2 2 0 0 1 13 8zm0 6a2 2 0 1 1 .001 4.001A2 2 0 0 1 13 14z" />
-                                </svg>
-                              </div>
+                            <div className="ml-2 flex-shrink-0 self-start">
+                              {hasInfoTrigger && (
+                                <div className="group/info relative">
+                                  <button
+                                    aria-label={`查看节点信息，共 ${infoCount} 项`}
+                                    className="relative flex h-7 w-7 items-center justify-center rounded-full border border-divider/80 bg-background/95 text-default-500 shadow-sm transition hover:border-default-300 hover:text-foreground focus-visible:border-default-300 focus-visible:text-foreground focus-visible:outline-none"
+                                    type="button"
+                                    onFocus={(event) =>
+                                      updateInfoPopoverPlacement(
+                                        node.id,
+                                        event.currentTarget,
+                                      )
+                                    }
+                                    onMouseEnter={(event) =>
+                                      updateInfoPopoverPlacement(
+                                        node.id,
+                                        event.currentTarget,
+                                      )
+                                    }
+                                  >
+                                    <svg
+                                      aria-hidden="true"
+                                      className="h-3.5 w-3.5"
+                                      fill="none"
+                                      stroke="currentColor"
+                                      viewBox="0 0 24 24"
+                                    >
+                                      <path
+                                        d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        strokeWidth={1.8}
+                                      />
+                                    </svg>
+                                    {hasRemark && (
+                                      <span className="absolute -right-1 -top-1 flex h-2.5 w-2.5 rounded-full border border-background bg-default-300 shadow-sm dark:bg-default-500" />
+                                    )}
+                                  </button>
+                                  <div
+                                    className={`pointer-events-none invisible absolute z-[60] w-72 max-w-[min(18rem,calc(100vw-4rem))] rounded-xl border border-divider/80 bg-background/98 p-3 opacity-0 shadow-xl backdrop-blur transition-all duration-150 group-hover/info:visible group-hover/info:pointer-events-auto group-hover/info:opacity-100 group-focus-within/info:visible group-focus-within/info:pointer-events-auto group-focus-within/info:opacity-100 ${
+                                      infoPlacement === "bottom"
+                                        ? "right-0 top-[calc(100%+0.75rem)] translate-y-1 group-hover/info:translate-y-0 group-focus-within/info:translate-y-0"
+                                        : "right-[calc(100%+0.75rem)] top-1/2 -translate-y-1/2 translate-x-1 group-hover/info:translate-x-0 group-focus-within/info:translate-x-0"
+                                    }`}
+                                  >
+                                    <div className="space-y-3">
+                                      {hasExpiryInfo && (
+                                        <div className="space-y-2">
+                                          <div className="flex items-center justify-between">
+                                            <div className="text-[11px] font-medium text-default-500">
+                                              到期提醒
+                                            </div>
+                                            <button
+                                              className="text-[10px] text-default-400 hover:text-default-600 transition-colors"
+                                              type="button"
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                handleDismissExpiryReminder(node.id);
+                                              }}
+                                            >
+                                              关闭提醒
+                                            </button>
+                                          </div>
+                                          <div className="flex flex-wrap gap-1.5">
+                                            <Chip
+                                              className="text-[10px] h-5 px-1 flex-shrink-0"
+                                              color={expiryMeta.tone}
+                                              size="sm"
+                                              title={`${formatNodeRenewalTime(expiryMeta.nextDueTime)} (${getNodeRenewalCycleLabel(node.renewalCycle)})`}
+                                              variant="flat"
+                                            >
+                                              {expiryMeta.label}
+                                            </Chip>
+                                          </div>
+                                          <div className="rounded-lg border border-divider/80 bg-default-50/80 px-3 py-2 text-xs leading-5 text-default-700">
+                                            {formatNodeRenewalTime(
+                                              expiryMeta.nextDueTime,
+                                            )}
+                                          </div>
+                                        </div>
+                                      )}
+
+                                      {hasRemark && (
+                                        <div className="space-y-2">
+                                          <div className="text-[11px] font-medium text-default-500">
+                                            备注
+                                          </div>
+                                          <div
+                                            className="max-h-32 overflow-y-auto rounded-lg border border-divider/80 bg-default-50/80 px-3 py-2 text-xs leading-5 text-default-700 break-all [scrollbar-width:thin]"
+                                            title={node.remark?.trim()}
+                                          >
+                                            {node.remark?.trim()}
+                                          </div>
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+                                </div>
+                              )}
                             </div>
                           </div>
                         </CardHeader>
@@ -2112,60 +2246,6 @@ export default function NodePage() {
                                 </div>
                               </div>
                             </>
-                          )}
-
-                          {hasInfoTrigger && (
-                            <div className="mt-2 mb-3 space-y-2 p-2.5">
-                              {hasExpiryInfo && (
-                                <div className="space-y-2">
-                                  <div className="flex items-center justify-between">
-                                    <div className="text-[11px] font-medium text-default-500">
-                                      到期提醒
-                                    </div>
-                                    <button
-                                      className="text-[10px] text-default-400 hover:text-default-600 transition-colors"
-                                      type="button"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        handleDismissExpiryReminder(node.id);
-                                      }}
-                                    >
-                                      关闭提醒
-                                    </button>
-                                  </div>
-                                  <div className="flex flex-wrap gap-1.5">
-                                    <Chip
-                                      className="text-[10px] h-5 px-1 flex-shrink-0"
-                                      color={expiryMeta.tone}
-                                      size="sm"
-                                      title={`${formatNodeRenewalTime(expiryMeta.nextDueTime)} (${getNodeRenewalCycleLabel(node.renewalCycle)})`}
-                                      variant="flat"
-                                    >
-                                      {expiryMeta.label}
-                                    </Chip>
-                                  </div>
-                                  <div className="rounded-lg border border-divider/80 bg-default-50/80 px-3 py-2 text-xs leading-5 text-default-700">
-                                    {formatNodeRenewalTime(
-                                      expiryMeta.nextDueTime,
-                                    )}
-                                  </div>
-                                </div>
-                              )}
-
-                              {hasRemark && (
-                                <div className="space-y-2">
-                                  <div className="text-[11px] font-medium text-default-500">
-                                    备注
-                                  </div>
-                                  <div
-                                    className="max-h-32 overflow-y-auto rounded-lg border border-divider/80 bg-default-50/80 px-3 py-2 text-xs leading-5 text-default-700 break-all [scrollbar-width:thin]"
-                                    title={node.remark?.trim()}
-                                  >
-                                    {node.remark?.trim()}
-                                  </div>
-                                </div>
-                              )}
-                            </div>
                           )}
 
                           <div className="mt-auto space-y-3">
