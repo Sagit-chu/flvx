@@ -724,7 +724,6 @@ const SortableTableRow = ({
   handleDelete,
   handleDiagnose,
   showAddressModal,
-  hasMultipleAddresses,
   formatFlow,
 }: any) => {
   const {
@@ -786,15 +785,11 @@ const SortableTableRow = ({
       >
         <button
           type="button"
-          className={`w-full truncate rounded-md bg-default-100/50 px-2.5 py-1.5 text-left font-mono text-xs font-medium text-default-700 transition-all ${
-            hasMultipleAddresses(forward.inIp) ? "hover:bg-default-200 hover:shadow-sm cursor-pointer" : "cursor-default"
-          }`}
+          className="w-full truncate rounded-md bg-default-100/50 px-2.5 py-1.5 text-left font-mono text-xs font-medium text-default-700 transition-all hover:bg-default-200 hover:shadow-sm cursor-pointer"
           title={formatInAddress(forward.inIp, forward.inPort)}
-          onClick={() => {
-            if (hasMultipleAddresses(forward.inIp)) {
-              showAddressModal(forward.inIp, forward.inPort, "入口端口");
-            }
-          }}
+          onClick={() =>
+            showAddressModal(forward.inIp, forward.inPort, "入口端口")
+          }
         >
           {formatInAddress(forward.inIp, forward.inPort)}
         </button>
@@ -804,15 +799,11 @@ const SortableTableRow = ({
       >
         <button
           type="button"
-          className={`w-full truncate rounded-md bg-default-100/50 px-2.5 py-1.5 text-left font-mono text-xs font-medium text-default-700 transition-all ${
-            hasMultipleAddresses(forward.remoteAddr) ? "hover:bg-default-200 hover:shadow-sm cursor-pointer" : "cursor-default"
-          }`}
+          className="w-full truncate rounded-md bg-default-100/50 px-2.5 py-1.5 text-left font-mono text-xs font-medium text-default-700 transition-all hover:bg-default-200 hover:shadow-sm cursor-pointer"
           title={formatRemoteAddress(forward.remoteAddr)}
-          onClick={() => {
-            if (hasMultipleAddresses(forward.remoteAddr)) {
-              showAddressModal(forward.remoteAddr, null, "目标地址");
-            }
-          }}
+          onClick={() =>
+            showAddressModal(forward.remoteAddr, null, "目标地址")
+          }
         >
           {formatRemoteAddress(forward.remoteAddr)}
         </button>
@@ -3652,10 +3643,11 @@ export default function ForwardPage() {
                 {forward.name}
               </h3>
               <div className="text-xs text-default-500 truncate flex items-center mt-0.5">
-                {/* 倍率 */}
-                <span className="truncate">
-                  {normalizeForwardTunnelName(forward.tunnelName)}
-                </span>
+                {viewMode === "direct" && (
+                  <span className="truncate">
+                    {normalizeForwardTunnelName(forward.tunnelName)}
+                  </span>
+                )}
                 <span className="text-success font-bold text-[12px] mr-1">
                   ‾{formatTunnelTrafficRatio(forward.tunnelTrafficRatio)}
                 </span>
