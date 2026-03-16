@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "skills": {
+    "security-scan": {
+      "source": "affaan-m/everything-claude-code",
+      "sourceType": "github",
+      "computedHash": "92cdcaddc554e318402f066ccc073c2e3dbcfda8c2730ec62ec373f805c41a57"
+    }
+  }
+}

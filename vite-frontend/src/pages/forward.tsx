@@ -784,9 +784,9 @@ const SortableTableRow = ({
         className={`${FORWARD_GROUPED_TABLE_COLUMN_CLASS.inbound} max-w-[280px] ${selectedIds.has(forward.id) ? "bg-primary-50/70 dark:bg-primary-900/40" : ""}`}
       >
         <button
-          type="button"
           className="w-full truncate rounded-md bg-default-100/50 px-2.5 py-1.5 text-left font-mono text-xs font-medium text-default-700 transition-all hover:bg-default-200 hover:shadow-sm cursor-pointer"
           title={formatInAddress(forward.inIp, forward.inPort)}
+          type="button"
           onClick={() =>
             showAddressModal(forward.inIp, forward.inPort, "入口端口")
           }
@@ -798,12 +798,10 @@ const SortableTableRow = ({
         className={`${FORWARD_GROUPED_TABLE_COLUMN_CLASS.target} max-w-[280px] ${selectedIds.has(forward.id) ? "bg-primary-50/70 dark:bg-primary-900/40" : ""}`}
       >
         <button
-          type="button"
           className="w-full truncate rounded-md bg-default-100/50 px-2.5 py-1.5 text-left font-mono text-xs font-medium text-default-700 transition-all hover:bg-default-200 hover:shadow-sm cursor-pointer"
           title={formatRemoteAddress(forward.remoteAddr)}
-          onClick={() =>
-            showAddressModal(forward.remoteAddr, null, "目标地址")
-          }
+          type="button"
+          onClick={() => showAddressModal(forward.remoteAddr, null, "目标地址")}
         >
           {formatRemoteAddress(forward.remoteAddr)}
         </button>
@@ -1010,7 +1008,9 @@ const SortableCompactTableRow = ({
           }`}
           title={formatInAddress(forward.inIp, forward.inPort)}
           type="button"
-          onClick={() => showAddressModal(forward.inIp, forward.inPort, "入口端口")}
+          onClick={() =>
+            showAddressModal(forward.inIp, forward.inPort, "入口端口")
+          }
         >
           {formatInAddress(forward.inIp, forward.inPort)}
         </button>
@@ -1143,23 +1143,80 @@ export default function ForwardPage() {
   const tokenRoleId = JwtUtil.getRoleIdFromToken();
   const isAdmin = tokenRoleId === 0;
 
+  const [compactMode, setCompactMode] = useState(false);
+
+  // 在非精简模式下（compactMode=false），管理员默认展示全部用户规则（与 2.1.8-beta9 行为一致）。
+  // 精简模式下默认仅展示管理员本人规则，避免在表格里混看不清所属用户。
+  const defaultSearchUserId = useMemo(() => {
+    if (isAdmin) {
+      if (!compactMode) {
+        return "all";
+      }
+
+      return tokenUserId ? tokenUserId.toString() : "all";
+    }
+
+    return tokenUserId ? tokenUserId.toString() : "all";
+  }, [compactMode, isAdmin, tokenUserId]);
+
   const [searchParams, setSearchParams] = useState({
     name: "",
-    userId: tokenUserId ? tokenUserId.toString() : "all",
+    userId: defaultSearchUserId,
     tunnelId: "all",
     inPort: "",
     remoteAddr: "",
   });
   const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
+
+  const resetSearchParams = useCallback(() => {
+    setSearchParams({
+      name: "",
+      userId: defaultSearchUserId,
+      tunnelId: "all",
+      inPort: "",
+      remoteAddr: "",
+    });
+  }, [defaultSearchUserId]);
+
+  const lastDefaultSearchUserIdRef = useRef(defaultSearchUserId);
+
+  useEffect(() => {
+    const previousDefault = lastDefaultSearchUserIdRef.current;
+
+    lastDefaultSearchUserIdRef.current = defaultSearchUserId;
+
+    if (!isAdmin || previousDefault === defaultSearchUserId) {
+      return;
+    }
+
+    setSearchParams((prev) => {
+      const hasOtherFilters =
+        Boolean(prev.name.trim()) ||
+        prev.tunnelId !== "all" ||
+        Boolean(prev.inPort.trim()) ||
+        Boolean(prev.remoteAddr.trim());
+
+      if (hasOtherFilters) {
+        return prev;
+      }
+
+      if (prev.userId !== previousDefault) {
+        return prev;
+      }
+
+      return {
+        ...prev,
+        userId: defaultSearchUserId,
+      };
+    });
+  }, [defaultSearchUserId, isAdmin]);
+
   const activeFilterCount =
-    (searchParams.name ? 1 : 0) +
-    (searchParams.userId !== "all" &&
-    searchParams.userId !== (tokenUserId ? tokenUserId.toString() : "all")
-      ? 1
-      : 0) +
+    (searchParams.name.trim() ? 1 : 0) +
+    (searchParams.userId !== defaultSearchUserId ? 1 : 0) +
     (searchParams.tunnelId !== "all" ? 1 : 0) +
-    (searchParams.inPort ? 1 : 0) +
-    (searchParams.remoteAddr ? 1 : 0);
+    (searchParams.inPort.trim() ? 1 : 0) +
+    (searchParams.remoteAddr.trim() ? 1 : 0);
   const [loading, setLoading] = useState(true);
   const [forwards, setForwards] = useState<Forward[]>([]);
   const [tunnels, setTunnels] = useState<Tunnel[]>([]);
@@ -1169,7 +1226,6 @@ export default function ForwardPage() {
   //   const isMobile = useMobileBreakpoint();
   // searchKeyword removed
   // isSearchVisible removed
-  const [compactMode, setCompactMode] = useState(false);
 
   // 显示模式状态 - 从localStorage读取，默认为平铺显示
   const [viewMode, setViewMode] = useState<"grouped" | "direct">(() => {
@@ -3930,15 +3986,7 @@ export default function ForwardPage() {
               color="danger"
               size="sm"
               variant="light"
-              onPress={() =>
-                setSearchParams({
-                  name: "",
-                  userId: tokenUserId ? tokenUserId.toString() : "all",
-                  tunnelId: "all",
-                  inPort: "",
-                  remoteAddr: "",
-                })
-              }
+              onPress={resetSearchParams}
             >
               清空条件
             </Button>
@@ -6061,15 +6109,7 @@ export default function ForwardPage() {
                 <Button
                   color="primary"
                   variant="flat"
-                  onPress={() => {
-                    setSearchParams({
-                      name: "",
-                      userId: tokenUserId ? tokenUserId.toString() : "all",
-                      tunnelId: "all",
-                      inPort: "",
-                      remoteAddr: "",
-                    });
-                  }}
+                  onPress={resetSearchParams}
                 >
                   重置
                 </Button>
