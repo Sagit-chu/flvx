@@ -1852,7 +1852,27 @@ func (h *Handler) forwardDelete(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) forwardForceDelete(w http.ResponseWriter, r *http.Request) {
-	h.forwardDelete(w, r)
+	id := idFromBody(r, w)
+	if id <= 0 {
+		return
+	}
+	_, _, _, err := h.resolveForwardAccess(r, id)
+	if err != nil {
+		if errors.Is(err, errForwardNotFound) {
+			response.WriteJSON(w, response.ErrDefault("转发不存在"))
+			return
+		}
+		response.WriteJSON(w, response.Err(-2, err.Error()))
+		return
+	}
+
+	// Force delete: remove DB record without touching node services.
+	// This is used when nodes are offline or service deletion fails.
+	if err := h.deleteForwardByID(id); err != nil {
+		response.WriteJSON(w, response.Err(-2, err.Error()))
+		return
+	}
+	response.WriteJSON(w, response.OKEmpty())
 }
 
 func (h *Handler) forwardPause(w http.ResponseWriter, r *http.Request) {
