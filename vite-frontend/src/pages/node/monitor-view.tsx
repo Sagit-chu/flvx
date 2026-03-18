@@ -170,141 +170,85 @@ function ServerCard({ node, metric, onPress }: { node: any; metric: RealtimeNode
   
   return (
     <Card
-      className="group relative shadow-sm border border-divider hover:shadow-md transition-shadow duration-200 h-full flex flex-col cursor-pointer"
+      className="group relative overflow-hidden shadow-sm border border-divider dark:border-default-100 hover:-translate-y-1 hover:shadow-lg transition-all duration-300 h-full flex flex-col cursor-pointer bg-background"
       onClick={onPress}
     >
-      <CardHeader className="pb-3">
-        <div className="flex justify-between items-start w-full gap-3">
-          <div className="flex items-center gap-2 min-w-0 flex-1">
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-2 min-w-0">
-                <h3 className="font-semibold text-foreground truncate text-sm leading-5">{node.name}</h3>
-                <span
-                  className={`h-2.5 w-2.5 rounded-full flex-shrink-0 ${isOnline ? "bg-emerald-500" : "bg-rose-500"}`}
-                  title={isOnline ? "在线" : "离线"}
-                />
-              </div>
+      {/* Dynamic top gradient bar based on status */}
+      <div className={`absolute top-0 left-0 right-0 h-1 ${isOnline ? "bg-success" : "bg-danger"}`} />
+      
+      {/* Decorative background glow */}
+      <div className={`absolute -right-8 -top-8 w-24 h-24 rounded-full blur-2xl opacity-10 transition-opacity group-hover:opacity-20 ${isOnline ? "bg-success" : "bg-danger"}`} />
+
+      <CardHeader className="pb-2 pt-5 px-5 flex flex-row justify-between items-start gap-4">
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="relative flex-shrink-0">
+            <div className="w-10 h-10 rounded-xl bg-default-100 dark:bg-default-50/10 flex items-center justify-center border border-divider">
+              <Server className={`w-5 h-5 ${isOnline ? "text-success" : "text-danger"}`} />
             </div>
+            <span className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-background ${isOnline ? "bg-success" : "bg-danger"}`} />
           </div>
-          <div className="flex items-center gap-2 text-xs text-default-500 flex-shrink-0">
-            <Clock className="w-3 h-3" />
-            <span className="font-mono text-[11px]">{metric ? formatUptime(metric.uptime) : "-"}</span>
+          <div className="flex flex-col min-w-0">
+            <h3 className="font-semibold text-foreground text-sm truncate">{node.name}</h3>
+            <div className="flex items-center gap-1.5 text-[11px] text-default-500 mt-0.5">
+              <span className="font-mono">{isOnline ? "在线" : "离线"}</span>
+            </div>
           </div>
         </div>
       </CardHeader>
       
-      <CardBody className="pt-0 pb-3 flex-1 flex flex-col">
-        {/* IP & Version row */}
-        <div className="space-y-2 mb-3">
-          <div className="flex justify-between text-sm">
-            <span className="text-default-600">版本</span>
-            <span className="text-xs font-mono">{metric ? "在线" : "-"}</span>
+      <CardBody className="py-3 px-5 flex-1 flex flex-col justify-end gap-4 z-10 w-full overflow-hidden">
+        <div className="grid grid-cols-2 gap-5 w-full">
+          <div className="space-y-1.5 min-w-0">
+            <div className="flex justify-between items-center text-xs">
+              <span className="text-default-500">CPU</span>
+              <span className="font-mono font-medium">{isOnline && metric ? `${metric.cpuUsage.toFixed(1)}%` : "-"}</span>
+            </div>
+            <Progress
+              color={getColorByUsage(metric?.cpuUsage)}
+              size="sm"
+              value={isOnline && metric ? metric.cpuUsage : 0}
+            />
+          </div>
+          <div className="space-y-1.5 min-w-0">
+            <div className="flex justify-between items-center text-xs">
+              <span className="text-default-500">内存</span>
+              <span className="font-mono font-medium">{isOnline && metric ? `${metric.memoryUsage.toFixed(1)}%` : "-"}</span>
+            </div>
+            <Progress
+              color={getColorByUsage(metric?.memoryUsage)}
+              size="sm"
+              value={isOnline && metric ? metric.memoryUsage : 0}
+            />
           </div>
         </div>
 
-        {/* System metrics */}
-        <div className="space-y-3 mb-3">
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <div className="flex justify-between text-xs mb-1">
-                <span>CPU</span>
-                <span className="font-mono">{isOnline && metric ? `${metric.cpuUsage.toFixed(1)}%` : "-"}</span>
-              </div>
-              <Progress
-                aria-label="CPU使用率"
-                color={getColorByUsage(metric?.cpuUsage)}
-                size="sm"
-                value={isOnline && metric ? metric.cpuUsage : 0}
-              />
+        <div className="flex items-center justify-between p-2.5 rounded-lg bg-default-50 dark:bg-default-100/30 border border-divider mt-1 w-full">
+          <div className="flex flex-col gap-0.5 min-w-0 flex-1">
+            <div className="flex items-center gap-1 text-[10px] text-default-500">
+              <span className="text-primary-500 inline-block font-bold">↑</span>
+              <span>上传</span>
             </div>
-            <div>
-              <div className="flex justify-between text-xs mb-1">
-                <span>内存</span>
-                <span className="font-mono">{isOnline && metric ? `${metric.memoryUsage.toFixed(1)}%` : "-"}</span>
-              </div>
-              <Progress
-                aria-label="内存使用率"
-                color={getColorByUsage(metric?.memoryUsage)}
-                size="sm"
-                value={isOnline && metric ? metric.memoryUsage : 0}
-              />
-            </div>
+            <span className="font-mono text-xs font-semibold truncate">{isOnline && metric ? formatBytesPerSecond(metric.netOutSpeed) : "-"}</span>
           </div>
-
-          <div className="grid grid-cols-2 gap-2 text-xs">
-            <div className="text-center p-2 bg-default-50 dark:bg-default-100 rounded">
-              <div className="text-default-600 mb-0.5">上传</div>
-              <div className="font-mono">{isOnline && metric ? formatBytesPerSecond(metric.netOutSpeed) : "-"}</div>
+          <div className="w-px h-6 bg-divider mx-2" />
+          <div className="flex flex-col gap-0.5 items-end min-w-0 flex-1">
+            <div className="flex items-center gap-1 text-[10px] text-default-500">
+              <span>下载</span>
+              <span className="text-success-500 inline-block font-bold">↓</span>
             </div>
-            <div className="text-center p-2 bg-default-50 dark:bg-default-100 rounded">
-              <div className="text-default-600 mb-0.5">下载</div>
-              <div className="font-mono">{isOnline && metric ? formatBytesPerSecond(metric.netInSpeed) : "-"}</div>
-            </div>
+            <span className="font-mono text-xs font-semibold truncate">{isOnline && metric ? formatBytesPerSecond(metric.netInSpeed) : "-"}</span>
           </div>
+        </div>
 
-          {/* Traffic stats */}
-          <div className="grid grid-cols-2 gap-2 text-xs">
-            <div className="text-center p-2 bg-primary-50 dark:bg-primary-100/20 rounded border border-primary-200 dark:border-primary-300/20">
-              <div className="text-primary-600 dark:text-primary-400 mb-0.5">↑ 上行流量</div>
-              <div className="font-mono text-primary-700 dark:text-primary-300">
-                {isOnline && metric ? formatBytes(metric.netOutBytes) : "-"}
-              </div>
-            </div>
-            <div className="text-center p-2 bg-success-50 dark:bg-success-100/20 rounded border border-success-200 dark:border-success-300/20">
-              <div className="text-success-600 dark:text-success-400 mb-0.5">↓ 下行流量</div>
-              <div className="font-mono text-success-700 dark:text-success-300">
-                {isOnline && metric ? formatBytes(metric.netInBytes) : "-"}
-              </div>
-            </div>
+        <div className="flex justify-between items-center mt-1 pt-3 border-t border-divider/50 w-full overflow-hidden">
+          <div className="flex items-center gap-1.5 text-[11px] text-default-500 min-w-0">
+            <Clock className="w-3.5 h-3.5 text-default-400 shrink-0" />
+            <span className="font-mono truncate">{metric ? formatUptime(metric.uptime) : "-"}</span>
           </div>
-
-          {/* Extended metrics */}
-          {isOnline && metric && (
-            <div className="space-y-2">
-              {metric.diskUsage > 0 && (
-                <div>
-                  <div className="flex justify-between text-xs mb-1">
-                    <span>磁盘</span>
-                    <span className="font-mono">{metric.diskUsage.toFixed(1)}%</span>
-                  </div>
-                  <Progress
-                    aria-label="磁盘使用率"
-                    color={getColorByUsage(metric.diskUsage)}
-                    size="sm"
-                    value={metric.diskUsage}
-                  />
-                </div>
-              )}
-              {(metric.load1 > 0 || metric.load5 > 0 || metric.load15 > 0) && (
-                <div className="grid grid-cols-3 gap-1 text-xs">
-                  <div className="text-center p-1.5 bg-default-50 dark:bg-default-100 rounded">
-                    <div className="text-default-500 text-[10px]">负载 1m</div>
-                    <div className="font-mono">{metric.load1.toFixed(2)}</div>
-                  </div>
-                  <div className="text-center p-1.5 bg-default-50 dark:bg-default-100 rounded">
-                    <div className="text-default-500 text-[10px]">负载 5m</div>
-                    <div className="font-mono">{metric.load5.toFixed(2)}</div>
-                  </div>
-                  <div className="text-center p-1.5 bg-default-50 dark:bg-default-100 rounded">
-                    <div className="text-default-500 text-[10px]">负载 15m</div>
-                    <div className="font-mono">{metric.load15.toFixed(2)}</div>
-                  </div>
-                </div>
-              )}
-              {(metric.tcpConns > 0 || metric.udpConns > 0) && (
-                <div className="grid grid-cols-2 gap-2 text-xs">
-                  <div className="text-center p-1.5 bg-default-50 dark:bg-default-100 rounded">
-                    <div className="text-default-500 text-[10px]">TCP 连接</div>
-                    <div className="font-mono">{metric.tcpConns}</div>
-                  </div>
-                  <div className="text-center p-1.5 bg-default-50 dark:bg-default-100 rounded">
-                    <div className="text-default-500 text-[10px]">UDP 连接</div>
-                    <div className="font-mono">{metric.udpConns}</div>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
+          <div className="flex items-center gap-1.5 text-[11px] text-default-500 shrink-0 ml-2">
+            <Activity className="w-3.5 h-3.5 text-default-400" />
+            <span className="font-mono">Load: {metric ? metric.load1.toFixed(2) : "-"}</span>
+          </div>
         </div>
       </CardBody>
     </Card>
@@ -1282,19 +1226,21 @@ export function MonitorView({ nodeMap }: MonitorViewProps) {
 
           {/* Realtime KPI cards */}
           {detailRealtimeMetric && (
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 pt-2">
               {[
                 { label: "CPU", value: `${detailRealtimeMetric.cpuUsage.toFixed(1)}%`, color: getColorByUsage(detailRealtimeMetric.cpuUsage) },
                 { label: "内存", value: `${detailRealtimeMetric.memoryUsage.toFixed(1)}%`, color: getColorByUsage(detailRealtimeMetric.memoryUsage) },
                 { label: "磁盘", value: `${detailRealtimeMetric.diskUsage.toFixed(1)}%`, color: getColorByUsage(detailRealtimeMetric.diskUsage) },
-                { label: "↓ 下行", value: formatBytesPerSecond(detailRealtimeMetric.netInSpeed), color: "success" as const },
-                { label: "↑ 上行", value: formatBytesPerSecond(detailRealtimeMetric.netOutSpeed), color: "primary" as const },
+                { label: "↓ 下行速度", value: formatBytesPerSecond(detailRealtimeMetric.netInSpeed), color: "success" as const },
+                { label: "↑ 上行速度", value: formatBytesPerSecond(detailRealtimeMetric.netOutSpeed), color: "primary" as const },
                 { label: "运行时间", value: formatUptime(detailRealtimeMetric.uptime), color: "default" as const },
               ].map((item) => (
-                <Card key={item.label}>
-                  <CardBody className="py-3 px-4 flex flex-col items-center">
-                    <span className="text-[11px] text-default-500 mb-1">{item.label}</span>
-                    <span className="text-sm font-semibold font-mono">{item.value}</span>
+                <Card key={item.label} className="border border-divider/60 shadow-sm hover:shadow-md transition-shadow bg-gradient-to-br from-background to-default-50/50">
+                  <CardBody className="py-3 px-4 flex flex-col items-center justify-center min-h-[5rem]">
+                    <span className="text-[11px] text-default-500 mb-1.5">{item.label}</span>
+                    <span className={`text-sm font-semibold font-mono ${item.color === 'danger' ? 'text-danger' : item.color === 'warning' ? 'text-warning' : item.color === 'success' ? 'text-success' : item.color === 'primary' ? 'text-primary' : ''}`}>
+                      {item.value}
+                    </span>
                   </CardBody>
                 </Card>
               ))}
