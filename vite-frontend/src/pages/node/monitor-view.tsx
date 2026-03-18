@@ -27,11 +27,7 @@ import {
   Activity,
   Play,
   Server,
-  Zap,
-  HardDrive,
-  Cpu,
   Clock,
-  Globe,
   ArrowLeft,
 } from "lucide-react";
 import toast from "react-hot-toast";
@@ -173,91 +169,142 @@ function ServerCard({ node, metric, onPress }: { node: any; metric: RealtimeNode
   const isOnline = node.connectionStatus === "online";
   
   return (
-    <Card className={`border-t-4 transition-all hover:scale-[1.02] hover:shadow-lg cursor-pointer ${isOnline ? "border-t-success" : "border-t-danger"}`} onClick={onPress}>
-      <CardHeader className="pb-2 flex justify-between items-center">
-        <div className="flex items-center gap-2">
-          <Server className={`w-5 h-5 ${isOnline ? "text-success" : "text-default-400"}`} />
-          <div className="font-semibold text-base truncate max-w-[150px]" title={node.name}>{node.name}</div>
-        </div>
-        <Chip size="sm" color={isOnline ? "success" : "danger"} variant="flat">
-          {isOnline ? "在线" : "离线"}
-        </Chip>
-      </CardHeader>
-      
-      <CardBody className="pt-0 space-y-4">
-        <div className="grid grid-cols-2 gap-y-2 gap-x-4 text-xs mt-1">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-1 text-default-500">
-              <Clock className="w-3 h-3" /> 运行
+    <Card
+      className="group relative shadow-sm border border-divider hover:shadow-md transition-shadow duration-200 h-full flex flex-col cursor-pointer"
+      onClick={onPress}
+    >
+      <CardHeader className="pb-3">
+        <div className="flex justify-between items-start w-full gap-3">
+          <div className="flex items-center gap-2 min-w-0 flex-1">
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2 min-w-0">
+                <h3 className="font-semibold text-foreground truncate text-sm leading-5">{node.name}</h3>
+                <span
+                  className={`h-2.5 w-2.5 rounded-full flex-shrink-0 ${isOnline ? "bg-emerald-500" : "bg-rose-500"}`}
+                  title={isOnline ? "在线" : "离线"}
+                />
+              </div>
             </div>
+          </div>
+          <div className="flex items-center gap-2 text-xs text-default-500 flex-shrink-0">
+            <Clock className="w-3 h-3" />
             <span className="font-mono text-[11px]">{metric ? formatUptime(metric.uptime) : "-"}</span>
           </div>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-1 text-default-500">
-              <Activity className="w-3 h-3" /> 负载
-            </div>
-            <span className="font-mono text-[11px]">{metric ? metric.load1.toFixed(2) : "-"}</span>
-          </div>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-1 text-default-500">
-              <Globe className="w-3 h-3" /> 连接
-            </div>
-            <span className="font-mono text-[11px]">{metric ? metric.tcpConns : "-"}</span>
-          </div>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-1 text-default-500">
-              <Zap className="w-3 h-3" /> UDP
-            </div>
-            <span className="font-mono text-[11px]">{metric ? metric.udpConns : "-"}</span>
+        </div>
+      </CardHeader>
+      
+      <CardBody className="pt-0 pb-3 flex-1 flex flex-col">
+        {/* IP & Version row */}
+        <div className="space-y-2 mb-3">
+          <div className="flex justify-between text-sm">
+            <span className="text-default-600">版本</span>
+            <span className="text-xs font-mono">{metric ? "在线" : "-"}</span>
           </div>
         </div>
 
-        <div className="space-y-3">
-          <div>
-            <div className="flex justify-between text-xs mb-1">
-              <div className="flex items-center gap-1 text-default-600"><Cpu className="w-3.5 h-3.5" /> CPU</div>
-              <span className="font-mono text-[11px]">{metric ? metric.cpuUsage.toFixed(1) : "0.0"}%</span>
+        {/* System metrics */}
+        <div className="space-y-3 mb-3">
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <div className="flex justify-between text-xs mb-1">
+                <span>CPU</span>
+                <span className="font-mono">{isOnline && metric ? `${metric.cpuUsage.toFixed(1)}%` : "-"}</span>
+              </div>
+              <Progress
+                aria-label="CPU使用率"
+                color={getColorByUsage(metric?.cpuUsage)}
+                size="sm"
+                value={isOnline && metric ? metric.cpuUsage : 0}
+              />
             </div>
-            <Progress value={metric ? metric.cpuUsage : 0} color={getColorByUsage(metric?.cpuUsage)} className="h-1.5" />
-          </div>
-          <div>
-            <div className="flex justify-between text-xs mb-1">
-              <div className="flex items-center gap-1 text-default-600"><HardDrive className="w-3.5 h-3.5" /> RAM</div>
-              <span className="font-mono text-[11px]">{metric ? metric.memoryUsage.toFixed(1) : "0.0"}%</span>
+            <div>
+              <div className="flex justify-between text-xs mb-1">
+                <span>内存</span>
+                <span className="font-mono">{isOnline && metric ? `${metric.memoryUsage.toFixed(1)}%` : "-"}</span>
+              </div>
+              <Progress
+                aria-label="内存使用率"
+                color={getColorByUsage(metric?.memoryUsage)}
+                size="sm"
+                value={isOnline && metric ? metric.memoryUsage : 0}
+              />
             </div>
-            <Progress value={metric ? metric.memoryUsage : 0} color={getColorByUsage(metric?.memoryUsage)} className="h-1.5" />
           </div>
-          <div>
-            <div className="flex justify-between text-xs mb-1">
-              <div className="flex items-center gap-1 text-default-600"><HardDrive className="w-3.5 h-3.5" /> Disk</div>
-              <span className="font-mono text-[11px]">{metric ? metric.diskUsage.toFixed(1) : "0.0"}%</span>
-            </div>
-            <Progress value={metric ? metric.diskUsage : 0} color={getColorByUsage(metric?.diskUsage)} className="h-1.5" />
-          </div>
-        </div>
 
-        <div className="flex justify-between items-center pt-3 border-t border-default-200/50 text-xs">
-           <div className="flex flex-col gap-0.5 w-[50%] border-r border-default-200/50 pr-2">
-             <div className="text-default-500 flex justify-between">
-               <span>网络 ↓</span>
-               <span className="font-mono text-success">{metric ? formatBytesPerSecond(metric.netInSpeed) : "0 B/s"}</span>
-             </div>
-             <div className="text-default-400 font-mono flex justify-between">
-               <span>总计</span>
-               <span className="text-[11px]">{metric ? formatBytes(metric.netInBytes) : "0 B"}</span>
-             </div>
-           </div>
-           
-           <div className="flex flex-col gap-0.5 w-[50%] pl-2">
-             <div className="text-default-500 flex justify-between">
-               <span>网络 ↑</span>
-               <span className="font-mono text-primary">{metric ? formatBytesPerSecond(metric.netOutSpeed) : "0 B/s"}</span>
-             </div>
-             <div className="text-default-400 font-mono flex justify-between">
-               <span>总计</span>
-               <span className="text-[11px]">{metric ? formatBytes(metric.netOutBytes) : "0 B"}</span>
-             </div>
-           </div>
+          <div className="grid grid-cols-2 gap-2 text-xs">
+            <div className="text-center p-2 bg-default-50 dark:bg-default-100 rounded">
+              <div className="text-default-600 mb-0.5">上传</div>
+              <div className="font-mono">{isOnline && metric ? formatBytesPerSecond(metric.netOutSpeed) : "-"}</div>
+            </div>
+            <div className="text-center p-2 bg-default-50 dark:bg-default-100 rounded">
+              <div className="text-default-600 mb-0.5">下载</div>
+              <div className="font-mono">{isOnline && metric ? formatBytesPerSecond(metric.netInSpeed) : "-"}</div>
+            </div>
+          </div>
+
+          {/* Traffic stats */}
+          <div className="grid grid-cols-2 gap-2 text-xs">
+            <div className="text-center p-2 bg-primary-50 dark:bg-primary-100/20 rounded border border-primary-200 dark:border-primary-300/20">
+              <div className="text-primary-600 dark:text-primary-400 mb-0.5">↑ 上行流量</div>
+              <div className="font-mono text-primary-700 dark:text-primary-300">
+                {isOnline && metric ? formatBytes(metric.netOutBytes) : "-"}
+              </div>
+            </div>
+            <div className="text-center p-2 bg-success-50 dark:bg-success-100/20 rounded border border-success-200 dark:border-success-300/20">
+              <div className="text-success-600 dark:text-success-400 mb-0.5">↓ 下行流量</div>
+              <div className="font-mono text-success-700 dark:text-success-300">
+                {isOnline && metric ? formatBytes(metric.netInBytes) : "-"}
+              </div>
+            </div>
+          </div>
+
+          {/* Extended metrics */}
+          {isOnline && metric && (
+            <div className="space-y-2">
+              {metric.diskUsage > 0 && (
+                <div>
+                  <div className="flex justify-between text-xs mb-1">
+                    <span>磁盘</span>
+                    <span className="font-mono">{metric.diskUsage.toFixed(1)}%</span>
+                  </div>
+                  <Progress
+                    aria-label="磁盘使用率"
+                    color={getColorByUsage(metric.diskUsage)}
+                    size="sm"
+                    value={metric.diskUsage}
+                  />
+                </div>
+              )}
+              {(metric.load1 > 0 || metric.load5 > 0 || metric.load15 > 0) && (
+                <div className="grid grid-cols-3 gap-1 text-xs">
+                  <div className="text-center p-1.5 bg-default-50 dark:bg-default-100 rounded">
+                    <div className="text-default-500 text-[10px]">负载 1m</div>
+                    <div className="font-mono">{metric.load1.toFixed(2)}</div>
+                  </div>
+                  <div className="text-center p-1.5 bg-default-50 dark:bg-default-100 rounded">
+                    <div className="text-default-500 text-[10px]">负载 5m</div>
+                    <div className="font-mono">{metric.load5.toFixed(2)}</div>
+                  </div>
+                  <div className="text-center p-1.5 bg-default-50 dark:bg-default-100 rounded">
+                    <div className="text-default-500 text-[10px]">负载 15m</div>
+                    <div className="font-mono">{metric.load15.toFixed(2)}</div>
+                  </div>
+                </div>
+              )}
+              {(metric.tcpConns > 0 || metric.udpConns > 0) && (
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  <div className="text-center p-1.5 bg-default-50 dark:bg-default-100 rounded">
+                    <div className="text-default-500 text-[10px]">TCP 连接</div>
+                    <div className="font-mono">{metric.tcpConns}</div>
+                  </div>
+                  <div className="text-center p-1.5 bg-default-50 dark:bg-default-100 rounded">
+                    <div className="text-default-500 text-[10px]">UDP 连接</div>
+                    <div className="font-mono">{metric.udpConns}</div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </CardBody>
     </Card>
@@ -453,8 +500,9 @@ export function MonitorView({ nodeMap }: MonitorViewProps) {
     }
   }, [preferredNodeId, selectedNodeId]);
 
-  const loadTunnels = useCallback(async () => {
-    setTunnelsLoading(true);
+  const loadTunnels = useCallback(async (options?: { silent?: boolean }) => {
+    const silent = options?.silent ?? false;
+    if (!silent) setTunnelsLoading(true);
     try {
       const response = await getMonitorTunnels();
 
@@ -473,12 +521,14 @@ export function MonitorView({ nodeMap }: MonitorViewProps) {
         return;
       }
       setTunnelsError(response.msg || "加载隧道列表失败");
-      toast.error(response.msg || "加载隧道列表失败");
+      if (!silent) toast.error(response.msg || "加载隧道列表失败");
     } catch {
-      setTunnelsError("加载隧道列表失败");
-      toast.error("加载隧道列表失败");
+      if (!silent) {
+        setTunnelsError("加载隧道列表失败");
+        toast.error("加载隧道列表失败");
+      }
     } finally {
-      setTunnelsLoading(false);
+      if (!silent) setTunnelsLoading(false);
     }
   }, []);
 
@@ -488,7 +538,7 @@ export function MonitorView({ nodeMap }: MonitorViewProps) {
 
   useEffect(() => {
     const timer = window.setInterval(() => {
-      void loadTunnels();
+      void loadTunnels({ silent: true });
     }, 60_000);
 
     return () => window.clearInterval(timer);
@@ -501,8 +551,9 @@ export function MonitorView({ nodeMap }: MonitorViewProps) {
   }, [selectedTunnelId, tunnels]);
 
   const loadTunnelMetrics = useCallback(
-    async (tunnelId: number) => {
-      setTunnelMetricsLoading(true);
+    async (tunnelId: number, options?: { silent?: boolean }) => {
+      const silent = options?.silent ?? false;
+      if (!silent) setTunnelMetricsLoading(true);
       try {
         const end = Date.now();
         const start = end - tunnelRangeMs;
@@ -529,12 +580,12 @@ export function MonitorView({ nodeMap }: MonitorViewProps) {
         }
         setTunnelMetricsTruncated(false);
         setTunnelMetricsError(response.msg || "加载隧道指标失败");
-        toast.error(response.msg || "加载隧道指标失败");
+        if (!silent) toast.error(response.msg || "加载隧道指标失败");
       } catch {
         setTunnelMetricsTruncated(false);
-        setTunnelMetricsError("加载隧道指标失败");
+        if (!silent) setTunnelMetricsError("加载隧道指标失败");
       } finally {
-        setTunnelMetricsLoading(false);
+        if (!silent) setTunnelMetricsLoading(false);
       }
     },
     [tunnelRangeMs],
@@ -549,15 +600,16 @@ export function MonitorView({ nodeMap }: MonitorViewProps) {
   useEffect(() => {
     if (!selectedTunnelId) return;
     const timer = window.setInterval(() => {
-      void loadTunnelMetrics(selectedTunnelId);
+      void loadTunnelMetrics(selectedTunnelId, { silent: true });
     }, 30_000);
 
     return () => window.clearInterval(timer);
   }, [selectedTunnelId, loadTunnelMetrics]);
 
   const loadMetrics = useCallback(
-    async (nodeId: number) => {
-      setMetricsLoading(true);
+    async (nodeId: number, options?: { silent?: boolean }) => {
+      const silent = options?.silent ?? false;
+      if (!silent) setMetricsLoading(true);
       try {
         const end = Date.now();
         const start = end - metricsRangeMs;
@@ -584,19 +636,20 @@ export function MonitorView({ nodeMap }: MonitorViewProps) {
         }
         setMetricsTruncated(false);
         setMetricsError(response.msg || "加载指标失败");
-        toast.error(response.msg || "加载指标失败");
+        if (!silent) toast.error(response.msg || "加载指标失败");
       } catch {
         setMetricsTruncated(false);
-        setMetricsError("加载指标失败");
+        if (!silent) setMetricsError("加载指标失败");
       } finally {
-        setMetricsLoading(false);
+        if (!silent) setMetricsLoading(false);
       }
     },
     [metricsRangeMs],
   );
 
-  const loadServiceMonitors = useCallback(async () => {
-    setMonitorsLoading(true);
+  const loadServiceMonitors = useCallback(async (options?: { silent?: boolean }) => {
+    const silent = options?.silent ?? false;
+    if (!silent) setMonitorsLoading(true);
     try {
       const response = await getServiceMonitorList();
 
@@ -614,11 +667,11 @@ export function MonitorView({ nodeMap }: MonitorViewProps) {
         return;
       }
       setMonitorsError(response.msg || "加载服务监控失败");
-      toast.error(response.msg || "加载服务监控失败");
+      if (!silent) toast.error(response.msg || "加载服务监控失败");
     } catch {
-      setMonitorsError("加载服务监控失败");
+      if (!silent) setMonitorsError("加载服务监控失败");
     } finally {
-      setMonitorsLoading(false);
+      if (!silent) setMonitorsLoading(false);
     }
   }, []);
 
@@ -731,7 +784,7 @@ export function MonitorView({ nodeMap }: MonitorViewProps) {
 
   useEffect(() => {
     const timer = window.setInterval(() => {
-      void loadServiceMonitors();
+      void loadServiceMonitors({ silent: true });
       void loadLatestMonitorResults();
     }, 30_000);
 
@@ -747,7 +800,7 @@ export function MonitorView({ nodeMap }: MonitorViewProps) {
   useEffect(() => {
     if (!selectedNodeId) return;
     const timer = window.setInterval(() => {
-      void loadMetrics(selectedNodeId);
+      void loadMetrics(selectedNodeId, { silent: true });
     }, 15_000);
 
     return () => window.clearInterval(timer);

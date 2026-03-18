@@ -21,8 +21,9 @@ export default function MonitorPage() {
   const [nodesLoading, setNodesLoading] = useState(false);
   const [nodesError, setNodesError] = useState<string | null>(null);
 
-  const loadNodes = useCallback(async () => {
-    setNodesLoading(true);
+  const loadNodes = useCallback(async (options?: { silent?: boolean }) => {
+    const silent = options?.silent ?? false;
+    if (!silent) setNodesLoading(true);
     try {
       const response = await getMonitorNodes();
 
@@ -40,11 +41,11 @@ export default function MonitorPage() {
         return;
       }
 
-      toast.error(response.msg || "加载节点失败");
+      if (!silent) toast.error(response.msg || "加载节点失败");
     } catch {
-      toast.error("加载节点失败");
+      if (!silent) toast.error("加载节点失败");
     } finally {
-      setNodesLoading(false);
+      if (!silent) setNodesLoading(false);
     }
   }, []);
 
@@ -54,7 +55,7 @@ export default function MonitorPage() {
 
   useEffect(() => {
     const timer = window.setInterval(() => {
-      void loadNodes();
+      void loadNodes({ silent: true });
     }, 30_000);
 
     return () => window.clearInterval(timer);
@@ -86,7 +87,7 @@ export default function MonitorPage() {
             isLoading={nodesLoading}
             size="sm"
             variant="flat"
-            onPress={loadNodes}
+            onPress={() => loadNodes()}
           >
             <RefreshCw className="w-4 h-4 mr-1" />
             刷新节点
