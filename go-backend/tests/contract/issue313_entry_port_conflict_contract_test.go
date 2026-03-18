@@ -32,7 +32,6 @@ func TestIssue313_EntryPortCrossTunnelConflictContract(t *testing.T) {
 		return mustLastInsertID(t, repo, name)
 	}
 
-	entryA := insertNode("issue313-entry-a", "10.100.0.1", "2000-2010")
 	entryB1 := insertNode("issue313-entry-b1", "10.100.0.2", "2000-2010")
 	entryB2 := insertNode("issue313-entry-b2", "10.100.0.3", "2000-2010")
 	chainA := insertNode("issue313-chain-a", "10.100.0.4", "3000-3010")
@@ -51,7 +50,7 @@ func TestIssue313_EntryPortCrossTunnelConflictContract(t *testing.T) {
 	if err := repo.DB().Exec(`
 		INSERT INTO chain_tunnel(tunnel_id, chain_type, node_id, port, strategy, inx, protocol)
 		VALUES(?, 1, ?, 2000, 'round', 1, 'tls')
-	`, tunnelAID, entryA).Error; err != nil {
+	`, tunnelAID, entryB2).Error; err != nil {
 		t.Fatalf("insert chain_tunnel entry a: %v", err)
 	}
 	if err := repo.DB().Exec(`
@@ -109,7 +108,7 @@ func TestIssue313_EntryPortCrossTunnelConflictContract(t *testing.T) {
 	}
 	forwardAID := mustLastInsertID(t, repo, "issue313-forward-a")
 
-	if err := repo.DB().Exec(`INSERT INTO forward_port(forward_id, node_id, port) VALUES(?, ?, ?)`, forwardAID, entryA, 2000).Error; err != nil {
+	if err := repo.DB().Exec(`INSERT INTO forward_port(forward_id, node_id, port) VALUES(?, ?, ?)`, forwardAID, entryB2, 2000).Error; err != nil {
 		t.Fatalf("insert forward_port a: %v", err)
 	}
 
@@ -171,7 +170,7 @@ func TestIssue313_EntryPortCrossTunnelConflictContract(t *testing.T) {
 		t.Fatalf("expected update failure due to cross-tunnel port conflict, got success with code 0")
 	}
 
-	if !bytes.Contains(res.Body.Bytes(), []byte("端口")) && !bytes.Contains(res.Body.Bytes(), []byte("占用")) {
+	if !bytes.Contains([]byte(out.Msg), []byte("端口")) && !bytes.Contains([]byte(out.Msg), []byte("占用")) {
 		t.Fatalf("expected port conflict error message, got %q", out.Msg)
 	}
 

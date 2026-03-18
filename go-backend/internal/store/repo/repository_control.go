@@ -30,8 +30,15 @@ func (r *Repository) ListForwardsByTunnel(tunnelID int64) ([]model.ForwardRecord
 	if r == nil || r.db == nil {
 		return nil, errors.New("repository not initialized")
 	}
+	return r.ListForwardsByTunnelTx(r.db, tunnelID)
+}
+
+func (r *Repository) ListForwardsByTunnelTx(tx *gorm.DB, tunnelID int64) ([]model.ForwardRecord, error) {
+	if tx == nil {
+		return nil, errors.New("database unavailable")
+	}
 	var forwards []model.Forward
-	err := r.db.Where("tunnel_id = ?", tunnelID).Order("id ASC").Find(&forwards).Error
+	err := tx.Where("tunnel_id = ?", tunnelID).Order("id ASC").Find(&forwards).Error
 	if err != nil {
 		return nil, err
 	}
@@ -95,8 +102,15 @@ func (r *Repository) ListForwardPorts(forwardID int64) ([]model.ForwardPortRecor
 	if r == nil || r.db == nil {
 		return nil, errors.New("repository not initialized")
 	}
+	return r.ListForwardPortsTx(r.db, forwardID)
+}
+
+func (r *Repository) ListForwardPortsTx(tx *gorm.DB, forwardID int64) ([]model.ForwardPortRecord, error) {
+	if tx == nil {
+		return nil, errors.New("database unavailable")
+	}
 	var ports []model.ForwardPort
-	err := r.db.Where("forward_id = ?", forwardID).Order("id ASC").Find(&ports).Error
+	err := tx.Where("forward_id = ?", forwardID).Order("id ASC").Find(&ports).Error
 	if err != nil {
 		return nil, err
 	}
@@ -115,12 +129,19 @@ func (r *Repository) HasOtherForwardOnNodePort(nodeID int64, port int, currentFo
 	if r == nil || r.db == nil {
 		return false, errors.New("repository not initialized")
 	}
+	return r.HasOtherForwardOnNodePortTx(r.db, nodeID, port, currentForwardID)
+}
+
+func (r *Repository) HasOtherForwardOnNodePortTx(tx *gorm.DB, nodeID int64, port int, currentForwardID int64) (bool, error) {
+	if tx == nil {
+		return false, errors.New("database unavailable")
+	}
 	if nodeID <= 0 || port <= 0 {
 		return false, nil
 	}
 
 	var count int64
-	err := r.db.Model(&model.ForwardPort{}).
+	err := tx.Model(&model.ForwardPort{}).
 		Where("node_id = ? AND port = ? AND forward_id <> ?", nodeID, port, currentForwardID).
 		Count(&count).Error
 	if err != nil {

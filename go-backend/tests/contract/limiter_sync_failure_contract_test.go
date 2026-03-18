@@ -705,7 +705,7 @@ func TestTunnelUpdateChangesEntryNodeButLeavesOldForwardRuntimeContract(t *testi
 	}
 
 	oldEntryNodeID := insertNode("issue281-old-entry", "issue281-old-entry-secret", "10.51.0.1", "51000-51010", 0)
-	newEntryNodeID := insertNode("issue281-new-entry", "issue281-new-entry-secret", "10.51.0.2", "52000-52010", 1)
+	newEntryNodeID := insertNode("issue281-new-entry", "issue281-new-entry-secret", "10.51.0.2", "51000-51010", 1)
 	exitNodeID := insertNode("issue281-exit", "issue281-exit-secret", "10.51.0.3", "53000-53010", 2)
 
 	if err := r.DB().Exec(`
@@ -881,8 +881,8 @@ func TestTunnelUpdateEntryTransitionsCleanupForwardRuntimeContract(t *testing.T)
 	}
 
 	entryA := insertNode("issue281-transition-entry-a", "issue281-transition-entry-a-secret", "10.52.0.1", "54000-54010", 0)
-	entryB := insertNode("issue281-transition-entry-b", "issue281-transition-entry-b-secret", "10.52.0.2", "55000-55010", 1)
-	entryC := insertNode("issue281-transition-entry-c", "issue281-transition-entry-c-secret", "10.52.0.3", "56000-56010", 2)
+	entryB := insertNode("issue281-transition-entry-b", "issue281-transition-entry-b-secret", "10.52.0.2", "54000-54010", 1)
+	entryC := insertNode("issue281-transition-entry-c", "issue281-transition-entry-c-secret", "10.52.0.3", "54000-54010", 2)
 	exitNodeID := insertNode("issue281-transition-exit", "issue281-transition-exit-secret", "10.52.0.4", "57000-57010", 3)
 
 	if err := r.DB().Exec(`
