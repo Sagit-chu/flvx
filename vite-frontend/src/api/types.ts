@@ -222,6 +222,50 @@ export interface BatchOperationFailure {
   [key: string]: unknown;
 }
 
+export interface TunnelDeletePreviewForwardApiItem {
+  id: number;
+  name: string;
+  userId: number;
+  userName: string;
+  inPort: number;
+  [key: string]: unknown;
+}
+
+export interface TunnelDeletePreviewApiData {
+  tunnelId: number;
+  tunnelName: string;
+  forwardCount: number;
+  sampleForwards: TunnelDeletePreviewForwardApiItem[];
+  [key: string]: unknown;
+}
+
+export interface TunnelBatchDeletePreviewApiData {
+  tunnelCount: number;
+  totalForwardCount: number;
+  items: TunnelDeletePreviewApiData[];
+  [key: string]: unknown;
+}
+
+export interface TunnelDeleteWithForwardsApiData {
+  forwardCount: number;
+  migratedCount: number;
+  deletedForwardCount: number;
+  portAdjustedCount: number;
+  warnings?: string[];
+  [key: string]: unknown;
+}
+
+export interface TunnelBatchDeleteWithForwardsApiData {
+  successCount: number;
+  failCount: number;
+  failures?: BatchOperationFailure[];
+  deletedForwardCount: number;
+  migratedCount: number;
+  portAdjustedCount: number;
+  warnings?: string[];
+  [key: string]: unknown;
+}
+
 export interface UserMutationPayload {
   id?: number;
   user?: string;

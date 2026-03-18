@@ -1,4 +1,8 @@
-import type { BatchOperationFailure } from "@/api/types";
+import type {
+  BatchOperationFailure,
+  TunnelBatchDeletePreviewApiData,
+  TunnelDeletePreviewApiData,
+} from "@/api/types";
 
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import toast from "react-hot-toast";
@@ -40,16 +44,19 @@ import { Divider } from "@/shadcn-bridge/heroui/divider";
 import { Alert } from "@/shadcn-bridge/heroui/alert";
 import { Checkbox } from "@/shadcn-bridge/heroui/checkbox";
 import { Progress } from "@/shadcn-bridge/heroui/progress";
+import { Radio, RadioGroup } from "@/shadcn-bridge/heroui/radio";
 import {
   createTunnel,
+  batchDeleteTunnelsWithForwards,
   getTunnelList,
   updateTunnel,
-  deleteTunnel,
+  deleteTunnelWithForwards,
   getNodeList,
   diagnoseTunnel,
   updateTunnelOrder,
-  batchDeleteTunnels,
   batchRedeployTunnels,
+  previewBatchTunnelDelete,
+  previewTunnelDelete,
 } from "@/api";
 import { PageLoadingState } from "@/components/page-state";
 import {
@@ -136,12 +143,16 @@ interface BatchResultModalState {
   title: string;
 }
 
+type TunnelDeleteAction = "replace" | "delete_forwards";
+
 const EMPTY_BATCH_RESULT_MODAL_STATE: BatchResultModalState = {
   failures: [],
   open: false,
   summary: "",
   title: "",
 };
+
+const DEFAULT_TUNNEL_DELETE_ACTION: TunnelDeleteAction = "replace";
 
 const TUNNEL_ORDER_KEY = "tunnel-order";
 
@@ -178,8 +189,16 @@ export default function TunnelPage() {
   const [isEdit, setIsEdit] = useState(false);
   const [submitLoading, setSubmitLoading] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
+  const [deletePreviewLoading, setDeletePreviewLoading] = useState(false);
   const [diagnosisLoading, setDiagnosisLoading] = useState(false);
   const [tunnelToDelete, setTunnelToDelete] = useState<Tunnel | null>(null);
+  const [tunnelDeletePreview, setTunnelDeletePreview] =
+    useState<TunnelDeletePreviewApiData | null>(null);
+  const [deleteAction, setDeleteAction] =
+    useState<TunnelDeleteAction>(DEFAULT_TUNNEL_DELETE_ACTION);
+  const [deleteTargetTunnelId, setDeleteTargetTunnelId] = useState<number | null>(
+    null,
+  );
   const [currentDiagnosisTunnel, setCurrentDiagnosisTunnel] =
     useState<Tunnel | null>(null);
   const [diagnosisResult, setDiagnosisResult] =
@@ -247,6 +266,15 @@ export default function TunnelPage() {
   const [selectMode, setSelectMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [batchDeleteModalOpen, setBatchDeleteModalOpen] = useState(false);
+  const [batchDeletePreviewLoading, setBatchDeletePreviewLoading] =
+    useState(false);
+  const [batchDeletePreview, setBatchDeletePreview] =
+    useState<TunnelBatchDeletePreviewApiData | null>(null);
+  const [batchDeleteAction, setBatchDeleteAction] =
+    useState<TunnelDeleteAction>(DEFAULT_TUNNEL_DELETE_ACTION);
+  const [batchDeleteTargetTunnelId, setBatchDeleteTargetTunnelId] = useState<
+    number | null
+  >(null);
   const [batchLoading, setBatchLoading] = useState(false);
   const [batchProgress, setBatchProgress] = useState<BatchProgressState>({
     active: false,
@@ -339,6 +367,42 @@ export default function TunnelPage() {
     loadData();
   }, [loadData]);
 
+  const resetDeleteState = useCallback(() => {
+    setDeleteLoading(false);
+    setDeletePreviewLoading(false);
+    setTunnelToDelete(null);
+    setTunnelDeletePreview(null);
+    setDeleteAction(DEFAULT_TUNNEL_DELETE_ACTION);
+    setDeleteTargetTunnelId(null);
+  }, []);
+
+  const handleDeleteModalOpenChange = useCallback(
+    (open: boolean) => {
+      setDeleteModalOpen(open);
+      if (!open) {
+        resetDeleteState();
+      }
+    },
+    [resetDeleteState],
+  );
+
+  const resetBatchDeleteState = useCallback(() => {
+    setBatchDeletePreviewLoading(false);
+    setBatchDeletePreview(null);
+    setBatchDeleteAction(DEFAULT_TUNNEL_DELETE_ACTION);
+    setBatchDeleteTargetTunnelId(null);
+  }, []);
+
+  const handleBatchDeleteModalOpenChange = useCallback(
+    (open: boolean) => {
+      setBatchDeleteModalOpen(open);
+      if (!open) {
+        resetBatchDeleteState();
+      }
+    },
+    [resetBatchDeleteState],
+  );
+
   // 表单验证
   const validateForm = (): boolean => {
     const newErrors = validateTunnelForm(form, nodes);
@@ -384,22 +448,78 @@ export default function TunnelPage() {
   };
 
   // 删除隧道
-  const handleDelete = (tunnel: Tunnel) => {
+  const handleDelete = async (tunnel: Tunnel) => {
     setTunnelToDelete(tunnel);
     setDeleteModalOpen(true);
+
+    setDeletePreviewLoading(true);
+    setTunnelDeletePreview(null);
+    setDeleteAction(DEFAULT_TUNNEL_DELETE_ACTION);
+    setDeleteTargetTunnelId(null);
+
+    try {
+      const response = await previewTunnelDelete(tunnel.id);
+
+      if (response.code !== 0 || !response.data) {
+        toast.error(response.msg || "获取删除依赖失败");
+        setDeleteModalOpen(false);
+        resetDeleteState();
+
+        return;
+      }
+
+      setTunnelDeletePreview(response.data);
+    } catch (error) {
+      toast.error(extractApiErrorMessage(error, "获取删除依赖失败"));
+      setDeleteModalOpen(false);
+      resetDeleteState();
+    } finally {
+      setDeletePreviewLoading(false);
+    }
   };
 
   const confirmDelete = async () => {
     if (!tunnelToDelete) return;
 
+    const forwardCount = tunnelDeletePreview?.forwardCount ?? 0;
+    const action: TunnelDeleteAction =
+      forwardCount > 0 ? deleteAction : "delete_forwards";
+
+    if (
+      action === "replace" &&
+      forwardCount > 0 &&
+      (!deleteTargetTunnelId ||
+        !deleteReplacementTunnels.some(
+          (tunnel) => tunnel.id === deleteTargetTunnelId,
+        ))
+    ) {
+      toast.error("请选择替换规则的目标隧道");
+
+      return;
+    }
+
     setDeleteLoading(true);
     try {
-      const response = await deleteTunnel(tunnelToDelete.id);
+      const response = await deleteTunnelWithForwards({
+        id: tunnelToDelete.id,
+        action,
+        targetTunnelId:
+          action === "replace" ? deleteTargetTunnelId ?? undefined : undefined,
+      });
 
       if (response.code === 0) {
-        toast.success("删除成功");
+        const deleteResult = (response.data || null) as {
+          warnings?: string[];
+        } | null;
+
+        if ((deleteResult?.warnings?.length ?? 0) > 0) {
+          toast.success(
+            `删除成功，另有 ${deleteResult?.warnings?.length ?? 0} 条节点清理提示`,
+          );
+        } else {
+          toast.success("删除成功");
+        }
         setDeleteModalOpen(false);
-        setTunnelToDelete(null);
         setTunnels((prev) =>
           prev.filter((tunnel) => tunnel.id !== tunnelToDelete.id),
         );
@@ -417,11 +537,32 @@ export default function TunnelPage() {
 
           return next;
         });
+        resetDeleteState();
+      } else if (
+        response.data &&
+        typeof response.data === "object" &&
+        Number((response.data as { failCount?: number }).failCount ?? 0) > 0
+      ) {
+        const result = response.data as {
+          failCount?: number;
+          successCount?: number;
+        };
+        const failures = extractBatchFailures(response.data);
+
+        if (failures.length > 0) {
+          setBatchResultModal({
+            failures,
+            open: true,
+            summary: `成功 ${Number(result.successCount ?? 0)} 项，失败 ${Number(result.failCount ?? failures.length)} 项`,
+            title: "规则处理失败",
+          });
+        }
+        toast.error(response.msg || "删除失败");
       } else {
         toast.error(response.msg || "删除失败");
       }
-    } catch {
-      toast.error("删除失败");
+    } catch (error) {
+      toast.error(extractApiErrorMessage(error, "删除失败"));
     } finally {
       setDeleteLoading(false);
     }
@@ -877,8 +1018,48 @@ export default function TunnelPage() {
     [],
   );
 
+  const handleOpenBatchDeleteModal = async () => {
+    if (selectedIds.size === 0) return;
+
+    setBatchDeleteModalOpen(true);
+    setBatchDeletePreviewLoading(true);
+    setBatchDeletePreview(null);
+    setBatchDeleteAction(DEFAULT_TUNNEL_DELETE_ACTION);
+    setBatchDeleteTargetTunnelId(null);
+
+    try {
+      const response = await previewBatchTunnelDelete(selectedTunnelIdList);
+
+      if (response.code !== 0 || !response.data) {
+        toast.error(response.msg || "获取批量删除依赖失败");
+        setBatchDeleteModalOpen(false);
+        resetBatchDeleteState();
+
+        return;
+      }
+
+      setBatchDeletePreview(response.data);
+    } catch (error) {
+      toast.error(extractApiErrorMessage(error, "获取批量删除依赖失败"));
+      setBatchDeleteModalOpen(false);
+      resetBatchDeleteState();
+    } finally {
+      setBatchDeletePreviewLoading(false);
+    }
+  };
+
   const handleBatchDelete = async () => {
     if (selectedIds.size === 0) return;
+    if (
+      batchDeleteHasForwardDependencies &&
+      batchDeleteAction === "replace" &&
+      (!batchDeleteTargetTunnelId || batchDeleteReplaceUnavailable)
+    ) {
+      toast.error("请选择替换规则的目标隧道");
+
+      return;
+    }
+
     setBatchLoading(true);
     setBatchProgress({
       active: true,
@@ -886,27 +1067,39 @@ export default function TunnelPage() {
       percent: 30,
     });
     try {
-      const res = await batchDeleteTunnels(Array.from(selectedIds));
+      const res = await batchDeleteTunnelsWithForwards({
+        ids: selectedTunnelIdList,
+        action: batchDeleteHasForwardDependencies
+          ? batchDeleteAction
+          : "delete_forwards",
+        targetTunnelId:
+          batchDeleteHasForwardDependencies && batchDeleteAction === "replace"
+            ? batchDeleteTargetTunnelId ?? undefined
+            : undefined,
+      });
 
       if (res.code === 0) {
-        const result = res.data;
+        const result = (res.data || {
+          successCount: 0,
+          failCount: 0,
+          warnings: [],
+        }) as {
+          successCount: number;
+          failCount: number;
+          warnings?: string[];
+        };
+        const warningCount = result?.warnings?.length ?? 0;
 
         if (result.failCount === 0) {
-          toast.success(`成功删除 ${result.successCount} 项`);
+          toast.success(
+            warningCount > 0
+              ? `成功删除 ${result.successCount} 项，另有 ${warningCount} 条节点清理提示`
+              : `成功删除 ${result.successCount} 项`,
+          );
           setBatchProgress({
             active: true,
             label: `删除完成：成功 ${result.successCount} 项`,
             percent: 100,
-          });
-          setTunnels((prev) =>
-            prev.filter((tunnel) => !selectedIds.has(tunnel.id)),
-          );
-          setTunnelOrder((prev) => {
-            const next = prev.filter((id) => !selectedIds.has(id));
-
-            saveOrder(TUNNEL_ORDER_KEY, next);
-
-            return next;
           });
         } else {
           const failures = extractBatchFailures(result);
@@ -927,11 +1120,12 @@ export default function TunnelPage() {
             label: `部分完成：成功 ${result.successCount} 项，正在刷新列表...`,
             percent: 75,
           });
-          await refreshTunnelList(false);
         }
+        await refreshTunnelList(false);
         setSelectedIds(new Set());
         setSelectMode(false);
         setBatchDeleteModalOpen(false);
+        resetBatchDeleteState();
       } else {
         toast.error(res.msg || "删除失败");
       }
@@ -1069,6 +1263,150 @@ export default function TunnelPage() {
     [sortedTunnels],
   );
 
+  const deleteReplacementTunnels = useMemo(() => {
+    if (!tunnelToDelete) {
+      return [] as Tunnel[];
+    }
+
+    return tunnels
+      .filter((tunnel) => tunnel.id !== tunnelToDelete.id && tunnel.status === 1)
+      .sort((a, b) => {
+        const aInx = a.inx ?? 0;
+        const bInx = b.inx ?? 0;
+
+        return aInx - bInx;
+      });
+  }, [tunnelToDelete, tunnels]);
+
+  useEffect(() => {
+    if (!deleteModalOpen) {
+      return;
+    }
+
+    if ((tunnelDeletePreview?.forwardCount ?? 0) <= 0) {
+      return;
+    }
+
+    if (deleteReplacementTunnels.length === 0) {
+      setDeleteAction("delete_forwards");
+      setDeleteTargetTunnelId(null);
+
+      return;
+    }
+
+    if (deleteAction !== "replace") {
+      return;
+    }
+
+    setDeleteTargetTunnelId((prev) => {
+      if (prev && deleteReplacementTunnels.some((tunnel) => tunnel.id === prev)) {
+        return prev;
+      }
+
+      return deleteReplacementTunnels[0]?.id ?? null;
+    });
+  }, [
+    deleteAction,
+    deleteModalOpen,
+    deleteReplacementTunnels,
+    tunnelDeletePreview?.forwardCount,
+  ]);
+
+  const deletePreviewForwardCount = tunnelDeletePreview?.forwardCount ?? 0;
+  const deleteHasForwardDependencies = deletePreviewForwardCount > 0;
+  const deleteReplaceUnavailable =
+    deleteHasForwardDependencies && deleteReplacementTunnels.length === 0;
+  const deleteConfirmLabel = deleteHasForwardDependencies
+    ? deleteAction === "replace"
+      ? "迁移规则后删除该隧道"
+      : "删除规则并删除该隧道"
+    : "删除该隧道";
+
+  const selectedTunnelIdList = useMemo(
+    () => Array.from(selectedIds),
+    [selectedIds],
+  );
+  const batchDeleteReplacementTunnels = useMemo(() => {
+    if (selectedIds.size === 0) {
+      return [] as Tunnel[];
+    }
+
+    return tunnels
+      .filter((tunnel) => !selectedIds.has(tunnel.id) && tunnel.status === 1)
+      .sort((a, b) => {
+        const aInx = a.inx ?? 0;
+        const bInx = b.inx ?? 0;
+
+        return aInx - bInx;
+      });
+  }, [selectedIds, tunnels]);
+
+  useEffect(() => {
+    if (!batchDeleteModalOpen) {
+      return;
+    }
+
+    if ((batchDeletePreview?.totalForwardCount ?? 0) <= 0) {
+      return;
+    }
+
+    if (batchDeleteReplacementTunnels.length === 0) {
+      setBatchDeleteAction("delete_forwards");
+      setBatchDeleteTargetTunnelId(null);
+
+      return;
+    }
+
+    if (batchDeleteAction !== "replace") {
+      return;
+    }
+
+    setBatchDeleteTargetTunnelId((prev) => {
+      if (
+        prev &&
+        batchDeleteReplacementTunnels.some((tunnel) => tunnel.id === prev)
+      ) {
+        return prev;
+      }
+
+      return batchDeleteReplacementTunnels[0]?.id ?? null;
+    });
+  }, [
+    batchDeleteAction,
+    batchDeleteModalOpen,
+    batchDeletePreview?.totalForwardCount,
+    batchDeleteReplacementTunnels,
+  ]);
+
+  const batchDeleteTotalForwardCount = batchDeletePreview?.totalForwardCount ?? 0;
+  const batchDeleteHasForwardDependencies = batchDeleteTotalForwardCount > 0;
+  const batchDeleteDependentTunnelCount =
+    batchDeletePreview?.items?.filter((item) => item.forwardCount > 0).length ?? 0;
+  const batchDeleteDirectDeleteTunnelCount = Math.max(
+    selectedTunnelIdList.length - batchDeleteDependentTunnelCount,
+    0,
+  );
+  const batchDeletePreviewItems = useMemo(() => {
+    return [...(batchDeletePreview?.items ?? [])].sort((a, b) => {
+      if ((a.forwardCount > 0) === (b.forwardCount > 0)) {
+        return a.tunnelName.localeCompare(b.tunnelName, "zh-CN");
+      }
+
+      return a.forwardCount > 0 ? -1 : 1;
+    });
+  }, [batchDeletePreview?.items]);
+  const batchDeleteDependentItems = useMemo(
+    () => batchDeletePreviewItems.filter((item) => item.forwardCount > 0),
+    [batchDeletePreviewItems],
+  );
+  const batchDeleteReplaceUnavailable =
+    batchDeleteHasForwardDependencies && batchDeleteReplacementTunnels.length === 0;
+  const batchDeleteConfirmLabel = batchDeleteHasForwardDependencies
+    ? batchDeleteAction === "replace"
+      ? `迁移规则后删除这 ${selectedTunnelIdList.length} 条隧道`
+      : `删除规则并删除 ${selectedTunnelIdList.length} 条隧道`
+    : `删除这 ${selectedTunnelIdList.length} 条隧道`;
+
   const SortableItem = ({
     id,
     children,
@@ -1151,7 +1489,7 @@ export default function TunnelPage() {
                   isDisabled={selectedIds.size === 0}
                   size="sm"
                   variant="flat"
-                  onPress={() => setBatchDeleteModalOpen(true)}
+                  onPress={handleOpenBatchDeleteModal}
                 >
                   删除
                 </Button>
@@ -2459,22 +2797,143 @@ export default function TunnelPage() {
         placement="center"
         scrollBehavior="outside"
         size="2xl"
-        onOpenChange={setDeleteModalOpen}
+        onOpenChange={handleDeleteModalOpenChange}
       >
         <ModalContent>
           {(onClose) => (
             <>
               <ModalHeader className="flex flex-col gap-1">
-                <h2 className="text-xl font-bold">确认删除</h2>
+                <h2 className="text-lg font-bold sm:text-xl">删除隧道</h2>
+                <p className="text-xs font-normal leading-5 text-default-500 sm:text-sm">
+                  {tunnelDeletePreview?.tunnelName || tunnelToDelete?.name
+                    ? `即将删除“${tunnelDeletePreview?.tunnelName || tunnelToDelete?.name}”，删除前会先检查是否有关联规则。`
+                    : "删除前会先检查是否有关联规则。"}
+                </p>
               </ModalHeader>
-              <ModalBody>
-                <p>
-                  确定要删除隧道{" "}
-                  <strong>&quot;{tunnelToDelete?.name}&quot;</strong> 吗？
-                </p>
-                <p className="text-small text-default-500">
-                  此操作不可恢复，请谨慎操作。
-                </p>
+              <ModalBody className="space-y-3 sm:space-y-4">
+                {deletePreviewLoading ? (
+                  <div className="flex items-center gap-3 rounded-xl border border-divider bg-content2/40 px-3 py-5 text-sm text-default-600 sm:px-4 sm:py-6">
+                    <Spinner size="sm" />
+                    正在检查是否有规则正在使用该隧道...
+                  </div>
+                ) : deleteHasForwardDependencies ? (
+                  <>
+                    <Alert
+                      color="warning"
+                      description={`隧道 \"${tunnelDeletePreview?.tunnelName || tunnelToDelete?.name || ""}\" 当前被 ${deletePreviewForwardCount} 条规则使用。删除前需要先处理这些规则。`}
+                      title="发现关联规则"
+                      variant="flat"
+                    />
+
+                    {(tunnelDeletePreview?.sampleForwards?.length ?? 0) > 0 ? (
+                      <div className="space-y-3 rounded-xl border border-divider bg-content2/40 p-3 sm:p-4">
+                        <div className="flex items-center justify-between gap-3">
+                          <h3 className="text-sm font-semibold text-foreground">
+                            关联规则预览
+                          </h3>
+                          <span className="text-xs text-default-500">
+                            前 {tunnelDeletePreview?.sampleForwards?.length ?? 0} 条
+                          </span>
+                        </div>
+                        <div className="space-y-2">
+                          {tunnelDeletePreview?.sampleForwards?.map((forward) => (
+                            <div
+                              key={forward.id}
+                              className="rounded-lg border border-divider/70 bg-background/80 px-2.5 py-2 sm:px-3"
+                            >
+                              <div className="flex items-center justify-between gap-3">
+                                <span className="truncate text-sm font-medium text-foreground">
+                                  {forward.name}
+                                </span>
+                                <span className="shrink-0 font-mono text-xs text-default-500">
+                                  :{forward.inPort || 0}
+                                </span>
+                              </div>
+                              <p className="mt-1 text-xs text-default-500">
+                                用户：{forward.userName || `#${forward.userId}`}
+                              </p>
+                            </div>
+                          ))}
+                        </div>
+                        {deletePreviewForwardCount >
+                        (tunnelDeletePreview?.sampleForwards?.length ?? 0) ? (
+                          <p className="text-xs text-default-500">
+                            还有 {deletePreviewForwardCount - (tunnelDeletePreview?.sampleForwards?.length ?? 0)} 条规则未展开显示。
+                          </p>
+                        ) : null}
+                      </div>
+                    ) : null}
+
+                    <RadioGroup
+                      label="处理方式"
+                      value={deleteAction}
+                      onValueChange={(value) => {
+                        const nextAction = value as TunnelDeleteAction;
+
+                        setDeleteAction(nextAction);
+                        if (nextAction !== "replace") {
+                          setDeleteTargetTunnelId(null);
+                          return;
+                        }
+
+                        setDeleteTargetTunnelId(
+                          deleteReplacementTunnels[0]?.id ?? null,
+                        );
+                      }}
+                    >
+                      <Radio value="replace">
+                        保留规则，迁移到其他隧道{deleteReplaceUnavailable ? "（当前无可用目标）" : "（推荐）"}
+                      </Radio>
+                      <Radio value="delete_forwards">直接删除这些关联规则</Radio>
+                    </RadioGroup>
+
+                    {deleteReplaceUnavailable ? (
+                      <Alert
+                        color="warning"
+                        description="当前没有其他启用中的隧道可用于承接这些规则，只能删除关联规则后再删除该隧道。"
+                        variant="flat"
+                      />
+                    ) : null}
+
+                    {deleteAction === "replace" && !deleteReplaceUnavailable ? (
+                      <div className="space-y-2">
+                        <Select
+                          label="目标隧道"
+                          placeholder="请选择目标隧道"
+                          selectedKeys={
+                            deleteTargetTunnelId
+                              ? [String(deleteTargetTunnelId)]
+                              : []
+                          }
+                          variant="bordered"
+                          onSelectionChange={(keys) => {
+                            const selected = Array.from(keys)[0];
+
+                            setDeleteTargetTunnelId(
+                              selected ? Number(selected) : null,
+                            );
+                          }}
+                        >
+                          {deleteReplacementTunnels.map((tunnel) => (
+                            <SelectItem key={String(tunnel.id)}>
+                              {tunnel.name}
+                            </SelectItem>
+                          ))}
+                        </Select>
+                        <p className="text-xs text-default-500">
+                          关联规则会迁移到这里，当前要删除的隧道不会出现在可选项里。
+                        </p>
+                      </div>
+                    ) : null}
+                  </>
+                ) : (
+                  <Alert
+                    color="warning"
+                    description={`当前未发现关联规则。确认后将直接删除“${tunnelToDelete?.name || "该隧道"}”，此操作不可撤销。`}
+                    title="可以直接删除"
+                    variant="flat"
+                  />
+                )}
               </ModalBody>
               <ModalFooter>
                 <Button variant="light" onPress={onClose}>
@@ -2482,10 +2941,16 @@ export default function TunnelPage() {
                 </Button>
                 <Button
                   color="danger"
+                  isDisabled={
+                    deletePreviewLoading ||
+                    (deleteHasForwardDependencies &&
+                      deleteAction === "replace" &&
+                      (!deleteTargetTunnelId || deleteReplaceUnavailable))
+                  }
                   isLoading={deleteLoading}
                   onPress={confirmDelete}
                 >
-                  {deleteLoading ? "删除中..." : "确认删除"}
+                  {deleteLoading ? "删除中..." : deleteConfirmLabel}
                 </Button>
               </ModalFooter>
             </>
@@ -3085,17 +3550,154 @@ export default function TunnelPage() {
           base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-2xl overflow-hidden",
         }}
         isOpen={batchDeleteModalOpen}
-        onOpenChange={setBatchDeleteModalOpen}
+        onOpenChange={handleBatchDeleteModalOpenChange}
       >
         <ModalContent>
           {(onClose) => (
             <>
-              <ModalHeader>确认删除</ModalHeader>
-              <ModalBody>
-                <p>
-                  确定要删除选中的 {selectedIds.size}{" "}
-                  项隧道吗？此操作不可撤销，相关规则也将被删除。
+              <ModalHeader className="flex flex-col gap-1">
+                <h2 className="text-lg font-bold sm:text-xl">批量删除隧道</h2>
+                <p className="text-xs font-normal leading-5 text-default-500 sm:text-sm">
+                  即将删除这 {selectedTunnelIdList.length} 条隧道，删除前会先检查是否有关联规则。
                 </p>
+              </ModalHeader>
+              <ModalBody className="space-y-3 sm:space-y-4">
+                {batchDeletePreviewLoading ? (
+                  <div className="flex items-center gap-3 rounded-xl border border-divider bg-content2/40 px-3 py-5 text-sm text-default-600 sm:px-4 sm:py-6">
+                    <Spinner size="sm" />
+                    正在检查选中隧道是否有关联规则...
+                  </div>
+                ) : batchDeleteHasForwardDependencies ? (
+                  <>
+                    <Alert
+                      color="warning"
+                      description={`已选 ${selectedTunnelIdList.length} 条隧道，其中 ${batchDeleteDependentTunnelCount} 条仍被规则使用，共 ${batchDeleteTotalForwardCount} 条规则待处理。${batchDeleteDirectDeleteTunnelCount > 0 ? `其余 ${batchDeleteDirectDeleteTunnelCount} 条会直接删除。` : ""}`}
+                      title="发现关联规则"
+                      variant="flat"
+                    />
+
+                    <div className="max-h-64 space-y-3 overflow-y-auto rounded-xl border border-divider bg-content2/40 p-3 sm:max-h-72 sm:p-4">
+                      {batchDeleteDependentItems.map((item) => (
+                        <div
+                          key={item.tunnelId}
+                          className="rounded-lg border border-divider/70 bg-background/80 p-2.5 sm:p-3"
+                        >
+                          <div className="flex items-center justify-between gap-3">
+                            <div className="min-w-0">
+                              <p className="truncate text-sm font-medium text-foreground">
+                                {item.tunnelName}
+                              </p>
+                              <p className="mt-1 text-xs text-default-500">
+                                {item.forwardCount} 条规则依赖
+                              </p>
+                            </div>
+                            <Chip color="warning" size="sm" variant="flat">
+                              有关联
+                            </Chip>
+                          </div>
+
+                          {item.sampleForwards.length > 0 ? (
+                            <div className="mt-3 space-y-2">
+                              {item.sampleForwards.map((forward) => (
+                                <div
+                                  key={forward.id}
+                                  className="rounded-md bg-content1/70 px-2.5 py-2 sm:px-3"
+                                >
+                                  <div className="flex items-center justify-between gap-3">
+                                    <span className="truncate text-xs font-medium text-foreground">
+                                      {forward.name}
+                                    </span>
+                                    <span className="shrink-0 font-mono text-[11px] text-default-500">
+                                      :{forward.inPort || 0}
+                                    </span>
+                                  </div>
+                                  <p className="mt-1 text-[11px] text-default-500">
+                                    用户：{forward.userName || `#${forward.userId}`}
+                                  </p>
+                                </div>
+                              ))}
+                              {item.forwardCount > item.sampleForwards.length ? (
+                                <p className="text-[11px] text-default-500">
+                                  还有 {item.forwardCount - item.sampleForwards.length} 条规则未展开显示。
+                                </p>
+                              ) : null}
+                            </div>
+                          ) : null}
+                        </div>
+                      ))}
+                    </div>
+
+                    <RadioGroup
+                      label="处理方式"
+                      value={batchDeleteAction}
+                      onValueChange={(value) => {
+                        const nextAction = value as TunnelDeleteAction;
+
+                        setBatchDeleteAction(nextAction);
+                        if (nextAction !== "replace") {
+                          setBatchDeleteTargetTunnelId(null);
+                          return;
+                        }
+
+                        setBatchDeleteTargetTunnelId(
+                          batchDeleteReplacementTunnels[0]?.id ?? null,
+                        );
+                      }}
+                    >
+                      <Radio value="replace">
+                        保留规则，统一迁移到其他隧道{batchDeleteReplaceUnavailable ? "（当前无可用目标）" : "（推荐）"}
+                      </Radio>
+                      <Radio value="delete_forwards">直接删除这些关联规则</Radio>
+                    </RadioGroup>
+
+                    {batchDeleteReplaceUnavailable ? (
+                      <Alert
+                        color="warning"
+                        description="当前没有可承接这些规则的启用隧道，只能删除关联规则后再删除所选隧道。"
+                        variant="flat"
+                      />
+                    ) : null}
+
+                    {batchDeleteAction === "replace" &&
+                    !batchDeleteReplaceUnavailable ? (
+                      <div className="space-y-2">
+                        <Select
+                          label="目标隧道"
+                          placeholder="请选择目标隧道"
+                          selectedKeys={
+                            batchDeleteTargetTunnelId
+                              ? [String(batchDeleteTargetTunnelId)]
+                              : []
+                          }
+                          variant="bordered"
+                          onSelectionChange={(keys) => {
+                            const selected = Array.from(keys)[0];
+
+                            setBatchDeleteTargetTunnelId(
+                              selected ? Number(selected) : null,
+                            );
+                          }}
+                        >
+                          {batchDeleteReplacementTunnels.map((tunnel) => (
+                            <SelectItem key={String(tunnel.id)}>
+                              {tunnel.name}
+                            </SelectItem>
+                          ))}
+                        </Select>
+                        <p className="text-xs text-default-500">
+                          所有关联规则都会迁移到这里，删除列表中的隧道不会出现在可选项里。
+                        </p>
+                      </div>
+                    ) : null}
+                  </>
+                ) : (
+                  <Alert
+                    color="warning"
+                    description={`已选 ${selectedTunnelIdList.length} 条隧道，当前未发现关联规则。确认后将直接删除这些隧道，此操作不可撤销。`}
+                    title="可以直接删除"
+                    variant="flat"
+                  />
+                )}
               </ModalBody>
               <ModalFooter>
                 <Button variant="light" onPress={onClose}>
@@ -3103,10 +3705,17 @@ export default function TunnelPage() {
                 </Button>
                 <Button
                   color="danger"
+                  isDisabled={
+                    batchDeletePreviewLoading ||
+                    (batchDeleteHasForwardDependencies &&
+                      batchDeleteAction === "replace" &&
+                      (!batchDeleteTargetTunnelId ||
+                        batchDeleteReplaceUnavailable))
+                  }
                   isLoading={batchLoading}
                   onPress={handleBatchDelete}
                 >
-                  确认删除
+                  {batchLoading ? "删除中..." : batchDeleteConfirmLabel}
                 </Button>
               </ModalFooter>
             </>

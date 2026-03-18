@@ -6,6 +6,10 @@ import type {
   NodeReleaseApiItem,
   NodeApiItem,
   SpeedLimitApiItem,
+  TunnelBatchDeletePreviewApiData,
+  TunnelBatchDeleteWithForwardsApiData,
+  TunnelDeletePreviewApiData,
+  TunnelDeleteWithForwardsApiData,
   TunnelDiagnosisApiData,
   TunnelGroupApiItem,
   UserApiItem,
@@ -122,6 +126,30 @@ export const updateTunnel = (data: TunnelMutationPayload) =>
   Network.post("/tunnel/update", data);
 export const deleteTunnel = (id: number) =>
   Network.post("/tunnel/delete", { id });
+export const previewTunnelDelete = (id: number) =>
+  Network.post<TunnelDeletePreviewApiData>("/tunnel/delete-preview", { id });
+export const deleteTunnelWithForwards = (data: {
+  id: number;
+  action: "replace" | "delete_forwards";
+  targetTunnelId?: number;
+}) =>
+  Network.post<TunnelDeleteWithForwardsApiData | BatchOperationResult>(
+    "/tunnel/delete-with-forwards",
+    data,
+  );
+export const previewBatchTunnelDelete = (ids: number[]) =>
+  Network.post<TunnelBatchDeletePreviewApiData>("/tunnel/batch-delete-preview", {
+    ids,
+  });
+export const batchDeleteTunnelsWithForwards = (data: {
+  ids: number[];
+  action: "replace" | "delete_forwards";
+  targetTunnelId?: number;
+}) =>
+  Network.post<TunnelBatchDeleteWithForwardsApiData>(
+    "/tunnel/batch-delete-with-forwards",
+    data,
+  );
 export const diagnoseTunnel = (tunnelId: number) =>
   Network.post<TunnelDiagnosisApiData>(
     "/tunnel/diagnose",
