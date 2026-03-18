@@ -1428,7 +1428,7 @@ export default function UserPage() {
 
                     {/* 顶部触发框 */}
                     <div
-                      className={`group flex items-center justify-between px-4 py-3 rounded-xl border-2 transition-all cursor-pointer shadow-sm w-[320px] ${isTunnelListExpanded ? "border-primary bg-white ring-2 ring-primary/10" : "border-default-200 bg-default-50 hover:border-primary-300"}`}
+                      className={`group flex items-center justify-between px-4 py-3 rounded-xl border-2 transition-all cursor-pointer shadow-sm w-[320px] ${isTunnelListExpanded ? "border-primary bg-white ring-2 ring-primary/10 dark:bg-default-100 dark:ring-primary/20" : "border-default-200 bg-default-50 hover:border-primary-300 dark:hover:bg-default-100 dark:hover:border-primary-400"}`}
                       onClick={() =>
                         setIsTunnelListExpanded(!isTunnelListExpanded)
                       }
@@ -1458,7 +1458,7 @@ export default function UserPage() {
                     {/* 列表悬浮层 */}
                     {isTunnelListExpanded && (
                       <div
-                        className="absolute top-[calc(100%+8px)] left-0 w-[320px] border border-default-200 rounded-2xl bg-white dark:bg-default-900 shadow-2xl overflow-hidden z-[999]"
+                        className="absolute top-[calc(100%+8px)] left-0 z-[999] w-[320px] overflow-hidden rounded-2xl border border-default-200 bg-white text-foreground shadow-2xl dark:bg-default-50"
                         onClick={(e) => e.stopPropagation()}
                       >
                         <div className="max-h-[350px] overflow-y-auto p-2 custom-scrollbar">
@@ -1477,7 +1477,7 @@ export default function UserPage() {
                             return (
                               <div
                                 key={tunnel.id}
-                                className={`flex items-center justify-between px-4 py-2.5 rounded-xl mb-1 border transition-all ${isSelected ? "bg-primary-50/60 border-primary-200" : "bg-transparent border-transparent hover:bg-default-100"} ${isAssigned ? "opacity-40 grayscale cursor-not-allowed" : "cursor-pointer"}`}
+                                className={`mb-1 flex items-center justify-between rounded-xl border px-4 py-2.5 transition-all ${isSelected ? "border-primary-200 bg-primary-50/60 dark:border-primary-500/40 dark:bg-primary-900/40" : "border-transparent bg-transparent hover:bg-default-100"} ${isAssigned ? "cursor-not-allowed opacity-40 grayscale" : "cursor-pointer"}`}
                                 // 核心：整行点击直接控制状态
                                 onClick={(e) => {
                                   if (isAssigned) return;
@@ -1487,14 +1487,14 @@ export default function UserPage() {
                               >
                                 <div className="flex items-center gap-4 min-w-0 flex-1">
                                   <Checkbox
-                                    color="primary" 
-                                    isSelected={isSelected} 
+                                    color="primary"
+                                    isSelected={isSelected}
                                     isDisabled={isAssigned}
                                     // 关键：禁用 Checkbox 自身的点击，防止它跟父容器打架
                                     className="pointer-events-none"
                                   />
                                   <span
-                                    className={`text-sm font-medium truncate ${isSelected ? "text-primary-700" : ""}`}
+                                    className={`truncate text-sm font-medium text-foreground ${isSelected ? "text-primary-700 dark:text-primary-300" : ""}`}
                                   >
                                     {tunnel.name}
                                   </span>
@@ -1545,7 +1545,7 @@ export default function UserPage() {
                             );
                           })}
                         </div>
-                        <div className="bg-default-50/80 border-t p-2 flex justify-end">
+                        <div className="flex justify-end border-t border-default-200 bg-default-50/80 p-2 dark:bg-default-100/80">
                           <Button
                             className="font-bold"
                             color="primary"

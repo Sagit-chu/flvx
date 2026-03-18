@@ -399,7 +399,7 @@ export function Select<T>({
       ) : (
         <select
           className={cn(
-            "w-full rounded-md border border-input bg-background px-3 py-2 shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+            "w-full rounded-md border border-input bg-background px-3 py-2 text-foreground shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-ring dark:[color-scheme:dark]",
             sizeClass(size),
             classNames?.trigger,
             className,
@@ -414,6 +414,7 @@ export function Select<T>({
           <option value="">{placeholder ?? "请选择"}</option>
           {options.map((option) => (
             <option
+              className="bg-background text-foreground"
               key={option.key}
               disabled={disabled.has(option.key)}
               value={option.key}
