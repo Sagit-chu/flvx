@@ -29,6 +29,7 @@ import {
   Server,
   Clock,
   ArrowLeft,
+  Eye,
 } from "lucide-react";
 import toast from "react-hot-toast";
 
@@ -77,6 +78,7 @@ import { useNodeRealtime } from "@/pages/node/use-node-realtime";
 
 interface MonitorViewProps {
   nodeMap: Map<number, { id: number; name: string; connectionStatus: string }>;
+  viewMode?: "list" | "grid";
 }
 
 type RealtimeNodeMetric = {
@@ -274,7 +276,7 @@ const DEFAULT_SERVICE_MONITOR_LIMITS: ServiceMonitorLimitsApiData = {
   maxTimeoutSec: 60,
 };
 
-export function MonitorView({ nodeMap }: MonitorViewProps) {
+export function MonitorView({ nodeMap, viewMode = "grid" }: MonitorViewProps) {
   const [detailNodeId, setDetailNodeId] = useState<number | null>(null);
   const [selectedNodeId, setSelectedNodeId] = useState<number | null>(null);
   const [metrics, setMetrics] = useState<NodeMetricApiItem[]>([]);
@@ -1170,7 +1172,7 @@ export function MonitorView({ nodeMap }: MonitorViewProps) {
         </Card>
       )}
 
-      {/* ====== GRID VIEW ====== */}
+      {/* ====== GRID/LIST VIEW ====== */}
       {!accessDenied && !detailNodeId && (
         <>
           <div className="flex flex-wrap items-center gap-3 mb-1">
@@ -1183,22 +1185,134 @@ export function MonitorView({ nodeMap }: MonitorViewProps) {
             {monitorSummary.stale > 0 && <Chip color="warning" size="sm" variant="flat">陈旧 {monitorSummary.stale}</Chip>}
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            {nodes.map((node) => {
-              const metric = realtimeNodeMetrics[node.id] || null;
-              return (
-                <ServerCard
-                  key={node.id}
-                  node={node}
-                  metric={metric}
-                  onPress={() => {
-                    setDetailNodeId(node.id);
-                    setSelectedNodeId(node.id);
-                  }}
-                />
-              );
-            })}
-          </div>
+          {viewMode === "grid" ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+              {nodes.map((node) => {
+                const metric = realtimeNodeMetrics[node.id] || null;
+                return (
+                  <ServerCard
+                    key={node.id}
+                    node={node}
+                    metric={metric}
+                    onPress={() => {
+                      setDetailNodeId(node.id);
+                      setSelectedNodeId(node.id);
+                    }}
+                  />
+                );
+              })}
+            </div>
+          ) : (
+            <Card className="w-full">
+              <Table aria-label="节点列表">
+                <TableHeader>
+                  <TableColumn>状态</TableColumn>
+                  <TableColumn>名称</TableColumn>
+                  <TableColumn>速率</TableColumn>
+                  <TableColumn>流量</TableColumn>
+                  <TableColumn>开机时长</TableColumn>
+                  <TableColumn>连接数</TableColumn>
+                  <TableColumn>CPU</TableColumn>
+                  <TableColumn>RAM</TableColumn>
+                  <TableColumn>存储</TableColumn>
+                  <TableColumn align="center">操作</TableColumn>
+                </TableHeader>
+                <TableBody emptyContent="暂无节点">
+                  {nodes.map((node) => {
+                    const metric = realtimeNodeMetrics[node.id] || null;
+                    const isOnline = node.connectionStatus === "online";
+
+                    return (
+                      <TableRow key={node.id} className="border-b border-divider/50 last:border-b-0">
+                        <TableCell>
+                          <div className={`w-2 h-2 rounded-full ml-1 ${isOnline ? "bg-success" : "bg-danger"}`} />
+                        </TableCell>
+                        <TableCell>
+                          <span className="font-semibold text-sm whitespace-nowrap">{node.name}</span>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex flex-col gap-1.5 text-xs whitespace-nowrap">
+                            <div className="flex items-center gap-1 font-mono text-success-500">
+                              <span className="w-[60px] text-right">{isOnline && metric ? formatBytesPerSecond(metric.netOutSpeed) : "-"}</span> ↑
+                            </div>
+                            <div className="flex items-center gap-1 font-mono text-primary-500">
+                              <span className="w-[60px] text-right">{isOnline && metric ? formatBytesPerSecond(metric.netInSpeed) : "-"}</span> ↓
+                            </div>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex flex-col gap-1.5 text-xs whitespace-nowrap">
+                            <div className="flex items-center gap-1 font-mono text-default-600">
+                              <span className="w-[60px] text-right">{isOnline && metric ? formatBytes(metric.netOutBytes) : "-"}</span> ↑
+                            </div>
+                            <div className="flex items-center gap-1 font-mono text-default-600">
+                              <span className="w-[60px] text-right">{isOnline && metric ? formatBytes(metric.netInBytes) : "-"}</span> ↓
+                            </div>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <span className="font-mono text-xs text-default-500 whitespace-nowrap">
+                            {isOnline && metric ? formatUptime(metric.uptime) : "-"}
+                          </span>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex flex-col gap-1.5 text-xs font-mono text-default-500">
+                            <div>TCP {isOnline && metric ? metric.tcpConns : "-"}</div>
+                            <div>UDP {isOnline && metric ? metric.udpConns : "-"}</div>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            {isOnline && metric ? (
+                              <Progress className="w-[40px] md:w-[60px]" color={getColorByUsage(metric.cpuUsage)} size="sm" value={metric.cpuUsage} />
+                            ) : (
+                              <div className="w-[40px] md:w-[60px] h-2 rounded-full bg-default-100" />
+                            )}
+                            <span className="text-xs font-mono w-9 text-right text-default-500">{isOnline && metric ? `${metric.cpuUsage.toFixed(1)}%` : "-"}</span>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            {isOnline && metric ? (
+                              <Progress className="w-[40px] md:w-[60px]" color={getColorByUsage(metric.memoryUsage)} size="sm" value={metric.memoryUsage} />
+                            ) : (
+                              <div className="w-[40px] md:w-[60px] h-2 rounded-full bg-default-100" />
+                            )}
+                            <span className="text-xs font-mono w-9 text-right text-default-500">{isOnline && metric ? `${metric.memoryUsage.toFixed(1)}%` : "-"}</span>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            {isOnline && metric ? (
+                              <Progress className="w-[40px] md:w-[60px]" color={getColorByUsage(metric.diskUsage)} size="sm" value={metric.diskUsage} />
+                            ) : (
+                              <div className="w-[40px] md:w-[60px] h-2 rounded-full bg-default-100" />
+                            )}
+                            <span className="text-xs font-mono w-9 text-right text-default-500">{isOnline && metric ? `${metric.diskUsage.toFixed(1)}%` : "-"}</span>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex justify-center">
+                            <Button
+                              isIconOnly
+                              size="sm"
+                              variant="light"
+                              onPress={() => {
+                                setDetailNodeId(node.id);
+                                setSelectedNodeId(node.id);
+                              }}
+                            >
+                              <Eye className="w-4 h-4 text-default-500" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </Card>
+          )}
         </>
       )}
 

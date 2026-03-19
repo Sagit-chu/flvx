@@ -2,7 +2,7 @@ import type { MonitorNodeApiItem } from "@/api/types";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
-import { RefreshCw } from "lucide-react";
+import { RefreshCw, LayoutGrid, List } from "lucide-react";
 
 import { AnimatedPage } from "@/components/animated-page";
 import { Button } from "@/shadcn-bridge/heroui/button";
@@ -20,6 +20,7 @@ export default function MonitorPage() {
   const [nodes, setNodes] = useState<MonitorNodeApiItem[]>([]);
   const [nodesLoading, setNodesLoading] = useState(false);
   const [nodesError, setNodesError] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<"list" | "grid">("list");
 
   const loadNodes = useCallback(async (options?: { silent?: boolean }) => {
     const silent = options?.silent ?? false;
@@ -83,15 +84,25 @@ export default function MonitorPage() {
               实时节点状态 + 历史指标图表 + 隧道流量 + 服务监控（TCP/ICMP）
             </div>
           </div>
-          <Button
-            isLoading={nodesLoading}
-            size="sm"
-            variant="flat"
-            onPress={() => loadNodes()}
-          >
-            <RefreshCw className="w-4 h-4 mr-1" />
-            刷新节点
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              isIconOnly
+              size="sm"
+              variant="flat"
+              onPress={() => setViewMode(viewMode === "list" ? "grid" : "list")}
+            >
+              {viewMode === "list" ? <LayoutGrid className="w-4 h-4" /> : <List className="w-4 h-4" />}
+            </Button>
+            <Button
+              isLoading={nodesLoading}
+              size="sm"
+              variant="flat"
+              onPress={() => loadNodes()}
+            >
+              <RefreshCw className="w-4 h-4 mr-1" />
+              刷新节点
+            </Button>
+          </div>
         </div>
 
         {nodesError ? (
@@ -106,7 +117,7 @@ export default function MonitorPage() {
         ) : null}
       </div>
 
-      <MonitorView nodeMap={nodeMap} />
+      <MonitorView nodeMap={nodeMap} viewMode={viewMode} />
     </AnimatedPage>
   );
 }
