@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"math/rand"
 	"net"
 	"net/http"
 	"net/url"
@@ -146,6 +147,9 @@ type ServiceMonitorCheckResult struct {
 const (
 	reporterReadWait  = 60 * time.Second
 	reporterWriteWait = 5 * time.Second
+	wsPingInterval    = 20 * time.Second // 独立 WebSocket ping 间隔
+	initialBackoff    = 2 * time.Second  // 重连初始退避
+	maxBackoff        = 2 * time.Minute  // 重连最大退避
 )
 
 type WebSocketReporter struct {
@@ -155,15 +159,15 @@ type WebSocketReporter struct {
 	version           string // 保存版本号
 	preferredWSScheme string
 	conn              *websocket.Conn
-	reconnectTime     time.Duration
+	curBackoff        time.Duration // 当前重连退避间隔
 	pingInterval      time.Duration
 	configInterval    time.Duration
 	ctx               context.Context
 	cancel            context.CancelFunc
 	connected         bool
-	connecting        bool              // 新增：正在连接状态
-	connMutex         sync.Mutex        // 新增：连接状态锁
-	aesCrypto         *crypto.AESCrypto // 新增：AES加密器
+	connecting        bool              // 正在连接状态
+	connMutex         sync.Mutex        // 连接状态锁
+	aesCrypto         *crypto.AESCrypto // AES加密器
 }
 
 var wsDial = func(dialer *websocket.Dialer, rawURL string) (*websocket.Conn, *http.Response, error) {
@@ -185,7 +189,7 @@ func NewWebSocketReporter(serverURL string, secret string) *WebSocketReporter {
 
 	return &WebSocketReporter{
 		url:            serverURL,
-		reconnectTime:  5 * time.Second,  // 重连间隔
+		curBackoff:     initialBackoff,   // 当前退避间隔
 		pingInterval:   5 * time.Second,  // 指标上报间隔
 		configInterval: 10 * time.Minute, // 配置上报间隔
 		ctx:            ctx,
@@ -204,10 +208,17 @@ func (w *WebSocketReporter) Start() {
 // Stop 停止WebSocket报告器
 func (w *WebSocketReporter) Stop() {
 	w.cancel()
+	w.connMutex.Lock()
 	if w.conn != nil {
 		w.conn.Close()
 	}
+	w.connMutex.Unlock()
+}
 
+// backoffWithJitter 返回带随机抖动的退避时间（±25%）
+func backoffWithJitter(base time.Duration) time.Duration {
+	jitter := time.Duration(float64(base) * (0.75 + rand.Float64()*0.5))
+	return jitter
 }
 
 // run 主运行循环
@@ -224,23 +235,32 @@ func (w *WebSocketReporter) run() {
 
 			if needConnect {
 				if err := w.connect(); err != nil {
-					fmt.Printf("❌ WebSocket连接失败: %v，%v后重试\n", err, w.reconnectTime)
+					wait := backoffWithJitter(w.curBackoff)
+					fmt.Printf("❌ WebSocket连接失败: %v，%v后重试\n", err, wait)
+					// 指数退避：翻倍当前退避间隔，上限 maxBackoff
+					w.curBackoff *= 2
+					if w.curBackoff > maxBackoff {
+						w.curBackoff = maxBackoff
+					}
 					select {
-					case <-time.After(w.reconnectTime):
+					case <-time.After(wait):
 						continue
 					case <-w.ctx.Done():
 						return
 					}
 				}
+				// 连接成功：重置退避
+				w.curBackoff = initialBackoff
 			}
 
 			// 连接成功，开始发送消息
 			if w.connected {
 				w.handleConnection()
 			} else {
+				wait := backoffWithJitter(w.curBackoff)
 				// 如果连接失败，等待重试
 				select {
-				case <-time.After(w.reconnectTime):
+				case <-time.After(wait):
 					continue
 				case <-w.ctx.Done():
 					return
@@ -473,15 +493,34 @@ func (w *WebSocketReporter) handleConnection() {
 	// 启动消息接收goroutine
 	go w.receiveMessages()
 
-	// 主发送循环
-	ticker := time.NewTicker(w.pingInterval)
-	defer ticker.Stop()
+	// 指标上报 ticker
+	metricTicker := time.NewTicker(w.pingInterval)
+	defer metricTicker.Stop()
+
+	// 独立 WebSocket keepalive ping ticker
+	pingTicker := time.NewTicker(wsPingInterval)
+	defer pingTicker.Stop()
 
 	for {
 		select {
 		case <-w.ctx.Done():
 			return
-		case <-ticker.C:
+
+		case <-pingTicker.C:
+			// 发送 WebSocket ping 保活，独立于指标上报
+			w.connMutex.Lock()
+			conn := w.conn
+			isConnected := w.connected
+			w.connMutex.Unlock()
+			if !isConnected || conn == nil {
+				return
+			}
+			if err := conn.WriteControl(websocket.PingMessage, nil, time.Now().Add(reporterWriteWait)); err != nil {
+				fmt.Printf("❌ 发送WebSocket ping失败: %v，准备重连\n", err)
+				return
+			}
+
+		case <-metricTicker.C:
 			// 检查连接状态
 			w.connMutex.Lock()
 			isConnected := w.connected
@@ -548,6 +587,37 @@ func (w *WebSocketReporter) collectSystemInfo() SystemInfo {
 	}
 }
 
+// encryptPayload 加密 JSON 数据，返回加密后的消息字节（若加密失败则回退到原始数据）
+func (w *WebSocketReporter) encryptPayload(jsonData []byte) []byte {
+	if w.aesCrypto == nil {
+		return jsonData
+	}
+
+	encryptedData, err := w.aesCrypto.Encrypt(jsonData)
+	if err != nil {
+		fmt.Printf("⚠️ 加密失败，发送原始数据: %v\n", err)
+		return jsonData
+	}
+
+	encryptedMessage := map[string]interface{}{
+		"encrypted": true,
+		"data":      encryptedData,
+		"timestamp": time.Now().Unix(),
+	}
+	messageData, err := json.Marshal(encryptedMessage)
+	if err != nil {
+		fmt.Printf("⚠️ 序列化加密消息失败，发送原始数据: %v\n", err)
+		return jsonData
+	}
+	return messageData
+}
+
+// metricEnvelope wraps SystemInfo with a type field for fast identification on the panel side.
+type metricEnvelope struct {
+	Type string     `json:"type"`
+	Data SystemInfo `json:"data"`
+}
+
 // sendSystemInfo 发送系统信息
 func (w *WebSocketReporter) sendSystemInfo(sysInfo SystemInfo) error {
 	w.connMutex.Lock()
@@ -557,42 +627,19 @@ func (w *WebSocketReporter) sendSystemInfo(sysInfo SystemInfo) error {
 		return fmt.Errorf("连接未建立")
 	}
 
-	// 转换为JSON
-	jsonData, err := json.Marshal(sysInfo)
+	// 使用 type:"metric" 信封包装，Panel 可通过 type 字段直接识别指标消息
+	envelope := metricEnvelope{Type: "metric", Data: sysInfo}
+	jsonData, err := json.Marshal(envelope)
 	if err != nil {
 		return fmt.Errorf("序列化系统信息失败: %v", err)
 	}
 
-	var messageData []byte
+	messageData := w.encryptPayload(jsonData)
 
-	// 如果有加密器，则加密数据
-	if w.aesCrypto != nil {
-		encryptedData, err := w.aesCrypto.Encrypt(jsonData)
-		if err != nil {
-			fmt.Printf("⚠️ 加密失败，发送原始数据: %v\n", err)
-			messageData = jsonData
-		} else {
-			// 创建加密消息包装器
-			encryptedMessage := map[string]interface{}{
-				"encrypted": true,
-				"data":      encryptedData,
-				"timestamp": time.Now().Unix(),
-			}
-			messageData, err = json.Marshal(encryptedMessage)
-			if err != nil {
-				fmt.Printf("⚠️ 序列化加密消息失败，发送原始数据: %v\n", err)
-				messageData = jsonData
-			}
-		}
-	} else {
-		messageData = jsonData
-	}
-
-	// 设置写入超时
 	w.conn.SetWriteDeadline(time.Now().Add(5 * time.Second))
 
 	if err := w.conn.WriteMessage(websocket.TextMessage, messageData); err != nil {
-		w.connected = false // 标记连接已断开
+		w.connected = false
 		return fmt.Errorf("写入消息失败: %v", err)
 	}
 
@@ -601,23 +648,19 @@ func (w *WebSocketReporter) sendSystemInfo(sysInfo SystemInfo) error {
 
 // receiveMessages 接收服务端发送的消息
 func (w *WebSocketReporter) receiveMessages() {
+	// 获取连接引用一次即可，连接生命周期由 handleConnection 管理
+	w.connMutex.Lock()
+	conn := w.conn
+	w.connMutex.Unlock()
+	if conn == nil {
+		return
+	}
+
 	for {
 		select {
 		case <-w.ctx.Done():
 			return
 		default:
-			w.connMutex.Lock()
-			conn := w.conn
-			connected := w.connected
-			w.connMutex.Unlock()
-
-			if conn == nil || !connected {
-				return
-			}
-
-			// 设置读取超时
-			conn.SetReadDeadline(time.Now().Add(reporterReadWait))
-
 			messageType, message, err := conn.ReadMessage()
 			if err != nil {
 				if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
@@ -705,12 +748,8 @@ func (w *WebSocketReporter) handleReceivedMessage(messageType int, message []byt
 			}
 
 			if cmdMsg.Type != "call" {
-				// 其他状态变更命令保持同步，确保顺序执行
-				if cmdMsg.Type == "TcpPing" || cmdMsg.Type == "ServiceMonitorCheck" || cmdMsg.Type == "UpgradeAgent" || cmdMsg.Type == "RollbackAgent" {
-					go w.routeCommand(cmdMsg)
-				} else {
-					w.routeCommand(cmdMsg)
-				}
+				// 所有命令统一异步执行，避免阻塞消息接收循环
+				go w.routeCommand(cmdMsg)
 			}
 		} else {
 			// 处理普通消息
@@ -721,12 +760,8 @@ func (w *WebSocketReporter) handleReceivedMessage(messageType int, message []byt
 				return
 			}
 			if cmdMsg.Type != "call" {
-				// 其他状态变更命令保持同步，确保顺序执行
-				if cmdMsg.Type == "TcpPing" || cmdMsg.Type == "ServiceMonitorCheck" || cmdMsg.Type == "UpgradeAgent" || cmdMsg.Type == "RollbackAgent" {
-					go w.routeCommand(cmdMsg)
-				} else {
-					w.routeCommand(cmdMsg)
-				}
+				// 所有命令统一异步执行，避免阻塞消息接收循环
+				go w.routeCommand(cmdMsg)
 			}
 		}
 
@@ -1400,30 +1435,7 @@ func (w *WebSocketReporter) sendResponse(response CommandResponse) {
 		return
 	}
 
-	var messageData []byte
-
-	// 如果有加密器，则加密数据
-	if w.aesCrypto != nil {
-		encryptedData, err := w.aesCrypto.Encrypt(jsonData)
-		if err != nil {
-			fmt.Printf("⚠️ 加密响应失败，发送原始数据: %v\n", err)
-			messageData = jsonData
-		} else {
-			// 创建加密消息包装器
-			encryptedMessage := map[string]interface{}{
-				"encrypted": true,
-				"data":      encryptedData,
-				"timestamp": time.Now().Unix(),
-			}
-			messageData, err = json.Marshal(encryptedMessage)
-			if err != nil {
-				fmt.Printf("⚠️ 序列化加密响应失败，发送原始数据: %v\n", err)
-				messageData = jsonData
-			}
-		}
-	} else {
-		messageData = jsonData
-	}
+	messageData := w.encryptPayload(jsonData)
 
 	// 检查消息大小，如果超过10MB则记录警告
 	if len(messageData) > 10*1024*1024 {

@@ -39,6 +39,7 @@ type nodeSession struct {
 	nodeID int64
 	secret string
 	conn   *connWrap
+	crypto *security.AESCrypto // 缓存的 AES 加密器，避免每条消息重建
 }
 
 type commandResponse struct {
@@ -211,7 +212,12 @@ func (s *Server) handleNode(w http.ResponseWriter, r *http.Request, nodeID int64
 		_ = old.conn.conn.Close()
 		delete(s.byConn, old.conn.conn)
 	}
-	ns := &nodeSession{nodeID: nodeID, secret: secret, conn: cw}
+	// 初始化 AES 加密器并缓存（仅创建一次）
+	var nodeCrypto *security.AESCrypto
+	if strings.TrimSpace(secret) != "" {
+		nodeCrypto, _ = security.NewAESCrypto(secret)
+	}
+	ns := &nodeSession{nodeID: nodeID, secret: secret, conn: cw, crypto: nodeCrypto}
 	s.nodes[nodeID] = ns
 	s.byConn[conn] = ns
 	s.mu.Unlock()
@@ -251,7 +257,7 @@ func (s *Server) handleNode(w http.ResponseWriter, r *http.Request, nodeID int64
 			return
 		}
 
-		msg := decryptIfNeeded(payload, secret)
+		msg := decryptIfNeeded(payload, ns.crypto, secret)
 		s.tryResolvePending(nodeID, msg)
 
 		var parsed struct {
@@ -259,6 +265,26 @@ func (s *Server) handleNode(w http.ResponseWriter, r *http.Request, nodeID int64
 		}
 		if json.Unmarshal([]byte(msg), &parsed) == nil && parsed.Type != "" {
 			switch parsed.Type {
+			case "metric":
+				// Agent 新版指标消息：{type:"metric", data:{...}}
+				var envelope struct {
+					Data json.RawMessage `json:"data"`
+				}
+				if err := json.Unmarshal([]byte(msg), &envelope); err == nil && len(envelope.Data) > 0 {
+					// 解析 SystemInfo 并调用 hook
+					var sysInfo SystemInfo
+					if json.Unmarshal(envelope.Data, &sysInfo) == nil {
+						s.mu.RLock()
+						onMetric := s.onNodeMetric
+						s.mu.RUnlock()
+						if onMetric != nil {
+							go onMetric(nodeID, sysInfo)
+						}
+					}
+					// 广播内层 data 给前端（保持平坦结构兼容性）
+					s.broadcastTyped(nodeID, "metric", string(envelope.Data))
+				}
+				continue
 			case "UpgradeProgress":
 				s.broadcastTyped(nodeID, "upgrade_progress", msg)
 				continue
@@ -270,6 +296,7 @@ func (s *Server) handleNode(w http.ResponseWriter, r *http.Request, nodeID int64
 			}
 		}
 
+		// 兼容旧版 Agent：无 type 字段的系统信息消息
 		if looksLikeSystemInfoMessage(msg) {
 			var sysInfo SystemInfo
 			if err := json.Unmarshal([]byte(msg), &sysInfo); err == nil {
@@ -372,13 +399,8 @@ func (s *Server) SendCommand(nodeID int64, cmdType string, data interface{}, tim
 	}
 
 	messageData := rawCmd
-	if strings.TrimSpace(ns.secret) != "" {
-		crypto, err := security.NewAESCrypto(ns.secret)
-		if err != nil {
-			cleanup()
-			return CommandResult{}, err
-		}
-		encrypted, err := crypto.Encrypt(rawCmd)
+	if ns.crypto != nil {
+		encrypted, err := ns.crypto.Encrypt(rawCmd)
 		if err != nil {
 			cleanup()
 			return CommandResult{}, err
@@ -425,6 +447,11 @@ func (s *Server) SendCommand(nodeID int64, cmdType string, data interface{}, tim
 
 func (s *Server) tryResolvePending(nodeID int64, message string) {
 	if s == nil || strings.TrimSpace(message) == "" {
+		return
+	}
+
+	// 快速短路：指标消息永远不含 requestId，跳过完整 JSON 解析
+	if !strings.Contains(message, "\"requestId\"") {
 		return
 	}
 
@@ -545,18 +572,22 @@ func (s *Server) broadcastToAdmins(message string) {
 	}
 }
 
-func decryptIfNeeded(payload []byte, secret string) string {
+func decryptIfNeeded(payload []byte, crypto *security.AESCrypto, secret string) string {
 	text := string(payload)
 	var wrap encryptedMessage
 	if err := json.Unmarshal(payload, &wrap); err != nil || !wrap.Encrypted || strings.TrimSpace(wrap.Data) == "" {
 		return text
 	}
 
-	crypto, err := security.NewAESCrypto(secret)
-	if err != nil {
+	// 优先使用缓存的 crypto 实例
+	c := crypto
+	if c == nil && strings.TrimSpace(secret) != "" {
+		c, _ = security.NewAESCrypto(secret)
+	}
+	if c == nil {
 		return text
 	}
-	plain, err := crypto.Decrypt(wrap.Data)
+	plain, err := c.Decrypt(wrap.Data)
 	if err != nil {
 		return text
 	}
