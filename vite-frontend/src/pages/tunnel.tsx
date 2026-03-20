@@ -1578,6 +1578,7 @@ export default function TunnelPage() {
       {/* 隧道卡片网格 */}
       {tunnels.length > 0 ? (
         viewMode === "list" ? (
+          <Card>
           <Table
             aria-label="隧道列表"
             className="overflow-x-auto min-w-full"
@@ -1598,7 +1599,7 @@ export default function TunnelPage() {
               <TableColumn>类型</TableColumn>
               <TableColumn>拓扑</TableColumn>
               <TableColumn>流量统计</TableColumn>
-              <TableColumn align="center">操作</TableColumn>
+              <TableColumn>操作</TableColumn>
             </TableHeader>
             <TableBody items={sortedTunnels}>
               {(tunnel) => {
@@ -1616,7 +1617,18 @@ export default function TunnelPage() {
                         onValueChange={() => toggleSelect(tunnel.id)}
                       />
                     </TableCell> : <TableCell className="w-0 p-0 overflow-hidden text-[0px]"></TableCell>}
-                    <TableCell className="font-medium text-foreground">{tunnel.name}</TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        <div
+                          className={`shrink-0 w-2 h-2 rounded-full ${
+                            tunnel.status === 1 ? "bg-success" : "bg-danger"
+                          }`}
+                        />
+                        <span className="font-medium text-foreground text-sm">
+                          {tunnel.name}
+                        </span>
+                      </div>
+                    </TableCell>
                     <TableCell>
                       <Chip
                         className={tunnelTypeChipClassName}
@@ -1656,40 +1668,30 @@ export default function TunnelPage() {
                        </div>
                     </TableCell>
                     <TableCell>
-                      <div className="flex items-center justify-center gap-1">
+                      <div className="flex flex-wrap items-center gap-1.5 min-w-max">
                         <Button
-                          isIconOnly
+                          className="h-6 px-2 min-w-0 text-xs bg-indigo-50 text-indigo-600 hover:bg-indigo-100 dark:bg-indigo-950/30 dark:text-indigo-400"
                           size="sm"
                           variant="flat"
                           onPress={() => handleEdit(tunnel)}
-                          color="primary"
                         >
-                          <svg aria-hidden="true" className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
-                            <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
-                          </svg>
+                          编辑
                         </Button>
                         <Button
-                          isIconOnly
+                          className="h-6 px-2 min-w-0 text-xs bg-amber-50 text-amber-600 hover:bg-amber-100 dark:bg-amber-950/30 dark:text-amber-400"
                           size="sm"
                           variant="flat"
-                          color="warning"
                           onPress={() => handleDiagnose(tunnel)}
                         >
-                          <svg aria-hidden="true" className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
-                            <path clipRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" fillRule="evenodd" />
-                          </svg>
+                          诊断
                         </Button>
                         <Button
-                          isIconOnly
+                          className="h-6 px-2 min-w-0 text-xs bg-rose-50 text-rose-600 hover:bg-rose-100 dark:bg-rose-950/30 dark:text-rose-400"
                           size="sm"
                           variant="flat"
-                          color="danger"
                           onPress={() => handleDelete(tunnel)}
                         >
-                          <svg aria-hidden="true" className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
-                            <path clipRule="evenodd" d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z" fillRule="evenodd" />
-                            <path clipRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8 7a1 1 0 012 0v4a1 1 0 11-2 0V7zM12 7a1 1 0 012 0v4a1 1 0 11-2 0V7z" fillRule="evenodd" />
-                          </svg>
+                          删除
                         </Button>
                       </div>
                     </TableCell>
@@ -1698,6 +1700,7 @@ export default function TunnelPage() {
               }}
             </TableBody>
           </Table>
+          </Card>
         ) : (
         <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
           <SortableContext

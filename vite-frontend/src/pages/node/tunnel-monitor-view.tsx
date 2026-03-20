@@ -32,7 +32,7 @@ import {
   getMonitorTunnelQuality,
   getMonitorTunnelQualityHistory,
 } from "@/api";
-import { getDiagnosisQualityDisplay } from "@/pages/tunnel/diagnosis";
+
 import { Button } from "@/shadcn-bridge/heroui/button";
 import { Card, CardBody, CardHeader } from "@/shadcn-bridge/heroui/card";
 import { Chip } from "@/shadcn-bridge/heroui/chip";
@@ -109,6 +109,79 @@ function LiveDot() {
   );
 }
 
+const UPTIME_KUMA_BARS_COUNT = 30;
+
+function UptimeHistoryBar({
+  history = [],
+  type,
+  latestValue,
+}: {
+  history: TunnelQualityApiItem[];
+  type: "entryToExit" | "exitToBing";
+  latestValue?: number;
+}) {
+  const bars = [...Array(UPTIME_KUMA_BARS_COUNT)].map((_, i) => {
+    const historyIndex = history.length - UPTIME_KUMA_BARS_COUNT + i;
+    if (historyIndex >= 0 && historyIndex < history.length) {
+      return history[historyIndex];
+    }
+    return null;
+  });
+
+  return (
+    <div className="flex flex-col gap-1.5">
+      <div className="flex items-center gap-[3px]">
+        {bars.map((q, idx) => {
+          if (!q) {
+            return (
+              <div
+                key={idx}
+                className="w-1.5 h-4 rounded-full bg-default-200 dark:bg-default-100/50"
+                title="暂无数据"
+              />
+            );
+          }
+          const isEntry = type === "entryToExit";
+          const latency = isEntry ? q.entryToExitLatency : q.exitToBingLatency;
+          const loss = isEntry ? q.entryToExitLoss : q.exitToBingLoss;
+          const timeStr = new Date(q.timestamp).toLocaleTimeString("zh-CN");
+
+          let colorClass = "bg-success";
+          let statusText = "优秀";
+
+          if (q.errorMessage || (loss !== undefined && loss > 0)) {
+            colorClass = "bg-danger";
+            statusText = q.errorMessage ? "错误" : `丢包 ${loss?.toFixed(1)}%`;
+          } else if (latency < 0) {
+            colorClass = "bg-danger";
+            statusText = "探测失败";
+          } else if (latency > 200) {
+            colorClass = "bg-danger";
+            statusText = "极差";
+          } else if (latency > 100) {
+            colorClass = "bg-warning";
+            statusText = "较差";
+          }
+
+          const displayLatency = latency >= 0 ? `${latency.toFixed(0)}ms` : "-";
+          const tooltip = `${timeStr} | ${displayLatency} | ${statusText}`;
+
+          return (
+            <div
+              key={q.timestamp || idx}
+              className={`w-1.5 h-4 rounded-full transition-colors cursor-help hover:opacity-80 ${colorClass}`}
+              title={tooltip}
+            />
+          );
+        })}
+      </div>
+      <div>
+        <LatencyDisplay value={latestValue} />
+      </div>
+    </div>
+  );
+}
+
 export function TunnelMonitorView({ viewMode = "grid" }: TunnelMonitorViewProps) {
   const [tunnels, setTunnels] = useState<MonitorTunnelApiItem[]>([]);
   const [tunnelsLoading, setTunnelsLoading] = useState(false);
@@ -117,6 +190,8 @@ export function TunnelMonitorView({ viewMode = "grid" }: TunnelMonitorViewProps)
 
   // Quality data from backend periodic probing (latest per tunnel)
   const [qualityMap, setQualityMap] = useState<Record<number, TunnelQualityApiItem>>({});
+  const [qualityHistoryMap, setQualityHistoryMap] = useState<Record<number, TunnelQualityApiItem[]>>({});
+  const initialHistoryFetched = useRef(false);
   const [qualityLoading, setQualityLoading] = useState(false);
   const qualityTimerRef = useRef<number | null>(null);
 
@@ -178,6 +253,45 @@ export function TunnelMonitorView({ viewMode = "grid" }: TunnelMonitorViewProps)
     return () => window.clearInterval(timer);
   }, [loadTunnels]);
 
+  // --- Initial history load ---
+  useEffect(() => {
+    if (tunnels.length > 0 && !initialHistoryFetched.current) {
+      initialHistoryFetched.current = true;
+      const fetchHistory = async () => {
+        const end = Date.now();
+        // Fetch last 5 minutes (about 30 points)
+        const start = end - 5 * 60 * 1000;
+
+        const promises = tunnels.map((t) =>
+          getMonitorTunnelQualityHistory(t.id, start, end).then(res => {
+            if (res.code === 0 && res.data) {
+              return { id: t.id, data: res.data };
+            }
+            return { id: t.id, data: [] };
+          }).catch(() => ({ id: t.id, data: [] }))
+        );
+
+        const results = await Promise.all(promises);
+        setQualityHistoryMap(prev => {
+          const nextMap = { ...prev };
+          results.forEach(r => {
+            const existing = nextMap[r.id] || [];
+            const merged = [...r.data, ...existing].sort((a,b) => a.timestamp - b.timestamp);
+            const unique: TunnelQualityApiItem[] = [];
+            for (const item of merged) {
+               if (unique.length === 0 || unique[unique.length-1].timestamp !== item.timestamp) {
+                   unique.push(item);
+               }
+            }
+            nextMap[r.id] = unique.slice(-UPTIME_KUMA_BARS_COUNT);
+          });
+          return nextMap;
+        });
+      };
+      void fetchHistory();
+    }
+  }, [tunnels]);
+
   // --- Load quality snapshots (auto-polling every 10s) ---
   const loadQuality = useCallback(async (options?: { silent?: boolean }) => {
     const silent = options?.silent ?? false;
@@ -190,6 +304,19 @@ export function TunnelMonitorView({ viewMode = "grid" }: TunnelMonitorViewProps)
           map[q.tunnelId] = q;
         }
         setQualityMap(map);
+
+        // Accumulate locally
+        setQualityHistoryMap(prev => {
+           const nextMap = { ...prev };
+           for (const q of response.data) {
+              const currentArr = nextMap[q.tunnelId] || [];
+              const lastItem = currentArr.length > 0 ? currentArr[currentArr.length - 1] : null;
+              if (!lastItem || lastItem.timestamp !== q.timestamp) {
+                  nextMap[q.tunnelId] = [...currentArr, q].slice(-UPTIME_KUMA_BARS_COUNT);
+              }
+           }
+           return nextMap;
+        });
       }
     } catch {
       // Silently ignore quality load failures
@@ -609,9 +736,6 @@ export function TunnelMonitorView({ viewMode = "grid" }: TunnelMonitorViewProps)
           {tunnels.map((tunnel) => {
             const quality = qualityMap[tunnel.id];
             const isEnabled = tunnel.status === 1;
-            const overallQuality = quality?.entryToExitLatency !== undefined && quality.entryToExitLatency >= 0
-              ? getDiagnosisQualityDisplay(quality.entryToExitLatency, quality.entryToExitLoss ?? 0)
-              : null;
 
             return (
               <Card
@@ -637,11 +761,6 @@ export function TunnelMonitorView({ viewMode = "grid" }: TunnelMonitorViewProps)
                       </div>
                     </div>
                   </div>
-                  {overallQuality && (
-                    <Chip size="sm" color={overallQuality.color} variant="flat">
-                      {overallQuality.text}
-                    </Chip>
-                  )}
                 </CardHeader>
 
                 <CardBody className="py-3 px-5 flex-1 flex flex-col justify-end gap-3 z-10 w-full overflow-hidden">
@@ -651,14 +770,14 @@ export function TunnelMonitorView({ viewMode = "grid" }: TunnelMonitorViewProps)
                         <Zap className="w-3 h-3" />
                         入口→出口
                       </div>
-                      <LatencyDisplay value={quality?.entryToExitLatency} />
+                      <UptimeHistoryBar history={qualityHistoryMap[tunnel.id]} type="entryToExit" latestValue={quality?.entryToExitLatency} />
                     </div>
                     <div className="space-y-1">
                       <div className="text-[10px] text-default-500 flex items-center gap-1">
                         <Globe className="w-3 h-3" />
                         出口→Bing
                       </div>
-                      <LatencyDisplay value={quality?.exitToBingLatency} />
+                      <UptimeHistoryBar history={qualityHistoryMap[tunnel.id]} type="exitToBing" latestValue={quality?.exitToBingLatency} />
                     </div>
                   </div>
 
@@ -695,16 +814,12 @@ export function TunnelMonitorView({ viewMode = "grid" }: TunnelMonitorViewProps)
               <TableColumn>名称</TableColumn>
               <TableColumn>入口→出口</TableColumn>
               <TableColumn>出口→Bing</TableColumn>
-              <TableColumn>质量</TableColumn>
               <TableColumn>更新时间</TableColumn>
             </TableHeader>
             <TableBody emptyContent="暂无隧道">
               {tunnels.map((tunnel) => {
                 const quality = qualityMap[tunnel.id];
                 const isEnabled = tunnel.status === 1;
-                const overallQuality = quality?.entryToExitLatency !== undefined && quality.entryToExitLatency >= 0
-                  ? getDiagnosisQualityDisplay(quality.entryToExitLatency, quality.entryToExitLoss ?? 0)
-                  : null;
 
                 return (
                   <TableRow key={tunnel.id} className="cursor-pointer" onClick={() => setDetailTunnelId(tunnel.id)}>
@@ -721,19 +836,10 @@ export function TunnelMonitorView({ viewMode = "grid" }: TunnelMonitorViewProps)
                       <span className="font-semibold text-sm whitespace-nowrap">{tunnel.name}</span>
                     </TableCell>
                     <TableCell>
-                      <LatencyDisplay value={quality?.entryToExitLatency} />
+                      <UptimeHistoryBar history={qualityHistoryMap[tunnel.id]} type="entryToExit" latestValue={quality?.entryToExitLatency} />
                     </TableCell>
                     <TableCell>
-                      <LatencyDisplay value={quality?.exitToBingLatency} />
-                    </TableCell>
-                    <TableCell>
-                      {overallQuality ? (
-                        <Chip size="sm" color={overallQuality.color} variant="flat">
-                          {overallQuality.text}
-                        </Chip>
-                      ) : (
-                        <span className="text-xs text-default-400">-</span>
-                      )}
+                      <UptimeHistoryBar history={qualityHistoryMap[tunnel.id]} type="exitToBing" latestValue={quality?.exitToBingLatency} />
                     </TableCell>
                     <TableCell>
                       {quality?.timestamp ? (

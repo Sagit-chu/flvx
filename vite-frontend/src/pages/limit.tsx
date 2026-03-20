@@ -262,6 +262,7 @@ export default function LimitPage() {
       {/* 统一卡片网格 */}
       {filteredRules.length > 0 ? (
         viewMode === "list" ? (
+          <Card>
           <Table
             aria-label="限速规则列表"
             className="overflow-x-auto min-w-full"
@@ -274,27 +275,32 @@ export default function LimitPage() {
             <TableHeader>
               <TableColumn>规则名称</TableColumn>
               <TableColumn>速度限制</TableColumn>
-              <TableColumn>状态</TableColumn>
-              <TableColumn align="center">操作</TableColumn>
+              <TableColumn>操作</TableColumn>
             </TableHeader>
             <TableBody items={filteredRules}>
               {(rule) => (
                 <TableRow key={rule.id}>
-                  <TableCell className="font-medium text-foreground">{rule.name}</TableCell>
-                  <TableCell>{rule.speed} Mbps</TableCell>
                   <TableCell>
-                    <Chip
-                      color={rule.status === 1 ? "success" : "danger"}
-                      size="sm"
-                      variant="flat"
-                    >
-                      {rule.status === 1 ? "运行" : "异常"}
-                    </Chip>
+                    <div className="flex items-center gap-2">
+                       <div
+                         className={`shrink-0 w-2 h-2 rounded-full ${
+                           rule.status === 1 ? "bg-success" : "bg-danger"
+                         }`}
+                       />
+                       <span className="font-medium text-foreground text-sm">
+                         {rule.name}
+                       </span>
+                    </div>
                   </TableCell>
                   <TableCell>
-                    <div className="flex items-center gap-2 justify-center">
+                    <span className="text-sm font-mono text-default-600">
+                      {rule.speed} Mbps
+                    </span>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex flex-wrap items-center gap-1.5 min-w-max">
                       <Button
-                        color="primary"
+                        className="h-6 px-2 min-w-0 text-xs bg-indigo-50 text-indigo-600 hover:bg-indigo-100 dark:bg-indigo-950/30 dark:text-indigo-400"
                         size="sm"
                         variant="flat"
                         onPress={() => handleEdit(rule)}
@@ -302,7 +308,7 @@ export default function LimitPage() {
                         编辑
                       </Button>
                       <Button
-                        color="danger"
+                        className="h-6 px-2 min-w-0 text-xs bg-rose-50 text-rose-600 hover:bg-rose-100 dark:bg-rose-950/30 dark:text-rose-400"
                         size="sm"
                         variant="flat"
                         onPress={() => handleDelete(rule)}
@@ -315,6 +321,7 @@ export default function LimitPage() {
               )}
             </TableBody>
           </Table>
+          </Card>
         ) : (
         <StaggerList className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4">
           {filteredRules.map((rule) => (
