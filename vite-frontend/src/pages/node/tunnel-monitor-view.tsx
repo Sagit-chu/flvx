@@ -681,7 +681,15 @@ export function TunnelMonitorView({ viewMode = "grid" }: TunnelMonitorViewProps)
         </div>
       ) : (
         <Card className="w-full">
-          <Table aria-label="隧道列表">
+          <Table
+            aria-label="隧道列表"
+            className="overflow-x-auto min-w-full"
+            classNames={{
+              th: "bg-default-100/50 text-default-600 font-semibold text-sm border-b border-divider py-3 uppercase tracking-wider",
+              td: "py-3 border-b border-divider/50 group-data-[last=true]:border-b-0",
+              tr: "hover:bg-default-50/50 transition-colors",
+            }}
+          >
             <TableHeader>
               <TableColumn>状态</TableColumn>
               <TableColumn>名称</TableColumn>
@@ -699,7 +707,7 @@ export function TunnelMonitorView({ viewMode = "grid" }: TunnelMonitorViewProps)
                   : null;
 
                 return (
-                  <TableRow key={tunnel.id} className="border-b border-divider/50 last:border-b-0 cursor-pointer" onClick={() => setDetailTunnelId(tunnel.id)}>
+                  <TableRow key={tunnel.id} className="cursor-pointer" onClick={() => setDetailTunnelId(tunnel.id)}>
                     <TableCell>
                       <div className="flex items-center gap-1.5">
                         {isEnabled ? (

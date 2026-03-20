@@ -45,6 +45,15 @@ import { Alert } from "@/shadcn-bridge/heroui/alert";
 import { Checkbox } from "@/shadcn-bridge/heroui/checkbox";
 import { Progress } from "@/shadcn-bridge/heroui/progress";
 import { Radio, RadioGroup } from "@/shadcn-bridge/heroui/radio";
+import { LayoutGrid, List } from "lucide-react";
+import {
+  Table,
+  TableHeader,
+  TableColumn,
+  TableBody,
+  TableRow,
+  TableCell,
+} from "@/shadcn-bridge/heroui/table";
 import {
   createTunnel,
   batchDeleteTunnelsWithForwards,
@@ -181,6 +190,10 @@ export default function TunnelPage() {
     "",
   );
   const [isSearchVisible, setIsSearchVisible] = useState(false);
+  const [viewMode, setViewMode] = useLocalStorageState<"list" | "grid">(
+    "tunnel-view-mode",
+    "grid",
+  );
 
   // 模态框状态
   const [modalOpen, setModalOpen] = useState(false);
@@ -1524,6 +1537,14 @@ export default function TunnelPage() {
                   批量
                 </Button>
                 <Button
+                  isIconOnly
+                  size="sm"
+                  variant="flat"
+                  onPress={() => setViewMode(viewMode === "list" ? "grid" : "list")}
+                >
+                  {viewMode === "list" ? <LayoutGrid className="w-4 h-4" /> : <List className="w-4 h-4" />}
+                </Button>
+                <Button
                   color="primary"
                   size="sm"
                   variant="flat"
@@ -1556,6 +1577,128 @@ export default function TunnelPage() {
 
       {/* 隧道卡片网格 */}
       {tunnels.length > 0 ? (
+        viewMode === "list" ? (
+          <Table
+            aria-label="隧道列表"
+            className="overflow-x-auto min-w-full"
+            classNames={{
+              th: "bg-default-100/50 text-default-600 font-semibold text-sm border-b border-divider py-3 uppercase tracking-wider",
+              td: "py-3 border-b border-divider/50 group-data-[last=true]:border-b-0",
+              tr: "hover:bg-default-50/50 transition-colors",
+            }}
+          >
+            <TableHeader>
+              {selectMode ? <TableColumn className="w-12 px-4 whitespace-nowrap overflow-hidden">
+                <Checkbox
+                  isSelected={selectedIds.size === sortedTunnels.length && sortedTunnels.length > 0}
+                  onValueChange={(checked) => checked ? selectAll() : deselectAll()}
+                />
+              </TableColumn> : <TableColumn className="w-0 p-0 overflow-hidden text-[0px]"></TableColumn>}
+              <TableColumn>隧道名称</TableColumn>
+              <TableColumn>类型</TableColumn>
+              <TableColumn>拓扑</TableColumn>
+              <TableColumn>流量统计</TableColumn>
+              <TableColumn align="center">操作</TableColumn>
+            </TableHeader>
+            <TableBody items={sortedTunnels}>
+              {(tunnel) => {
+                const typeDisplay = getTunnelTypeDisplay(tunnel.type);
+                const tunnelTypeChipClassName =
+                  tunnel.type === 1
+                    ? "text-[10px] h-5 bg-primary-100 text-primary-800 border-primary-300 dark:bg-primary-900/45 dark:text-primary-200 dark:border-primary-700"
+                    : "text-[10px] h-5 bg-success-100 text-success-800 border-success-300 dark:bg-success-900/35 dark:text-success-200 dark:border-success-700";
+                    
+                return (
+                  <TableRow key={tunnel.id}>
+                    {selectMode ? <TableCell className="px-4">
+                      <Checkbox
+                        isSelected={selectedIds.has(tunnel.id)}
+                        onValueChange={() => toggleSelect(tunnel.id)}
+                      />
+                    </TableCell> : <TableCell className="w-0 p-0 overflow-hidden text-[0px]"></TableCell>}
+                    <TableCell className="font-medium text-foreground">{tunnel.name}</TableCell>
+                    <TableCell>
+                      <Chip
+                        className={tunnelTypeChipClassName}
+                        color={typeDisplay.color as any}
+                        size="sm"
+                        variant="flat"
+                      >
+                        {typeDisplay.text}
+                      </Chip>
+                    </TableCell>
+                    <TableCell>
+                       <div className="flex items-center gap-1.5 text-xs">
+                          <span className="font-semibold text-primary-700 dark:text-primary-400">
+                            {tunnel.inNodeId?.length || 0}入口
+                          </span>
+                          <span className="text-default-400">→</span>
+                          <span className="font-semibold text-secondary-700 dark:text-secondary-400">
+                            {tunnel.type === 2 ? tunnel.chainNodes?.length || 0 : 0}跳
+                          </span>
+                          <span className="text-default-400">→</span>
+                          <span className="font-semibold text-success-700 dark:text-success-400">
+                            {tunnel.type === 2 ? tunnel.outNodeId?.length || 0 : tunnel.inNodeId?.length || 0}出口
+                          </span>
+                       </div>
+                    </TableCell>
+                    <TableCell>
+                       <div className="flex items-center gap-2 text-xs">
+                         <span className="text-default-500">{getTunnelFlowDisplay(tunnel.flow)}</span>
+                         <span className="text-default-300">|</span>
+                         <span className="text-default-500">{tunnel.trafficRatio}x</span>
+                         {tunnel.type === 2 && tunnel.ipPreference && (
+                           <>
+                             <span className="text-default-300">|</span>
+                             <span className="text-default-500">{tunnel.ipPreference === "v4" ? "IPv4" : "IPv6"}</span>
+                           </>
+                         )}
+                       </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center justify-center gap-1">
+                        <Button
+                          isIconOnly
+                          size="sm"
+                          variant="flat"
+                          onPress={() => handleEdit(tunnel)}
+                          color="primary"
+                        >
+                          <svg aria-hidden="true" className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
+                            <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
+                          </svg>
+                        </Button>
+                        <Button
+                          isIconOnly
+                          size="sm"
+                          variant="flat"
+                          color="warning"
+                          onPress={() => handleDiagnose(tunnel)}
+                        >
+                          <svg aria-hidden="true" className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
+                            <path clipRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" fillRule="evenodd" />
+                          </svg>
+                        </Button>
+                        <Button
+                          isIconOnly
+                          size="sm"
+                          variant="flat"
+                          color="danger"
+                          onPress={() => handleDelete(tunnel)}
+                        >
+                          <svg aria-hidden="true" className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
+                            <path clipRule="evenodd" d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z" fillRule="evenodd" />
+                            <path clipRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8 7a1 1 0 012 0v4a1 1 0 11-2 0V7zM12 7a1 1 0 012 0v4a1 1 0 11-2 0V7z" fillRule="evenodd" />
+                          </svg>
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                );
+              }}
+            </TableBody>
+          </Table>
+        ) : (
         <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
           <SortableContext
             items={sortableTunnelIds}
@@ -1836,6 +1979,7 @@ export default function TunnelPage() {
             </div>
           </SortableContext>
         </DndContext>
+        )
       ) : (
         /* 空状态 */
         <Card className="shadow-sm border border-gray-200 dark:border-gray-700 bg-default-50/50">

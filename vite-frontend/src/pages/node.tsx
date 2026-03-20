@@ -1768,7 +1768,15 @@ export default function NodePage() {
         />
       ) : viewMode === "list" ? (
         <Card>
-          <Table aria-label="节点列表" className="overflow-x-auto min-w-full">
+          <Table
+            aria-label="节点列表"
+            className="overflow-x-auto min-w-full"
+            classNames={{
+              th: "bg-default-100/50 text-default-600 font-semibold text-sm border-b border-divider py-3 uppercase tracking-wider",
+              td: "py-3 border-b border-divider/50 group-data-[last=true]:border-b-0",
+              tr: "hover:bg-default-50/50 transition-colors",
+            }}
+          >
             <TableHeader>
               <TableColumn className="w-12 px-4 whitespace-nowrap overflow-hidden">
                 <Checkbox

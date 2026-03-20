@@ -18,6 +18,15 @@ import {
   ModalFooter,
 } from "@/shadcn-bridge/heroui/modal";
 import { Chip } from "@/shadcn-bridge/heroui/chip";
+import { LayoutGrid, List } from "lucide-react";
+import {
+  Table,
+  TableHeader,
+  TableColumn,
+  TableBody,
+  TableRow,
+  TableCell,
+} from "@/shadcn-bridge/heroui/table";
 import {
   createSpeedLimit,
   getSpeedLimitList,
@@ -51,6 +60,10 @@ export default function LimitPage() {
     "",
   );
   const [isSearchVisible, setIsSearchVisible] = useState(false);
+  const [viewMode, setViewMode] = useLocalStorageState<"list" | "grid">(
+    "limit-view-mode",
+    "grid",
+  );
 
   const filteredRules = useMemo(() => {
     if (!searchKeyword.trim()) return rules;
@@ -231,13 +244,78 @@ export default function LimitPage() {
           />
         </div>
 
-        <Button color="primary" size="sm" variant="flat" onPress={handleAdd}>
-          新增
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            isIconOnly
+            size="sm"
+            variant="flat"
+            onPress={() => setViewMode(viewMode === "list" ? "grid" : "list")}
+          >
+            {viewMode === "list" ? <LayoutGrid className="w-4 h-4" /> : <List className="w-4 h-4" />}
+          </Button>
+          <Button color="primary" size="sm" variant="flat" onPress={handleAdd}>
+            新增
+          </Button>
+        </div>
       </div>
 
       {/* 统一卡片网格 */}
       {filteredRules.length > 0 ? (
+        viewMode === "list" ? (
+          <Table
+            aria-label="限速规则列表"
+            className="overflow-x-auto min-w-full"
+            classNames={{
+              th: "bg-default-100/50 text-default-600 font-semibold text-sm border-b border-divider py-3 uppercase tracking-wider",
+              td: "py-3 border-b border-divider/50 group-data-[last=true]:border-b-0",
+              tr: "hover:bg-default-50/50 transition-colors",
+            }}
+          >
+            <TableHeader>
+              <TableColumn>规则名称</TableColumn>
+              <TableColumn>速度限制</TableColumn>
+              <TableColumn>状态</TableColumn>
+              <TableColumn align="center">操作</TableColumn>
+            </TableHeader>
+            <TableBody items={filteredRules}>
+              {(rule) => (
+                <TableRow key={rule.id}>
+                  <TableCell className="font-medium text-foreground">{rule.name}</TableCell>
+                  <TableCell>{rule.speed} Mbps</TableCell>
+                  <TableCell>
+                    <Chip
+                      color={rule.status === 1 ? "success" : "danger"}
+                      size="sm"
+                      variant="flat"
+                    >
+                      {rule.status === 1 ? "运行" : "异常"}
+                    </Chip>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-2 justify-center">
+                      <Button
+                        color="primary"
+                        size="sm"
+                        variant="flat"
+                        onPress={() => handleEdit(rule)}
+                      >
+                        编辑
+                      </Button>
+                      <Button
+                        color="danger"
+                        size="sm"
+                        variant="flat"
+                        onPress={() => handleDelete(rule)}
+                      >
+                        删除
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        ) : (
         <StaggerList className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4">
           {filteredRules.map((rule) => (
             <StaggerItem key={rule.id}>
@@ -324,6 +402,7 @@ export default function LimitPage() {
             </StaggerItem>
           ))}
         </StaggerList>
+        )
       ) : (
         /* 空状态 */
         <Card className="shadow-sm border border-gray-200 dark:border-gray-700 bg-default-50/50">

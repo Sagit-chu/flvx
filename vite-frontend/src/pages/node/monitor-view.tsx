@@ -1065,7 +1065,15 @@ export function MonitorView({ nodeMap, viewMode = "grid" }: MonitorViewProps) {
             </div>
           ) : (
             <Card className="w-full">
-              <Table aria-label="节点列表">
+              <Table
+                aria-label="节点列表"
+                className="overflow-x-auto min-w-full"
+                classNames={{
+                  th: "bg-default-100/50 text-default-600 font-semibold text-sm border-b border-divider py-3 uppercase tracking-wider",
+                  td: "py-3 border-b border-divider/50 group-data-[last=true]:border-b-0",
+                  tr: "hover:bg-default-50/50 transition-colors",
+                }}
+              >
                 <TableHeader>
                   <TableColumn>状态</TableColumn>
                   <TableColumn>名称</TableColumn>
@@ -1084,7 +1092,7 @@ export function MonitorView({ nodeMap, viewMode = "grid" }: MonitorViewProps) {
                     const isOnline = node.connectionStatus === "online";
 
                     return (
-                      <TableRow key={node.id} className="border-b border-divider/50 last:border-b-0">
+                      <TableRow key={node.id}>
                         <TableCell>
                           <div className={`w-2 h-2 rounded-full ml-1 ${isOnline ? "bg-success" : "bg-danger"}`} />
                         </TableCell>
@@ -1536,7 +1544,15 @@ export function MonitorView({ nodeMap, viewMode = "grid" }: MonitorViewProps) {
                 <RefreshCw className="w-6 h-6 animate-spin" />
               </div>
             ) : modalResults.length > 0 ? (
-              <Table aria-label="监控记录" className="w-full">
+              <Table
+                aria-label="监控记录"
+                className="w-full overflow-x-auto"
+                classNames={{
+                  th: "bg-default-100/50 text-default-600 font-semibold text-sm border-b border-divider py-3 uppercase tracking-wider",
+                  td: "py-3 border-b border-divider/50 group-data-[last=true]:border-b-0",
+                  tr: "hover:bg-default-50/50 transition-colors",
+                }}
+              >
                 <TableHeader>
                   <TableColumn>时间</TableColumn>
                   <TableColumn>结果</TableColumn>

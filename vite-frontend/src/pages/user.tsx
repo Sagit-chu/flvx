@@ -1080,7 +1080,15 @@ export default function UserPage() {
         </Card>
       ) : viewMode === "list" ? (
         <Card>
-          <Table aria-label="用户列表" className="overflow-x-auto min-w-full">
+          <Table
+            aria-label="用户列表"
+            className="overflow-x-auto min-w-full"
+            classNames={{
+              th: "bg-default-100/50 text-default-600 font-semibold text-sm border-b border-divider py-3 uppercase tracking-wider",
+              td: "py-3 border-b border-divider/50 group-data-[last=true]:border-b-0",
+              tr: "hover:bg-default-50/50 transition-colors",
+            }}
+          >
             <TableHeader>
               <TableColumn>用户名</TableColumn>
               <TableColumn>流量统计</TableColumn>
@@ -1888,8 +1896,9 @@ export default function UserPage() {
                 <Table
                   aria-label="用户隧道权限列表"
                   classNames={{
-                    wrapper: "shadow-none",
-                    th: "bg-gray-50 dark:bg-gray-800 text-gray-700 dark:text-gray-300 font-medium",
+                    th: "bg-default-100/50 text-default-600 font-semibold text-sm border-b border-divider py-3 uppercase tracking-wider",
+                    td: "py-3 border-b border-divider/50 group-data-[last=true]:border-b-0",
+                    tr: "hover:bg-default-50/50 transition-colors",
                   }}
                 >
                   <TableHeader>
