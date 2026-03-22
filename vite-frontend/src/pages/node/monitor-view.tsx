@@ -27,9 +27,13 @@ import {
   Server,
   Clock,
   ArrowLeft,
+  ArrowUp,
+  ArrowDown,
   Eye,
+
 } from "lucide-react";
 import toast from "react-hot-toast";
+import { DistroIcon, parseDistroFromVersion, getDistroColor } from "@/components/distro-icon";
 
 import {
   getNodeMetrics,
@@ -73,7 +77,7 @@ import { Progress } from "@/shadcn-bridge/heroui/progress";
 import { useNodeRealtime } from "@/pages/node/use-node-realtime";
 
 interface MonitorViewProps {
-  nodeMap: Map<number, { id: number; name: string; connectionStatus: string }>;
+  nodeMap: Map<number, { id: number; name: string; connectionStatus: string; version?: string }>;
   viewMode?: "list" | "grid";
 }
 
@@ -165,6 +169,8 @@ const getColorByUsage = (usage?: number) => {
 
 function ServerCard({ node, metric, onPress }: { node: any; metric: RealtimeNodeMetric | null; onPress?: () => void }) {
   const isOnline = node.connectionStatus === "online";
+  const distro = parseDistroFromVersion(node.version);
+  const distroColor = getDistroColor(distro);
   
   return (
     <Card
@@ -181,7 +187,7 @@ function ServerCard({ node, metric, onPress }: { node: any; metric: RealtimeNode
         <div className="flex items-center gap-3 min-w-0">
           <div className="relative flex-shrink-0">
             <div className="w-10 h-10 rounded-xl bg-default-100 dark:bg-default-50/10 flex items-center justify-center border border-divider">
-              <Server className={`w-5 h-5 ${isOnline ? "text-success" : "text-danger"}`} />
+              <DistroIcon distro={distro} className="w-5 h-5" style={{ color: isOnline ? distroColor : undefined }} />
             </div>
             <span className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-background ${isOnline ? "bg-success" : "bg-danger"}`} />
           </div>
@@ -1104,25 +1110,40 @@ export function MonitorView({ nodeMap, viewMode = "grid" }: MonitorViewProps) {
                           <div className={`w-2 h-2 rounded-full ml-1 ${isOnline ? "bg-success" : "bg-danger"}`} />
                         </TableCell>
                         <TableCell>
-                          <span className="font-semibold text-sm whitespace-nowrap">{node.name}</span>
+                          <div className="flex items-center gap-2">
+                            <DistroIcon distro={parseDistroFromVersion(node.version)} className="w-4 h-4 flex-shrink-0" style={{ color: isOnline ? getDistroColor(parseDistroFromVersion(node.version)) : undefined }} />
+                            <span className="font-semibold text-sm whitespace-nowrap">{node.name}</span>
+                          </div>
                         </TableCell>
                         <TableCell>
-                          <div className="flex flex-col gap-1.5 text-xs whitespace-nowrap">
-                            <div className="flex items-center gap-1 font-mono text-success-500">
-                              <span className="w-[60px] text-right">{isOnline && metric ? formatBytesPerSecond(metric.netOutSpeed) : "-"}</span> ↑
+                          <div className="flex flex-col gap-2 py-1 text-xs whitespace-nowrap">
+                            <div className="flex items-center gap-1.5 font-mono text-success-500">
+                              <span className="w-[86px] text-right inline-block">{isOnline && metric ? formatBytesPerSecond(metric.netOutSpeed) : "-"}</span>
+                              <div className="flex items-center justify-center p-[3px] rounded-full bg-success-50 dark:bg-success-500/10 text-success-500">
+                                <ArrowUp className="w-3 h-3" strokeWidth={2.5} />
+                              </div>
                             </div>
-                            <div className="flex items-center gap-1 font-mono text-primary-500">
-                              <span className="w-[60px] text-right">{isOnline && metric ? formatBytesPerSecond(metric.netInSpeed) : "-"}</span> ↓
+                            <div className="flex items-center gap-1.5 font-mono text-primary-500">
+                              <span className="w-[86px] text-right inline-block">{isOnline && metric ? formatBytesPerSecond(metric.netInSpeed) : "-"}</span>
+                              <div className="flex items-center justify-center p-[3px] rounded-full bg-primary-50 dark:bg-primary-500/10 text-primary-500">
+                                <ArrowDown className="w-3 h-3" strokeWidth={2.5} />
+                              </div>
                             </div>
                           </div>
                         </TableCell>
                         <TableCell>
-                          <div className="flex flex-col gap-1.5 text-xs whitespace-nowrap">
-                            <div className="flex items-center gap-1 font-mono text-default-600">
-                              <span className="w-[60px] text-right">{isOnline && metric ? formatBytes(metric.netOutBytes) : "-"}</span> ↑
+                          <div className="flex flex-col gap-2 py-1 text-xs whitespace-nowrap">
+                            <div className="flex items-center gap-1.5 font-mono text-default-600">
+                              <span className="w-[86px] text-right inline-block">{isOnline && metric ? formatBytes(metric.netOutBytes) : "-"}</span>
+                              <div className="flex items-center justify-center p-[3px] rounded-full bg-default-100 text-default-500 dark:bg-default-100/50">
+                                <ArrowUp className="w-3 h-3" strokeWidth={2.5} />
+                              </div>
                             </div>
-                            <div className="flex items-center gap-1 font-mono text-default-600">
-                              <span className="w-[60px] text-right">{isOnline && metric ? formatBytes(metric.netInBytes) : "-"}</span> ↓
+                            <div className="flex items-center gap-1.5 font-mono text-default-600">
+                              <span className="w-[86px] text-right inline-block">{isOnline && metric ? formatBytes(metric.netInBytes) : "-"}</span>
+                              <div className="flex items-center justify-center p-[3px] rounded-full bg-default-100 text-default-500 dark:bg-default-100/50">
+                                <ArrowDown className="w-3 h-3" strokeWidth={2.5} />
+                              </div>
                             </div>
                           </div>
                         </TableCell>

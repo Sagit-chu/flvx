@@ -466,6 +466,7 @@ export interface MonitorNodeApiItem {
   inx: number;
   name: string;
   status: number;
+  version?: string;
   updatedTime: number;
 }
 

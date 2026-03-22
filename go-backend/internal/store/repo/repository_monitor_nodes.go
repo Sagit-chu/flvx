@@ -11,7 +11,7 @@ func (r *Repository) ListMonitorNodes() ([]model.Node, error) {
 		return nil, errors.New("repository not initialized")
 	}
 	var nodes []model.Node
-	err := r.db.Select("id", "inx", "name", "status", "updated_time").
+	err := r.db.Select("id", "inx", "name", "status", "version", "updated_time").
 		Where("is_remote = ?", 0).
 		Order("inx ASC, id ASC").
 		Find(&nodes).Error

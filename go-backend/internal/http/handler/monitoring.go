@@ -71,6 +71,7 @@ type monitorNodeListItem struct {
 	Inx         int    `json:"inx"`
 	Name        string `json:"name"`
 	Status      int    `json:"status"`
+	Version     string `json:"version"`
 	UpdatedTime int64  `json:"updatedTime"`
 }
 
@@ -100,6 +101,7 @@ func (h *Handler) monitorNodeListHandler(w http.ResponseWriter, r *http.Request)
 			Inx:         n.Inx,
 			Name:        n.Name,
 			Status:      n.Status,
+			Version:     n.Version.String,
 			UpdatedTime: updated,
 		})
 	}

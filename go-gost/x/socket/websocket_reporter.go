@@ -348,7 +348,7 @@ func buildWebSocketCandidates(addr string, secret string, version string, http i
 		normalizedAddr = strings.TrimSpace(addr)
 	}
 
-	query := "/system-info?type=1&secret=" + secret + "&version=" + version +
+	query := "/system-info?type=1&secret=" + url.QueryEscape(secret) + "&version=" + url.QueryEscape(version) +
 		"&http=" + strconv.Itoa(http) + "&tls=" + strconv.Itoa(tls) + "&socks=" + strconv.Itoa(socks)
 
 	schemes := []string{"wss", "ws"}
