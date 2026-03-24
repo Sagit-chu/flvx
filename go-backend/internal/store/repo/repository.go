@@ -5,9 +5,11 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"net"
 	"os"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -3241,7 +3243,7 @@ func resolveForwardIngress(db *gorm.DB, forwardID int64, tunnelID int64) (string
 		}
 
 		if ip != "" {
-			pair := fmt.Sprintf("%s:%d", ip, row.Port.Int64)
+			pair := formatForwardIngressAddress(ip, row.Port.Int64)
 			if _, ok := seenPairs[pair]; !ok {
 				seenPairs[pair] = struct{}{}
 				entries = append(entries, pair)
@@ -3256,6 +3258,17 @@ func resolveForwardIngress(db *gorm.DB, forwardID int64, tunnelID int64) (string
 	inPort := sql.NullInt64{Int64: ports[0], Valid: true}
 
 	return strings.Join(entries, ","), inPort, nil
+}
+
+func formatForwardIngressAddress(host string, port int64) string {
+	host = strings.TrimSpace(host)
+	if host == "" || port <= 0 {
+		return ""
+	}
+	if strings.HasPrefix(host, "[") && strings.HasSuffix(host, "]") {
+		host = strings.TrimPrefix(strings.TrimSuffix(host, "]"), "[")
+	}
+	return net.JoinHostPort(host, strconv.FormatInt(port, 10))
 }
 
 func nullableString(v sql.NullString) interface{} {
