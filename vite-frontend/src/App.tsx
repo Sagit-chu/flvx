@@ -14,6 +14,7 @@ import ProfilePage from "@/pages/profile";
 import LimitPage from "@/pages/limit";
 import ConfigPage from "@/pages/config";
 import PanelSharingPage from "@/pages/panel-sharing";
+import VisualPage from "@/pages/visual";
 import { SettingsPage } from "@/pages/settings";
 import AdminLayout from "@/layouts/admin";
 import H5Layout from "@/layouts/h5";
@@ -146,6 +147,14 @@ function App() {
           </ProtectedRoute>
         }
         path="/tunnel"
+      />
+      <Route
+        element={
+          <ProtectedRoute>
+            <VisualPage />
+          </ProtectedRoute>
+        }
+        path="/visual"
       />
       <Route
         element={
