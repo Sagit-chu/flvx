@@ -56,7 +56,7 @@ go-gost/ss/
 # VS Code
 .vscode/
 *.code-workspace
-
+.golutra
 # Eclipse
 .metadata
 .classpath
