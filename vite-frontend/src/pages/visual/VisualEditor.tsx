@@ -49,6 +49,9 @@ import ComfyTunnelNode, {
 import ComfyForwardNode, {
   type ComfyForwardNodeData,
 } from "./nodes/ComfyForwardNode";
+import ComfyLandingNode, {
+  type ComfyLandingNodeData,
+} from "./nodes/ComfyLandingNode";
 import PortMappingEdge, {
   type PortMappingEdgeData,
 } from "./edges/PortMappingEdge";
@@ -115,6 +118,7 @@ interface UndoSnapshot {
 
 const nodeTypes = {
   comfyForward: ComfyForwardNode,
+  comfyLanding: ComfyLandingNode,
   comfyServer: ComfyServerNode,
   comfyTunnel: ComfyTunnelNode,
 };
@@ -563,7 +567,32 @@ const buildGraphNodes = (
     },
   );
 
-  return [...serverFlowNodes, ...tunnelFlowNodes, ...forwardFlowNodes];
+  // Landing nodes (derived from forwards with remoteAddr)
+  const landingFlowNodes: Node<ComfyLandingNodeData>[] = forwards
+    .filter((item) => splitMultiValue(item.remoteAddr).length > 0)
+    .map((item, index) => {
+      const visualId = `landing:${buildForwardNodeId(item)}`;
+      const addrs = splitMultiValue(item.remoteAddr);
+      return {
+        data: {
+          addresses: addrs,
+          forwardId: item.id,
+          forwardName: item.name,
+          inPort: item.inPort,
+        },
+        id: visualId,
+        position: positions[visualId] || { x: 1220, y: 60 + index * 180 },
+        selected: visualId === selectedNodeId,
+        type: "comfyLanding",
+      };
+    });
+
+  return [
+    ...serverFlowNodes,
+    ...tunnelFlowNodes,
+    ...forwardFlowNodes,
+    ...landingFlowNodes,
+  ];
 };
 
 const buildGraphEdges = (
@@ -700,6 +729,34 @@ const buildGraphEdges = (
     );
   });
 
+  // Forward → Landing edges
+  forwards.forEach((forward) => {
+    const addrs = splitMultiValue(forward.remoteAddr);
+    if (addrs.length === 0) return;
+    const forwardVisualId = buildForwardNodeId(forward);
+    const landingVisualId = `landing:${forwardVisualId}`;
+    if (!existingNodeIds.has(forwardVisualId)) return;
+    // Landing nodes are generated, so add them to the set
+    existingNodeIds.add(landingVisualId);
+    result.push({
+      data: {
+        edgeType: "rule" as const,
+        label: "Landing",
+        portMapping:
+          addrs.length === 1
+            ? addrs[0]
+            : `${addrs.length} targets`,
+      },
+      id: `${forwardVisualId}:landing`,
+      markerEnd: { type: MarkerType.ArrowClosed },
+      source: forwardVisualId,
+      sourceHandle: undefined,
+      target: landingVisualId,
+      targetHandle: "in",
+      type: "portMapping",
+    });
+  });
+
   return result;
 };
 
@@ -757,6 +814,17 @@ const computeAutoLayout = (
     positions[buildForwardNodeId(item)] = {
       x: 60 + colGap * 2,
       y: 60 + i * (rowGap - 20),
+    };
+  });
+
+  // Column 3: Landing nodes
+  const fwdsWithTargets = forwards.filter(
+    (f) => splitMultiValue(f.remoteAddr).length > 0,
+  );
+  fwdsWithTargets.forEach((item, i) => {
+    positions[`landing:${buildForwardNodeId(item)}`] = {
+      x: 60 + colGap * 3,
+      y: 60 + i * (rowGap - 40),
     };
   });
 
@@ -845,6 +913,17 @@ export default function VisualEditor() {
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [syncing, setSyncing] = useState(false);
   const [deploying, setDeploying] = useState(false);
+  const [browseOpen, setBrowseOpen] = useState(false);
+  const [focusedTunnelId, setFocusedTunnelId] = useState<string | null>(null);
+  const [importPanelOpen, setImportPanelOpen] = useState(false);
+  const [wizardOpen, setWizardOpen] = useState(false);
+  const [wizardMode, setWizardMode] = useState<"tunnel" | "port">("tunnel");
+  const [wizardNodeA, setWizardNodeA] = useState<number | null>(null);
+  const [wizardNodeB, setWizardNodeB] = useState<number | null>(null);
+  const [wizardLanding, setWizardLanding] = useState("");
+  const [wizardPort, setWizardPort] = useState("");
+  const [wizardName, setWizardName] = useState("");
+  const [wizardCreating, setWizardCreating] = useState(false);
 
   // Probe cache
   const [probeCache, setProbeCache] = useState<
@@ -1077,6 +1156,70 @@ export default function VisualEditor() {
   }, [loadData]);
 
   // -----------------------------------------------------------------------
+  // Focused tunnel chain data (must be before graph sync)
+  // -----------------------------------------------------------------------
+
+  const focusedTunnel = useMemo(() => {
+    if (!focusedTunnelId) return null;
+    return allTunnels.find((t) => buildTunnelNodeId(t) === focusedTunnelId) || null;
+  }, [allTunnels, focusedTunnelId]);
+
+  const focusedChain = useMemo(() => {
+    if (!focusedTunnel) return null;
+    const entryNodes = (focusedTunnel.inNodeId || [])
+      .filter((n) => n.nodeId > 0)
+      .map((n) => ({
+        ...n,
+        node: systemNodes.find((s) => s.id === n.nodeId),
+      }));
+    const chainHops = (focusedTunnel.chainNodes || []).map((group, i) => ({
+      groupIndex: i,
+      nodes: group
+        .filter((n) => n.nodeId > 0)
+        .map((n) => ({
+          ...n,
+          node: systemNodes.find((s) => s.id === n.nodeId),
+        })),
+    }));
+    const exitNodes = (focusedTunnel.outNodeId || [])
+      .filter((n) => n.nodeId > 0)
+      .map((n) => ({
+        ...n,
+        node: systemNodes.find((s) => s.id === n.nodeId),
+      }));
+    const relatedForwards = allForwards.filter(
+      (f) =>
+        typeof focusedTunnel.id === "number" &&
+        focusedTunnel.id > 0 &&
+        f.tunnelId === focusedTunnel.id,
+    );
+    return { chainHops, entryNodes, exitNodes, forwards: relatedForwards };
+  }, [allForwards, focusedTunnel, systemNodes]);
+
+  const focusedNodeIds = useMemo(() => {
+    if (!focusedTunnel || !focusedChain) return null;
+    const ids = new Set<string>();
+    ids.add(buildTunnelNodeId(focusedTunnel));
+    focusedChain.entryNodes.forEach((n) =>
+      ids.add(getSystemVisualId(n.nodeId)),
+    );
+    focusedChain.exitNodes.forEach((n) =>
+      ids.add(getSystemVisualId(n.nodeId)),
+    );
+    focusedChain.chainHops.forEach((hop) =>
+      hop.nodes.forEach((n) => ids.add(getSystemVisualId(n.nodeId))),
+    );
+    focusedChain.forwards.forEach((f) => {
+      ids.add(buildForwardNodeId(f));
+      // Include landing node for each forward with targets
+      if (splitMultiValue(f.remoteAddr).length > 0) {
+        ids.add(`landing:${buildForwardNodeId(f)}`);
+      }
+    });
+    return ids;
+  }, [focusedChain, focusedTunnel]);
+
+  // -----------------------------------------------------------------------
   // Graph sync
   // -----------------------------------------------------------------------
 
@@ -1090,11 +1233,23 @@ export default function VisualEditor() {
       probeCache,
     );
     const nextEdges = buildGraphEdges(systemNodes, allTunnels, allForwards);
-    setNodes(nextNodes);
-    setEdges(nextEdges);
+
+    // Filter to focused tunnel group if active
+    if (focusedNodeIds) {
+      setNodes(nextNodes.filter((n) => focusedNodeIds.has(n.id)));
+      setEdges(
+        nextEdges.filter(
+          (e) => focusedNodeIds.has(e.source) && focusedNodeIds.has(e.target),
+        ),
+      );
+    } else {
+      setNodes(nextNodes);
+      setEdges(nextEdges);
+    }
   }, [
     allForwards,
     allTunnels,
+    focusedNodeIds,
     probeCache,
     savedPositions,
     selectedNodeId,
@@ -2604,7 +2759,861 @@ export default function VisualEditor() {
   // Render
   // -----------------------------------------------------------------------
 
+  // -----------------------------------------------------------------------
+  // Workflow wizards
+  // -----------------------------------------------------------------------
+
+  const resetWizard = useCallback(() => {
+    setWizardNodeA(null);
+    setWizardNodeB(null);
+    setWizardLanding("");
+    setWizardPort("");
+    setWizardName("");
+    setWizardCreating(false);
+  }, []);
+
+  const handleOpenWizard = useCallback(
+    (mode: "tunnel" | "port") => {
+      setWizardMode(mode);
+      resetWizard();
+      setWizardOpen(true);
+      setBrowseOpen(false);
+      setImportPanelOpen(false);
+    },
+    [resetWizard],
+  );
+
+  // Flow 1: Tunnel forwarding — A(entry) → B(exit) tunnel + forward to landing
+  const handleWizardTunnelCreate = useCallback(async () => {
+    if (!wizardNodeA || !wizardNodeB || !wizardLanding.trim()) {
+      toast.error("请填写完整：入口节点、出口节点、落地地址");
+      return;
+    }
+    setWizardCreating(true);
+    try {
+      // Create tunnel (type=2, A entry, B exit)
+      const tunnelName = wizardName.trim() || `隧道 ${wizardNodeA}→${wizardNodeB}`;
+      const tunnelRes = await createTunnel({
+        chainNodes: [],
+        flow: 1,
+        inIp: "",
+        inNodeId: [{ chainType: 1, nodeId: wizardNodeA }],
+        ipPreference: "",
+        name: tunnelName,
+        outNodeId: [
+          {
+            chainType: 3,
+            connectIp: "",
+            nodeId: wizardNodeB,
+            protocol: "tls",
+            strategy: "round",
+          },
+        ],
+        status: 1,
+        trafficRatio: 1,
+        type: 2,
+      });
+      if (tunnelRes.code !== 0) {
+        toast.error(tunnelRes.msg || "创建隧道失败");
+        return;
+      }
+      // Reload to get new tunnel ID
+      const snap = await fetchSnapshot(false);
+      const newTunnel = snap.tunnels.find(
+        (t) => t.name.trim() === tunnelName.trim(),
+      );
+      if (!newTunnel?.id) {
+        toast.error("隧道创建成功但未找到，请手动添加规则");
+        applySnapshot(snap, false);
+        return;
+      }
+      // Create forward rule pointing to landing
+      const fwdRes = await createForward({
+        inIp: "",
+        inPort: wizardPort ? Number.parseInt(wizardPort, 10) : null,
+        name: `${tunnelName} 落地规则`,
+        remoteAddr: wizardLanding.trim(),
+        strategy: "fifo",
+        tunnelId: newTunnel.id,
+      });
+      if (fwdRes.code !== 0) {
+        toast.error(fwdRes.msg || "创建规则失败，隧道已创建");
+      } else {
+        toast.success("隧道转发链路创建成功");
+      }
+      // Reload all
+      const finalSnap = await fetchSnapshot(false);
+      applySnapshot(finalSnap, false);
+      setWizardOpen(false);
+      resetWizard();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "创建失败");
+    } finally {
+      setWizardCreating(false);
+    }
+  }, [
+    applySnapshot,
+    fetchSnapshot,
+    resetWizard,
+    wizardLanding,
+    wizardName,
+    wizardNodeA,
+    wizardNodeB,
+    wizardPort,
+  ]);
+
+  // Flow 2: Port forwarding chain — A forwards to B:port, B forwards to landing
+  const handleWizardPortCreate = useCallback(async () => {
+    if (!wizardNodeA || !wizardNodeB || !wizardLanding.trim() || !wizardPort.trim()) {
+      toast.error("请填写完整：A 节点、B 节点、中转端口、落地地址");
+      return;
+    }
+    const port = Number.parseInt(wizardPort, 10);
+    if (!Number.isFinite(port) || port <= 0 || port > 65535) {
+      toast.error("端口必须在 1-65535 之间");
+      return;
+    }
+    setWizardCreating(true);
+    try {
+      const baseName = wizardName.trim() || `端口转发 ${wizardNodeA}→${wizardNodeB}`;
+      const nodeB = systemNodes.find((n) => n.id === wizardNodeB);
+      const nodeBIp =
+        String(nodeB?.serverIp || "").trim() ||
+        String(nodeB?.serverIpV4 || "").trim() ||
+        "";
+
+      if (!nodeBIp) {
+        toast.error("B 节点没有配置 IP 地址");
+        return;
+      }
+
+      // Tunnel 1: Port forwarding on A, rule forwards to B:port
+      const tunnel1Res = await createTunnel({
+        chainNodes: [],
+        flow: 1,
+        inIp: "",
+        inNodeId: [{ chainType: 1, nodeId: wizardNodeA }],
+        name: `${baseName} (A段)`,
+        status: 1,
+        trafficRatio: 1,
+        type: 1,
+      });
+      if (tunnel1Res.code !== 0) {
+        toast.error(tunnel1Res.msg || "创建 A 段隧道失败");
+        return;
+      }
+
+      // Tunnel 2: Port forwarding on B, rule forwards to landing
+      const tunnel2Res = await createTunnel({
+        chainNodes: [],
+        flow: 1,
+        inIp: "",
+        inNodeId: [{ chainType: 1, nodeId: wizardNodeB }],
+        name: `${baseName} (B段)`,
+        status: 1,
+        trafficRatio: 1,
+        type: 1,
+      });
+      if (tunnel2Res.code !== 0) {
+        toast.error(tunnel2Res.msg || "创建 B 段隧道失败");
+        return;
+      }
+
+      // Reload to get tunnel IDs
+      const snap = await fetchSnapshot(false);
+      const t1 = snap.tunnels.find(
+        (t) => t.name.trim() === `${baseName} (A段)`,
+      );
+      const t2 = snap.tunnels.find(
+        (t) => t.name.trim() === `${baseName} (B段)`,
+      );
+
+      if (!t1?.id || !t2?.id) {
+        toast.error("隧道创建成功但未找到 ID，请手动添加规则");
+        applySnapshot(snap, false);
+        return;
+      }
+
+      // Rule 1: A tunnel forwards to B's IP:port
+      const fwd1Res = await createForward({
+        inIp: "",
+        inPort: port,
+        name: `${baseName} A→B`,
+        remoteAddr: `${nodeBIp}:${port}`,
+        strategy: "fifo",
+        tunnelId: t1.id,
+      });
+
+      // Rule 2: B tunnel forwards to landing address
+      const fwd2Res = await createForward({
+        inIp: "",
+        inPort: port,
+        name: `${baseName} B→落地`,
+        remoteAddr: wizardLanding.trim(),
+        strategy: "fifo",
+        tunnelId: t2.id,
+      });
+
+      if (fwd1Res.code !== 0 || fwd2Res.code !== 0) {
+        toast.error("部分规则创建失败，请检查");
+      } else {
+        toast.success("端口转发链路创建成功 (A→B→落地)");
+      }
+
+      const finalSnap = await fetchSnapshot(false);
+      applySnapshot(finalSnap, false);
+      setWizardOpen(false);
+      resetWizard();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "创建失败");
+    } finally {
+      setWizardCreating(false);
+    }
+  }, [
+    applySnapshot,
+    fetchSnapshot,
+    resetWizard,
+    systemNodes,
+    wizardLanding,
+    wizardName,
+    wizardNodeA,
+    wizardNodeB,
+    wizardPort,
+  ]);
+
   const draftCount = draftTunnels.length + draftForwards.length;
+
+  // Group forwards by tunnel for the browse panel
+  const tunnelGroups = useMemo(() => {
+    const groups: {
+      forwards: ForwardEditorState[];
+      tunnel: TunnelEditorState;
+    }[] = [];
+    const ungrouped: ForwardEditorState[] = [];
+
+    for (const tunnel of allTunnels) {
+      const related = allForwards.filter(
+        (f) =>
+          (typeof tunnel.id === "number" &&
+            tunnel.id > 0 &&
+            f.tunnelId === tunnel.id) ||
+          (tunnel.draftId &&
+            f.tunnelName === tunnel.name &&
+            !f.tunnelId),
+      );
+      groups.push({ forwards: related, tunnel });
+    }
+
+    for (const f of allForwards) {
+      const hasTunnel = allTunnels.some(
+        (t) =>
+          (typeof t.id === "number" && t.id > 0 && f.tunnelId === t.id) ||
+          (t.draftId && f.tunnelName === t.name && !f.tunnelId),
+      );
+      if (!hasTunnel) ungrouped.push(f);
+    }
+
+    return { groups, ungrouped };
+  }, [allForwards, allTunnels]);
+
+  // Handle entering focus mode with auto-layout for the chain
+  const handleFocusTunnel = useCallback(
+    (tunnelVisualId: string) => {
+      setFocusedTunnelId(tunnelVisualId);
+      setImportPanelOpen(false);
+      setBrowseOpen(false);
+
+      // Find the tunnel and compute a chain-specific layout
+      const tunnel = allTunnels.find(
+        (t) => buildTunnelNodeId(t) === tunnelVisualId,
+      );
+      if (!tunnel) return;
+
+      const entries = (tunnel.inNodeId || [])
+        .filter((n) => n.nodeId > 0)
+        .map((n) => n.nodeId);
+      const hops = (tunnel.chainNodes || []).flatMap((g) =>
+        g.filter((n) => n.nodeId > 0).map((n) => n.nodeId),
+      );
+      const exits = (tunnel.outNodeId || [])
+        .filter((n) => n.nodeId > 0)
+        .map((n) => n.nodeId);
+      const fwds = allForwards.filter(
+        (f) => typeof tunnel.id === "number" && f.tunnelId === tunnel.id,
+      );
+
+      const positions: Record<string, XYPosition> = {};
+      const colW = 380;
+      let col = 0;
+
+      // Col 0: Entry nodes
+      entries.forEach((id, i) => {
+        positions[getSystemVisualId(id)] = { x: col * colW + 60, y: 80 + i * 220 };
+      });
+      col++;
+
+      // Col 1: Tunnel
+      const tunnelY = Math.max(0, ((Math.max(entries.length, 1) - 1) * 220) / 2);
+      positions[buildTunnelNodeId(tunnel)] = { x: col * colW + 60, y: 80 + tunnelY };
+      col++;
+
+      // Col 2: Hop nodes (if any)
+      if (hops.length > 0) {
+        hops.forEach((id, i) => {
+          positions[getSystemVisualId(id)] = { x: col * colW + 60, y: 80 + i * 220 };
+        });
+        col++;
+      }
+
+      // Col N-1: Exit nodes (for tunnel forwarding)
+      if (exits.length > 0) {
+        exits.forEach((id, i) => {
+          positions[getSystemVisualId(id)] = { x: col * colW + 60, y: 80 + i * 220 };
+        });
+        col++;
+      }
+
+      // Col N: Forward rules
+      if (fwds.length > 0) {
+        fwds.forEach((f, i) => {
+          positions[buildForwardNodeId(f)] = { x: col * colW + 60, y: 80 + i * 200 };
+        });
+        col++;
+      }
+
+      // Col N+1: Landing nodes
+      const fwdsWithTargets = fwds.filter(
+        (f) => splitMultiValue(f.remoteAddr).length > 0,
+      );
+      if (fwdsWithTargets.length > 0) {
+        fwdsWithTargets.forEach((f, i) => {
+          positions[`landing:${buildForwardNodeId(f)}`] = {
+            x: col * colW + 60,
+            y: 80 + i * 180,
+          };
+        });
+      }
+
+      setSavedPositions((prev) => ({ ...prev, ...positions }));
+      setTimeout(() => reactFlowInstance.fitView({ padding: 0.2 }), 150);
+    },
+    [allForwards, allTunnels, reactFlowInstance],
+  );
+
+  const handleExitFocusMode = useCallback(() => {
+    setFocusedTunnelId(null);
+    setTimeout(() => reactFlowInstance.fitView({ padding: 0.15 }), 100);
+  }, [reactFlowInstance]);
+
+  const renderImportPanel = () => (
+    <div
+      className={[
+        "absolute left-0 top-0 z-20 h-full w-full max-w-[420px] border-r border-zinc-800 bg-zinc-950/98 shadow-2xl backdrop-blur transition-transform duration-300",
+        importPanelOpen
+          ? "translate-x-0"
+          : "-translate-x-full pointer-events-none",
+      ].join(" ")}
+    >
+      <div className="flex items-center justify-between border-b border-zinc-800 px-5 py-4">
+        <div>
+          <div className="text-[10px] uppercase tracking-[0.2em] text-zinc-600">
+            Import & Edit
+          </div>
+          <div className="mt-1 text-base font-semibold text-zinc-100">
+            导入隧道组编辑
+          </div>
+        </div>
+        <Button
+          isIconOnly
+          onPress={() => setImportPanelOpen(false)}
+          variant="light"
+        >
+          ×
+        </Button>
+      </div>
+      <div className="h-[calc(100%-81px)] overflow-y-auto p-4 space-y-3">
+        <div className="rounded-xl border border-sky-500/20 bg-sky-500/5 p-3 text-xs text-sky-300">
+          选择一个隧道组，画布将自动聚焦并展示完整转发链路：
+          <span className="font-semibold"> 入口 → 隧道 → 跳点 → 出口 → 规则(落地)</span>
+          。可直接编辑后同步到服务器。
+        </div>
+
+        {allTunnels.length === 0 ? (
+          <div className="rounded-xl border border-dashed border-zinc-800 p-6 text-center text-sm text-zinc-600">
+            服务器上暂无隧道。请先通过「新增隧道」创建。
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {allTunnels.map((tunnel) => {
+              const tId = buildTunnelNodeId(tunnel);
+              const isFocused = focusedTunnelId === tId;
+              const isDraft = Boolean(tunnel.draftId);
+              const isTF = tunnel.type === 2;
+              const entries = (tunnel.inNodeId || []).filter(
+                (n) => n.nodeId > 0,
+              );
+              const exits = (tunnel.outNodeId || []).filter(
+                (n) => n.nodeId > 0,
+              );
+              const hopCount = (tunnel.chainNodes || []).filter((g) =>
+                g.some((n) => n.nodeId > 0),
+              ).length;
+              const fwdCount = allForwards.filter(
+                (f) =>
+                  typeof tunnel.id === "number" &&
+                  tunnel.id > 0 &&
+                  f.tunnelId === tunnel.id,
+              ).length;
+
+              return (
+                <div
+                  key={tId}
+                  className={[
+                    "overflow-hidden rounded-xl border transition-all",
+                    isFocused
+                      ? "border-sky-500/50 bg-sky-500/5 ring-1 ring-sky-500/20"
+                      : "border-zinc-800 hover:border-zinc-700",
+                  ].join(" ")}
+                >
+                  {/* Tunnel header */}
+                  <div className="flex items-center justify-between px-3 py-2.5">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span
+                        className={[
+                          "h-2.5 w-2.5 flex-shrink-0 rounded-full",
+                          isDraft
+                            ? "bg-amber-500"
+                            : tunnel.status === 1
+                              ? "bg-emerald-500"
+                              : "bg-zinc-600",
+                        ].join(" ")}
+                      />
+                      <span className="truncate text-sm font-semibold text-zinc-200">
+                        {tunnel.name || "未命名"}
+                      </span>
+                      <span
+                        className={[
+                          "flex-shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium",
+                          isTF
+                            ? "bg-sky-500/15 text-sky-400"
+                            : "bg-violet-500/15 text-violet-400",
+                        ].join(" ")}
+                      >
+                        {isTF ? "隧道转发" : "端口转发"}
+                      </span>
+                    </div>
+                    <Button
+                      color={isFocused ? "warning" : "primary"}
+                      onPress={() =>
+                        isFocused
+                          ? handleExitFocusMode()
+                          : handleFocusTunnel(tId)
+                      }
+                      size="sm"
+                      variant={isFocused ? "flat" : "solid"}
+                    >
+                      {isFocused ? "退出聚焦" : "聚焦编辑"}
+                    </Button>
+                  </div>
+
+                  {/* Chain preview */}
+                  <div className="border-t border-zinc-800/40 bg-zinc-900/30 px-3 py-2.5">
+                    <div className="flex items-center gap-1.5 flex-wrap text-[10px]">
+                      {/* Entry nodes */}
+                      {entries.length > 0 ? (
+                        entries.map((n, i) => {
+                          const sys = systemNodes.find(
+                            (s) => s.id === n.nodeId,
+                          );
+                          return (
+                            <span key={`e-${i}`} className="flex items-center gap-1">
+                              {i > 0 && (
+                                <span className="text-zinc-700">/</span>
+                              )}
+                              <span className="rounded bg-emerald-500/15 px-1.5 py-0.5 font-medium text-emerald-400">
+                                {sys?.name || `#${n.nodeId}`}
+                              </span>
+                            </span>
+                          );
+                        })
+                      ) : (
+                        <span className="rounded bg-zinc-800 px-1.5 py-0.5 text-zinc-600">
+                          无入口
+                        </span>
+                      )}
+
+                      <span className="text-zinc-600">→</span>
+
+                      {/* Tunnel */}
+                      <span className="rounded bg-sky-500/15 px-1.5 py-0.5 font-medium text-sky-400">
+                        {tunnel.name}
+                      </span>
+
+                      {/* Hops */}
+                      {hopCount > 0 && (
+                        <>
+                          <span className="text-zinc-600">→</span>
+                          <span className="rounded bg-sky-500/10 px-1.5 py-0.5 text-sky-500">
+                            {hopCount} 跳
+                          </span>
+                        </>
+                      )}
+
+                      {/* Exits */}
+                      {isTF && (
+                        <>
+                          <span className="text-zinc-600">→</span>
+                          {exits.length > 0 ? (
+                            exits.map((n, i) => {
+                              const sys = systemNodes.find(
+                                (s) => s.id === n.nodeId,
+                              );
+                              return (
+                                <span
+                                  key={`x-${i}`}
+                                  className="flex items-center gap-1"
+                                >
+                                  {i > 0 && (
+                                    <span className="text-zinc-700">/</span>
+                                  )}
+                                  <span className="rounded bg-teal-500/15 px-1.5 py-0.5 font-medium text-teal-400">
+                                    {sys?.name || `#${n.nodeId}`}
+                                  </span>
+                                </span>
+                              );
+                            })
+                          ) : (
+                            <span className="rounded bg-zinc-800 px-1.5 py-0.5 text-zinc-600">
+                              无出口
+                            </span>
+                          )}
+                        </>
+                      )}
+
+                      {/* Forward count */}
+                      <span className="text-zinc-600">→</span>
+                      <span className="rounded bg-amber-500/15 px-1.5 py-0.5 font-medium text-amber-400">
+                        {fwdCount} 规则
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Expanded forwards when focused */}
+                  {isFocused && focusedChain && (
+                    <div className="border-t border-zinc-800/40">
+                      {focusedChain.forwards.length > 0 ? (
+                        <div className="divide-y divide-zinc-800/30">
+                          {focusedChain.forwards.map((fwd) => {
+                            const fId = buildForwardNodeId(fwd);
+                            const addrs = splitMultiValue(fwd.remoteAddr);
+                            return (
+                              <div
+                                key={fId}
+                                className="flex items-start justify-between px-3 py-2"
+                              >
+                                <div className="min-w-0 flex-1">
+                                  <div className="flex items-center gap-1.5">
+                                    <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
+                                    <span className="text-xs font-medium text-zinc-300">
+                                      {fwd.name}
+                                    </span>
+                                  </div>
+                                  <div className="mt-1 pl-3 text-[10px] text-zinc-500">
+                                    <span className="font-mono text-emerald-500">
+                                      :{fwd.inPort || "auto"}
+                                    </span>
+                                    <span className="mx-1 text-zinc-700">→</span>
+                                    {addrs.length > 0 ? (
+                                      <span className="space-y-0.5">
+                                        {addrs.map((addr, ai) => (
+                                          <span
+                                            key={ai}
+                                            className="mr-1 inline-block rounded bg-zinc-800 px-1 py-0.5 font-mono text-amber-400"
+                                          >
+                                            {addr}
+                                          </span>
+                                        ))}
+                                      </span>
+                                    ) : (
+                                      <span className="italic text-zinc-700">
+                                        未配置
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+                                <Button
+                                  onPress={() => {
+                                    setSelectedNodeId(fId);
+                                    const node = nodes.find(
+                                      (n) => n.id === fId,
+                                    );
+                                    if (node)
+                                      reactFlowInstance.setCenter(
+                                        node.position.x + 130,
+                                        node.position.y + 80,
+                                        { duration: 300, zoom: 1.2 },
+                                      );
+                                  }}
+                                  size="sm"
+                                  variant="light"
+                                >
+                                  编辑
+                                </Button>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      ) : (
+                        <div className="px-3 py-3 text-[11px] italic text-zinc-700">
+                          此隧道暂无关联规则。可拖拽创建或从「新增规则」添加。
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+
+  const focusNode = useCallback(
+    (visualId: string) => {
+      setSelectedNodeId(visualId);
+      setBrowseOpen(false);
+      const node = nodes.find((n) => n.id === visualId);
+      if (node) {
+        reactFlowInstance.setCenter(node.position.x + 130, node.position.y + 80, {
+          duration: 400,
+          zoom: 1,
+        });
+      }
+    },
+    [nodes, reactFlowInstance],
+  );
+
+  const renderBrowsePanel = () => (
+    <div
+      className={[
+        "absolute left-0 top-0 z-20 h-full w-full max-w-[400px] border-r border-zinc-800 bg-zinc-950/98 shadow-2xl backdrop-blur transition-transform duration-300",
+        browseOpen ? "translate-x-0" : "-translate-x-full pointer-events-none",
+      ].join(" ")}
+    >
+      <div className="flex items-center justify-between border-b border-zinc-800 px-5 py-4">
+        <div>
+          <div className="text-[10px] uppercase tracking-[0.2em] text-zinc-600">
+            Browse
+          </div>
+          <div className="mt-1 text-base font-semibold text-zinc-100">
+            隧道与规则管理
+          </div>
+        </div>
+        <Button isIconOnly onPress={() => setBrowseOpen(false)} variant="light">
+          ×
+        </Button>
+      </div>
+      <div className="h-[calc(100%-81px)] overflow-y-auto p-4">
+        {tunnelGroups.groups.length === 0 && tunnelGroups.ungrouped.length === 0 ? (
+          <div className="rounded-xl border border-dashed border-zinc-800 p-6 text-center text-sm text-zinc-600">
+            暂无隧道或规则。点击「新增隧道」或从节点拖拽来创建。
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {tunnelGroups.groups.map((group) => {
+              const tId = buildTunnelNodeId(group.tunnel);
+              const isTunnelForward = group.tunnel.type === 2;
+              const isDraft = Boolean(group.tunnel.draftId);
+              return (
+                <div
+                  key={tId}
+                  className="overflow-hidden rounded-xl border border-zinc-800"
+                >
+                  {/* Tunnel header */}
+                  <div className="flex items-center justify-between border-b border-zinc-800/60 bg-zinc-900/50 px-3 py-2.5">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span
+                        className={[
+                          "h-2 w-2 flex-shrink-0 rounded-full",
+                          isDraft
+                            ? "bg-amber-500"
+                            : group.tunnel.status === 1
+                              ? "bg-emerald-500"
+                              : "bg-zinc-600",
+                        ].join(" ")}
+                      />
+                      <span className="truncate text-sm font-semibold text-zinc-200">
+                        {group.tunnel.name || "未命名隧道"}
+                      </span>
+                      <span
+                        className={[
+                          "flex-shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium",
+                          isTunnelForward
+                            ? "bg-sky-500/15 text-sky-400"
+                            : "bg-violet-500/15 text-violet-400",
+                        ].join(" ")}
+                      >
+                        {isTunnelForward ? "隧道转发" : "端口转发"}
+                      </span>
+                      {isDraft && (
+                        <span className="rounded bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-medium text-amber-400">
+                          草稿
+                        </span>
+                      )}
+                    </div>
+                    <Button
+                      color="primary"
+                      onPress={() => focusNode(tId)}
+                      size="sm"
+                      variant="flat"
+                    >
+                      编辑
+                    </Button>
+                  </div>
+                  {/* Tunnel details */}
+                  <div className="border-b border-zinc-800/40 bg-zinc-950 px-3 py-2 text-[11px] text-zinc-500">
+                    <div className="flex flex-wrap gap-x-4 gap-y-1">
+                      <span>
+                        入口:{" "}
+                        {(group.tunnel.inNodeId || [])
+                          .filter((n) => n.nodeId > 0)
+                          .map(
+                            (n) =>
+                              systemNodes.find((s) => s.id === n.nodeId)
+                                ?.name || `#${n.nodeId}`,
+                          )
+                          .join(", ") || "未配置"}
+                      </span>
+                      {isTunnelForward && (
+                        <span>
+                          出口:{" "}
+                          {(group.tunnel.outNodeId || [])
+                            .filter((n) => n.nodeId > 0)
+                            .map(
+                              (n) =>
+                                systemNodes.find((s) => s.id === n.nodeId)
+                                  ?.name || `#${n.nodeId}`,
+                            )
+                            .join(", ") || "未配置"}
+                        </span>
+                      )}
+                      <span>倍率: {group.tunnel.trafficRatio}x</span>
+                      <span>
+                        流量: {group.tunnel.flow === 2 ? "双向" : "单向"}
+                      </span>
+                    </div>
+                  </div>
+                  {/* Associated forwards */}
+                  {group.forwards.length > 0 ? (
+                    <div className="divide-y divide-zinc-800/40">
+                      {group.forwards.map((fwd) => {
+                        const fId = buildForwardNodeId(fwd);
+                        const fwdDraft = Boolean(fwd.draftId);
+                        const addrs = splitMultiValue(fwd.remoteAddr);
+                        return (
+                          <div
+                            key={fId}
+                            className="flex items-center justify-between bg-zinc-950 px-3 py-2"
+                          >
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-2">
+                                <span className="h-1.5 w-1.5 flex-shrink-0 rounded-full bg-amber-500" />
+                                <span className="truncate text-xs font-medium text-zinc-300">
+                                  {fwd.name || "未命名规则"}
+                                </span>
+                                {fwdDraft && (
+                                  <span className="rounded bg-amber-500/15 px-1 py-0.5 text-[9px] text-amber-400">
+                                    草稿
+                                  </span>
+                                )}
+                              </div>
+                              <div className="mt-0.5 flex items-center gap-1 pl-3.5 text-[10px] text-zinc-600">
+                                <span className="font-mono">
+                                  :{fwd.inPort || "auto"}
+                                </span>
+                                <span>→</span>
+                                <span className="truncate font-mono">
+                                  {addrs[0] || "未配置"}
+                                  {addrs.length > 1 &&
+                                    ` (+${addrs.length - 1})`}
+                                </span>
+                                {addrs.length > 1 && (
+                                  <span className="text-zinc-700">
+                                    [{fwd.strategy}]
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                            <Button
+                              onPress={() => focusNode(fId)}
+                              size="sm"
+                              variant="light"
+                            >
+                              编辑
+                            </Button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <div className="bg-zinc-950 px-3 py-2 text-[11px] italic text-zinc-700">
+                      此隧道暂无关联规则
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+
+            {/* Ungrouped forwards */}
+            {tunnelGroups.ungrouped.length > 0 && (
+              <div className="overflow-hidden rounded-xl border border-zinc-800">
+                <div className="border-b border-zinc-800/60 bg-zinc-900/50 px-3 py-2.5">
+                  <span className="text-sm font-semibold text-zinc-400">
+                    未关联隧道的规则
+                  </span>
+                </div>
+                <div className="divide-y divide-zinc-800/40">
+                  {tunnelGroups.ungrouped.map((fwd) => {
+                    const fId = buildForwardNodeId(fwd);
+                    const addrs = splitMultiValue(fwd.remoteAddr);
+                    return (
+                      <div
+                        key={fId}
+                        className="flex items-center justify-between bg-zinc-950 px-3 py-2"
+                      >
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2">
+                            <span className="h-1.5 w-1.5 flex-shrink-0 rounded-full bg-amber-500" />
+                            <span className="truncate text-xs font-medium text-zinc-300">
+                              {fwd.name}
+                            </span>
+                          </div>
+                          <div className="mt-0.5 pl-3.5 text-[10px] text-zinc-600">
+                            <span className="font-mono">
+                              :{fwd.inPort || "auto"} →{" "}
+                              {addrs[0] || "未配置"}
+                            </span>
+                          </div>
+                        </div>
+                        <Button
+                          onPress={() => focusNode(fId)}
+                          size="sm"
+                          variant="light"
+                        >
+                          编辑
+                        </Button>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
 
   return (
     <div className="relative h-full w-full overflow-hidden rounded-2xl border border-default-200 bg-zinc-950">
@@ -2632,12 +3641,39 @@ export default function VisualEditor() {
         <Button onPress={() => handleAddForward()} size="sm" variant="flat">
           新增规则
         </Button>
+        <Button
+          color={wizardOpen ? "secondary" : "default"}
+          onPress={() => handleOpenWizard("tunnel")}
+          size="sm"
+          variant={wizardOpen ? "solid" : "flat"}
+        >
+          快速创建
+        </Button>
         <Divider className="h-6" orientation="vertical" />
         <Button onPress={handleAutoLayout} size="sm" variant="flat">
           自动排列
         </Button>
         <Button onPress={handleExportJSON} size="sm" variant="flat">
           导出 JSON
+        </Button>
+        <Button
+          color={browseOpen ? "primary" : "default"}
+          onPress={() => setBrowseOpen((v) => !v)}
+          size="sm"
+          variant={browseOpen ? "solid" : "flat"}
+        >
+          查看编辑
+        </Button>
+        <Button
+          color={importPanelOpen ? "secondary" : "default"}
+          onPress={() => {
+            setImportPanelOpen((v) => !v);
+            if (!importPanelOpen) setBrowseOpen(false);
+          }}
+          size="sm"
+          variant={importPanelOpen ? "solid" : "flat"}
+        >
+          导入编辑
         </Button>
         {draftCount > 0 && (
           <>
@@ -2700,6 +3736,7 @@ export default function VisualEditor() {
             const kind = node.type;
             if (kind === "comfyServer") return "#22c55e";
             if (kind === "comfyTunnel") return "#0ea5e9";
+            if (kind === "comfyLanding") return "#f43f5e";
             return "#f59e0b";
           }}
           pannable
@@ -2724,11 +3761,305 @@ export default function VisualEditor() {
           <span className="h-2 w-2 rounded-full bg-amber-500" />
           Rule
         </span>
+        <span className="flex items-center gap-1.5">
+          <span className="h-2 w-2 rounded-full bg-rose-500" />
+          Landing
+        </span>
         <Divider className="h-3" orientation="vertical" />
         <span>
           Drag from a node to empty space to create linked items
         </span>
       </div>
+
+      {/* Focus mode banner */}
+      {focusedTunnel && (
+        <div className="absolute left-1/2 top-20 z-10 -translate-x-1/2 flex items-center gap-3 rounded-xl border border-sky-500/30 bg-zinc-950/95 px-4 py-2.5 shadow-2xl backdrop-blur">
+          <span className="h-2 w-2 animate-pulse rounded-full bg-sky-500" />
+          <span className="text-xs font-medium text-sky-300">
+            聚焦模式: {focusedTunnel.name}
+          </span>
+          <span className="text-[10px] text-zinc-600">
+            仅显示此隧道的转发链路
+          </span>
+          <Button
+            color="warning"
+            onPress={handleExitFocusMode}
+            size="sm"
+            variant="flat"
+          >
+            退出聚焦
+          </Button>
+        </div>
+      )}
+
+      {/* Wizard Panel */}
+      <div
+        className={[
+          "absolute left-0 top-0 z-20 h-full w-full max-w-[400px] border-r border-zinc-800 bg-zinc-950/98 shadow-2xl backdrop-blur transition-transform duration-300",
+          wizardOpen
+            ? "translate-x-0"
+            : "-translate-x-full pointer-events-none",
+        ].join(" ")}
+      >
+        <div className="flex items-center justify-between border-b border-zinc-800 px-5 py-4">
+          <div>
+            <div className="text-[10px] uppercase tracking-[0.2em] text-zinc-600">
+              Quick Create
+            </div>
+            <div className="mt-1 text-base font-semibold text-zinc-100">
+              快速创建转发链路
+            </div>
+          </div>
+          <Button
+            isIconOnly
+            onPress={() => setWizardOpen(false)}
+            variant="light"
+          >
+            ×
+          </Button>
+        </div>
+        <div className="h-[calc(100%-81px)] overflow-y-auto p-4 space-y-4">
+          {/* Mode tabs */}
+          <div className="flex rounded-lg border border-zinc-800 overflow-hidden">
+            <button
+              className={[
+                "flex-1 px-3 py-2 text-xs font-semibold transition-colors",
+                wizardMode === "tunnel"
+                  ? "bg-sky-500/15 text-sky-400"
+                  : "text-zinc-500 hover:text-zinc-300",
+              ].join(" ")}
+              onClick={() => {
+                setWizardMode("tunnel");
+                resetWizard();
+              }}
+            >
+              隧道转发
+            </button>
+            <button
+              className={[
+                "flex-1 px-3 py-2 text-xs font-semibold transition-colors border-l border-zinc-800",
+                wizardMode === "port"
+                  ? "bg-violet-500/15 text-violet-400"
+                  : "text-zinc-500 hover:text-zinc-300",
+              ].join(" ")}
+              onClick={() => {
+                setWizardMode("port");
+                resetWizard();
+              }}
+            >
+              端口转发链
+            </button>
+          </div>
+
+          {/* Flow description */}
+          {wizardMode === "tunnel" ? (
+            <div className="rounded-xl border border-sky-500/20 bg-sky-500/5 p-3 text-xs text-sky-300 space-y-1">
+              <div className="font-semibold">隧道转发模式</div>
+              <div>A 节点(入口) → B 节点(出口) 隧道 + 规则指向落地机器</div>
+              <div className="flex items-center gap-1 mt-2 text-[10px]">
+                <span className="rounded bg-emerald-500/15 px-1.5 py-0.5 text-emerald-400">A 入口</span>
+                <span className="text-zinc-600">→</span>
+                <span className="rounded bg-sky-500/15 px-1.5 py-0.5 text-sky-400">隧道</span>
+                <span className="text-zinc-600">→</span>
+                <span className="rounded bg-teal-500/15 px-1.5 py-0.5 text-teal-400">B 出口</span>
+                <span className="text-zinc-600">→</span>
+                <span className="rounded bg-rose-500/15 px-1.5 py-0.5 text-rose-400">落地</span>
+              </div>
+            </div>
+          ) : (
+            <div className="rounded-xl border border-violet-500/20 bg-violet-500/5 p-3 text-xs text-violet-300 space-y-1">
+              <div className="font-semibold">端口转发链模式</div>
+              <div>
+                创建两段端口转发：A 节点转发到 B 节点端口，B 节点转发到落地机器
+              </div>
+              <div className="flex items-center gap-1 mt-2 text-[10px] flex-wrap">
+                <span className="rounded bg-emerald-500/15 px-1.5 py-0.5 text-emerald-400">A :port</span>
+                <span className="text-zinc-600">→</span>
+                <span className="rounded bg-violet-500/15 px-1.5 py-0.5 text-violet-400">B IP:port</span>
+                <span className="text-zinc-600">→</span>
+                <span className="rounded bg-rose-500/15 px-1.5 py-0.5 text-rose-400">落地 IP:port</span>
+              </div>
+            </div>
+          )}
+
+          {/* Form */}
+          <div className="space-y-3">
+            <Input
+              label="链路名称"
+              placeholder={
+                wizardMode === "tunnel"
+                  ? "隧道转发链路"
+                  : "端口转发链路"
+              }
+              value={wizardName}
+              variant="bordered"
+              onChange={(e) => setWizardName(e.target.value)}
+            />
+            <Select
+              label={wizardMode === "tunnel" ? "A 入口节点" : "A 节点"}
+              selectedKeys={wizardNodeA ? [String(wizardNodeA)] : []}
+              variant="bordered"
+              onSelectionChange={(keys) => {
+                const [v] = selectionToStrings(keys);
+                setWizardNodeA(v ? Number.parseInt(v, 10) : null);
+              }}
+            >
+              {systemNodes
+                .filter((n) => n.status === 1)
+                .map((n) => (
+                  <SelectItem key={n.id} textValue={n.name}>
+                    <div className="flex items-center justify-between w-full">
+                      <span>{n.name}</span>
+                      <span className="text-xs text-zinc-500">
+                        {String(n.serverIp || n.serverIpV4 || "").trim()}
+                      </span>
+                    </div>
+                  </SelectItem>
+                ))}
+            </Select>
+            <Select
+              label={wizardMode === "tunnel" ? "B 出口节点" : "B 节点 (中转)"}
+              disabledKeys={wizardNodeA ? [String(wizardNodeA)] : []}
+              selectedKeys={wizardNodeB ? [String(wizardNodeB)] : []}
+              variant="bordered"
+              onSelectionChange={(keys) => {
+                const [v] = selectionToStrings(keys);
+                setWizardNodeB(v ? Number.parseInt(v, 10) : null);
+              }}
+            >
+              {systemNodes
+                .filter((n) => n.status === 1)
+                .map((n) => (
+                  <SelectItem key={n.id} textValue={n.name}>
+                    <div className="flex items-center justify-between w-full">
+                      <span>{n.name}</span>
+                      <span className="text-xs text-zinc-500">
+                        {String(n.serverIp || n.serverIpV4 || "").trim()}
+                      </span>
+                    </div>
+                  </SelectItem>
+                ))}
+            </Select>
+            {wizardMode === "port" && (
+              <Input
+                label="中转端口"
+                placeholder="如 8080"
+                type="number"
+                value={wizardPort}
+                variant="bordered"
+                onChange={(e) => setWizardPort(e.target.value)}
+              />
+            )}
+            {wizardMode === "tunnel" && (
+              <Input
+                label="入口端口 (可选)"
+                placeholder="留空自动分配"
+                type="number"
+                value={wizardPort}
+                variant="bordered"
+                onChange={(e) => setWizardPort(e.target.value)}
+              />
+            )}
+            <Textarea
+              description="落地服务器的目标地址，如 1.2.3.4:443。多个地址一行一个。"
+              label="落地地址"
+              maxRows={4}
+              minRows={2}
+              value={wizardLanding}
+              variant="bordered"
+              onChange={(e) => setWizardLanding(e.target.value)}
+            />
+          </div>
+
+          {/* Chain preview */}
+          {wizardNodeA && wizardNodeB && wizardLanding.trim() && (
+            <div className="rounded-xl border border-zinc-800 bg-zinc-900/30 p-3">
+              <div className="text-[10px] font-medium uppercase tracking-wider text-zinc-600 mb-2">
+                Preview
+              </div>
+              {wizardMode === "tunnel" ? (
+                <div className="flex items-center gap-1.5 flex-wrap text-[10px]">
+                  <span className="rounded bg-emerald-500/15 px-1.5 py-0.5 font-medium text-emerald-400">
+                    {systemNodes.find((n) => n.id === wizardNodeA)?.name || "A"}
+                  </span>
+                  <span className="text-zinc-600">→ 隧道 →</span>
+                  <span className="rounded bg-teal-500/15 px-1.5 py-0.5 font-medium text-teal-400">
+                    {systemNodes.find((n) => n.id === wizardNodeB)?.name || "B"}
+                  </span>
+                  <span className="text-zinc-600">→ 规则 →</span>
+                  {splitMultiValue(wizardLanding).map((addr, i) => (
+                    <span
+                      key={i}
+                      className="rounded bg-rose-500/15 px-1.5 py-0.5 font-mono text-rose-400"
+                    >
+                      {addr}
+                    </span>
+                  ))}
+                </div>
+              ) : (
+                <div className="space-y-1.5 text-[10px]">
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span className="text-zinc-500">A段:</span>
+                    <span className="rounded bg-emerald-500/15 px-1.5 py-0.5 font-medium text-emerald-400">
+                      {systemNodes.find((n) => n.id === wizardNodeA)?.name || "A"}
+                    </span>
+                    <span className="text-zinc-600">:{wizardPort || "?"} →</span>
+                    <span className="rounded bg-violet-500/15 px-1.5 py-0.5 font-mono text-violet-400">
+                      {(() => {
+                        const nb = systemNodes.find(
+                          (n) => n.id === wizardNodeB,
+                        );
+                        const ip = String(
+                          nb?.serverIp || nb?.serverIpV4 || "B",
+                        ).trim();
+                        return `${ip}:${wizardPort || "?"}`;
+                      })()}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span className="text-zinc-500">B段:</span>
+                    <span className="rounded bg-violet-500/15 px-1.5 py-0.5 font-medium text-violet-400">
+                      {systemNodes.find((n) => n.id === wizardNodeB)?.name || "B"}
+                    </span>
+                    <span className="text-zinc-600">:{wizardPort || "?"} →</span>
+                    {splitMultiValue(wizardLanding).map((addr, i) => (
+                      <span
+                        key={i}
+                        className="rounded bg-rose-500/15 px-1.5 py-0.5 font-mono text-rose-400"
+                      >
+                        {addr}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Create button */}
+          <Button
+            className="w-full"
+            color="primary"
+            isLoading={wizardCreating}
+            onPress={
+              wizardMode === "tunnel"
+                ? handleWizardTunnelCreate
+                : handleWizardPortCreate
+            }
+            size="lg"
+          >
+            {wizardMode === "tunnel"
+              ? "创建隧道转发链路"
+              : "创建端口转发链路"}
+          </Button>
+        </div>
+      </div>
+
+      {/* Import Panel */}
+      {renderImportPanel()}
+
+      {/* Browse Panel */}
+      {renderBrowsePanel()}
 
       {/* Inspector Panel */}
       <div
