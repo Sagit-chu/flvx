@@ -1,173 +1,414 @@
 package handler
 
 import (
-	"bytes"
-	"context"
+	"encoding/json"
+	"fmt"
 	"net/http"
-	"os/exec"
-	"runtime"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
 
 	"go-backend/internal/http/response"
-	"go-backend/internal/store/model"
 )
 
-// VisualGraphPayload represents the React Flow generic storage
+const (
+	visualGraphConfigKey    = "visual_editor_graph"
+	visualLinkTestTimeout   = 10 * time.Second
+	visualTraceMode         = "simulated_topology"
+	visualProbeStatusUp     = "online"
+	visualProbeStatusDown   = "offline"
+	visualLinkModeNodeTCP   = "node_tcp_ping"
+	visualLinkModeDirectTCP = "direct_tcp_ping"
+)
+
+// VisualGraphPayload stores the serialized React Flow layout.
 type VisualGraphPayload struct {
 	GraphJSON string `json:"graph_json"`
 }
 
-func (h *Handler) visualGraphHandler(w http.ResponseWriter, r *http.Request) {
-	configKey := "visual_editor_graph"
+type VisualLinkTestRequest struct {
+	SourceNodeID int64  `json:"sourceNodeId"`
+	TargetNodeID int64  `json:"targetNodeId"`
+	Target       string `json:"target"`
+	Port         int    `json:"port"`
+	IPPreference string `json:"ipPreference"`
+}
 
-	if r.Method == http.MethodGet {
-		cfg, err := h.repo.GetConfigByName(configKey)
+type visualLinkTraceHop struct {
+	Hop      int    `json:"hop"`
+	Kind     string `json:"kind"`
+	NodeID   int64  `json:"nodeId,omitempty"`
+	NodeName string `json:"nodeName,omitempty"`
+	Host     string `json:"host"`
+	Port     int    `json:"port,omitempty"`
+}
+
+type visualLinkTestResult struct {
+	Mode           string               `json:"mode"`
+	SourceNodeID   int64                `json:"sourceNodeId"`
+	SourceNodeName string               `json:"sourceNodeName"`
+	TargetNodeID   int64                `json:"targetNodeId,omitempty"`
+	TargetNodeName string               `json:"targetNodeName,omitempty"`
+	TargetHost     string               `json:"targetHost"`
+	TargetPort     int                  `json:"targetPort"`
+	Success        bool                 `json:"success"`
+	AverageTime    float64              `json:"averageTime"`
+	PacketLoss     float64              `json:"packetLoss"`
+	Message        string               `json:"message"`
+	PingOutput     string               `json:"ping_output"`
+	TraceOutput    string               `json:"trace_output"`
+	TraceMode      string               `json:"trace_mode"`
+	Simulated      bool                 `json:"simulated"`
+	TraceHops      []visualLinkTraceHop `json:"trace_hops"`
+}
+
+func (h *Handler) visualGraphHandler(w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case http.MethodGet:
+		cfg, err := h.repo.GetConfigByName(visualGraphConfigKey)
 		if err != nil {
 			response.WriteJSON(w, response.Err(-2, err.Error()))
 			return
 		}
-		val := "{}"
-		if cfg != nil {
-			val = cfg.Value
-		}
-		response.WriteJSON(w, response.OK(map[string]interface{}{"graph_json": val}))
-		return
-	}
 
-	if r.Method == http.MethodPost {
+		graphJSON := "{}"
+		if cfg != nil && strings.TrimSpace(cfg.Value) != "" {
+			graphJSON = cfg.Value
+		}
+
+		response.WriteJSON(w, response.OK(map[string]interface{}{"graph_json": graphJSON}))
+	case http.MethodPost:
 		var req VisualGraphPayload
 		if err := decodeJSON(r.Body, &req); err != nil {
-			response.WriteJSON(w, response.ErrDefault("无效的 JSON payload"))
+			response.WriteJSON(w, response.ErrDefault("invalid JSON payload"))
 			return
 		}
 
-		if req.GraphJSON == "" {
-			req.GraphJSON = "{}"
+		graphJSON := strings.TrimSpace(req.GraphJSON)
+		if graphJSON == "" {
+			graphJSON = "{}"
+		}
+		if !json.Valid([]byte(graphJSON)) {
+			response.WriteJSON(w, response.ErrDefault("graph_json must be valid JSON"))
+			return
 		}
 
-		err := h.repo.UpsertConfig(configKey, req.GraphJSON, time.Now().UnixMilli())
-		if err != nil {
+		if err := h.repo.UpsertConfig(visualGraphConfigKey, graphJSON, time.Now().UnixMilli()); err != nil {
 			response.WriteJSON(w, response.Err(-2, err.Error()))
 			return
 		}
 
-		response.WriteJSON(w, response.OK("success"))
-		return
+		response.WriteJSON(w, response.OK(map[string]interface{}{"graph_json": graphJSON}))
+	default:
+		response.WriteJSON(w, response.ErrDefault("method not allowed"))
 	}
-
-	response.WriteJSON(w, response.ErrDefault("不支持的方法"))
 }
 
 func (h *Handler) visualProbeHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
-		response.WriteJSON(w, response.ErrDefault("仅支持 POST 方法"))
+		response.WriteJSON(w, response.ErrDefault("method not allowed"))
 		return
 	}
 
-	parts := strings.Split(r.URL.Path, "/")
-	if len(parts) == 0 {
-		response.WriteJSON(w, response.ErrDefault("无效 Node ID"))
-		return
-	}
-	idStr := parts[len(parts)-1]
-	if idStr == "" && len(parts) > 1 {
-		idStr = parts[len(parts)-2]
-	}
-
-	nodeID, err := strconv.ParseInt(idStr, 10, 64)
-	if err != nil || nodeID <= 0 {
-		response.WriteJSON(w, response.ErrDefault("无效 Node ID"))
+	nodeID, err := parseVisualNodeID(r.URL.Path)
+	if err != nil {
+		response.WriteJSON(w, response.ErrDefault("invalid node id"))
 		return
 	}
 
 	node, err := h.repo.GetNodeByID(nodeID)
-	if err != nil || node == nil {
-		response.WriteJSON(w, response.ErrDefault("Node 未找到"))
+	if err != nil {
+		response.WriteJSON(w, response.Err(-2, err.Error()))
+		return
+	}
+	if node == nil {
+		response.WriteJSON(w, response.ErrDefault("node not found"))
 		return
 	}
 
-	// Fetch occupied ports
-	// We can query forward_port for this node
-	db := h.repo.DB()
-	var forwardPorts []model.ForwardPort
-	db.Where("node_id = ?", nodeID).Find(&forwardPorts)
+	occupiedPorts, err := h.repo.ListUsedPortsOnNode(nodeID)
+	if err != nil {
+		response.WriteJSON(w, response.Err(-2, err.Error()))
+		return
+	}
+	sort.Ints(occupiedPorts)
 
-	var occupiedPorts []int
-	for _, fp := range forwardPorts {
-		occupiedPorts = append(occupiedPorts, fp.Port)
+	metric, err := h.repo.GetLatestNodeMetric(nodeID)
+	if err != nil {
+		response.WriteJSON(w, response.Err(-2, err.Error()))
+		return
 	}
 
-	// Realtime metrics (Latest memory / CPU / Status)
-	isOnline := node.Status == 1
-	var lastMetric model.NodeMetric
-	h.repo.DB().Where("node_id = ?", nodeID).Order("timestamp DESC").First(&lastMetric)
-	
-	cpu := lastMetric.CPUUsage
-	mem := lastMetric.MemUsage
-	conns := lastMetric.TCPConns + lastMetric.UDPConns
+	payload := map[string]interface{}{
+		"node_id":             nodeID,
+		"node_name":           node.Name,
+		"status":              visualProbeStatus(node.Status),
+		"server_ip":           node.ServerIP,
+		"allowed_port":        node.Port,
+		"allowed_ports":       node.Port,
+		"occupied_ports":      occupiedPorts,
+		"occupied_port_count": len(occupiedPorts),
+		"cpu_usage":           0.0,
+		"mem_usage":           0.0,
+		"disk_usage":          0.0,
+		"connections":         int64(0),
+		"tcp_connections":     int64(0),
+		"udp_connections":     int64(0),
+		"load1":               0.0,
+		"load5":               0.0,
+		"load15":              0.0,
+		"net_in_speed":        int64(0),
+		"net_out_speed":       int64(0),
+		"uptime":              int64(0),
+		"metric_timestamp":    int64(0),
+	}
 
-	response.WriteJSON(w, response.OK(map[string]interface{}{
-		"node_id":         nodeID,
-		"status":          func() string { if isOnline { return "online" }; return "offline" }(),
-		"cpu_usage":       cpu,
-		"mem_usage":       mem,
-		"connections":     conns,
-		"occupied_ports":  occupiedPorts,
-		"allowed_port":    node.Port,
-	}))
-}
+	if metric != nil {
+		payload["cpu_usage"] = metric.CPUUsage
+		payload["mem_usage"] = metric.MemUsage
+		payload["disk_usage"] = metric.DiskUsage
+		payload["tcp_connections"] = metric.TCPConns
+		payload["udp_connections"] = metric.UDPConns
+		payload["connections"] = metric.TCPConns + metric.UDPConns
+		payload["load1"] = metric.Load1
+		payload["load5"] = metric.Load5
+		payload["load15"] = metric.Load15
+		payload["net_in_speed"] = metric.NetInSpeed
+		payload["net_out_speed"] = metric.NetOutSpeed
+		payload["uptime"] = metric.Uptime
+		payload["metric_timestamp"] = metric.Timestamp
+	}
 
-type LinkTestRequest struct {
-	Target string `json:"target"` // IP or hostname
+	response.WriteJSON(w, response.OK(payload))
 }
 
 func (h *Handler) visualLinkTestHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
-		response.WriteJSON(w, response.ErrDefault("请求方法不允许"))
+		response.WriteJSON(w, response.ErrDefault("method not allowed"))
 		return
 	}
 
-	var req LinkTestRequest
+	var req VisualLinkTestRequest
 	if err := decodeJSON(r.Body, &req); err != nil {
-		response.WriteJSON(w, response.ErrDefault("参数错误"))
+		response.WriteJSON(w, response.ErrDefault("invalid request payload"))
 		return
 	}
 
-	target := strings.TrimSpace(req.Target)
+	if req.SourceNodeID <= 0 {
+		response.WriteJSON(w, response.ErrDefault("sourceNodeId is required"))
+		return
+	}
+
+	sourceNode, err := h.getNodeRecord(req.SourceNodeID)
+	if err != nil {
+		response.WriteJSON(w, response.ErrDefault(err.Error()))
+		return
+	}
+
+	targetNode, targetHost, targetPort, err := h.resolveVisualLinkTarget(sourceNode, req)
+	if err != nil {
+		response.WriteJSON(w, response.ErrDefault(err.Error()))
+		return
+	}
+
+	pingData, pingErr := h.runVisualLinkPing(sourceNode, targetHost, targetPort)
+	result := buildVisualLinkTestResult(sourceNode, targetNode, targetHost, targetPort, pingData, pingErr)
+	response.WriteJSON(w, response.OK(result))
+}
+
+func parseVisualNodeID(path string) (int64, error) {
+	path = strings.TrimSpace(path)
+	path = strings.TrimSuffix(path, "/")
+	if path == "" {
+		return 0, fmt.Errorf("empty path")
+	}
+
+	parts := strings.Split(path, "/")
+	idStr := strings.TrimSpace(parts[len(parts)-1])
+	if idStr == "" {
+		return 0, fmt.Errorf("missing id")
+	}
+
+	nodeID, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil || nodeID <= 0 {
+		return 0, fmt.Errorf("invalid id")
+	}
+	return nodeID, nil
+}
+
+func visualProbeStatus(status int) string {
+	if status == 1 {
+		return visualProbeStatusUp
+	}
+	return visualProbeStatusDown
+}
+
+func (h *Handler) resolveVisualLinkTarget(sourceNode *nodeRecord, req VisualLinkTestRequest) (*nodeRecord, string, int, error) {
+	if req.TargetNodeID > 0 {
+		targetNode, err := h.getNodeRecord(req.TargetNodeID)
+		if err != nil {
+			return nil, "", 0, err
+		}
+
+		targetHost, targetPort, err := resolveChainProbeTarget(sourceNode, targetNode, req.Port, strings.TrimSpace(req.IPPreference), "")
+		if err != nil {
+			return nil, "", 0, err
+		}
+		return targetNode, targetHost, targetPort, nil
+	}
+
+	targetHost, targetPort, err := parseVisualLinkHostPort(req.Target, req.Port)
+	if err != nil {
+		return nil, "", 0, err
+	}
+	return nil, targetHost, targetPort, nil
+}
+
+func parseVisualLinkHostPort(target string, fallbackPort int) (string, int, error) {
+	target = strings.TrimSpace(target)
 	if target == "" {
-		response.WriteJSON(w, response.ErrDefault("测试目标不能为空"))
-		return
+		return "", 0, fmt.Errorf("target or targetNodeId is required")
 	}
 
-	// Timeout
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
+	host, port, err := parseTargetAddress(target)
+	if err == nil {
+		return host, port, nil
+	}
 
-	var pingCmd *exec.Cmd
-	var traceCmd *exec.Cmd
+	if fallbackPort <= 0 || fallbackPort > 65535 {
+		return "", 0, fmt.Errorf("target must be in host:port form or include a valid port")
+	}
 
-	if runtime.GOOS == "windows" {
-		pingCmd = exec.CommandContext(ctx, "ping", "-n", "3", "-w", "1000", target)
-		traceCmd = exec.CommandContext(ctx, "tracert", "-d", "-h", "15", "-w", "500", target)
+	host = strings.Trim(strings.TrimSpace(target), "[]")
+	if host == "" {
+		return "", 0, fmt.Errorf("invalid target host")
+	}
+	return host, fallbackPort, nil
+}
+
+func (h *Handler) runVisualLinkPing(sourceNode *nodeRecord, targetHost string, targetPort int) (map[string]interface{}, error) {
+	options := diagnosisExecOptions{
+		commandTimeout: visualLinkTestTimeout,
+		pingTimeoutMS:  int(visualLinkTestTimeout / time.Millisecond),
+		timeoutMessage: "visual link test timed out",
+	}
+
+	if sourceNode != nil && sourceNode.IsRemote == 1 {
+		return h.tcpPingViaRemoteNode(sourceNode, targetHost, targetPort, options)
+	}
+	return h.tcpPingViaNode(sourceNode.ID, targetHost, targetPort, options)
+}
+
+func buildVisualLinkTestResult(sourceNode, targetNode *nodeRecord, targetHost string, targetPort int, pingData map[string]interface{}, pingErr error) visualLinkTestResult {
+	result := visualLinkTestResult{
+		Mode:           visualLinkModeNodeTCP,
+		SourceNodeID:   sourceNode.ID,
+		SourceNodeName: visualNodeName(sourceNode),
+		TargetHost:     targetHost,
+		TargetPort:     targetPort,
+		TraceMode:      visualTraceMode,
+		Simulated:      true,
+		Success:        false,
+		PacketLoss:     100,
+		Message:        "tcp probe failed",
+	}
+
+	if targetNode != nil {
+		result.TargetNodeID = targetNode.ID
+		result.TargetNodeName = visualNodeName(targetNode)
 	} else {
-		pingCmd = exec.CommandContext(ctx, "ping", "-c", "3", "-W", "1", target)
-		traceCmd = exec.CommandContext(ctx, "traceroute", "-m", "15", "-w", "1", "-n", target)
+		result.Mode = visualLinkModeDirectTCP
 	}
 
-	// Capture output
-	var pingOut bytes.Buffer
-	pingCmd.Stdout = &pingOut
-	pingCmd.Run() // Error doesn't matter, we parse output
+	if pingErr != nil {
+		result.Message = strings.TrimSpace(pingErr.Error())
+	}
 
-	var traceOut bytes.Buffer
-	traceCmd.Stdout = &traceOut
-	traceCmd.Run()
+	if pingData != nil {
+		result.Success = asBool(pingData["success"], false)
+		result.AverageTime = asFloat(pingData["averageTime"], 0)
+		result.PacketLoss = asFloat(pingData["packetLoss"], 100)
 
-	response.WriteJSON(w, response.OK(map[string]interface{}{
-		"target": target,
-		"ping_output": pingOut.String(),
-		"trace_output": traceOut.String(),
-	}))
+		message := strings.TrimSpace(asString(pingData["message"]))
+		if message == "" && !result.Success {
+			message = strings.TrimSpace(asString(pingData["errorMessage"]))
+		}
+		if message != "" {
+			result.Message = message
+		} else if result.Success {
+			result.Message = "tcp probe completed"
+		}
+	}
+
+	result.TraceHops = buildVisualLinkTraceHops(sourceNode, targetNode, targetHost, targetPort)
+	result.PingOutput = buildVisualPingOutput(result)
+	result.TraceOutput = buildVisualTraceOutput(result)
+	return result
+}
+
+func buildVisualLinkTraceHops(sourceNode, targetNode *nodeRecord, targetHost string, targetPort int) []visualLinkTraceHop {
+	hops := []visualLinkTraceHop{
+		{
+			Hop:      1,
+			Kind:     "source",
+			NodeID:   sourceNode.ID,
+			NodeName: visualNodeName(sourceNode),
+			Host:     strings.Trim(strings.TrimSpace(sourceNode.ServerIP), "[]"),
+		},
+	}
+
+	targetHop := visualLinkTraceHop{
+		Hop:  2,
+		Kind: "target",
+		Host: targetHost,
+		Port: targetPort,
+	}
+	if targetNode != nil {
+		targetHop.NodeID = targetNode.ID
+		targetHop.NodeName = visualNodeName(targetNode)
+	}
+	hops = append(hops, targetHop)
+	return hops
+}
+
+func buildVisualPingOutput(result visualLinkTestResult) string {
+	lines := []string{
+		fmt.Sprintf("mode: %s", result.Mode),
+		fmt.Sprintf("source: %s (%d)", result.SourceNodeName, result.SourceNodeID),
+		fmt.Sprintf("target: %s:%d", result.TargetHost, result.TargetPort),
+		fmt.Sprintf("success: %t", result.Success),
+		fmt.Sprintf("avg_ms: %.2f", result.AverageTime),
+		fmt.Sprintf("packet_loss: %.2f", result.PacketLoss),
+		fmt.Sprintf("message: %s", result.Message),
+	}
+	return strings.Join(lines, "\n")
+}
+
+func buildVisualTraceOutput(result visualLinkTestResult) string {
+	lines := make([]string, 0, len(result.TraceHops)+2)
+	for _, hop := range result.TraceHops {
+		label := hop.Host
+		if hop.Port > 0 {
+			label = fmt.Sprintf("%s:%d", label, hop.Port)
+		}
+		if hop.NodeName != "" {
+			label = fmt.Sprintf("%s [%s]", label, hop.NodeName)
+		}
+		lines = append(lines, fmt.Sprintf("%d  %s  (%s)", hop.Hop, label, hop.Kind))
+	}
+	lines = append(lines, fmt.Sprintf("mode: %s", result.TraceMode))
+	lines = append(lines, "note: hop-by-hop traceroute is simulated from the selected visual graph path")
+	return strings.Join(lines, "\n")
+}
+
+func visualNodeName(node *nodeRecord) string {
+	if node == nil {
+		return ""
+	}
+	name := strings.TrimSpace(node.Name)
+	if name != "" {
+		return name
+	}
+	return fmt.Sprintf("node-%d", node.ID)
 }

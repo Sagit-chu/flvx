@@ -105,6 +105,10 @@ func requiresAdmin(path string) bool {
 		return true
 	}
 
+	if strings.HasPrefix(path, "/api/v1/visual/") {
+		return true
+	}
+
 	if strings.HasPrefix(path, "/api/v1/group/") {
 		return true
 	}
@@ -137,6 +141,8 @@ func requiresAdmin(path string) bool {
 	}
 
 	switch path {
+	case "/api/v1/nodes/graph":
+		return true
 	case "/api/v1/user/create", "/api/v1/user/list", "/api/v1/user/update", "/api/v1/user/delete", "/api/v1/user/reset":
 		return true
 	case "/api/v1/config/update", "/api/v1/config/update-single":
@@ -144,6 +150,6 @@ func requiresAdmin(path string) bool {
 	case "/api/v1/announcement/update":
 		return true
 	default:
-		return false
+		return strings.HasPrefix(path, "/api/v1/probe/node/") || path == "/api/v1/link/test"
 	}
 }

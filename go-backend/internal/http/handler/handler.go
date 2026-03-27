@@ -251,6 +251,9 @@ func (h *Handler) Register(mux *http.ServeMux) {
 	mux.HandleFunc("/api/v1/visual/graph", h.visualGraphHandler)
 	mux.HandleFunc("/api/v1/visual/probe/", h.visualProbeHandler)
 	mux.HandleFunc("/api/v1/visual/link/test", h.visualLinkTestHandler)
+	mux.HandleFunc("/api/v1/nodes/graph", h.visualGraphHandler)
+	mux.HandleFunc("/api/v1/probe/node/", h.visualProbeHandler)
+	mux.HandleFunc("/api/v1/link/test", h.visualLinkTestHandler)
 
 	mux.HandleFunc("/flow/test", h.flowTest)
 	mux.HandleFunc("/flow/config", h.flowConfig)
