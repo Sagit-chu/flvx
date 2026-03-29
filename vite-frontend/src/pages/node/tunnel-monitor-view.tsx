@@ -2,6 +2,7 @@ import type {
   MonitorTunnelApiItem,
   TunnelMetricApiItem,
   TunnelQualityApiItem,
+  TunnelQualityHopApiItem,
 } from "@/api/types";
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -23,6 +24,7 @@ import {
   ArrowRightLeft,
   Wifi,
   WifiOff,
+  ArrowRight,
 } from "lucide-react";
 import toast from "react-hot-toast";
 
@@ -326,6 +328,63 @@ const TrafficChartCard = React.memo(function TrafficChartCard({
     </Card>
   );
 });
+
+function ForwardingChainTopology({ hopsStr }: { hopsStr?: string }) {
+  if (!hopsStr) return null;
+
+  let hops: TunnelQualityHopApiItem[] = [];
+  try {
+    hops = JSON.parse(hopsStr);
+  } catch {
+    return null;
+  }
+
+  if (!Array.isArray(hops) || hops.length === 0) return null;
+
+  return (
+    <Card className="border border-divider/60 shadow-sm transition-shadow bg-gradient-to-br from-background to-default-50/50 mt-4">
+      <CardHeader className="py-3 px-4 flex flex-row items-center justify-between pb-1">
+        <h3 className="text-sm font-semibold flex items-center gap-1.5 text-default-700">
+          <Activity className="w-4 h-4 text-primary" />
+          全链路拓扑状态 (实时)
+        </h3>
+      </CardHeader>
+      <CardBody className="py-2 px-4 pb-4">
+        <div className="flex items-center overflow-x-auto pb-2 py-2">
+          {hops.map((hop, index) => {
+            const hasError = hop.latency < 0 || hop.loss > 0;
+            const colorClass = hop.latency < 0 ? "text-danger" : (hop.loss > 0 ? "text-warning" : "text-success");
+            const borderColor = hasError ? "border-danger" : "";
+
+            return (
+              <React.Fragment key={index}>
+                {index === 0 && (
+                  <Chip size="sm" variant="flat" className="shrink-0 font-mono shadow-sm">
+                    {hop.fromNodeName}
+                  </Chip>
+                )}
+                <div className="flex flex-col items-center justify-center min-w-[70px] mx-1 shrink-0 relative">
+                  <span className={`text-[10px] font-mono leading-none mb-1 ${colorClass}`}>
+                    {hop.latency >= 0 ? `${hop.latency.toFixed(0)}ms` : "超时"}
+                  </span>
+                  <div className={`h-[2px] w-full relative flex items-center justify-end bg-default-200 ${hop.latency < 0 ? "!bg-danger" : ""}`}>
+                    <ArrowRight className={`w-3.5 h-3.5 absolute -right-2 ${colorClass} bg-background rounded-full p-[1px] z-10`} />
+                  </div>
+                  <span className={`text-[10px] font-mono leading-none mt-1.5 ${hop.loss > 0 ? "text-warning" : "text-default-400"}`}>
+                    {hop.loss.toFixed(0)}% 丢包
+                  </span>
+                </div>
+                <Chip size="sm" variant="flat" className={`shrink-0 font-mono shadow-sm ${borderColor}`}>
+                  {hop.toNodeName}
+                </Chip>
+              </React.Fragment>
+            );
+          })}
+        </div>
+      </CardBody>
+    </Card>
+  );
+}
 
 export function TunnelMonitorView({ viewMode = "grid" }: TunnelMonitorViewProps) {
   const [tunnels, setTunnels] = useState<MonitorTunnelApiItem[]>([]);
@@ -777,6 +836,11 @@ export function TunnelMonitorView({ viewMode = "grid" }: TunnelMonitorViewProps)
             <span className="text-danger ml-2">{quality.errorMessage}</span>
           )}
         </div>
+
+        {/* ====== Chain Topology ====== */}
+        {monitorTunnelQualityEnabled && quality?.chainDetails && (
+          <ForwardingChainTopology hopsStr={quality.chainDetails} />
+        )}
 
         {/* ====== Quality History Chart — isolated with React.memo ====== */}
         <QualityChartCard

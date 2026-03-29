@@ -489,6 +489,17 @@ export interface MonitorAccessApiData {
   reason?: string;
 }
 
+export interface TunnelQualityHopApiItem {
+  fromNodeId: number;
+  fromNodeName: string;
+  toNodeId: number;
+  toNodeName: string;
+  latency: number;
+  loss: number;
+  targetIp?: string;
+  targetPort?: number;
+}
+
 export interface TunnelQualityApiItem {
   tunnelId: number;
   entryToExitLatency: number;
@@ -498,4 +509,5 @@ export interface TunnelQualityApiItem {
   success: boolean;
   errorMessage?: string;
   timestamp: number;
+  chainDetails?: string;
 }
