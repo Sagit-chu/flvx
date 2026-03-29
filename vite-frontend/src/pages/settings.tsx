@@ -31,9 +31,6 @@ interface PanelAddress {
 }
 
 const FORWARD_COMPACT_MODE_CONFIG_KEY = "forward_compact_mode";
-const MONITOR_TUNNEL_QUALITY_ENABLED_CONFIG_KEY = "monitor_tunnel_quality_enabled";
-const MONITOR_TUNNEL_QUALITY_ENABLED_EVENT =
-  "monitorTunnelQualityEnabledChanged";
 
 const parseBooleanConfig = (value: unknown, defaultValue: boolean) =>
   typeof value === "string" ? value === "true" : defaultValue;
@@ -48,10 +45,6 @@ export const SettingsPage = () => {
   );
   const [forwardCompactMode, setForwardCompactMode] = useState(false);
   const [forwardCompactModeSaving, setForwardCompactModeSaving] =
-    useState(false);
-  const [monitorTunnelQualityEnabled, setMonitorTunnelQualityEnabled] =
-    useState(true);
-  const [monitorTunnelQualitySaving, setMonitorTunnelQualitySaving] =
     useState(false);
 
   const admin = isAdmin();
@@ -112,7 +105,6 @@ export const SettingsPage = () => {
   useEffect(() => {
     loadPanelAddresses();
     loadForwardCompactMode();
-    loadMonitorTunnelQualityEnabled();
   }, []);
 
   const loadForwardCompactMode = async () => {
@@ -121,15 +113,6 @@ export const SettingsPage = () => {
       setForwardCompactMode(parseBooleanConfig(res.data?.value, false));
     } catch {
       setForwardCompactMode(false);
-    }
-  };
-
-  const loadMonitorTunnelQualityEnabled = async () => {
-    try {
-      const res = await getConfigByName(MONITOR_TUNNEL_QUALITY_ENABLED_CONFIG_KEY);
-      setMonitorTunnelQualityEnabled(parseBooleanConfig(res.data?.value, true));
-    } catch {
-      setMonitorTunnelQualityEnabled(true);
     }
   };
 
@@ -164,40 +147,6 @@ export const SettingsPage = () => {
       toast.error("保存精简模式失败");
     } finally {
       setForwardCompactModeSaving(false);
-    }
-  };
-
-  const handleMonitorTunnelQualityEnabledChange = async (enabled: boolean) => {
-    if (!admin || monitorTunnelQualitySaving) {
-      return;
-    }
-
-    const previous = monitorTunnelQualityEnabled;
-
-    setMonitorTunnelQualityEnabled(enabled);
-    setMonitorTunnelQualitySaving(true);
-    try {
-      const response = await updateConfig(
-        MONITOR_TUNNEL_QUALITY_ENABLED_CONFIG_KEY,
-        enabled ? "true" : "false",
-      );
-
-      if (response.code === 0) {
-        toast.success(`实时隧道质量检测已${enabled ? "开启" : "关闭"}`);
-        window.dispatchEvent(
-          new CustomEvent(MONITOR_TUNNEL_QUALITY_ENABLED_EVENT, {
-            detail: { enabled },
-          }),
-        );
-      } else {
-        setMonitorTunnelQualityEnabled(previous);
-        toast.error(response.msg || "保存隧道质量检测配置失败");
-      }
-    } catch {
-      setMonitorTunnelQualityEnabled(previous);
-      toast.error("保存隧道质量检测配置失败");
-    } finally {
-      setMonitorTunnelQualitySaving(false);
     }
   };
 
@@ -285,30 +234,6 @@ export const SettingsPage = () => {
                       isDisabled={!admin || forwardCompactModeSaving}
                       isSelected={forwardCompactMode}
                       onValueChange={handleForwardCompactModeChange}
-                    />
-                  </div>
-                  {!admin && (
-                    <p className="mt-2 text-xs text-amber-600 dark:text-amber-400">
-                      仅管理员可修改该全局配置。
-                    </p>
-                  )}
-                </div>
-
-                <div className="rounded-lg border border-gray-200 dark:border-gray-700 px-4 py-3">
-                  <div className="flex items-center justify-between gap-4">
-                    <div>
-                      <p className="text-sm font-medium text-gray-900 dark:text-white">
-                        实时隧道质量检测
-                      </p>
-                      <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                        关闭后，前端停止自动刷新，后端停止实时隧道质量探测。
-                      </p>
-                    </div>
-                    <Switch
-                      color="primary"
-                      isDisabled={!admin || monitorTunnelQualitySaving}
-                      isSelected={monitorTunnelQualityEnabled}
-                      onValueChange={handleMonitorTunnelQualityEnabledChange}
                     />
                   </div>
                   {!admin && (

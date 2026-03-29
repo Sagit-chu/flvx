@@ -125,6 +125,12 @@ const CONFIG_ITEMS: ConfigItem[] = [
     type: "switch",
   },
   {
+    key: "monitor_tunnel_quality_enabled",
+    label: "实时隧道质量检测",
+    description: "关闭后，前端停止自动刷新，后端停止实时隧道质量探测（全局配置）",
+    type: "switch",
+  },
+  {
     key: "captcha_enabled",
     label: "启用验证码",
     description: "开启后，用户登录时需要完成验证码验证",
@@ -175,6 +181,7 @@ const getInitialConfigs = (): Record<string, string> => {
     "cloudflare_site_key",
     "cloudflare_secret_key",
     "forward_compact_mode",
+    "monitor_tunnel_quality_enabled",
     "ip",
     "panel_domain",
     "app_logo",
@@ -407,6 +414,15 @@ export default function ConfigPage() {
             detail: { changedKeys },
           }),
         );
+
+        // 如果隧道质量检测开关变更，通知 tunnel-monitor-view
+        if (changedKeys.includes("monitor_tunnel_quality_enabled")) {
+          window.dispatchEvent(
+            new CustomEvent("monitorTunnelQualityEnabledChanged", {
+              detail: { enabled: configs["monitor_tunnel_quality_enabled"] === "true" },
+            }),
+          );
+        }
       } else {
         toast.error("保存配置失败: " + response.msg);
       }

@@ -2780,6 +2780,22 @@ func (h *Handler) prepareTunnelCreateState(tx *gorm.DB, req map[string]interface
 		}
 	}
 
+	// When updating an existing tunnel (excludeTunnelID > 0), build a set of
+	// node IDs that already belong to the tunnel so we can tolerate offline
+	// nodes that the user is keeping or removing, while still rejecting newly
+	// added offline nodes.
+	existingNodeIDs := make(map[int64]struct{})
+	if excludeTunnelID > 0 {
+		var existIDs []int64
+		if err := tx.Model(&model.ChainTunnel{}).
+			Where("tunnel_id = ?", excludeTunnelID).
+			Pluck("node_id", &existIDs).Error; err == nil {
+			for _, eid := range existIDs {
+				existingNodeIDs[eid] = struct{}{}
+			}
+		}
+	}
+
 	seen := make(map[int64]struct{}, len(nodeIDs))
 	for _, nodeID := range nodeIDs {
 		if _, ok := seen[nodeID]; ok {
@@ -2798,7 +2814,12 @@ func (h *Handler) prepareTunnelCreateState(tx *gorm.DB, req map[string]interface
 			return nil, errors.New("节点不存在")
 		}
 		if node.IsRemote != 1 && node.Status != 1 {
-			return nil, errors.New("部分节点不在线")
+			// For tunnel updates, allow offline nodes that already belong to the
+			// tunnel (user may be removing them). Only reject genuinely new offline nodes.
+			_, isExisting := existingNodeIDs[nodeID]
+			if excludeTunnelID <= 0 || !isExisting {
+				return nil, errors.New("部分节点不在线")
+			}
 		}
 		state.Nodes[nodeID] = node
 	}
@@ -3198,7 +3219,6 @@ func (h *Handler) applyTunnelRuntime(state *tunnelCreateState) ([]int64, []int64
 	}
 
 	for _, inNode := range state.InNodes {
-		node := state.Nodes[inNode.NodeID]
 		targets := state.OutNodes
 		if len(state.ChainHops) > 0 {
 			targets = state.ChainHops[0]
@@ -3208,7 +3228,7 @@ func (h *Handler) applyTunnelRuntime(state *tunnelCreateState) ([]int64, []int64
 			return createdChains, createdServices, err
 		}
 		if _, err := h.sendNodeCommand(inNode.NodeID, "AddChains", chainData, true, false); err != nil {
-			if node != nil && node.IsRemote == 1 && shouldDeferTunnelRuntimeApplyError(err) {
+			if shouldDeferTunnelRuntimeApplyError(err) {
 				continue
 			}
 			return createdChains, createdServices, fmt.Errorf("入口节点 %s 下发转发链失败: %w", nodeDisplayName(state.Nodes[inNode.NodeID]), err)
@@ -3222,7 +3242,8 @@ func (h *Handler) applyTunnelRuntime(state *tunnelCreateState) ([]int64, []int64
 			nextTargets = state.ChainHops[i+1]
 		}
 		for _, chainNode := range hop {
-			if node := state.Nodes[chainNode.NodeID]; node != nil && node.IsRemote == 1 {
+			node := state.Nodes[chainNode.NodeID]
+			if node != nil && (node.IsRemote == 1 || node.Status != 1) {
 				continue
 			}
 			chainData, err := buildTunnelChainConfig(state.TunnelID, chainNode.NodeID, nextTargets, state.Nodes, state.IPPreference)
@@ -3230,12 +3251,18 @@ func (h *Handler) applyTunnelRuntime(state *tunnelCreateState) ([]int64, []int64
 				return createdChains, createdServices, err
 			}
 			if _, err := h.sendNodeCommand(chainNode.NodeID, "AddChains", chainData, true, false); err != nil {
+				if shouldDeferTunnelRuntimeApplyError(err) {
+					continue
+				}
 				return createdChains, createdServices, fmt.Errorf("转发链节点 %s 下发转发链失败: %w", nodeDisplayName(state.Nodes[chainNode.NodeID]), err)
 			}
 			createdChains = append(createdChains, chainNode.NodeID)
 
 			serviceData := buildTunnelChainServiceConfig(state.TunnelID, chainNode, state.Nodes[chainNode.NodeID], len(nextTargets))
 			if err := h.addTunnelServiceOnNode(chainNode.NodeID, state.TunnelID, serviceData); err != nil {
+				if shouldDeferTunnelRuntimeApplyError(err) {
+					continue
+				}
 				return createdChains, createdServices, fmt.Errorf("转发链节点 %s 下发服务失败: %w", nodeDisplayName(state.Nodes[chainNode.NodeID]), err)
 			}
 			createdServices = append(createdServices, chainNode.NodeID)
@@ -3243,11 +3270,15 @@ func (h *Handler) applyTunnelRuntime(state *tunnelCreateState) ([]int64, []int64
 	}
 
 	for _, outNode := range state.OutNodes {
-		if node := state.Nodes[outNode.NodeID]; node != nil && node.IsRemote == 1 {
+		node := state.Nodes[outNode.NodeID]
+		if node != nil && (node.IsRemote == 1 || node.Status != 1) {
 			continue
 		}
 		serviceData := buildTunnelChainServiceConfig(state.TunnelID, outNode, state.Nodes[outNode.NodeID], 1)
 		if err := h.addTunnelServiceOnNode(outNode.NodeID, state.TunnelID, serviceData); err != nil {
+			if shouldDeferTunnelRuntimeApplyError(err) {
+				continue
+			}
 			return createdChains, createdServices, fmt.Errorf("出口节点 %s 下发服务失败: %w", nodeDisplayName(state.Nodes[outNode.NodeID]), err)
 		}
 		createdServices = append(createdServices, outNode.NodeID)
@@ -3336,6 +3367,13 @@ func shouldDeferTunnelRuntimeApplyError(err error) bool {
 		return true
 	}
 	return false
+}
+
+// isNodeOfflineOrTimeoutError returns true when the error indicates a node
+// is unreachable (offline or timed out), matching the same patterns used by
+// shouldDeferTunnelRuntimeApplyError.
+func isNodeOfflineOrTimeoutError(err error) bool {
+	return shouldDeferTunnelRuntimeApplyError(err)
 }
 
 func buildTunnelChainConfig(tunnelID int64, fromNodeID int64, targets []tunnelRuntimeNode, nodes map[int64]*nodeRecord, ipPreference string) (map[string]interface{}, error) {
@@ -3464,12 +3502,24 @@ func selectTunnelDialHost(fromNode, toNode *nodeRecord, ipPreference string, con
 			}
 		}
 	default:
+		// 同版本优先
 		if fromV4 && toV4 {
 			if host := pickNodeAddressV4(toNode); host != "" {
 				return host, nil
 			}
 		}
 		if fromV6 && toV6 {
+			if host := pickNodeAddressV6(toNode); host != "" {
+				return host, nil
+			}
+		}
+		// 跨版本支持：v6入v4出 / v4入v6出
+		if fromV6 && toV4 {
+			if host := pickNodeAddressV4(toNode); host != "" {
+				return host, nil
+			}
+		}
+		if fromV4 && toV6 {
 			if host := pickNodeAddressV6(toNode); host != "" {
 				return host, nil
 			}

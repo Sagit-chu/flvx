@@ -418,7 +418,7 @@ export default function TunnelPage() {
 
   // 表单验证
   const validateForm = (): boolean => {
-    const newErrors = validateTunnelForm(form, nodes);
+    const newErrors = validateTunnelForm(form, nodes, isEdit);
 
     setErrors(newErrors);
 

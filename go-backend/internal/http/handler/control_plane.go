@@ -280,6 +280,16 @@ func (h *Handler) syncForwardServicesWithWarnings(forward *forwardRecord, method
 	for _, fp := range ports {
 		if limiterID != nil && speed != nil {
 			if err := h.ensureLimiterOnNode(fp.NodeID, *limiterID, *speed); err != nil {
+				// If the limiter push fails because the node is offline, skip it with a warning
+				if isNodeOfflineOrTimeoutError(err) {
+					node, _ := h.getNodeRecord(fp.NodeID)
+					nodeName := fmt.Sprintf("%d", fp.NodeID)
+					if node != nil && strings.TrimSpace(node.Name) != "" {
+						nodeName = strings.TrimSpace(node.Name)
+					}
+					warnings = append(warnings, fmt.Sprintf("节点 %s 不在线，已跳过下发", nodeName))
+					continue
+				}
 				return nil, err
 			}
 		}
@@ -307,6 +317,12 @@ func (h *Handler) syncForwardServicesWithWarnings(forward *forwardRecord, method
 			if err == nil && warning != "" {
 				warnings = append(warnings, warning)
 			}
+		}
+		// When a node is offline, skip it with a warning instead of failing.
+		// This lets users modify forward rules even when some entry nodes are down.
+		if err != nil && isNodeOfflineOrTimeoutError(err) {
+			warnings = append(warnings, fmt.Sprintf("节点 %s 不在线，已跳过下发", node.Name))
+			continue
 		}
 		if err != nil {
 			return warnings, fmt.Errorf("节点 %s 下发失败: %w", node.Name, err)

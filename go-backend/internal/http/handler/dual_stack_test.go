@@ -345,21 +345,39 @@ func TestSelectTunnelDialHost_V6Only_PreferV4Fallback(t *testing.T) {
 	}
 }
 
-func TestSelectTunnelDialHost_Incompatible(t *testing.T) {
+func TestSelectTunnelDialHost_CrossVersion_V4ToV6(t *testing.T) {
+	// v4-only -> v6-only: 跨版本支持，应成功返回 v6 地址
 	from := v4OnlyNode("from", "10.0.0.1")
 	to := v6OnlyNode("to", "2001:db8::2")
-	_, err := selectTunnelDialHost(from, to, "", "")
-	if err == nil {
-		t.Fatal("expected error for incompatible nodes (v4-only -> v6-only)")
+	host, err := selectTunnelDialHost(from, to, "", "")
+	if err != nil {
+		t.Fatalf("unexpected error for cross-version (v4-only -> v6-only): %v", err)
+	}
+	if host != "2001:db8::2" {
+		t.Fatalf("expected v6 address for cross-version, got %q", host)
 	}
 }
 
-func TestSelectTunnelDialHost_Incompatible_Reverse(t *testing.T) {
+func TestSelectTunnelDialHost_CrossVersion_V6ToV4(t *testing.T) {
+	// v6-only -> v4-only: 跨版本支持，应成功返回 v4 地址
 	from := v6OnlyNode("from", "2001:db8::1")
 	to := v4OnlyNode("to", "10.0.0.2")
+	host, err := selectTunnelDialHost(from, to, "", "")
+	if err != nil {
+		t.Fatalf("unexpected error for cross-version (v6-only -> v4-only): %v", err)
+	}
+	if host != "10.0.0.2" {
+		t.Fatalf("expected v4 address for cross-version, got %q", host)
+	}
+}
+
+func TestSelectTunnelDialHost_TrulyIncompatible(t *testing.T) {
+	// 真正不兼容：两个节点都没有任何 IP
+	from := &nodeRecord{Name: "empty-from", ServerIPv4: "", ServerIPv6: "", ServerIP: ""}
+	to := &nodeRecord{Name: "empty-to", ServerIPv4: "", ServerIPv6: "", ServerIP: ""}
 	_, err := selectTunnelDialHost(from, to, "", "")
 	if err == nil {
-		t.Fatal("expected error for incompatible nodes (v6-only -> v4-only)")
+		t.Fatal("expected error for nodes with no IP addresses")
 	}
 }
 

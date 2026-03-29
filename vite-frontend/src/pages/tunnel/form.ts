@@ -33,6 +33,7 @@ export const createTunnelFormDefaults = () => {
 export const validateTunnelForm = (
   form: TunnelFormInput,
   nodes: TunnelNodeInput[],
+  isEdit = false,
 ): Record<string, string> => {
   const errors: Record<string, string> = {};
 
@@ -44,7 +45,9 @@ export const validateTunnelForm = (
 
   if (!form.inNodeId || form.inNodeId.length === 0) {
     errors.inNodeId = "请至少选择一个入口节点";
-  } else {
+  } else if (!isEdit) {
+    // Only enforce online check for new tunnels. During edit the backend
+    // allows existing offline nodes (user may be removing them).
     const offlineInNodes = form.inNodeId.filter((item) => {
       const node = nodes.find((n) => n.id === item.nodeId);
 
@@ -64,14 +67,16 @@ export const validateTunnelForm = (
     if (!form.outNodeId || form.outNodeId.length === 0) {
       errors.outNodeId = "请至少选择一个出口节点";
     } else {
-      const offlineOutNodes = form.outNodeId.filter((item) => {
-        const node = nodes.find((n) => n.id === item.nodeId);
+      if (!isEdit) {
+        const offlineOutNodes = form.outNodeId.filter((item) => {
+          const node = nodes.find((n) => n.id === item.nodeId);
 
-        return node && node.status !== 1;
-      });
+          return node && node.status !== 1;
+        });
 
-      if (offlineOutNodes.length > 0) {
-        errors.outNodeId = "所有出口节点必须在线";
+        if (offlineOutNodes.length > 0) {
+          errors.outNodeId = "所有出口节点必须在线";
+        }
       }
 
       const inNodeIds = form.inNodeId.map((item) => item.nodeId);
