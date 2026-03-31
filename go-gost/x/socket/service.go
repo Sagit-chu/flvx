@@ -397,8 +397,13 @@ func resumeServices(req resumeServicesRequest) error {
 		str.service.Close()
 		registry.ServiceRegistry().Unregister(str.name)
 
+		// 强制断开端口的所有连接
+		if str.serviceConfig.Addr != "" {
+			_ = kill.ForceClosePortConnections(str.serviceConfig.Addr)
+		}
+
 		// 等待端口释放
-		time.Sleep(100 * time.Millisecond)
+		time.Sleep(500 * time.Millisecond)
 
 		// 重新解析并启动服务
 		svc, err := parser.ParseService(str.serviceConfig)
