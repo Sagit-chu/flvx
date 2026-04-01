@@ -19,6 +19,7 @@
 | `vite-frontend/src/pages/config.tsx` | 修改 | 添加两个新配置项 |
 | `install.sh` | 修改 | 支持交互式询问和环境变量 |
 | `panel_install.sh` | 修改 | 支持交互式询问和环境变量 |
+| `test-install-scripts-proxy.sh` | 新增 | 覆盖代理交互与下载 URL 回归 |
 
 ---
 
@@ -27,7 +28,7 @@
 **Files:**
 - Modify: `go-backend/internal/http/handler/upgrade.go`
 
-- [ ] **Step 1: 移除硬编码常量，添加配置读取函数**
+- [x] **Step 1: 移除硬编码常量，添加配置读取函数**
 
 在 `upgrade.go` 中，移除 `githubProxy` 常量，添加 `getGithubProxyConfig` 函数：
 
@@ -105,7 +106,7 @@ func (h *Handler) buildGithubDownloadURL(version, filename string) string {
 }
 ```
 
-- [ ] **Step 2: 修改 nodeUpgrade 函数使用动态配置**
+- [x] **Step 2: 修改 nodeUpgrade 函数使用动态配置**
 
 找到第 152-159 行：
 ```go
@@ -125,7 +126,7 @@ func (h *Handler) buildGithubDownloadURL(version, filename string) string {
 	checksumURL := h.buildGithubDownloadURL(version, "gost-{ARCH}.sha256")
 ```
 
-- [ ] **Step 3: 修改 nodeBatchUpgrade 函数使用动态配置**
+- [x] **Step 3: 修改 nodeBatchUpgrade 函数使用动态配置**
 
 找到第 216-223 行：
 ```go
@@ -145,12 +146,12 @@ func (h *Handler) buildGithubDownloadURL(version, filename string) string {
 	checksumURL := h.buildGithubDownloadURL(version, "gost-{ARCH}.sha256")
 ```
 
-- [ ] **Step 4: 验证编译**
+- [x] **Step 4: 验证编译**
 
 Run: `cd go-backend && go build ./...`
 Expected: 编译成功，无错误
 
-- [ ] **Step 5: 提交**
+- [x] **Step 5: 提交**
 
 ```bash
 git add go-backend/internal/http/handler/upgrade.go
@@ -164,7 +165,7 @@ git commit -m "feat(backend): use configurable github proxy for node upgrades"
 **Files:**
 - Modify: `go-backend/internal/http/handler/mutations.go`
 
-- [ ] **Step 1: 修改 nodeInstall 函数使用动态配置**
+- [x] **Step 1: 修改 nodeInstall 函数使用动态配置**
 
 找到第 456 行：
 ```go
@@ -185,12 +186,12 @@ git commit -m "feat(backend): use configurable github proxy for node upgrades"
 	}
 ```
 
-- [ ] **Step 2: 验证编译**
+- [x] **Step 2: 验证编译**
 
 Run: `cd go-backend && go build ./...`
 Expected: 编译成功，无错误
 
-- [ ] **Step 3: 提交**
+- [x] **Step 3: 提交**
 
 ```bash
 git add go-backend/internal/http/handler/mutations.go
@@ -204,7 +205,7 @@ git commit -m "feat(backend): use configurable github proxy for node install com
 **Files:**
 - Modify: `vite-frontend/src/pages/config.tsx`
 
-- [ ] **Step 1: 在 CONFIG_ITEMS 数组中添加配置项**
+- [x] **Step 1: 在 CONFIG_ITEMS 数组中添加配置项**
 
 找到第 158 行（`CONFIG_ITEMS` 数组的结束位置）：
 ```go
@@ -239,7 +240,7 @@ git commit -m "feat(backend): use configurable github proxy for node install com
   },
 ```
 
-- [ ] **Step 2: 在缓存键列表中添加新键**
+- [x] **Step 2: 在缓存键列表中添加新键**
 
 找到第 179-190 行：
 ```typescript
@@ -263,12 +264,12 @@ git commit -m "feat(backend): use configurable github proxy for node install com
     "github_proxy_url",
 ```
 
-- [ ] **Step 3: 验证前端编译**
+- [x] **Step 3: 验证前端编译**
 
 Run: `cd vite-frontend && npm run build`
 Expected: 编译成功，无错误
 
-- [ ] **Step 4: 提交**
+- [x] **Step 4: 提交**
 
 ```bash
 git add vite-frontend/src/pages/config.tsx
@@ -282,7 +283,7 @@ git commit -m "feat(frontend): add github proxy config settings"
 **Files:**
 - Modify: `install.sh`
 
-- [ ] **Step 1: 添加环境变量声明和修改 maybe_proxy_url 函数**
+- [x] **Step 1: 添加环境变量声明和修改 maybe_proxy_url 函数**
 
 找到第 28-32 行：
 ```bash
@@ -349,7 +350,7 @@ ask_proxy_config() {
 }
 ```
 
-- [ ] **Step 2: 修改 install_flux_agent 函数添加询问**
+- [x] **Step 2: 修改 install_flux_agent 函数添加询问**
 
 找到第 211-214 行：
 ```bash
@@ -385,7 +386,7 @@ git commit -m "feat(script): add configurable github proxy for install.sh"
 **Files:**
 - Modify: `panel_install.sh`
 
-- [ ] **Step 1: 添加环境变量声明和修改 maybe_proxy_url 函数**
+- [x] **Step 1: 添加环境变量声明和修改 maybe_proxy_url 函数**
 
 找到第 16-20 行：
 ```bash
@@ -452,7 +453,7 @@ ask_proxy_config() {
 }
 ```
 
-- [ ] **Step 2: 修改 install_panel 函数添加询问**
+- [x] **Step 2: 修改 install_panel 函数添加询问**
 
 找到第 375-378 行：
 ```bash
@@ -487,20 +488,20 @@ git commit -m "feat(script): add configurable github proxy for panel_install.sh"
 
 ## Task 6: 最终验证和提交
 
-- [ ] **Step 1: 验证后端编译**
+- [x] **Step 1: 验证后端编译**
 
 Run: `cd go-backend && go build ./...`
 Expected: 编译成功
 
-- [ ] **Step 2: 验证前端编译**
+- [x] **Step 2: 验证前端编译**
 
 Run: `cd vite-frontend && npm run build`
 Expected: 编译成功
 
-- [ ] **Step 3: 验证脚本语法**
+- [x] **Step 3: 验证脚本语法**
 
-Run: `bash -n install.sh && bash -n panel_install.sh`
-Expected: 无语法错误
+Run: `bash -n install.sh && bash -n panel_install.sh && bash test-install-scripts-proxy.sh`
+Expected: 无语法错误，且脚本代理回归测试通过
 
 - [ ] **Step 4: 推送所有提交**
 

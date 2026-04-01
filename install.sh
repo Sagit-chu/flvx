@@ -25,10 +25,62 @@ get_architecture() {
 # 安装目录
 INSTALL_DIR="/etc/flux_agent"
 
-# 镜像加速（所有下载均经过镜像源，以支持 IPv6）
+# 镜像加速配置（可由面板传入或交互式询问）
+PROXY_ENABLED="${PROXY_ENABLED:-}"
+PROXY_URL="${PROXY_URL:-}"
+
+# 镜像加速
 maybe_proxy_url() {
   local url="$1"
-  echo "https://gcode.hostcentral.cc/${url}"
+
+  if [[ "$PROXY_ENABLED" == "false" ]]; then
+    echo "$url"
+    return
+  fi
+
+  local proxy="${PROXY_URL:-gcode.hostcentral.cc}"
+
+  if [[ "$proxy" == https://* || "$proxy" == http://* ]]; then
+    proxy="${proxy%/}"
+  else
+    proxy="https://${proxy%/}"
+  fi
+
+  echo "${proxy}/${url}"
+}
+
+ask_proxy_config() {
+  if [[ -n "$PROXY_ENABLED" ]]; then
+    return
+  fi
+
+  if [[ -n "$PROXY_URL" ]]; then
+    PROXY_ENABLED="true"
+    return
+  fi
+
+  echo ""
+  echo "==============================================="
+  echo "           GitHub 加速配置"
+  echo "==============================================="
+  if ! read -r -p "是否开启 GitHub 加速? (Y/n): " proxy_choice; then
+    proxy_choice=""
+  fi
+  case "$proxy_choice" in
+    n|N)
+      PROXY_ENABLED="false"
+      echo "已关闭加速，将直连 GitHub"
+      ;;
+    *)
+      PROXY_ENABLED="true"
+      if ! read -r -p "加速地址 (默认 gcode.hostcentral.cc): " input_url; then
+        input_url=""
+      fi
+      PROXY_URL="${input_url:-gcode.hostcentral.cc}"
+      echo "已开启加速: $PROXY_URL"
+      ;;
+  esac
+  echo "==============================================="
 }
 
 resolve_latest_release_tag() {
@@ -81,9 +133,14 @@ build_download_url() {
     echo "https://github.com/${REPO}/releases/download/${RESOLVED_VERSION}/gost-${ARCH}"
 }
 
-# 解析版本并构建下载地址
-RESOLVED_VERSION=$(resolve_version) || exit 1
-DOWNLOAD_URL=$(maybe_proxy_url "$(build_download_url)")
+ensure_download_url_initialized() {
+  if [[ -n "${DOWNLOAD_URL:-}" ]]; then
+    return 0
+  fi
+
+  RESOLVED_VERSION=$(resolve_version) || return 1
+  DOWNLOAD_URL=$(maybe_proxy_url "$(build_download_url)")
+}
 
 
 
@@ -210,6 +267,10 @@ done
 # 安装功能
 install_flux_agent() {
   echo "🚀 开始安装 flux_agent..."
+
+  ask_proxy_config
+  ensure_download_url_initialized || exit 1
+
   get_config_params
 
     # 检查并安装 tcpkill
@@ -308,6 +369,9 @@ update_flux_agent() {
     echo "❌ flux_agent 未安装，请先选择安装。"
     return 1
   fi
+
+  ask_proxy_config
+  ensure_download_url_initialized || return 1
   
   echo "📥 使用下载地址: $DOWNLOAD_URL"
   

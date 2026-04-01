@@ -13,10 +13,62 @@ REPO="Sagit-chu/flux-panel"
 # 固定版本号（Release 构建时自动填充，留空则获取最新版）
 PINNED_VERSION=""
 
-# 镜像加速（所有下载均经过镜像源，以支持 IPv6）
+# 镜像加速配置（可由面板传入或交互式询问）
+PROXY_ENABLED="${PROXY_ENABLED:-}"
+PROXY_URL="${PROXY_URL:-}"
+
+# 镜像加速
 maybe_proxy_url() {
   local url="$1"
-  echo "https://gcode.hostcentral.cc/${url}"
+
+  if [[ "$PROXY_ENABLED" == "false" ]]; then
+    echo "$url"
+    return
+  fi
+
+  local proxy="${PROXY_URL:-gcode.hostcentral.cc}"
+
+  if [[ "$proxy" == https://* || "$proxy" == http://* ]]; then
+    proxy="${proxy%/}"
+  else
+    proxy="https://${proxy%/}"
+  fi
+
+  echo "${proxy}/${url}"
+}
+
+ask_proxy_config() {
+  if [[ -n "$PROXY_ENABLED" ]]; then
+    return
+  fi
+
+  if [[ -n "$PROXY_URL" ]]; then
+    PROXY_ENABLED="true"
+    return
+  fi
+
+  echo ""
+  echo "==============================================="
+  echo "           GitHub 加速配置"
+  echo "==============================================="
+  if ! read -r -p "是否开启 GitHub 加速? (Y/n): " proxy_choice; then
+    proxy_choice=""
+  fi
+  case "$proxy_choice" in
+    n|N)
+      PROXY_ENABLED="false"
+      echo "已关闭加速，将直连 GitHub"
+      ;;
+    *)
+      PROXY_ENABLED="true"
+      if ! read -r -p "加速地址 (默认 gcode.hostcentral.cc): " input_url; then
+        input_url=""
+      fi
+      PROXY_URL="${input_url:-gcode.hostcentral.cc}"
+      echo "已开启加速: $PROXY_URL"
+      ;;
+  esac
+  echo "==============================================="
 }
 
 resolve_latest_release_tag() {
@@ -70,9 +122,14 @@ set_compose_urls_by_version() {
   DOCKER_COMPOSEV6_URL=$(maybe_proxy_url "https://github.com/${REPO}/releases/download/${version}/docker-compose-v6.yml")
 }
 
-# 全局下载地址配置（默认获取最新版本；也可用 VERSION=... 覆盖）
-RESOLVED_VERSION=$(resolve_version) || exit 1
-set_compose_urls_by_version "$RESOLVED_VERSION"
+ensure_compose_urls_initialized() {
+  if [[ -n "${DOCKER_COMPOSEV4_URL:-}" && -n "${DOCKER_COMPOSEV6_URL:-}" ]]; then
+    return 0
+  fi
+
+  RESOLVED_VERSION=$(resolve_version) || return 1
+  set_compose_urls_by_version "$RESOLVED_VERSION"
+}
 
 
 
@@ -374,6 +431,10 @@ get_config_params() {
 # 安装功能
 install_panel() {
   echo "🚀 开始安装面板..."
+
+  ask_proxy_config
+  ensure_compose_urls_initialized || return 1
+
   check_docker
   get_config_params
 
@@ -425,6 +486,7 @@ EOF
 # 更新功能
 update_panel() {
   echo "🔄 开始更新面板..."
+  ask_proxy_config
   check_docker
 
   if [[ ! -f ".env" ]]; then
@@ -506,6 +568,8 @@ migrate_to_postgres() {
 
   if [[ ! -f "docker-compose.yml" ]]; then
     echo "⚠️ 未找到 docker-compose.yml 文件，正在下载..."
+    ask_proxy_config
+    ensure_compose_urls_initialized || return 1
     DOCKER_COMPOSE_URL=$(get_docker_compose_url)
     echo "📡 选择配置文件：$(basename "$DOCKER_COMPOSE_URL")"
     curl -L -o docker-compose.yml "$DOCKER_COMPOSE_URL"
@@ -581,6 +645,8 @@ uninstall_panel() {
 
   if [[ ! -f "docker-compose.yml" ]]; then
     echo "⚠️ 未找到 docker-compose.yml 文件，正在下载以完成卸载..."
+    ask_proxy_config
+    ensure_compose_urls_initialized || return 1
     DOCKER_COMPOSE_URL=$(get_docker_compose_url)
     echo "📡 选择配置文件：$(basename "$DOCKER_COMPOSE_URL")"
     curl -L -o docker-compose.yml "$DOCKER_COMPOSE_URL"
