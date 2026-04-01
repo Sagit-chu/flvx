@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
+import { AnimatePresence, motion } from "framer-motion";
 import toast from "react-hot-toast";
 
 import { Button } from "@/shadcn-bridge/heroui/button";
@@ -1220,6 +1221,30 @@ export default function ConfigPage() {
           )}
         </ModalContent>
       </Modal>
+
+      {/* Floating Save Button (FAB) */}
+      <AnimatePresence>
+        {hasChanges && (
+          <motion.div
+            initial={{ y: 100, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: 100, opacity: 0 }}
+            transition={{ type: "spring", damping: 20, stiffness: 300 }}
+            className="fixed bottom-6 right-6 z-50"
+          >
+            <Button
+              isIconOnly
+              color="primary"
+              size="lg"
+              className="w-12 h-12 rounded-full shadow-lg"
+              isLoading={saving}
+              onPress={handleSave}
+            >
+              {!saving && <SaveIcon className="w-5 h-5" />}
+            </Button>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
