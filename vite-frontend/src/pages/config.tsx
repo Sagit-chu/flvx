@@ -155,6 +155,21 @@ const CONFIG_ITEMS: ConfigItem[] = [
     dependsOn: "captcha_enabled",
     dependsValue: "true",
   },
+  {
+    key: "github_proxy_enabled",
+    label: "开启 GitHub 加速",
+    description: "用于节点更新和安装脚本下载，解决部分地区 GitHub 访问受限问题",
+    type: "switch",
+  },
+  {
+    key: "github_proxy_url",
+    label: "加速地址",
+    placeholder: "https://gcode.hostcentral.cc",
+    description: "GitHub 下载加速代理地址，开启加速后生效",
+    type: "input",
+    dependsOn: "github_proxy_enabled",
+    dependsValue: "true",
+  },
 ];
 
 const BACKUP_TYPE_OPTIONS = [
@@ -187,6 +202,8 @@ const getInitialConfigs = (): Record<string, string> => {
     "panel_domain",
     "app_logo",
     "app_favicon",
+    "github_proxy_enabled",
+    "github_proxy_url",
   ];
   const initialConfigs: Record<string, string> = {};
 
