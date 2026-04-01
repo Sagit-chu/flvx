@@ -15,7 +15,6 @@ import (
 
 const (
 	githubRepo     = "Sagit-chu/flvx"
-	githubProxy    = "https://gcode.hostcentral.cc"
 	githubAPIBase  = "https://api.github.com"
 	githubHTMLBase = "https://github.com"
 	upgradeTimeout = 5 * time.Minute
@@ -23,6 +22,9 @@ const (
 
 	releaseChannelStable = "stable"
 	releaseChannelDev    = "dev"
+
+	defaultGithubProxyEnabled = true
+	defaultGithubProxyURL     = "https://gcode.hostcentral.cc"
 )
 
 var (
@@ -68,6 +70,39 @@ func releaseChannelLabel(channel string) string {
 	}
 
 	return "正式版"
+}
+
+func (h *Handler) getGithubProxyConfig() (enabled bool, proxyURL string) {
+	enabled = defaultGithubProxyEnabled
+	proxyURL = defaultGithubProxyURL
+
+	if h == nil || h.repo == nil {
+		return
+	}
+
+	if enabledCfg, err := h.repo.GetConfigByName("github_proxy_enabled"); err == nil && enabledCfg != nil {
+		enabled = enabledCfg.Value != "false"
+	}
+
+	if urlCfg, err := h.repo.GetConfigByName("github_proxy_url"); err == nil && urlCfg != nil && urlCfg.Value != "" {
+		proxyURL = strings.TrimSpace(urlCfg.Value)
+		if !strings.HasPrefix(proxyURL, "http://") && !strings.HasPrefix(proxyURL, "https://") {
+			proxyURL = "https://" + proxyURL
+		}
+		proxyURL = strings.TrimSuffix(proxyURL, "/")
+	}
+
+	return
+}
+
+func (h *Handler) buildGithubDownloadURL(version, filename string) string {
+	enabled, proxyURL := h.getGithubProxyConfig()
+	base := fmt.Sprintf("%s/%s/releases/download/%s/%s", githubHTMLBase, githubRepo, version, filename)
+
+	if enabled {
+		return fmt.Sprintf("%s/%s", proxyURL, base)
+	}
+	return base
 }
 
 func fetchGitHubReleases(perPage int) ([]githubRelease, error) {
@@ -149,14 +184,8 @@ func (h *Handler) nodeUpgrade(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	downloadURL := fmt.Sprintf(
-		githubProxy+"/%s/%s/releases/download/%s/gost-{ARCH}",
-		githubHTMLBase, githubRepo, version,
-	)
-	checksumURL := fmt.Sprintf(
-		githubProxy+"/%s/%s/releases/download/%s/gost-{ARCH}.sha256",
-		githubHTMLBase, githubRepo, version,
-	)
+	downloadURL := h.buildGithubDownloadURL(version, "gost-{ARCH}")
+	checksumURL := h.buildGithubDownloadURL(version, "gost-{ARCH}.sha256")
 
 	result, err := h.wsServer.SendCommand(req.ID, "UpgradeAgent", map[string]interface{}{
 		"downloadUrl": downloadURL,
@@ -213,14 +242,8 @@ func (h *Handler) nodeBatchUpgrade(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	downloadURL := fmt.Sprintf(
-		githubProxy+"/%s/%s/releases/download/%s/gost-{ARCH}",
-		githubHTMLBase, githubRepo, version,
-	)
-	checksumURL := fmt.Sprintf(
-		githubProxy+"/%s/%s/releases/download/%s/gost-{ARCH}.sha256",
-		githubHTMLBase, githubRepo, version,
-	)
+	downloadURL := h.buildGithubDownloadURL(version, "gost-{ARCH}")
+	checksumURL := h.buildGithubDownloadURL(version, "gost-{ARCH}.sha256")
 
 	type upgradeResult struct {
 		ID      int64  `json:"id"`
