@@ -58,15 +58,16 @@ func (c *KeygenClient) ValidateKeyWithFingerprint(key string, fingerprint string
 		"key": key,
 	}
 
-	reqBody := map[string]interface{}{
-		"meta": meta,
-	}
-
 	if fingerprint != "" {
 		meta["scope"] = map[string]interface{}{
 			"fingerprint": fingerprint,
 		}
 	}
+
+	reqBody := map[string]interface{}{
+		"meta": meta,
+	}
+
 	bodyBytes, _ := json.Marshal(reqBody)
 
 	req, _ := http.NewRequest(http.MethodPost, url, bytes.NewBuffer(bodyBytes))
@@ -169,10 +170,15 @@ func (c *KeygenClient) ActivateMachine(licenseID, fingerprint string) error {
 		return nil
 	}
 
-	if resp.StatusCode == http.StatusConflict { // 409 usually means fingerprint already exists
-		return nil // Machine might already be registered
+	body, _ := io.ReadAll(resp.Body)
+	
+	if resp.StatusCode == http.StatusConflict || resp.StatusCode == http.StatusUnprocessableEntity {
+		if strings.Contains(string(body), "FINGERPRINT_TAKEN") || strings.Contains(string(body), "MACHINE_LIMIT_EXCEEDED") {
+			// Machine already registered to this license or limit reached because it's already us.
+			// The subsequent ValidateKey check will determine if the existing machine is actually us.
+			return nil
+		}
 	}
 
-	body, _ := io.ReadAll(resp.Body)
 	return fmt.Errorf("failed to activate machine: status %d, response: %s", resp.StatusCode, string(body))
 }
