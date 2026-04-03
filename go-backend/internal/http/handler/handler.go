@@ -137,6 +137,7 @@ func (h *Handler) Register(mux *http.ServeMux) {
 	mux.HandleFunc("/api/v1/config/list", h.getConfigs)
 	mux.HandleFunc("/api/v1/config/update", h.updateConfigs)
 	mux.HandleFunc("/api/v1/config/update-single", h.updateSingleConfig)
+	mux.HandleFunc("/api/v1/license/activate", h.licenseActivate)
 	mux.HandleFunc("/api/v1/backup/export", h.backupExport)
 	mux.HandleFunc("/api/v1/backup/import", h.backupImport)
 	mux.HandleFunc("/api/v1/backup/restore", h.backupImport)
@@ -804,11 +805,24 @@ func (h *Handler) updateConfigs(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	isCommercial, _ := h.repo.GetConfig("is_commercial")
+	protectedKeys := map[string]bool{
+		"app_name":          true,
+		"app_logo":          true,
+		"app_favicon":       true,
+		"hide_footer_brand": true,
+	}
+
 	now := time.Now().UnixMilli()
 	for k, v := range payload {
 		key := strings.TrimSpace(k)
 		if key == "" {
 			continue
+		}
+
+		if protectedKeys[key] && isCommercial.Value != "true" {
+			response.WriteJSON(w, response.ErrDefault("需要商业版授权"))
+			return
 		}
 
 		value, err := normalizeAndValidateConfigValue(key, v)
@@ -1457,4 +1471,29 @@ func (h *Handler) updateAnnouncement(w http.ResponseWriter, r *http.Request) {
 	}
 
 	response.WriteJSON(w, response.OKEmpty())
+}
+nse.OKEmpty())
+}
+"请求失败"))
+		return
+	}
+
+	var req struct {
+		Content string `json:"content"`
+		Enabled int    `json:"enabled"`
+	}
+	if err := decodeJSON(r.Body, &req); err != nil {
+		response.WriteJSON(w, response.Err(500, "请求参数错误"))
+		return
+	}
+
+	now := time.Now().UnixMilli()
+	if err := h.repo.UpsertAnnouncement(req.Content, req.Enabled, now); err != nil {
+		response.WriteJSON(w, response.Err(-1, fmt.Sprintf("更新公告失败: %v", err)))
+		return
+	}
+
+	response.WriteJSON(w, response.OKEmpty())
+}
+nse.OKEmpty())
 }
