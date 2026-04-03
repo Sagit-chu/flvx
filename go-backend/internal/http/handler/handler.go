@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/url"
 	"sort"
+	"os"
 	"strconv"
 	"strings"
 	"sync"
@@ -19,14 +20,14 @@ import (
 	"go-backend/internal/health"
 	"go-backend/internal/http/middleware"
 	"go-backend/internal/http/response"
+	"go-backend/internal/license"
 	"go-backend/internal/metrics"
-	"go-backend/internal/store/model"
+	"go-backend/internal/security"
 	"go-backend/internal/store/repo"
 	"go-backend/internal/ws"
 
 	"github.com/google/uuid"
-	)
-
+)
 type Handler struct {
 	repo        *repo.Repository
 	jwtSecret   string
@@ -795,6 +796,20 @@ func (h *Handler) flowUpload(w http.ResponseWriter, r *http.Request) {
 	_, _ = w.Write([]byte("ok"))
 }
 
+func (h *Handler) getOrCreateMachineFingerprint() (string, error) {
+	fp, _ := h.repo.GetViteConfigValue("machine_fingerprint")
+	if fp != "" {
+		return fp, nil
+	}
+
+	newFp := uuid.New().String()
+	now := time.Now().UnixMilli()
+	if err := h.repo.UpsertConfig("machine_fingerprint", newFp, now); err != nil {
+		return "", err
+	}
+	return newFp, nil
+}
+
 func (h *Handler) licenseActivate(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		response.WriteJSON(w, response.ErrDefault("请求失败"))
@@ -806,10 +821,48 @@ func (h *Handler) licenseActivate(w http.ResponseWriter, r *http.Request) {
 		response.WriteJSON(w, response.ErrDefault("授权码不能为空"))
 		return
 	}
-	
+
 	key := strings.TrimSpace(req.LicenseKey)
-	if !strings.HasPrefix(key, "FLVX-") {
-		response.WriteJSON(w, response.ErrDefault("无效的商业授权码"))
+	if key == "" {
+		response.WriteJSON(w, response.ErrDefault("授权码不能为空"))
+		return
+	}
+
+	accountID := os.Getenv("KEYGEN_ACCOUNT_ID")
+	if accountID == "" {
+		// Fallback for mock/development if no keygen account configured
+		if strings.HasPrefix(key, "FLVX-") {
+			now := time.Now().UnixMilli()
+			_ = h.repo.UpsertConfig("license_key", key, now)
+			_ = h.repo.UpsertConfig("is_commercial", "true", now)
+			response.WriteJSON(w, response.OKEmpty())
+			return
+		}
+		response.WriteJSON(w, response.ErrDefault("系统未配置 Keygen 账号 ID"))
+		return
+	}
+
+	fingerprint, err := h.getOrCreateMachineFingerprint()
+	if err != nil {
+		response.WriteJSON(w, response.ErrDefault("生成设备指纹失败"))
+		return
+	}
+
+	client := license.NewKeygenClient(accountID, "")
+	valResp, err := client.ValidateKey(key)
+	if err != nil {
+		response.WriteJSON(w, response.ErrDefault("连接授权服务器失败: "+err.Error()))
+		return
+	}
+
+	if !valResp.Meta.Valid {
+		response.WriteJSON(w, response.ErrDefault("授权码无效或已过期 (Code: "+valResp.Meta.Code+")"))
+		return
+	}
+
+	err = client.ActivateMachine(valResp.Data.ID, fingerprint)
+	if err != nil {
+		response.WriteJSON(w, response.ErrDefault("设备绑定失败: "+err.Error()))
 		return
 	}
 
