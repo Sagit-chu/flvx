@@ -68,6 +68,10 @@ type configSingleRequest struct {
 	Value string `json:"value"`
 }
 
+type licenseActivateRequest struct {
+	LicenseKey string `json:"license_key"`
+}
+
 type changePasswordRequest struct {
 	NewUsername     string `json:"newUsername"`
 	CurrentPassword string `json:"currentPassword"`
@@ -789,6 +793,37 @@ func (h *Handler) flowUpload(w http.ResponseWriter, r *http.Request) {
 	_, _ = w.Write([]byte("ok"))
 }
 
+func (h *Handler) licenseActivate(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		response.WriteJSON(w, response.ErrDefault("请求失败"))
+		return
+	}
+
+	var req licenseActivateRequest
+	if err := decodeJSON(r.Body, &req); err != nil {
+		response.WriteJSON(w, response.ErrDefault("授权码不能为空"))
+		return
+	}
+	
+	key := strings.TrimSpace(req.LicenseKey)
+	if !strings.HasPrefix(key, "FLVX-") {
+		response.WriteJSON(w, response.ErrDefault("无效的商业授权码"))
+		return
+	}
+
+	now := time.Now().UnixMilli()
+	if err := h.repo.UpsertConfig("license_key", key, now); err != nil {
+		response.WriteJSON(w, response.Err(-2, err.Error()))
+		return
+	}
+	if err := h.repo.UpsertConfig("is_commercial", "true", now); err != nil {
+		response.WriteJSON(w, response.Err(-2, err.Error()))
+		return
+	}
+
+	response.WriteJSON(w, response.OKEmpty())
+}
+
 func (h *Handler) updateConfigs(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		response.WriteJSON(w, response.ErrDefault("请求失败"))
@@ -805,7 +840,7 @@ func (h *Handler) updateConfigs(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	isCommercial, _ := h.repo.GetConfig("is_commercial")
+	isCommercial, _ := h.repo.GetViteConfigValue("is_commercial")
 	protectedKeys := map[string]bool{
 		"app_name":          true,
 		"app_logo":          true,
@@ -820,7 +855,7 @@ func (h *Handler) updateConfigs(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 
-		if protectedKeys[key] && isCommercial.Value != "true" {
+		if protectedKeys[key] && isCommercial != "true" {
 			response.WriteJSON(w, response.ErrDefault("需要商业版授权"))
 			return
 		}
@@ -854,6 +889,12 @@ func (h *Handler) updateSingleConfig(w http.ResponseWriter, r *http.Request) {
 	name := strings.TrimSpace(req.Name)
 	if name == "" {
 		response.WriteJSON(w, response.ErrDefault("配置名称不能为空"))
+		return
+	}
+
+	isCommercial, _ := h.repo.GetViteConfigValue("is_commercial")
+	if (name == "app_name" || name == "app_logo" || name == "app_favicon" || name == "hide_footer_brand") && isCommercial != "true" {
+		response.WriteJSON(w, response.ErrDefault("需要商业版授权"))
 		return
 	}
 
@@ -1471,29 +1512,4 @@ func (h *Handler) updateAnnouncement(w http.ResponseWriter, r *http.Request) {
 	}
 
 	response.WriteJSON(w, response.OKEmpty())
-}
-nse.OKEmpty())
-}
-"请求失败"))
-		return
-	}
-
-	var req struct {
-		Content string `json:"content"`
-		Enabled int    `json:"enabled"`
-	}
-	if err := decodeJSON(r.Body, &req); err != nil {
-		response.WriteJSON(w, response.Err(500, "请求参数错误"))
-		return
-	}
-
-	now := time.Now().UnixMilli()
-	if err := h.repo.UpsertAnnouncement(req.Content, req.Enabled, now); err != nil {
-		response.WriteJSON(w, response.Err(-1, fmt.Sprintf("更新公告失败: %v", err)))
-		return
-	}
-
-	response.WriteJSON(w, response.OKEmpty())
-}
-nse.OKEmpty())
 }

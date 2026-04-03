@@ -67,6 +67,7 @@ go-gost/ss/
 .entire/
 bin/
 tmp/
+.worktrees/
 *.swp
 *.bak
 

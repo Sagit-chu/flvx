@@ -573,6 +573,7 @@ func (h *Handler) tunnelCreate(w http.ResponseWriter, r *http.Request) {
 	trafficRatio := asFloat(req["trafficRatio"], 1.0)
 	inIP := asString(req["inIp"])
 	ipPreference := asString(req["ipPreference"])
+	kernelType := defaultString(asString(req["kernelType"]), "gost")
 	now := time.Now().UnixMilli()
 	inx := h.repo.NextIndex("tunnel")
 	localDomain := h.federationLocalDomain()
@@ -651,6 +652,7 @@ func (h *Handler) tunnelCreate(w http.ResponseWriter, r *http.Request) {
 		TrafficRatio: trafficRatio,
 		Type:         typeVal,
 		Protocol:     "tls",
+		KernelType:   kernelType,
 		Flow:         flow,
 		CreatedTime:  now,
 		UpdatedTime:  now,
