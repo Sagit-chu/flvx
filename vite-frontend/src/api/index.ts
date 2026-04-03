@@ -134,7 +134,7 @@ export const getTunnelList = () =>
 export const getTunnelById = (id: number) =>
   Network.post<TunnelApiItem>("/tunnel/get", { id });
 export const updateTunnel = (data: TunnelMutationPayload) =>
-  Network.post("/tunnel/update", data);
+  Network.post("/tunnel/update", data, { timeout: 120_000 });
 export const deleteTunnel = (id: number) =>
   Network.post("/tunnel/delete", { id });
 export const previewTunnelDelete = (id: number) =>
