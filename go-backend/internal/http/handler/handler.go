@@ -20,10 +20,12 @@ import (
 	"go-backend/internal/http/middleware"
 	"go-backend/internal/http/response"
 	"go-backend/internal/metrics"
-	"go-backend/internal/security"
+	"go-backend/internal/store/model"
 	"go-backend/internal/store/repo"
 	"go-backend/internal/ws"
-)
+
+	"github.com/google/uuid"
+	)
 
 type Handler struct {
 	repo        *repo.Repository
