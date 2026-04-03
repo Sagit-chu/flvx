@@ -10,7 +10,6 @@ import (
 	"net/http"
 	"net/url"
 	"sort"
-	"os"
 	"strconv"
 	"strings"
 	"sync"
@@ -828,19 +827,7 @@ func (h *Handler) licenseActivate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	accountID := os.Getenv("KEYGEN_ACCOUNT_ID")
-	if accountID == "" {
-		// Fallback for mock/development if no keygen account configured
-		if strings.HasPrefix(key, "FLVX-") {
-			now := time.Now().UnixMilli()
-			_ = h.repo.UpsertConfig("license_key", key, now)
-			_ = h.repo.UpsertConfig("is_commercial", "true", now)
-			response.WriteJSON(w, response.OKEmpty())
-			return
-		}
-		response.WriteJSON(w, response.ErrDefault("系统未配置 Keygen 账号 ID"))
-		return
-	}
+	accountID := "1bc96cac-09de-4cf4-af34-26afdad63a90"
 
 	fingerprint, err := h.getOrCreateMachineFingerprint()
 	if err != nil {
