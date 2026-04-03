@@ -973,12 +973,13 @@ const SortableCompactTableRow = ({
       <TableCell
         className={`whitespace-nowrap text-foreground ${selectedIds.has(forward.id) ? "bg-primary-50/70 dark:bg-primary-900/40" : ""}`}
       >
-        <span
-          className="cursor-pointer hover:text-primary transition-colors"
+        <button
+          className="cursor-pointer hover:text-primary transition-colors text-left bg-transparent border-none p-0 outline-none focus:ring-2 focus:ring-primary focus:ring-offset-1 rounded-sm"
+          type="button"
           onClick={() => copyToClipboard(forward.name, "规则名")}
         >
           {forward.name}
-        </span>
+        </button>
       </TableCell>
       <TableCell
         className={`whitespace-nowrap ${selectedIds.has(forward.id) ? "bg-primary-50/70 dark:bg-primary-900/40" : ""}`}
@@ -987,11 +988,12 @@ const SortableCompactTableRow = ({
           <span className="font-medium text-default-700 text-sm">
             {forward.tunnelName}
           </span>
-          {forward.tunnelTrafficRatio !== undefined && normalizeTunnelTrafficRatio(forward.tunnelTrafficRatio) !== 1 && (
-            <span className="text-success font-bold text-[12px] ml-1.5 border border-success/30 rounded px-1 bg-success/10">
-              {formatTunnelTrafficRatio(forward.tunnelTrafficRatio)}
-            </span>
-          )}
+          {forward.tunnelTrafficRatio !== undefined &&
+            normalizeTunnelTrafficRatio(forward.tunnelTrafficRatio) !== 1 && (
+              <span className="text-success font-bold text-[12px] ml-1.5 border border-success/30 rounded px-1 bg-success/10">
+                {formatTunnelTrafficRatio(forward.tunnelTrafficRatio)}
+              </span>
+            )}
         </div>
       </TableCell>
       <TableCell

@@ -1,5 +1,6 @@
-import { Route, Routes, useNavigate } from "react-router-dom";
+import { Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import { useEffect } from "react";
+import { AnimatePresence } from "framer-motion";
 
 import IndexPage from "@/pages/index";
 import ChangePasswordPage from "@/pages/change-password";
@@ -87,6 +88,8 @@ const LoginRoute = () => {
 };
 
 function App() {
+  const location = useLocation();
+
   // 立即设置页面标题（使用已从缓存读取的配置）
   useEffect(() => {
     document.title = siteConfig.name;
@@ -105,106 +108,108 @@ function App() {
   }, []);
 
   return (
-    <Routes>
-      <Route element={<LoginRoute />} path="/" />
-      <Route
-        element={
-          <ProtectedRoute skipLayout={true}>
-            <ChangePasswordPage />
-          </ProtectedRoute>
-        }
-        path="/change-password"
-      />
-      <Route
-        element={
-          <ProtectedRoute>
-            <DashboardPage />
-          </ProtectedRoute>
-        }
-        path="/dashboard"
-      />
-      <Route
-        element={
-          <ProtectedRoute>
-            <MonitorPage />
-          </ProtectedRoute>
-        }
-        path="/monitor"
-      />
-      <Route
-        element={
-          <ProtectedRoute>
-            <ForwardPage />
-          </ProtectedRoute>
-        }
-        path="/forward"
-      />
-      <Route
-        element={
-          <ProtectedRoute>
-            <TunnelPage />
-          </ProtectedRoute>
-        }
-        path="/tunnel"
-      />
-      <Route
-        element={
-          <ProtectedRoute>
-            <NodePage />
-          </ProtectedRoute>
-        }
-        path="/node"
-      />
-      <Route
-        element={
-          <ProtectedRoute useSimpleLayout={true}>
-            <UserPage />
-          </ProtectedRoute>
-        }
-        path="/user"
-      />
-      <Route
-        element={
-          <ProtectedRoute useSimpleLayout={true}>
-            <GroupPage />
-          </ProtectedRoute>
-        }
-        path="/group"
-      />
-      <Route
-        element={
-          <ProtectedRoute>
-            <ProfilePage />
-          </ProtectedRoute>
-        }
-        path="/profile"
-      />
-      <Route
-        element={
-          <ProtectedRoute useSimpleLayout={true}>
-            <LimitPage />
-          </ProtectedRoute>
-        }
-        path="/limit"
-      />
-      <Route
-        element={
-          <ProtectedRoute>
-            <ConfigPage />
-          </ProtectedRoute>
-        }
-        path="/config"
-      />
-      <Route
-        element={
-          <ProtectedRoute useSimpleLayout={true}>
-            <PanelSharingPage />
-          </ProtectedRoute>
-        }
-        path="/panel-sharing"
-      />
-      <Route element={<SettingsPage />} path="/settings" />
-    </Routes>
+    <AnimatePresence mode="wait">
+      <Routes key={location.pathname} location={location}>
+        <Route element={<LoginRoute />} path="/" />
+        <Route
+          element={
+            <ProtectedRoute skipLayout={true}>
+              <ChangePasswordPage />
+            </ProtectedRoute>
+          }
+          path="/change-password"
+        />
+        <Route
+          element={
+            <ProtectedRoute>
+              <DashboardPage />
+            </ProtectedRoute>
+          }
+          path="/dashboard"
+        />
+        <Route
+          element={
+            <ProtectedRoute>
+              <MonitorPage />
+            </ProtectedRoute>
+          }
+          path="/monitor"
+        />
+        <Route
+          element={
+            <ProtectedRoute>
+              <ForwardPage />
+            </ProtectedRoute>
+          }
+          path="/forward"
+        />
+        <Route
+          element={
+            <ProtectedRoute>
+              <TunnelPage />
+            </ProtectedRoute>
+          }
+          path="/tunnel"
+        />
+        <Route
+          element={
+            <ProtectedRoute>
+              <NodePage />
+            </ProtectedRoute>
+          }
+          path="/node"
+        />
+        <Route
+          element={
+            <ProtectedRoute useSimpleLayout={true}>
+              <UserPage />
+            </ProtectedRoute>
+          }
+          path="/user"
+        />
+        <Route
+          element={
+            <ProtectedRoute useSimpleLayout={true}>
+              <GroupPage />
+            </ProtectedRoute>
+          }
+          path="/group"
+        />
+        <Route
+          element={
+            <ProtectedRoute>
+              <ProfilePage />
+            </ProtectedRoute>
+          }
+          path="/profile"
+        />
+        <Route
+          element={
+            <ProtectedRoute useSimpleLayout={true}>
+              <LimitPage />
+            </ProtectedRoute>
+          }
+          path="/limit"
+        />
+        <Route
+          element={
+            <ProtectedRoute>
+              <ConfigPage />
+            </ProtectedRoute>
+          }
+          path="/config"
+        />
+        <Route
+          element={
+            <ProtectedRoute useSimpleLayout={true}>
+              <PanelSharingPage />
+            </ProtectedRoute>
+          }
+          path="/panel-sharing"
+        />
+        <Route element={<SettingsPage />} path="/settings" />
+      </Routes>
+    </AnimatePresence>
   );
 }
 
