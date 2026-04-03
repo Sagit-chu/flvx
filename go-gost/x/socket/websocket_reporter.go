@@ -168,6 +168,7 @@ type WebSocketReporter struct {
 	connecting        bool              // 正在连接状态
 	connMutex         sync.Mutex        // 连接状态锁
 	aesCrypto         *crypto.AESCrypto // AES加密器
+	dash              *DashAdapter      // Dash eBPF 子进程适配器
 }
 
 var wsDial = func(dialer *websocket.Dialer, rawURL string) (*websocket.Conn, *http.Response, error) {
@@ -349,7 +350,8 @@ func buildWebSocketCandidates(addr string, secret string, version string, http i
 	}
 
 	query := "/system-info?type=1&secret=" + url.QueryEscape(secret) + "&version=" + url.QueryEscape(version) +
-		"&http=" + strconv.Itoa(http) + "&tls=" + strconv.Itoa(tls) + "&socks=" + strconv.Itoa(socks)
+		"&http=" + strconv.Itoa(http) + "&tls=" + strconv.Itoa(tls) + "&socks=" + strconv.Itoa(socks) +
+		"&kernel=gost"
 
 	schemes := []string{"wss", "ws"}
 	if mappedScheme := mapToWebSocketScheme(explicitScheme); mappedScheme != "" {
@@ -869,6 +871,36 @@ func (w *WebSocketReporter) routeCommand(cmd CommandMessage) {
 		err = w.handleRollbackAgent(cmd.Data)
 		response.Type = "RollbackAgentResponse"
 		// needSaveConfig = false (默认值)
+
+	// Dash 内核命令 (通过子进程 HTTP API 代理)
+	case "DashAddTunnel":
+		var result map[string]interface{}
+		result, err = w.handleDashAddTunnel(cmd.Data)
+		response.Type = "DashAddTunnelResponse"
+		response.Data = result
+	case "DashDeleteTunnel":
+		err = w.handleDashDeleteTunnel(cmd.Data)
+		response.Type = "DashDeleteTunnelResponse"
+	case "DashListTunnels":
+		var tunnels []DashTunnelStatus
+		tunnels, err = w.handleDashListTunnels()
+		response.Type = "DashListTunnelsResponse"
+		response.Data = tunnels
+	case "DashListSessions":
+		var sessions []DashSessionEntry
+		sessions, err = w.handleDashListSessions()
+		response.Type = "DashListSessionsResponse"
+		response.Data = sessions
+	case "DashGetMetrics":
+		var metrics []DashMetricEntry
+		metrics, err = w.handleDashGetMetrics()
+		response.Type = "DashGetMetricsResponse"
+		response.Data = metrics
+	case "DashStatus":
+		var status map[string]interface{}
+		status, err = w.handleDashStatus()
+		response.Type = "DashStatusResponse"
+		response.Data = status
 
 	default:
 		err = fmt.Errorf("未知命令类型: %s", cmd.Type)
@@ -1606,6 +1638,10 @@ func StartWebSocketReporterWithConfig(addr string, secret string, http int, tls 
 	reporter.addr = addr
 	reporter.secret = secret
 	reporter.version = version
+
+	// 初始化 Dash 内核（如果二进制存在）
+	reporter.InitDash()
+
 	reporter.Start()
 	return reporter
 }

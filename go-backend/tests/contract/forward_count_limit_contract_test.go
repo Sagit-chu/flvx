@@ -245,6 +245,21 @@ func TestForwardCreateAllowedWhenBelowUserNumLimit(t *testing.T) {
 	}
 
 	if err := repo.DB().Exec(`
+		INSERT INTO node(name, secret, server_ip, server_ip_v4, server_ip_v6, port, interface_name, version, http, tls, socks, created_time, updated_time, status, tcp_listen_addr, udp_listen_addr, inx)
+		VALUES('num-ok-entry', 'num-ok-secret', '10.50.0.1', '10.50.0.1', '', '10000-10010', '', 'v1', 1, 1, 1, ?, ?, 1, '[::]', '[::]', 0)
+	`, now, now).Error; err != nil {
+		t.Fatalf("insert entry node: %v", err)
+	}
+	entryNodeID := mustLastInsertID(t, repo, "num-ok-entry")
+
+	if err := repo.DB().Exec(`
+		INSERT INTO chain_tunnel(tunnel_id, chain_type, node_id, port, strategy, inx, protocol)
+		VALUES(?, 1, ?, 10001, 'round', 1, 'tls')
+	`, tunnelID, entryNodeID).Error; err != nil {
+		t.Fatalf("insert chain_tunnel: %v", err)
+	}
+
+	if err := repo.DB().Exec(`
 		INSERT INTO user_tunnel(id, user_id, tunnel_id, speed_id, num, flow, in_flow, out_flow, flow_reset_time, exp_time, status)
 		VALUES(10, ?, ?, NULL, 99999, 99999, 0, 0, 1, 2727251700000, 1)
 	`, userID, tunnelID).Error; err != nil {
@@ -300,6 +315,21 @@ func TestForwardCreateAllowedWhenNumZero(t *testing.T) {
 		VALUES(?, 'num_zero_tunnel', 1.0, 1, 'tls', 99999, ?, ?, 1, NULL, 0)
 	`, tunnelID, now, now).Error; err != nil {
 		t.Fatalf("insert tunnel: %v", err)
+	}
+
+	if err := repo.DB().Exec(`
+		INSERT INTO node(name, secret, server_ip, server_ip_v4, server_ip_v6, port, interface_name, version, http, tls, socks, created_time, updated_time, status, tcp_listen_addr, udp_listen_addr, inx)
+		VALUES('num-zero-entry', 'num-zero-secret', '10.60.0.1', '10.60.0.1', '', '11000-11010', '', 'v1', 1, 1, 1, ?, ?, 1, '[::]', '[::]', 0)
+	`, now, now).Error; err != nil {
+		t.Fatalf("insert entry node: %v", err)
+	}
+	entryNodeID := mustLastInsertID(t, repo, "num-zero-entry")
+
+	if err := repo.DB().Exec(`
+		INSERT INTO chain_tunnel(tunnel_id, chain_type, node_id, port, strategy, inx, protocol)
+		VALUES(?, 1, ?, 11001, 'round', 1, 'tls')
+	`, tunnelID, entryNodeID).Error; err != nil {
+		t.Fatalf("insert chain_tunnel: %v", err)
 	}
 
 	if err := repo.DB().Exec(`

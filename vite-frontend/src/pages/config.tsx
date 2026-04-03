@@ -21,6 +21,7 @@ import {
 } from "@/shadcn-bridge/heroui/modal";
 import {
   updateConfigs,
+  activateLicense,
   exportBackup,
   importBackup,
   getAnnouncement,
@@ -118,6 +119,12 @@ const CONFIG_ITEMS: ConfigItem[] = [
     label: "浏览器缩略图标",
     description: "用于浏览器标签页图标，上传后会自动转换为 PNG 并持久化保存",
     type: "input",
+  },
+  {
+    key: "hide_footer_brand",
+    label: "隐藏页面底部 FLVX 版权信息",
+    description: "需商业版授权才能生效",
+    type: "switch",
   },
   {
     key: "forward_compact_mode",
@@ -241,6 +248,10 @@ export default function ConfigPage() {
   const [importSelectorOpen, setImportSelectorOpen] = useState(false);
   const [importFileName, setImportFileName] = useState("");
   const backupFileInputRef = useRef<HTMLInputElement>(null);
+
+  const [activatingLicense, setActivatingLicense] = useState(false);
+  const [licenseKeyInput, setLicenseKeyInput] = useState("");
+
   const logoFileInputRef = useRef<HTMLInputElement>(null);
   const faviconFileInputRef = useRef<HTMLInputElement>(null);
 
@@ -364,6 +375,29 @@ export default function ConfigPage() {
     toast.success(
       `更新通道已切换为${channel === "stable" ? "稳定版" : "开发版"}`,
     );
+  };
+
+  const handleActivateLicense = async () => {
+    if (!licenseKeyInput.trim()) {
+      toast.error("请输入有效的商业授权码");
+      return;
+    }
+    setActivatingLicense(true);
+    try {
+      const res = await activateLicense(licenseKeyInput.trim());
+      if (res.code === 0) {
+        toast.success("商业版授权激活成功！");
+        setLicenseKeyInput("");
+        await loadConfigs();
+        window.dispatchEvent(new CustomEvent("configUpdated"));
+      } else {
+        toast.error(res.msg || "授权激活失败");
+      }
+    } catch (e: any) {
+      toast.error(e.message || "授权激活出错");
+    } finally {
+      setActivatingLicense(false);
+    }
   };
 
   const handleConfigChange = (key: string, value: string) => {
@@ -591,6 +625,7 @@ export default function ConfigPage() {
     const value = (configs[key] || "").trim();
     const uploading = brandUploading[key] === true;
     const isLogo = key === "app_logo";
+    const isCommercialDisabled = configs.is_commercial !== "true";
 
     return (
       <div
@@ -604,6 +639,7 @@ export default function ConfigPage() {
           ref={getBrandInputRef(key)}
           accept={BRAND_FILE_ACCEPT}
           className="hidden"
+          disabled={uploading || isCommercialDisabled}
           type="file"
           onChange={(event) => {
             void handleBrandFileChange(key, event);
@@ -614,6 +650,7 @@ export default function ConfigPage() {
           <Button
             color="primary"
             isLoading={uploading}
+            isDisabled={isCommercialDisabled}
             size="sm"
             variant="flat"
             onPress={() => triggerBrandFilePicker(key)}
@@ -654,6 +691,7 @@ export default function ConfigPage() {
   const renderConfigItem = (item: ConfigItem) => {
     const isChanged =
       hasChanges && configs[item.key] !== originalConfigs[item.key];
+    const isCommercialDisabled = ["app_name", "app_logo", "app_favicon", "hide_footer_brand"].includes(item.key) && configs.is_commercial !== "true";
 
     switch (item.type) {
       case "input":
@@ -674,6 +712,8 @@ export default function ConfigPage() {
             value={configs[item.key] || ""}
             variant="bordered"
             onChange={(e) => handleConfigChange(item.key, e.target.value)}
+            isDisabled={isCommercialDisabled}
+            description={isCommercialDisabled ? "需商业版授权才能修改此项" : undefined}
           />
         );
 
@@ -683,12 +723,12 @@ export default function ConfigPage() {
             classNames={{
               wrapper: isChanged ? "border-warning-300" : "",
             }}
-            color="primary"
             isSelected={configs[item.key] === "true"}
-            size="md"
+            size="sm"
             onValueChange={(checked) =>
               handleConfigChange(item.key, checked ? "true" : "false")
             }
+            isDisabled={isCommercialDisabled}
           >
             <span className="text-sm text-gray-700 dark:text-gray-300">
               {configs[item.key] === "true" ? "已启用" : "已禁用"}
@@ -914,6 +954,42 @@ export default function ConfigPage() {
           </p>
         </div>
       </div>
+
+      <Card className="shadow-md mb-6">
+        <CardHeader className="pb-6">
+          <div className="flex items-center w-full">
+            <div>
+              <h2 className="text-xl font-semibold">商业版授权</h2>
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                激活商业版授权以解锁自定义品牌功能（替换 Logo、应用名称，移除底部版权信息等）
+              </p>
+            </div>
+          </div>
+        </CardHeader>
+        <Divider />
+        <CardBody className="pt-8">
+          <div className="flex items-end gap-3 max-w-lg">
+            <Input
+              label="授权激活码"
+              placeholder="请输入 FLVX- 开头的商业授权码"
+              value={licenseKeyInput}
+              variant="bordered"
+              onChange={(e) => setLicenseKeyInput(e.target.value)}
+              isDisabled={configs.is_commercial === "true"}
+              description={configs.is_commercial === "true" ? "已激活商业版授权" : "需商业授权才能修改站名、图标并隐藏页脚品牌"}
+            />
+            <Button
+              color="primary"
+              className="mb-6"
+              isDisabled={configs.is_commercial === "true" || !licenseKeyInput.trim()}
+              isLoading={activatingLicense}
+              onPress={handleActivateLicense}
+            >
+              {configs.is_commercial === "true" ? "已授权" : "激活授权"}
+            </Button>
+          </div>
+        </CardBody>
+      </Card>
 
       <Card className="shadow-md">
         <CardHeader className="pb-6">

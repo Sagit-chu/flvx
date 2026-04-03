@@ -50,21 +50,18 @@ func TestTunnelCreateRuntimeRollbackContract(t *testing.T) {
 	if err := json.NewDecoder(res.Body).Decode(&out); err != nil {
 		t.Fatalf("decode response: %v", err)
 	}
-	if out.Code == 0 {
-		t.Fatalf("expected create failure when nodes are offline")
-	}
-	if !strings.Contains(out.Msg, "节点") {
-		t.Fatalf("expected node-related error, got %q", out.Msg)
+	if out.Code != 0 {
+		t.Fatalf("expected create success (runtime deferred when nodes offline), got code=%d msg=%q", out.Code, out.Msg)
 	}
 
 	tunnelCount := mustQueryInt(t, repo, `SELECT COUNT(1) FROM tunnel WHERE name = ?`, "runtime-rollback-tunnel")
-	if tunnelCount != 0 {
-		t.Fatalf("expected tunnel rollback, found %d records", tunnelCount)
+	if tunnelCount != 1 {
+		t.Fatalf("expected tunnel record preserved (runtime deferred), found %d records", tunnelCount)
 	}
 
 	chainCount := mustQueryInt(t, repo, `SELECT COUNT(1) FROM chain_tunnel`)
-	if chainCount != 0 {
-		t.Fatalf("expected chain_tunnel rollback, found %d records", chainCount)
+	if chainCount != 3 {
+		t.Fatalf("expected 3 chain_tunnel records preserved (in/chain/out), found %d records", chainCount)
 	}
 }
 

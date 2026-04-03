@@ -102,6 +102,7 @@ interface Tunnel {
   inx?: number;
   name: string;
   type: number; // 1: 端口转发, 2: 隧道转发
+  kernelType?: string; // 'gost' | 'dash'
   inNodeId: ChainTunnel[]; // 入口节点列表
   outNodeId?: ChainTunnel[]; // 出口节点列表
   chainNodes?: ChainTunnel[][]; // 转发链节点列表，二维数组
@@ -129,6 +130,7 @@ interface TunnelForm {
   id?: number;
   name: string;
   type: number;
+  kernelType: string;
   inNodeId: ChainTunnel[];
   outNodeId?: ChainTunnel[];
   chainNodes?: ChainTunnel[][]; // 转发链节点列表，二维数组，外层是跳数，内层是该跳的节点
@@ -169,6 +171,7 @@ const mapTunnelApiItems = (items: any[]): Tunnel[] => {
   return (items || []).map((tunnel) => ({
     ...tunnel,
     inx: tunnel.inx ?? 0,
+    kernelType: tunnel.kernelType || "gost",
     inNodeId: Array.isArray(tunnel.inNodeId) ? tunnel.inNodeId : [],
     outNodeId: Array.isArray(tunnel.outNodeId) ? tunnel.outNodeId : [],
     chainNodes: Array.isArray(tunnel.chainNodes) ? tunnel.chainNodes : [],
@@ -442,6 +445,7 @@ export default function TunnelPage() {
       id: tunnel.id,
       name: tunnel.name,
       type: tunnel.type,
+      kernelType: tunnel.kernelType || "gost",
       inNodeId: tunnel.inNodeId || [],
       outNodeId: tunnel.outNodeId || [],
       chainNodes: tunnel.chainNodes || [],
@@ -1630,14 +1634,25 @@ export default function TunnelPage() {
                       </div>
                     </TableCell>
                     <TableCell>
-                      <Chip
-                        className={tunnelTypeChipClassName}
-                        color={typeDisplay.color as any}
-                        size="sm"
-                        variant="flat"
-                      >
-                        {typeDisplay.text}
-                      </Chip>
+                      <div className="flex items-center gap-1.5">
+                        <Chip
+                          className={tunnelTypeChipClassName}
+                          color={typeDisplay.color as any}
+                          size="sm"
+                          variant="flat"
+                        >
+                          {typeDisplay.text}
+                        </Chip>
+                        {tunnel.kernelType === "dash" && (
+                          <Chip
+                            className="text-[10px] h-5 bg-warning-100 text-warning-800 border-warning-300 dark:bg-warning-900/35 dark:text-warning-200 dark:border-warning-700"
+                            size="sm"
+                            variant="flat"
+                          >
+                            Dash
+                          </Chip>
+                        )}
+                      </div>
                     </TableCell>
                     <TableCell>
                        <div className="flex items-center gap-1.5 text-xs">
@@ -1744,6 +1759,15 @@ export default function TunnelPage() {
                                 >
                                   {typeDisplay.text}
                                 </Chip>
+                                {tunnel.kernelType === "dash" && (
+                                  <Chip
+                                    className="text-xs bg-warning-100 text-warning-800 border-warning-300 dark:bg-warning-900/35 dark:text-warning-200 dark:border-warning-700"
+                                    size="sm"
+                                    variant="flat"
+                                  >
+                                    Dash
+                                  </Chip>
+                                )}
                               </div>
                             </div>
                             <div
@@ -2037,9 +2061,15 @@ export default function TunnelPage() {
                   />
 
                   <Select
-                    description={isEdit ? "编辑时无法修改隧道类型" : undefined}
+                    description={
+                      isEdit
+                        ? "编辑时无法修改隧道类型"
+                        : form.kernelType === "dash"
+                          ? "Dash 内核固定为隧道转发模式"
+                          : undefined
+                    }
                     errorMessage={errors.type}
-                    isDisabled={isEdit}
+                    isDisabled={isEdit || form.kernelType === "dash"}
                     isInvalid={!!errors.type}
                     label="隧道类型"
                     placeholder="请选择隧道类型"
@@ -2055,6 +2085,41 @@ export default function TunnelPage() {
                   >
                     <SelectItem key="1">端口转发</SelectItem>
                     <SelectItem key="2">隧道转发</SelectItem>
+                  </Select>
+
+                  <Select
+                    description={
+                      isEdit
+                        ? "编辑时无法修改内核类型"
+                        : form.kernelType === "dash"
+                          ? "Dash 内核使用 eBPF 加速，仅支持 Entry→Exit 直连，无中转链"
+                          : "GOST 内核支持端口转发、协议路由和链式中转"
+                    }
+                    isDisabled={isEdit}
+                    label="转发内核"
+                    placeholder="请选择转发内核"
+                    selectedKeys={[form.kernelType]}
+                    variant="bordered"
+                    onSelectionChange={(keys) => {
+                      const selectedKey = Array.from(keys)[0] as string;
+
+                      if (selectedKey) {
+                        setForm((prev) => ({
+                          ...prev,
+                          kernelType: selectedKey,
+                          // Dash doesn't support chain nodes or tunnel-relay type
+                          ...(selectedKey === "dash"
+                            ? {
+                                type: 2,
+                                chainNodes: [],
+                              }
+                            : {}),
+                        }));
+                      }
+                    }}
+                  >
+                    <SelectItem key="gost">GOST (端口转发/协议路由)</SelectItem>
+                    <SelectItem key="dash">Dash (eBPF IP隧道)</SelectItem>
                   </Select>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -2115,7 +2180,7 @@ export default function TunnelPage() {
                     }
                   />
 
-                  {form.type === 2 && (
+                  {form.type === 2 && form.kernelType !== "dash" && (
                     <Select
                       description="当节点同时拥有IPv4和IPv6地址时，选择隧道连接使用的地址类型"
                       label="隧道连接地址偏好"
@@ -2206,8 +2271,8 @@ export default function TunnelPage() {
                     </Select>
                   </div>
 
-                  {/* 隧道转发时显示转发链配置 */}
-                  {form.type === 2 && (
+                  {/* 隧道转发时显示转发链配置（Dash 内核不支持中转链） */}
+                  {form.type === 2 && form.kernelType !== "dash" && (
                     <>
                       <Divider />
                       <div className="flex items-center justify-between">

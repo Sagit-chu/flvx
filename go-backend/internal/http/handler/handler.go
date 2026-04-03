@@ -70,6 +70,10 @@ type configSingleRequest struct {
 	Value string `json:"value"`
 }
 
+type licenseActivateRequest struct {
+	LicenseKey string `json:"license_key"`
+}
+
 type changePasswordRequest struct {
 	NewUsername     string `json:"newUsername"`
 	CurrentPassword string `json:"currentPassword"`
@@ -139,6 +143,7 @@ func (h *Handler) Register(mux *http.ServeMux) {
 	mux.HandleFunc("/api/v1/config/list", h.getConfigs)
 	mux.HandleFunc("/api/v1/config/update", h.updateConfigs)
 	mux.HandleFunc("/api/v1/config/update-single", h.updateSingleConfig)
+	mux.HandleFunc("/api/v1/license/activate", h.licenseActivate)
 	mux.HandleFunc("/api/v1/backup/export", h.backupExport)
 	mux.HandleFunc("/api/v1/backup/import", h.backupImport)
 	mux.HandleFunc("/api/v1/backup/restore", h.backupImport)
@@ -790,6 +795,37 @@ func (h *Handler) flowUpload(w http.ResponseWriter, r *http.Request) {
 	_, _ = w.Write([]byte("ok"))
 }
 
+func (h *Handler) licenseActivate(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		response.WriteJSON(w, response.ErrDefault("请求失败"))
+		return
+	}
+
+	var req licenseActivateRequest
+	if err := decodeJSON(r.Body, &req); err != nil {
+		response.WriteJSON(w, response.ErrDefault("授权码不能为空"))
+		return
+	}
+	
+	key := strings.TrimSpace(req.LicenseKey)
+	if !strings.HasPrefix(key, "FLVX-") {
+		response.WriteJSON(w, response.ErrDefault("无效的商业授权码"))
+		return
+	}
+
+	now := time.Now().UnixMilli()
+	if err := h.repo.UpsertConfig("license_key", key, now); err != nil {
+		response.WriteJSON(w, response.Err(-2, err.Error()))
+		return
+	}
+	if err := h.repo.UpsertConfig("is_commercial", "true", now); err != nil {
+		response.WriteJSON(w, response.Err(-2, err.Error()))
+		return
+	}
+
+	response.WriteJSON(w, response.OKEmpty())
+}
+
 func (h *Handler) updateConfigs(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		response.WriteJSON(w, response.ErrDefault("请求失败"))
@@ -806,11 +842,24 @@ func (h *Handler) updateConfigs(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	isCommercial, _ := h.repo.GetViteConfigValue("is_commercial")
+	protectedKeys := map[string]bool{
+		"app_name":          true,
+		"app_logo":          true,
+		"app_favicon":       true,
+		"hide_footer_brand": true,
+	}
+
 	now := time.Now().UnixMilli()
 	for k, v := range payload {
 		key := strings.TrimSpace(k)
 		if key == "" {
 			continue
+		}
+
+		if protectedKeys[key] && isCommercial != "true" {
+			response.WriteJSON(w, response.ErrDefault("需要商业版授权"))
+			return
 		}
 
 		value, err := normalizeAndValidateConfigValue(key, v)
@@ -842,6 +891,12 @@ func (h *Handler) updateSingleConfig(w http.ResponseWriter, r *http.Request) {
 	name := strings.TrimSpace(req.Name)
 	if name == "" {
 		response.WriteJSON(w, response.ErrDefault("配置名称不能为空"))
+		return
+	}
+
+	isCommercial, _ := h.repo.GetViteConfigValue("is_commercial")
+	if (name == "app_name" || name == "app_logo" || name == "app_favicon" || name == "hide_footer_brand") && isCommercial != "true" {
+		response.WriteJSON(w, response.ErrDefault("需要商业版授权"))
 		return
 	}
 

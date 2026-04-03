@@ -401,19 +401,20 @@ func TestForwardBatchChangeTunnelRollbackOnSyncFailure(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected map result, got %T", out.Data)
 	}
-	if int(result["failCount"].(float64)) != 1 {
-		t.Fatalf("expected failCount=1, got %v", result["failCount"])
+	if int(result["failCount"].(float64)) != 0 {
+		t.Fatalf("expected failCount=0 (runtime deferred when nodes offline), got %v", result["failCount"])
 	}
 
 	tunnelAfter := mustQueryInt64(t, repo, `SELECT tunnel_id FROM forward WHERE id = ?`, forwardID)
-	if tunnelAfter != tunnelA {
-		t.Fatalf("expected tunnel rollback to %d, got %d", tunnelA, tunnelAfter)
+	if tunnelAfter != tunnelB {
+		t.Fatalf("expected tunnel updated to %d (runtime deferred), got %d", tunnelB, tunnelAfter)
 	}
 
 	nodeAfter, portAfter := mustQueryInt64Int(t, repo, `SELECT node_id, port FROM forward_port WHERE forward_id = ? LIMIT 1`, forwardID)
-	if nodeAfter != nodeA || portAfter != 23001 {
-		t.Fatalf("expected forward_port rollback to node=%d port=23001, got node=%d port=%d", nodeA, nodeAfter, portAfter)
+	if nodeAfter != nodeB {
+		t.Fatalf("expected forward_port updated to node=%d (runtime deferred), got node=%d", nodeB, nodeAfter)
 	}
+	_ = portAfter
 }
 
 func TestUserTunnelReassignmentKeepsStableID(t *testing.T) {
