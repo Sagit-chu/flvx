@@ -20,6 +20,8 @@ const getInitialConfig = () => {
       github_repo: GITHUB_REPO,
       app_logo: "",
       app_favicon: "",
+      is_commercial: false,
+      hide_footer_brand: false,
     };
   }
 
@@ -27,6 +29,8 @@ const getInitialConfig = () => {
   const cachedAppLogo = localStorage.getItem(CACHE_PREFIX + "app_logo") || "";
   const cachedAppFavicon =
     localStorage.getItem(CACHE_PREFIX + "app_favicon") || "";
+  const isCommercial = localStorage.getItem(CACHE_PREFIX + "is_commercial") === "true";
+  const hideFooterBrand = localStorage.getItem(CACHE_PREFIX + "hide_footer_brand") === "true";
 
   if (cachedAppName) {
     return {
@@ -36,6 +40,8 @@ const getInitialConfig = () => {
       github_repo: GITHUB_REPO,
       app_logo: cachedAppLogo,
       app_favicon: cachedAppFavicon,
+      is_commercial: isCommercial,
+      hide_footer_brand: hideFooterBrand,
     };
   }
 
@@ -46,6 +52,8 @@ const getInitialConfig = () => {
     github_repo: GITHUB_REPO,
     app_logo: cachedAppLogo,
     app_favicon: cachedAppFavicon,
+    is_commercial: isCommercial,
+    hide_footer_brand: hideFooterBrand,
   };
 };
 
@@ -272,6 +280,9 @@ export const updateSiteConfig = async (configMap?: Record<string, string>) => {
 
   siteConfig.app_logo = appLogo;
   siteConfig.app_favicon = appFavicon;
+  siteConfig.is_commercial = resolvedConfigMap.is_commercial === "true";
+  siteConfig.hide_footer_brand = resolvedConfigMap.hide_footer_brand === "true";
+
   if (typeof document !== "undefined") {
     document.title = siteConfig.name;
   }
