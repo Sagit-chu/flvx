@@ -195,7 +195,6 @@ func autoMigrateAll(db *gorm.DB) error {
 		&model.ServiceMonitor{},
 		&model.ServiceMonitorResult{},
 		&model.TunnelQuality{},
-		&model.DashTunnel{},
 	}
 
 	if db.Dialector.Name() != "sqlite" {
@@ -275,7 +274,7 @@ func prepareSQLiteLegacyColumns(db *gorm.DB) error {
 	m := db.Migrator()
 
 	if m.HasTable(&model.Node{}) {
-		for _, field := range []string{"ServerIPV4", "ServerIPV6", "ExtraIPs", "TCPListenAddr", "UDPListenAddr", "Inx", "IsRemote", "RemoteURL", "RemoteToken", "RemoteConfig", "Remark", "ExpiryTime", "RenewalCycle", "ExpiryReminderDismissed", "KernelType"} {
+		for _, field := range []string{"ServerIPV4", "ServerIPV6", "ExtraIPs", "TCPListenAddr", "UDPListenAddr", "Inx", "IsRemote", "RemoteURL", "RemoteToken", "RemoteConfig", "Remark", "ExpiryTime", "RenewalCycle", "ExpiryReminderDismissed"} {
 			if m.HasColumn(&model.Node{}, field) {
 				continue
 			}
@@ -286,7 +285,7 @@ func prepareSQLiteLegacyColumns(db *gorm.DB) error {
 	}
 
 	if m.HasTable(&model.Tunnel{}) {
-		for _, field := range []string{"Inx", "IPPreference", "KernelType"} {
+		for _, field := range []string{"Inx", "IPPreference"} {
 			if m.HasColumn(&model.Tunnel{}, field) {
 				continue
 			}
@@ -600,16 +599,12 @@ func (r *Repository) GetNodeByID(id int64) (*model.Node, error) {
 	return &n, nil
 }
 
-func (r *Repository) UpdateNodeOnline(nodeID int64, status int, version string, kernel string, httpVal, tlsVal, socksVal int) error {
+func (r *Repository) UpdateNodeOnline(nodeID int64, status int, version string, httpVal, tlsVal, socksVal int) error {
 	if r == nil || r.db == nil {
 		return errors.New("repository not initialized")
 	}
-	if kernel == "" {
-		kernel = "gost"
-	}
 	return r.db.Model(&model.Node{}).Where("id = ?", nodeID).Updates(map[string]interface{}{
-		"status": status, "version": version, "kernel_type": kernel,
-		"http": httpVal, "tls": tlsVal,
+		"status": status, "version": version, "http": httpVal, "tls": tlsVal,
 		"socks": socksVal, "updated_time": unixMilliNow(),
 	}).Error
 }
@@ -669,10 +664,6 @@ func (r *Repository) ListNodes() ([]map[string]interface{}, error) {
 	}
 	items := make([]map[string]interface{}, 0, len(nodes))
 	for _, n := range nodes {
-		kernelType := n.KernelType
-		if kernelType == "" {
-			kernelType = "gost"
-		}
 		items = append(items, map[string]interface{}{
 			"id": n.ID, "inx": n.Inx, "name": n.Name,
 			"remark":       nullableString(n.Remark),
@@ -686,7 +677,6 @@ func (r *Repository) ListNodes() ([]map[string]interface{}, error) {
 			"tcpListenAddr": n.TCPListenAddr,
 			"udpListenAddr": n.UDPListenAddr,
 			"version":       nullableString(n.Version),
-			"kernelType":    kernelType,
 			"http":          n.HTTP, "tls": n.TLS, "socks": n.Socks,
 			"status": n.Status, "isRemote": n.IsRemote,
 			"remoteUrl":                 nullableString(n.RemoteURL),
@@ -1020,14 +1010,9 @@ func (r *Repository) ListTunnels() ([]map[string]interface{}, error) {
 	orderedIDs := make([]int64, 0, len(tunnels))
 
 	for _, t := range tunnels {
-		kernelType := t.KernelType
-		if kernelType == "" {
-			kernelType = "gost"
-		}
 		tunnelMap[t.ID] = map[string]interface{}{
 			"id": t.ID, "inx": t.Inx, "name": t.Name,
 			"type": t.Type, "flow": t.Flow, "trafficRatio": t.TrafficRatio,
-			"kernelType":   kernelType,
 			"status": t.Status, "createdTime": t.CreatedTime,
 			"inIp":         nullableString(t.InIP),
 			"ipPreference": t.IPPreference,
@@ -1900,8 +1885,7 @@ func (r *Repository) exportNodes() ([]model.NodeBackup, error) {
 		b := model.NodeBackup{
 			ID: n.ID, Name: n.Name, Secret: n.Secret, ServerIP: n.ServerIP,
 			Remark: n.Remark.String, RenewalCycle: n.RenewalCycle.String,
-			Port: n.Port, KernelType: n.KernelType,
-			HTTP: n.HTTP, TLS: n.TLS, Socks: n.Socks,
+			Port: n.Port, HTTP: n.HTTP, TLS: n.TLS, Socks: n.Socks,
 			CreatedTime: n.CreatedTime, Status: n.Status,
 			TCPListenAddr: n.TCPListenAddr, UDPListenAddr: n.UDPListenAddr,
 			Inx: n.Inx, IsRemote: n.IsRemote,
@@ -1947,8 +1931,7 @@ func (r *Repository) exportTunnels() ([]model.TunnelBackup, error) {
 	for _, t := range tunnels {
 		b := model.TunnelBackup{
 			ID: t.ID, Name: t.Name, TrafficRatio: t.TrafficRatio,
-			Type: t.Type, Protocol: t.Protocol, KernelType: t.KernelType,
-			Flow: t.Flow,
+			Type: t.Type, Protocol: t.Protocol, Flow: t.Flow,
 			CreatedTime: t.CreatedTime, UpdatedTime: t.UpdatedTime,
 			Status: t.Status, Inx: t.Inx, IPPreference: t.IPPreference,
 		}
@@ -2302,7 +2285,6 @@ func importNodes(tx *gorm.DB, nodes []model.NodeBackup, now int64) (int, error) 
 			Port:          n.Port,
 			InterfaceName: sql.NullString{String: n.InterfaceName, Valid: true},
 			Version:       sql.NullString{String: n.Version, Valid: true},
-			KernelType:    n.KernelType,
 			HTTP:          n.HTTP,
 			TLS:           n.TLS,
 			Socks:         n.Socks,
@@ -2320,7 +2302,7 @@ func importNodes(tx *gorm.DB, nodes []model.NodeBackup, now int64) (int, error) 
 		err := tx.Clauses(clause.OnConflict{
 			Columns: []clause.Column{{Name: "id"}},
 			DoUpdates: clause.AssignmentColumns([]string{
-				"name", "remark", "expiry_time", "renewal_cycle", "secret", "server_ip", "server_ip_v4", "server_ip_v6", "port", "interface_name", "version", "kernel_type",
+				"name", "remark", "expiry_time", "renewal_cycle", "secret", "server_ip", "server_ip_v4", "server_ip_v6", "port", "interface_name", "version",
 				"http", "tls", "socks", "updated_time", "status", "tcp_listen_addr", "udp_listen_addr",
 				"inx", "is_remote", "remote_url", "remote_token", "remote_config",
 			}),
@@ -2342,7 +2324,6 @@ func importTunnels(tx *gorm.DB, tunnels []model.TunnelBackup, now int64) (int, e
 			TrafficRatio: t.TrafficRatio,
 			Type:         t.Type,
 			Protocol:     t.Protocol,
-			KernelType:   t.KernelType,
 			Flow:         t.Flow,
 			CreatedTime:  t.CreatedTime,
 			UpdatedTime:  now,
@@ -2354,7 +2335,7 @@ func importTunnels(tx *gorm.DB, tunnels []model.TunnelBackup, now int64) (int, e
 		err := tx.Clauses(clause.OnConflict{
 			Columns: []clause.Column{{Name: "id"}},
 			DoUpdates: clause.AssignmentColumns([]string{
-				"name", "traffic_ratio", "type", "protocol", "kernel_type", "flow", "updated_time", "status", "in_ip", "inx", "ip_preference",
+				"name", "traffic_ratio", "type", "protocol", "flow", "updated_time", "status", "in_ip", "inx", "ip_preference",
 			}),
 		}).Create(&item).Error
 		if err != nil {

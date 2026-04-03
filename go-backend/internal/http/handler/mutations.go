@@ -573,7 +573,6 @@ func (h *Handler) tunnelCreate(w http.ResponseWriter, r *http.Request) {
 	trafficRatio := asFloat(req["trafficRatio"], 1.0)
 	inIP := asString(req["inIp"])
 	ipPreference := asString(req["ipPreference"])
-	kernelType := defaultString(asString(req["kernelType"]), "gost")
 	now := time.Now().UnixMilli()
 	inx := h.repo.NextIndex("tunnel")
 	localDomain := h.federationLocalDomain()
@@ -652,7 +651,6 @@ func (h *Handler) tunnelCreate(w http.ResponseWriter, r *http.Request) {
 		TrafficRatio: trafficRatio,
 		Type:         typeVal,
 		Protocol:     "tls",
-		KernelType:   kernelType,
 		Flow:         flow,
 		CreatedTime:  now,
 		UpdatedTime:  now,
@@ -2308,9 +2306,20 @@ func (h *Handler) forwardBatchChangeTunnel(w http.ResponseWriter, r *http.Reques
 			nd, ndErr := h.getNodeRecord(nid)
 			if ndErr != nil {
 				portRangeErr = ndErr
-				continue
+				portRangeOk = false
+				break
 			}
 			if validateErr := validateRemoteNodePort(nd, p); validateErr != nil {
+				portRangeOk = false
+				portRangeErr = validateErr
+				break
+			}
+			if validateErr := validateLocalNodePort(nd, p); validateErr != nil {
+				portRangeOk = false
+				portRangeErr = validateErr
+				break
+			}
+			if validateErr := h.validateForwardPortAvailability(nd, p, id); validateErr != nil {
 				portRangeOk = false
 				portRangeErr = validateErr
 				break
@@ -2734,7 +2743,11 @@ func (h *Handler) prepareTunnelCreateState(tx *gorm.DB, req map[string]interface
 				}
 				if !isRemote {
 					var err error
-					port, err = h.repo.PickNodePortTx(tx, nodeID, allocated, excludeTunnelID)
+					if excludeTunnelID > 0 {
+						port, err = h.repo.PickNodePortTx(tx, nodeID, allocated, excludeTunnelID)
+					} else {
+						port, err = h.repo.PickRandomNodePortTx(tx, nodeID, allocated, excludeTunnelID)
+					}
 					if err != nil {
 						return nil, err
 					}
@@ -2769,7 +2782,11 @@ func (h *Handler) prepareTunnelCreateState(tx *gorm.DB, req map[string]interface
 					}
 					if !isRemote {
 						var err error
-						port, err = h.repo.PickNodePortTx(tx, nodeID, allocated, excludeTunnelID)
+						if excludeTunnelID > 0 {
+							port, err = h.repo.PickNodePortTx(tx, nodeID, allocated, excludeTunnelID)
+						} else {
+							port, err = h.repo.PickRandomNodePortTx(tx, nodeID, allocated, excludeTunnelID)
+						}
 						if err != nil {
 							return nil, err
 						}
@@ -3643,7 +3660,7 @@ func (h *Handler) replaceTunnelChainsTx(tx *gorm.DB, tunnelID int64, req map[str
 		port := asInt(n["port"], 0)
 		if port <= 0 {
 			var pickErr error
-			port, pickErr = h.repo.PickNodePortTx(tx, nodeID, allocated, 0)
+			port, pickErr = h.repo.PickRandomNodePortTx(tx, nodeID, allocated, 0)
 			if pickErr != nil {
 				return pickErr
 			}
@@ -3673,7 +3690,7 @@ func (h *Handler) replaceTunnelChainsTx(tx *gorm.DB, tunnelID int64, req map[str
 			port := asInt(n["port"], 0)
 			if port <= 0 {
 				var pickErr error
-				port, pickErr = h.repo.PickNodePortTx(tx, nodeID, allocated, 0)
+				port, pickErr = h.repo.PickRandomNodePortTx(tx, nodeID, allocated, 0)
 				if pickErr != nil {
 					return pickErr
 				}

@@ -19,7 +19,6 @@ export const createTunnelFormDefaults = () => {
   return {
     name: "",
     type: 1,
-    kernelType: "gost",
     inNodeId: [],
     outNodeId: [],
     chainNodes: [],

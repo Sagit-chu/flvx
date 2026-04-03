@@ -203,10 +203,6 @@ func (s *Server) handleNode(w http.ResponseWriter, r *http.Request, nodeID int64
 	go startKeepalive(cw, done)
 
 	version := r.URL.Query().Get("version")
-	kernel := r.URL.Query().Get("kernel")
-	if kernel == "" {
-		kernel = "gost"
-	}
 	httpVal := parseIntDefault(r.URL.Query().Get("http"), 0)
 	tlsVal := parseIntDefault(r.URL.Query().Get("tls"), 0)
 	socksVal := parseIntDefault(r.URL.Query().Get("socks"), 0)
@@ -226,7 +222,7 @@ func (s *Server) handleNode(w http.ResponseWriter, r *http.Request, nodeID int64
 	s.byConn[conn] = ns
 	s.mu.Unlock()
 
-	_ = s.repo.UpdateNodeOnline(nodeID, 1, version, kernel, httpVal, tlsVal, socksVal)
+	_ = s.repo.UpdateNodeOnline(nodeID, 1, version, httpVal, tlsVal, socksVal)
 	s.broadcastStatus(nodeID, 1)
 
 	s.mu.RLock()

@@ -71,7 +71,6 @@ type Node struct {
 	Port                    string         `gorm:"type:text;not null"`
 	InterfaceName           sql.NullString `gorm:"column:interface_name;type:varchar(200)"`
 	Version                 sql.NullString `gorm:"type:varchar(100)"`
-	KernelType              string         `gorm:"column:kernel_type;type:varchar(20);not null;default:'gost'"`
 	HTTP                    int            `gorm:"column:http;not null;default:0"`
 	TLS                     int            `gorm:"column:tls;not null;default:0"`
 	Socks                   int            `gorm:"not null;default:0"`
@@ -120,7 +119,6 @@ type Tunnel struct {
 	TrafficRatio float64        `gorm:"column:traffic_ratio;not null;default:1.0"`
 	Type         int            `gorm:"not null"`
 	Protocol     string         `gorm:"type:varchar(10);not null;default:'tls'"`
-	KernelType   string         `gorm:"column:kernel_type;type:varchar(20);not null;default:'gost'"`
 	Flow         int64          `gorm:"not null"`
 	CreatedTime  int64          `gorm:"column:created_time;not null"`
 	UpdatedTime  int64          `gorm:"column:updated_time;not null"`
@@ -384,7 +382,6 @@ type NodeBackup struct {
 	Port          string `json:"port"`
 	InterfaceName string `json:"interfaceName,omitempty"`
 	Version       string `json:"version,omitempty"`
-	KernelType    string `json:"kernelType,omitempty"`
 	HTTP          int    `json:"http"`
 	TLS           int    `json:"tls"`
 	Socks         int    `json:"socks"`
@@ -406,7 +403,6 @@ type TunnelBackup struct {
 	TrafficRatio float64             `json:"trafficRatio"`
 	Type         int                 `json:"type"`
 	Protocol     string              `json:"protocol"`
-	KernelType   string              `json:"kernelType,omitempty"`
 	Flow         int64               `json:"flow"`
 	CreatedTime  int64               `json:"createdTime"`
 	UpdatedTime  int64               `json:"updatedTime"`
@@ -736,19 +732,3 @@ type TunnelQuality struct {
 }
 
 func (TunnelQuality) TableName() string { return "tunnel_quality" }
-
-// DashTunnel tracks Dash (eBPF) tunnels managed by the Panel.
-type DashTunnel struct {
-	ID          int64          `gorm:"primaryKey;autoIncrement" json:"id"`
-	Name        string         `gorm:"type:varchar(100);not null;uniqueIndex" json:"name"`
-	EntryNodeID int64          `gorm:"column:entry_node_id;not null;index" json:"entryNodeId"`
-	ExitNodeID  int64          `gorm:"column:exit_node_id;not null;index" json:"exitNodeId"`
-	ClientIP    string         `gorm:"column:client_ip;type:varchar(45);not null" json:"clientIp"`
-	Token       string         `gorm:"type:varchar(100);not null" json:"-"`
-	Status      int            `gorm:"not null;default:1" json:"status"`
-	Label       sql.NullString `gorm:"type:text" json:"label"`
-	CreatedTime int64          `gorm:"column:created_time;not null" json:"createdTime"`
-	UpdatedTime int64          `gorm:"column:updated_time;not null" json:"updatedTime"`
-}
-
-func (DashTunnel) TableName() string { return "dash_tunnel" }

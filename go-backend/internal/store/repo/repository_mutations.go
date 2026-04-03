@@ -455,6 +455,14 @@ func (r *Repository) IsRemoteNodeTx(tx *gorm.DB, nodeID int64) (bool, error) {
 }
 
 func (r *Repository) PickNodePortTx(tx *gorm.DB, nodeID int64, allocated map[int64]int, excludeTunnelID int64) (int, error) {
+	return r.pickNodePortTx(tx, nodeID, allocated, excludeTunnelID, false)
+}
+
+func (r *Repository) PickRandomNodePortTx(tx *gorm.DB, nodeID int64, allocated map[int64]int, excludeTunnelID int64) (int, error) {
+	return r.pickNodePortTx(tx, nodeID, allocated, excludeTunnelID, true)
+}
+
+func (r *Repository) pickNodePortTx(tx *gorm.DB, nodeID int64, allocated map[int64]int, excludeTunnelID int64, randomPick bool) (int, error) {
 	if tx == nil {
 		return 0, errors.New("database unavailable")
 	}
@@ -520,6 +528,10 @@ func (r *Repository) PickNodePortTx(tx *gorm.DB, nodeID int64, allocated map[int
 
 	if len(available) == 0 {
 		return 0, errors.New("节点端口已满，无可用端口")
+	}
+	if !randomPick {
+		allocated[nodeID] = available[0]
+		return available[0], nil
 	}
 
 	idx, err := rand.Int(rand.Reader, big.NewInt(int64(len(available))))
@@ -1244,17 +1256,6 @@ func (r *Repository) CreateForwardTx(userID int64, userName, name string, tunnel
 	if r == nil || r.db == nil {
 		return 0, errors.New("repository not initialized")
 	}
-
-	// Helper to check if error is a primary key conflict
-	isPKeyConflict := func(err error) bool {
-		if err == nil {
-			return false
-		}
-		msg := strings.ToLower(err.Error())
-		return strings.Contains(msg, "duplicate key") &&
-			(strings.Contains(msg, "forward_pkey") || strings.Contains(msg, `primary key`))
-	}
-
 	var forwardID int64
 	err := r.db.Transaction(func(tx *gorm.DB) error {
 		fwd := model.Forward{
@@ -1289,56 +1290,7 @@ func (r *Repository) CreateForwardTx(userID int64, userName, name string, tunnel
 		}
 		return nil
 	})
-
-	// If primary key conflict, sync the sequence and retry once
-	if isPKeyConflict(err) && r.db.Dialector.Name() == "postgres" {
-		if syncErr := r.syncForwardIDSequence(); syncErr == nil {
-			// Retry the transaction
-			err = r.db.Transaction(func(tx *gorm.DB) error {
-				fwd := model.Forward{
-					UserID:      userID,
-					UserName:    userName,
-					Name:        name,
-					TunnelID:    tunnelID,
-					RemoteAddr:  remoteAddr,
-					Strategy:    strategy,
-					InFlow:      0,
-					OutFlow:     0,
-					CreatedTime: now,
-					UpdatedTime: now,
-					Status:      1,
-					Inx:         inx,
-					SpeedID:     nullInt64FromInterface(speedID),
-				}
-				if err := tx.Create(&fwd).Error; err != nil {
-					return err
-				}
-				forwardID = fwd.ID
-				for _, nodeID := range entryNodeIDs {
-					fp := model.ForwardPort{
-						ForwardID: forwardID,
-						NodeID:    nodeID,
-						Port:      port,
-						InIP:      sql.NullString{String: inIp, Valid: inIp != ""},
-					}
-					if err := tx.Create(&fp).Error; err != nil {
-						return err
-					}
-				}
-				return nil
-			})
-		}
-	}
-
 	return forwardID, err
-}
-
-// syncForwardIDSequence synchronizes the forward table's id sequence with the current max id.
-func (r *Repository) syncForwardIDSequence() error {
-	if r == nil || r.db == nil {
-		return errors.New("repository not initialized")
-	}
-	return r.db.Exec(`SELECT setval('forward_id_seq', COALESCE((SELECT MAX(id) FROM forward), 0) + 1, false)`).Error
 }
 
 func (r *Repository) BatchUpdateForwardStatus(ids []int64, status int) (int, int) {
@@ -1358,17 +1310,13 @@ func (r *Repository) BatchUpdateForwardStatus(ids []int64, status int) (int, int
 	return s, f
 }
 
-func (r *Repository) CreateTunnelTx(tx *gorm.DB, name string, trafficRatio float64, typeVal int, flow int64, now int64, status int, inIP interface{}, inx int, ipPreference string, kernelType string) (int64, error) {
+func (r *Repository) CreateTunnelTx(tx *gorm.DB, name string, trafficRatio float64, typeVal int, flow int64, now int64, status int, inIP interface{}, inx int, ipPreference string) (int64, error) {
 	inIPVal := nullStringFromInterface(inIP)
-	if kernelType == "" {
-		kernelType = "gost"
-	}
 	tunnel := model.Tunnel{
 		Name:         name,
 		TrafficRatio: trafficRatio,
 		Type:         typeVal,
 		Protocol:     "tls",
-		KernelType:   kernelType,
 		Flow:         flow,
 		CreatedTime:  now,
 		UpdatedTime:  now,
