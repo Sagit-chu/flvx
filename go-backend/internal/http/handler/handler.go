@@ -849,21 +849,34 @@ func (h *Handler) licenseActivate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	client := license.NewKeygenClient(accountID, "")
-	valResp, err := client.ValidateKey(key)
+	valResp, err := client.ValidateKeyWithFingerprint(key, fingerprint)
 	if err != nil {
 		response.WriteJSON(w, response.ErrDefault("连接授权服务器失败: "+err.Error()))
 		return
 	}
 
 	if !valResp.Meta.Valid {
-		response.WriteJSON(w, response.ErrDefault("授权码无效或已过期 (Code: "+valResp.Meta.Code+")"))
-		return
-	}
-
-	err = client.ActivateMachine(valResp.Data.ID, fingerprint)
-	if err != nil {
-		response.WriteJSON(w, response.ErrDefault("设备绑定失败: "+err.Error()))
-		return
+		if valResp.Meta.Code == "NO_MACHINES" || valResp.Meta.Code == "NO_MACHINE" || valResp.Meta.Code == "MACHINE_SCOPE_REQUIRED" {
+			// Needs machine activation
+			client.Token = key
+			err = client.ActivateMachine(valResp.Data.ID, fingerprint)
+			if err != nil {
+				// Translate specific error messages or log them
+				response.WriteJSON(w, response.ErrDefault("设备绑定失败: "+err.Error()))
+				return
+			}
+			
+			// Validate again to confirm it works
+			client.Token = ""
+			valResp, err = client.ValidateKeyWithFingerprint(key, fingerprint)
+			if err != nil || !valResp.Meta.Valid {
+				response.WriteJSON(w, response.ErrDefault("绑定成功但验证失败，请联系管理员"))
+				return
+			}
+		} else {
+			response.WriteJSON(w, response.ErrDefault("授权码无效或已过期 (Code: "+valResp.Meta.Code+")"))
+			return
+		}
 	}
 
 	now := time.Now().UnixMilli()

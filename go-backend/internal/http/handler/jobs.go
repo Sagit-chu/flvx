@@ -65,8 +65,9 @@ func (h *Handler) validateLicenseJob() {
 		return // Nothing to validate
 	}
 
+	fingerprint, _ := h.repo.GetViteConfigValue("machine_fingerprint")
 	client := license.NewKeygenClient(accountID, "")
-	valResp, err := client.ValidateKey(key)
+	valResp, err := client.ValidateKeyWithFingerprint(key, fingerprint)
 	
 	if err != nil {
 		// Network error or timeout. Grace period by not revoking immediately here.
