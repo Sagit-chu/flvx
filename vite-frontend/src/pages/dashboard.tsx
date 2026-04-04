@@ -1,9 +1,16 @@
 import { useState } from "react";
 import toast from "react-hot-toast";
+import { useNavigate } from "react-router-dom";
 
 import { AnimatedPage } from "@/components/animated-page";
 import { Card, CardBody, CardHeader } from "@/shadcn-bridge/heroui/card";
 import { Button } from "@/shadcn-bridge/heroui/button";
+import {
+  Dropdown,
+  DropdownTrigger,
+  DropdownMenu,
+  DropdownItem,
+} from "@/shadcn-bridge/heroui/dropdown";
 import {
   Modal,
   ModalContent,
@@ -15,6 +22,8 @@ import { AnnouncementBanner } from "@/pages/dashboard/components/announcement-ba
 import { AnnouncementModal } from "@/pages/dashboard/components/announcement-modal";
 import { FlowChartCard } from "@/pages/dashboard/components/flow-chart-card";
 import { MetricCard } from "@/pages/dashboard/components/metric-card";
+import { getSessionName } from "@/utils/session";
+import { safeLogout } from "@/utils/logout";
 import {
   formatNodeRenewalTime,
   getNodeRenewalCycleLabel,
@@ -35,6 +44,15 @@ interface AddressItem {
 }
 
 export default function DashboardPage() {
+  const navigate = useNavigate();
+  const username = getSessionName() || "User";
+
+  const handleLogout = () => {
+    safeLogout();
+    toast.success("已退出登录");
+    navigate("/");
+  };
+
   const {
     loading,
     userInfo,
@@ -630,6 +648,48 @@ export default function DashboardPage() {
 
   return (
     <AnimatedPage className="px-3 lg:px-6 py-2 lg:py-4">
+      {/* 顶部个人状态和下拉菜单 */}
+      <div className="flex justify-between items-center mb-6">
+        <div>
+          <h1 className="text-2xl lg:text-3xl font-bold text-foreground">Good morning, {username}</h1>
+          <p className="text-sm text-default-500 mt-1">Here's what's happening with your network today.</p>
+        </div>
+        <div className="flex items-center gap-3">
+          <Dropdown placement="bottom-end">
+            <DropdownTrigger>
+              <Button
+                className="rounded-full w-10 h-10 min-w-0 bg-primary text-white font-bold text-sm shadow-[0_4px_12px_rgba(0,122,255,0.3)]"
+                isIconOnly
+                variant="solid"
+              >
+                {username.slice(0, 2).toUpperCase()}
+              </Button>
+            </DropdownTrigger>
+            <DropdownMenu aria-label="用户菜单" className="bg-white/80 dark:bg-zinc-900/80 backdrop-blur-xl border border-white/50 dark:border-white/10 rounded-2xl shadow-[0_10px_30px_rgba(0,0,0,0.1)]">
+              <DropdownItem
+                key="profile"
+                startContent={
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
+                }
+                onPress={() => navigate("/profile")}
+              >
+                个人资料
+              </DropdownItem>
+              <DropdownItem
+                key="logout"
+                className="text-danger"
+                color="danger"
+                startContent={
+                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M3 3a1 1 0 00-1 1v12a1 1 0 102 0V4a1 1 0 00-1-1zm10.293 9.293a1 1 0 001.414 1.414l3-3a1 1 0 000-1.414l-3-3a1 1 0 10-1.414 1.414L14.586 9H7a1 1 0 100 2h7.586l-1.293 1.293z" clipRule="evenodd" /></svg>
+                }
+                onPress={handleLogout}
+              >
+                退出登录
+              </DropdownItem>
+            </DropdownMenu>
+          </Dropdown>
+        </div>
+      </div>
       {announcement && <AnnouncementBanner announcement={announcement} />}
       {announcement && (
         <AnnouncementModal
