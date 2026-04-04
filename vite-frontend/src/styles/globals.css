@@ -211,3 +211,33 @@ body {
     opacity: 1;
   }
 }
+
+/* Liquid Glass Variables */
+:root {
+  --glass-bg: rgba(255, 255, 255, 0.6);
+  --glass-border: rgba(255, 255, 255, 0.8);
+  --glass-card: rgba(255, 255, 255, 0.7);
+  --glass-overlay: rgba(0, 0, 0, 0.3);
+}
+
+.dark {
+  --glass-bg: rgba(30, 30, 30, 0.6);
+  --glass-border: rgba(255, 255, 255, 0.15);
+  --glass-card: rgba(40, 40, 40, 0.6);
+}
+
+.bg-mesh-gradient {
+  background: radial-gradient(at 0% 0%, #ff9a9e 0%, transparent 50%),
+              radial-gradient(at 100% 0%, #fecfef 0%, transparent 50%),
+              radial-gradient(at 100% 100%, #c2e9fb 0%, transparent 50%),
+              radial-gradient(at 0% 100%, #a1c4fd 0%, transparent 50%);
+  background-color: #f2f2f7;
+}
+
+.dark .bg-mesh-gradient {
+  background: radial-gradient(at 0% 0%, #4a2b30 0%, transparent 50%),
+              radial-gradient(at 100% 0%, #493b45 0%, transparent 50%),
+              radial-gradient(at 100% 100%, #354756 0%, transparent 50%),
+              radial-gradient(at 0% 100%, #2f394f 0%, transparent 50%);
+  background-color: #1c1c1e;
+}

@@ -368,13 +368,13 @@ export default function AdminLayout({
 
   return (
     <div
-      className={`flex ${isMobile ? "min-h-screen" : "h-screen"} bg-gray-100 dark:bg-black`}
+      className={`flex ${isMobile ? "min-h-screen" : "h-screen"} bg-mesh-gradient`}
     >
       {/* 移动端遮罩层 */}
       {isMobile && mobileMenuVisible && (
         <button
           aria-label="关闭菜单"
-          className="fixed inset-0 backdrop-blur-sm bg-white/50 dark:bg-black/30 z-40"
+          className="fixed inset-0 bg-black/30 backdrop-blur-sm z-40"
           type="button"
           onClick={hideMobileMenu}
         />
@@ -386,9 +386,9 @@ export default function AdminLayout({
         ${isMobile ? "fixed" : "relative"} 
         ${isMobile && !mobileMenuVisible ? "-translate-x-full" : "translate-x-0"}
         ${isMobile ? "w-64" : isCollapsed ? "w-20" : "w-72"} 
-        bg-white dark:bg-black 
-        shadow-lg 
-        border-r border-gray-200 dark:border-gray-600
+        bg-white/60 dark:bg-zinc-900/60 backdrop-blur-3xl
+        shadow-[0_10px_30px_rgba(0,0,0,0.1)] 
+        border-r border-white/80 dark:border-white/10
         z-50 
         transition-all duration-300 ease-in-out
         flex flex-col
