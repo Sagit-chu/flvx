@@ -823,7 +823,7 @@ export default function DashboardPage() {
 
       {/* 隧道权限 - 管理员不显示 */}
       {!isAdmin && (
-        <Card className="mb-6 lg:mb-8 border border-gray-200 dark:border-default-200 shadow-md">
+        <Card className="mb-6 lg:mb-8">
           <CardHeader className="pb-3">
             <div className="flex items-center gap-2">
               <svg
@@ -945,7 +945,7 @@ export default function DashboardPage() {
       )}
 
       {/* 规则配置 */}
-      <Card className="border border-gray-200 dark:border-default-200 shadow-md">
+      <Card>
         <CardHeader className="pb-3">
           <div className="flex items-center gap-2">
             <svg
