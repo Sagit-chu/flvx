@@ -1537,15 +1537,22 @@ func (h *Handler) getAnnouncement(w http.ResponseWriter, r *http.Request) {
 
 	if ann == nil {
 		response.WriteJSON(w, response.OK(map[string]interface{}{
-			"content": "",
-			"enabled": 0,
+			"content":     "",
+			"enabled":     0,
+			"update_time": 0,
 		}))
 		return
 	}
 
+	updateTime := ann.CreatedTime
+	if ann.UpdatedTime.Valid {
+		updateTime = ann.UpdatedTime.Int64
+	}
+
 	response.WriteJSON(w, response.OK(map[string]interface{}{
-		"content": ann.Content,
-		"enabled": ann.Enabled,
+		"content":     ann.Content,
+		"enabled":     ann.Enabled,
+		"update_time": updateTime,
 	}))
 }
 
