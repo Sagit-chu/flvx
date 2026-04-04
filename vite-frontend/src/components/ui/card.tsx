@@ -1,29 +1,80 @@
 import * as React from "react";
-import LiquidGlass from "liquid-glass-react";
-
 import { cn } from "@/lib/utils";
+
+// Generate a static unique ID for the SVG filter
+const FILTER_ID = "flvx-liquid-glass-filter";
+
+function LiquidGlassEffect({ cornerRadius = 24 }: { cornerRadius?: number }) {
+  return (
+    <>
+      <svg
+        style={{ width: 0, height: 0, position: "absolute" }}
+        aria-hidden="true"
+      >
+        <defs>
+          <filter
+            id={FILTER_ID}
+            x="-20%"
+            y="-20%"
+            width="140%"
+            height="140%"
+            colorInterpolationFilters="sRGB"
+          >
+            <feTurbulence
+              type="fractalNoise"
+              baseFrequency="0.015"
+              numOctaves="3"
+              result="NOISE"
+            />
+            <feDisplacementMap
+              in="SourceGraphic"
+              in2="NOISE"
+              scale="15"
+              xChannelSelector="R"
+              yChannelSelector="G"
+              result="DISPLACED"
+            />
+            <feGaussianBlur in="DISPLACED" stdDeviation="0.5" result="BLURRED" />
+            <feComposite in="BLURRED" in2="SourceGraphic" operator="in" />
+          </filter>
+        </defs>
+      </svg>
+      {/* Inner Glossy Highlights */}
+      <div
+        className="pointer-events-none absolute inset-0 mix-blend-overlay opacity-50 z-20"
+        style={{
+          borderRadius: cornerRadius,
+          boxShadow:
+            "inset 0 1px 1px rgba(255,255,255,0.8), inset 0 0 0 1px rgba(255,255,255,0.4), inset 0 -1px 1px rgba(0,0,0,0.1)",
+          background:
+            "linear-gradient(135deg, rgba(255,255,255,0.4) 0%, rgba(255,255,255,0) 40%, rgba(255,255,255,0) 60%, rgba(255,255,255,0.1) 100%)",
+        }}
+      />
+    </>
+  );
+}
 
 function Card({ className, style, ...props }: React.ComponentProps<"div">) {
   return (
-    <LiquidGlass
+    <div
       className={cn(
-        "rounded-2xl border border-white/80 dark:border-white/10 bg-white/60 dark:bg-zinc-900/60 backdrop-blur-3xl text-card-foreground shadow-[0_10px_30px_rgba(0,0,0,0.1)]",
+        "relative flex flex-col group transition-all duration-300",
+        "rounded-[24px] border border-white/80 dark:border-white/10",
+        "bg-white/40 dark:bg-zinc-900/40 backdrop-blur-2xl shadow-[0_15px_35px_rgba(0,0,0,0.1)]",
+        "text-card-foreground",
         className,
       )}
-      style={style}
-      blurAmount={0.05}
-      saturation={120}
-      displacementScale={30}
-      aberrationIntensity={0.5}
-      cornerRadius={24}
-      padding="0px"
+      style={{
+        ...style,
+        filter: `url(#${FILTER_ID})`,
+        WebkitBackdropFilter: "blur(24px) saturate(180%)",
+        backdropFilter: "blur(24px) saturate(180%)",
+      }}
+      data-slot="card"
     >
-      <div
-        className="w-full h-full flex flex-col"
-        data-slot="card"
-        {...props}
-      />
-    </LiquidGlass>
+      <LiquidGlassEffect cornerRadius={24} />
+      <div className="relative z-10 flex flex-col flex-1 w-full h-full" {...props} />
+    </div>
   );
 }
 
