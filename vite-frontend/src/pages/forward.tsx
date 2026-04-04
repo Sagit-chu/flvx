@@ -4177,7 +4177,7 @@ export default function ForwardPage() {
                   {sortedForwards.length} 条规则
                 </span>
               </div>
-              <div className="overflow-hidden rounded-xl border border-divider bg-content1 shadow-md">
+              <Card className="overflow-hidden rounded-2xl border border-white/80 dark:border-white/10 bg-white/40 dark:bg-zinc-900/40 backdrop-blur-2xl shadow-[0_15px_35px_rgba(0,0,0,0.1)]">
                 <DndContext
                   collisionDetection={pointerWithin}
                   sensors={sensors}
@@ -4190,8 +4190,8 @@ export default function ForwardPage() {
                     <Table
                       aria-label="全部规则列表"
                       classNames={{
-                        th: "bg-default-100/50 text-default-600 font-semibold text-sm border-b border-divider py-3 uppercase tracking-wider",
-                        td: "py-3 border-b border-divider/50 group-data-[last=true]:border-b-0",
+                        wrapper: "bg-transparent p-0 shadow-none border-none",
+                        th: "bg-default-100/50 text-default-600 font-semibold text-sm border-b border-divider py-3 uppercase tracking-wider",                        td: "py-3 border-b border-divider/50 group-data-[last=true]:border-b-0",
                         tr: "hover:bg-default-50/50 transition-colors",
                       }}
                     >
@@ -4253,7 +4253,7 @@ export default function ForwardPage() {
                     </Table>
                   </SortableContext>
                 </DndContext>
-              </div>
+              </Card>
             </>
           ) : (
             <Card>
@@ -4439,6 +4439,7 @@ export default function ForwardPage() {
                                     aria-label={`${group.userName}-${tunnel.tunnelName}规则列表`}
                                     className={`table-fixed ${FORWARD_GROUPED_TABLE_MIN_WIDTH_CLASS}`}
                                     classNames={{
+                                      wrapper: "bg-transparent p-0 shadow-none border-none overflow-hidden rounded-2xl",
                                       th: "bg-default-100/50 text-default-600 font-semibold text-sm border-b border-divider py-3 uppercase tracking-wider",
                                       td: "py-3 border-b border-divider/50 group-data-[last=true]:border-b-0",
                                       tr: "hover:bg-white/40 dark:hover:bg-white/10 transition-colors",

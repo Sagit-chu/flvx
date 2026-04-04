@@ -1,56 +1,18 @@
 import * as React from "react";
 import { cn } from "@/lib/utils";
 
-// Generate a static unique ID for the SVG filter
-const FILTER_ID = "flvx-liquid-glass-filter";
-
 function LiquidGlassEffect({ cornerRadius = 24 }: { cornerRadius?: number }) {
   return (
-    <>
-      <svg
-        style={{ width: 0, height: 0, position: "absolute" }}
-        aria-hidden="true"
-      >
-        <defs>
-          <filter
-            id={FILTER_ID}
-            x="-20%"
-            y="-20%"
-            width="140%"
-            height="140%"
-            colorInterpolationFilters="sRGB"
-          >
-            <feTurbulence
-              type="fractalNoise"
-              baseFrequency="0.015"
-              numOctaves="3"
-              result="NOISE"
-            />
-            <feDisplacementMap
-              in="SourceGraphic"
-              in2="NOISE"
-              scale="15"
-              xChannelSelector="R"
-              yChannelSelector="G"
-              result="DISPLACED"
-            />
-            <feGaussianBlur in="DISPLACED" stdDeviation="0.5" result="BLURRED" />
-            <feComposite in="BLURRED" in2="SourceGraphic" operator="in" />
-          </filter>
-        </defs>
-      </svg>
-      {/* Inner Glossy Highlights */}
-      <div
-        className="pointer-events-none absolute inset-0 mix-blend-overlay opacity-50 z-20"
-        style={{
-          borderRadius: cornerRadius,
-          boxShadow:
-            "inset 0 1px 1px rgba(255,255,255,0.8), inset 0 0 0 1px rgba(255,255,255,0.4), inset 0 -1px 1px rgba(0,0,0,0.1)",
-          background:
-            "linear-gradient(135deg, rgba(255,255,255,0.4) 0%, rgba(255,255,255,0) 40%, rgba(255,255,255,0) 60%, rgba(255,255,255,0.1) 100%)",
-        }}
-      />
-    </>
+    <div
+      className="pointer-events-none absolute inset-0 mix-blend-overlay opacity-50 z-20"
+      style={{
+        borderRadius: cornerRadius,
+        boxShadow:
+          "inset 0 1px 1px rgba(255,255,255,0.8), inset 0 0 0 1px rgba(255,255,255,0.4), inset 0 -1px 1px rgba(0,0,0,0.1)",
+        background:
+          "linear-gradient(135deg, rgba(255,255,255,0.4) 0%, rgba(255,255,255,0) 40%, rgba(255,255,255,0) 60%, rgba(255,255,255,0.1) 100%)",
+      }}
+    />
   );
 }
 
@@ -66,14 +28,13 @@ function Card({ className, style, ...props }: React.ComponentProps<"div">) {
       )}
       style={{
         ...style,
-        filter: `url(#${FILTER_ID})`,
         WebkitBackdropFilter: "blur(24px) saturate(180%)",
         backdropFilter: "blur(24px) saturate(180%)",
       }}
       data-slot="card"
     >
       <LiquidGlassEffect cornerRadius={24} />
-      <div className="relative z-10 flex flex-col flex-1 w-full h-full" {...props} />
+      <div className="relative z-10 flex flex-col flex-1 w-full h-full overflow-hidden rounded-[inherit]" {...props} />
     </div>
   );
 }

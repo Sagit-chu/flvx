@@ -489,7 +489,15 @@ export default function GroupPage() {
           </Button>
         </CardHeader>
         <CardBody>
-          <Table aria-label="隧道分组列表">
+          <Table
+            aria-label="隧道分组列表"
+            classNames={{
+              wrapper: "bg-transparent p-0 shadow-none border-none overflow-hidden rounded-2xl",
+              th: "bg-default-100/50 text-default-600 font-semibold text-sm border-b border-divider py-3 uppercase tracking-wider",
+              td: "py-3 border-b border-divider/50 group-data-[last=true]:border-b-0",
+              tr: "hover:bg-white/40 dark:hover:bg-white/10 transition-colors",
+            }}
+          >
             <TableHeader>
               <TableColumn>名称</TableColumn>
               <TableColumn>隧道</TableColumn>
@@ -561,7 +569,15 @@ export default function GroupPage() {
           </Button>
         </CardHeader>
         <CardBody>
-          <Table aria-label="用户分组列表">
+          <Table
+            aria-label="用户分组列表"
+            classNames={{
+              wrapper: "bg-transparent p-0 shadow-none border-none overflow-hidden rounded-2xl",
+              th: "bg-default-100/50 text-default-600 font-semibold text-sm border-b border-divider py-3 uppercase tracking-wider",
+              td: "py-3 border-b border-divider/50 group-data-[last=true]:border-b-0",
+              tr: "hover:bg-white/40 dark:hover:bg-white/10 transition-colors",
+            }}
+          >
             <TableHeader>
               <TableColumn>名称</TableColumn>
               <TableColumn>用户</TableColumn>
@@ -665,7 +681,15 @@ export default function GroupPage() {
             </Button>
           </div>
 
-          <Table aria-label="分组权限列表">
+          <Table
+            aria-label="分组权限列表"
+            classNames={{
+              wrapper: "bg-transparent p-0 shadow-none border-none overflow-hidden rounded-2xl",
+              th: "bg-default-100/50 text-default-600 font-semibold text-sm border-b border-divider py-3 uppercase tracking-wider",
+              td: "py-3 border-b border-divider/50 group-data-[last=true]:border-b-0",
+              tr: "hover:bg-white/40 dark:hover:bg-white/10 transition-colors",
+            }}
+          >
             <TableHeader>
               <TableColumn>ID</TableColumn>
               <TableColumn>用户分组</TableColumn>
