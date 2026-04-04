@@ -183,7 +183,7 @@ export const SettingsPage = () => {
       {/* 内容区域 */}
       <div className="max-w-4xl mx-auto px-4 py-6">
         <div className="space-y-6">
-          <Card className="border border-gray-200 dark:border-gray-700">
+          <Card>
             <CardBody className="p-6">
               <h2 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
                 更新设置
@@ -213,7 +213,7 @@ export const SettingsPage = () => {
             </CardBody>
           </Card>
 
-          <Card className="border border-gray-200 dark:border-gray-700">
+          <Card>
             <CardBody className="p-6">
               <h2 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
                 显示设置
@@ -247,7 +247,7 @@ export const SettingsPage = () => {
           </Card>
 
           {/* 添加新地址 */}
-          <Card className="border border-gray-200 dark:border-gray-700">
+          <Card>
             <CardBody className="p-6">
               <h2 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
                 添加新面板地址
@@ -275,7 +275,7 @@ export const SettingsPage = () => {
           </Card>
 
           {/* 地址列表 */}
-          <Card className="border border-gray-200 dark:border-gray-700">
+          <Card>
             <CardBody className="p-6">
               <h2 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
                 已保存的面板地址

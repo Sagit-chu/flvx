@@ -1108,14 +1108,11 @@ export default function UserPage() {
                 return (
                   <TableRow key={user.id}>
                     <TableCell>
-                      <div className="flex items-center gap-2">
-                        <div
-                          className={`shrink-0 w-2 h-2 rounded-full ${
-                            userStatus.color === "success"
-                              ? "bg-success"
-                              : "bg-danger"
-                          }`}
-                        />
+                      <div className="flex items-center gap-3">
+                        <div className="flex items-center justify-center shrink-0 w-10 h-10 rounded-full bg-primary text-white font-bold text-sm relative">
+                          {(user.name || user.user).slice(0, 2).toUpperCase()}
+                          <span className={`absolute bottom-0 right-0 w-3 h-3 border-2 border-white dark:border-zinc-900 rounded-full ${userStatus.color === "success" ? "bg-success" : "bg-danger"}`} />
+                        </div>
                         <div className="flex flex-col">
                           <span className="font-medium text-foreground text-sm">
                             {user.name || user.user}
@@ -1252,16 +1249,22 @@ export default function UserPage() {
 
             return (
               <StaggerItem key={user.id}>
-                <Card className="shadow-sm border border-divider hover:shadow-md transition-shadow duration-200 overflow-hidden h-full">
+                <Card className="overflow-hidden h-full">
                   <CardHeader className="pb-2 md:pb-2">
                     <div className="flex justify-between items-start w-full">
-                      <div className="flex-1 min-w-0">
-                        <h3 className="font-semibold text-foreground truncate text-sm">
-                          {user.name || user.user}
-                        </h3>
-                        <p className="text-xs text-default-500 truncate">
-                          @{user.user}
-                        </p>
+                      <div className="flex items-center gap-3 flex-1 min-w-0">
+                        <div className="flex items-center justify-center shrink-0 w-10 h-10 rounded-full bg-primary text-white font-bold text-sm relative">
+                          {(user.name || user.user).slice(0, 2).toUpperCase()}
+                          <span className={`absolute bottom-0 right-0 w-3 h-3 border-2 border-white dark:border-zinc-900 rounded-full ${userStatus.color === "success" ? "bg-success" : "bg-danger"}`} />
+                        </div>
+                        <div className="flex flex-col min-w-0">
+                          <h3 className="font-semibold text-foreground truncate text-sm">
+                            {user.name || user.user}
+                          </h3>
+                          <p className="text-xs text-default-500 truncate">
+                            @{user.user}
+                          </p>
+                        </div>
                       </div>
                       <div className="flex items-center gap-1.5 ml-2">
                         <Chip
