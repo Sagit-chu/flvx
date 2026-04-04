@@ -12,6 +12,7 @@ import {
 } from "@/shadcn-bridge/heroui/modal";
 import { PageEmptyState, PageLoadingState } from "@/components/page-state";
 import { AnnouncementBanner } from "@/pages/dashboard/components/announcement-banner";
+import { AnnouncementModal } from "@/pages/dashboard/components/announcement-modal";
 import { FlowChartCard } from "@/pages/dashboard/components/flow-chart-card";
 import { MetricCard } from "@/pages/dashboard/components/metric-card";
 import {
@@ -43,6 +44,9 @@ export default function DashboardPage() {
     nodeExpiryReminders,
     isAdmin,
     announcement,
+    isAnnouncementModalOpen,
+    setIsAnnouncementModalOpen,
+    dismissAnnouncementModal,
   } = useDashboardData();
 
   const [addressModalOpen, setAddressModalOpen] = useState(false);
@@ -627,6 +631,14 @@ export default function DashboardPage() {
   return (
     <AnimatedPage className="px-3 lg:px-6 py-2 lg:py-4">
       {announcement && <AnnouncementBanner announcement={announcement} />}
+      {announcement && (
+        <AnnouncementModal
+          announcement={announcement}
+          isOpen={isAnnouncementModalOpen}
+          onClose={() => setIsAnnouncementModalOpen(false)}
+          onDontShowAgain={dismissAnnouncementModal}
+        />
+      )}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4 mb-6 lg:mb-8">
         <MetricCard
           icon={
