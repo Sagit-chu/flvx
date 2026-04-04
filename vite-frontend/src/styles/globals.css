@@ -241,3 +241,24 @@ body {
               radial-gradient(at 0% 100%, #2f394f 0%, transparent 50%);
   background-color: #1c1c1e;
 }
+
+
+/* Liquid Glass React Overrides */
+.glass {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: stretch !important;
+  width: 100% !important;
+  height: 100% !important;
+  box-shadow: none !important;
+}
+
+.glass > .text-white {
+  color: inherit !important;
+  font: inherit !important;
+  text-shadow: none !important;
+  width: 100% !important;
+  height: 100% !important;
+  display: flex !important;
+  flex-direction: column !important;
+}
