@@ -96,6 +96,9 @@ interface DashboardDataState {
   nodeExpiryReminders: DashboardNodeExpiryItem[];
   isAdmin: boolean;
   announcement: AnnouncementData | null;
+  isAnnouncementModalOpen: boolean;
+  setIsAnnouncementModalOpen: (isOpen: boolean) => void;
+  dismissAnnouncementModal: () => void;
 }
 
 const checkExpirationNotifications = (
@@ -267,6 +270,7 @@ export const useDashboardData = (): DashboardDataState => {
   const [announcement, setAnnouncement] = useState<AnnouncementData | null>(
     null,
   );
+  const [isAnnouncementModalOpen, setIsAnnouncementModalOpen] = useState(false);
   const isMountedRef = useRef(true);
   const packageRequestInFlightRef = useRef(false);
   const nodeExpiryRequestInFlightRef = useRef(false);
@@ -345,6 +349,19 @@ export const useDashboardData = (): DashboardDataState => {
 
       if (res.code === 0 && res.data && res.data.enabled === 1) {
         setAnnouncement(res.data);
+        
+        try {
+          const storedTimeStr = localStorage.getItem("flvx_announcement_seen_time");
+          const storedTime = storedTimeStr ? parseInt(storedTimeStr, 10) : 0;
+          const updateTime = res.data.update_time || 0;
+          
+          if (updateTime > storedTime) {
+            setIsAnnouncementModalOpen(true);
+          }
+        } catch (err) {
+          console.warn("Failed to read localStorage for announcement state", err);
+          setIsAnnouncementModalOpen(true);
+        }
       } else {
         setAnnouncement(null);
       }
@@ -354,6 +371,17 @@ export const useDashboardData = (): DashboardDataState => {
       }
     }
   }, []);
+
+  const dismissAnnouncementModal = useCallback(() => {
+    setIsAnnouncementModalOpen(false);
+    if (announcement && announcement.update_time) {
+      try {
+        localStorage.setItem("flvx_announcement_seen_time", announcement.update_time.toString());
+      } catch (err) {
+        console.warn("Failed to set localStorage for announcement state", err);
+      }
+    }
+  }, [announcement]);
 
   const loadNodeExpiryData = useCallback(async () => {
     if (nodeExpiryRequestInFlightRef.current) {
@@ -438,5 +466,8 @@ export const useDashboardData = (): DashboardDataState => {
     nodeExpiryReminders,
     isAdmin,
     announcement,
+    isAnnouncementModalOpen,
+    setIsAnnouncementModalOpen,
+    dismissAnnouncementModal,
   };
 };
