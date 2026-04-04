@@ -410,6 +410,7 @@ export const importBackup = (data: BackupImportPayload) =>
 export interface AnnouncementData {
   content: string;
   enabled: number;
+  update_time?: number;
 }
 
 export const getAnnouncement = () =>
