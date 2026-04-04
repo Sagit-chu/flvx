@@ -662,7 +662,7 @@ export default function AdminLayout({
         }}
         isOpen={isOpen}
         placement="center"
-        scrollBehavior="outside"
+        scrollBehavior="inside"
         size="2xl"
         onOpenChange={() => {
           onOpenChange();

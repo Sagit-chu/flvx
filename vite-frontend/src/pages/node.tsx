@@ -2410,7 +2410,7 @@ export default function NodePage() {
         }}
         isOpen={dialogVisible}
         placement="center"
-        scrollBehavior="outside"
+        scrollBehavior="inside"
         size="2xl"
         onClose={() => setDialogVisible(false)}
       >
@@ -2831,7 +2831,7 @@ export default function NodePage() {
         }}
         isOpen={rollbackModalOpen}
         placement="center"
-        scrollBehavior="outside"
+        scrollBehavior="inside"
         size="2xl"
         onOpenChange={setRollbackModalOpen}
       >
@@ -2872,7 +2872,7 @@ export default function NodePage() {
         }}
         isOpen={deleteModalOpen}
         placement="center"
-        scrollBehavior="outside"
+        scrollBehavior="inside"
         size="2xl"
         onOpenChange={setDeleteModalOpen}
       >
@@ -2968,7 +2968,7 @@ export default function NodePage() {
         }}
         isOpen={installCommandModal}
         placement="center"
-        scrollBehavior="outside"
+        scrollBehavior="inside"
         size="2xl"
         onClose={() => setInstallCommandModal(false)}
       >
@@ -3025,7 +3025,7 @@ export default function NodePage() {
         }}
         isOpen={upgradeModalOpen}
         placement="center"
-        scrollBehavior="outside"
+        scrollBehavior="inside"
         size="md"
         onOpenChange={setUpgradeModalOpen}
       >
@@ -3131,7 +3131,7 @@ export default function NodePage() {
         }}
         isOpen={batchDeleteModalOpen}
         placement="center"
-        scrollBehavior="outside"
+        scrollBehavior="inside"
         size="md"
         onOpenChange={setBatchDeleteModalOpen}
       >

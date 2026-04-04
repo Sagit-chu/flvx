@@ -1091,7 +1091,7 @@ export default function DashboardPage() {
         backdrop="blur"
         isOpen={addressModalOpen}
         placement="center"
-        scrollBehavior="outside"
+        scrollBehavior="inside"
         size="2xl"
         onClose={() => setAddressModalOpen(false)}
       >

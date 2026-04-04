@@ -432,7 +432,7 @@ export default function LimitPage() {
         }}
         isOpen={modalOpen}
         placement="center"
-        scrollBehavior="outside"
+        scrollBehavior="inside"
         size="2xl"
         onOpenChange={setModalOpen}
       >
@@ -510,7 +510,7 @@ export default function LimitPage() {
         }}
         isOpen={deleteModalOpen}
         placement="center"
-        scrollBehavior="outside"
+        scrollBehavior="inside"
         size="2xl"
         onOpenChange={setDeleteModalOpen}
       >

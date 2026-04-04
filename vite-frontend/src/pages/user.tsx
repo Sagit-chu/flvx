@@ -1455,7 +1455,7 @@ export default function UserPage() {
         }}
         isOpen={isUserModalOpen}
         placement="center"
-        scrollBehavior="outside"
+        scrollBehavior="inside"
         size="2xl"
         onClose={onUserModalClose}
       >
@@ -1698,7 +1698,7 @@ export default function UserPage() {
         isDismissable={false}
         isOpen={isTunnelModalOpen}
         placement="center"
-        scrollBehavior="outside"
+        scrollBehavior="inside"
         size="2xl"
         onClose={onTunnelModalClose}
       >
@@ -2035,7 +2035,7 @@ export default function UserPage() {
         isDismissable={false}
         isOpen={isEditTunnelModalOpen}
         placement="center"
-        scrollBehavior="outside"
+        scrollBehavior="inside"
         size="2xl"
         onClose={onEditTunnelModalClose}
       >
@@ -2215,7 +2215,7 @@ export default function UserPage() {
         }}
         isOpen={isDeleteModalOpen}
         placement="center"
-        scrollBehavior="outside"
+        scrollBehavior="inside"
         size="2xl"
         onClose={onDeleteModalClose}
       >
@@ -2261,7 +2261,7 @@ export default function UserPage() {
         }}
         isOpen={isDeleteTunnelModalOpen}
         placement="center"
-        scrollBehavior="outside"
+        scrollBehavior="inside"
         size="2xl"
         onClose={onDeleteTunnelModalClose}
       >
@@ -2309,7 +2309,7 @@ export default function UserPage() {
         }}
         isOpen={isResetFlowModalOpen}
         placement="center"
-        scrollBehavior="outside"
+        scrollBehavior="inside"
         size="2xl"
         onClose={onResetFlowModalClose}
       >
@@ -2401,7 +2401,7 @@ export default function UserPage() {
         }}
         isOpen={isResetTunnelFlowModalOpen}
         placement="center"
-        scrollBehavior="outside"
+        scrollBehavior="inside"
         size="2xl"
         onClose={onResetTunnelFlowModalClose}
       >

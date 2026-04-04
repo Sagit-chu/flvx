@@ -2005,7 +2005,7 @@ export default function TunnelPage() {
         }}
         isOpen={modalOpen}
         placement="center"
-        scrollBehavior="outside"
+        scrollBehavior="inside"
         size="2xl"
         onOpenChange={setModalOpen}
       >
@@ -2942,7 +2942,7 @@ export default function TunnelPage() {
         }}
         isOpen={deleteModalOpen}
         placement="center"
-        scrollBehavior="outside"
+        scrollBehavior="inside"
         size="2xl"
         onOpenChange={handleDeleteModalOpenChange}
       >

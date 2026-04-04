@@ -332,7 +332,7 @@ export default function ProfilePage() {
         }}
         isOpen={isOpen}
         placement="center"
-        scrollBehavior="outside"
+        scrollBehavior="inside"
         size="2xl"
         onOpenChange={() => {
           onOpenChange();
