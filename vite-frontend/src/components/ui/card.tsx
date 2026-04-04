@@ -1,17 +1,27 @@
 import * as React from "react";
+import LiquidGlass from "liquid-glass-react";
 
 import { cn } from "@/lib/utils";
 
-function Card({ className, ...props }: React.ComponentProps<"div">) {
+function Card({ className, style, ...props }: React.ComponentProps<"div">) {
   return (
-    <div
-      className={cn(
-        "rounded-2xl border border-white/80 dark:border-white/10 bg-white/60 dark:bg-zinc-900/60 backdrop-blur-3xl text-card-foreground shadow-[0_10px_30px_rgba(0,0,0,0.1)]",
-        className,
-      )}
-      data-slot="card"
-      {...props}
-    />
+    <LiquidGlass
+      blurAmount={0.05}
+      saturation={120}
+      displacementScale={30}
+      aberrationIntensity={0.5}
+      cornerRadius={24}
+    >
+      <div
+        className={cn(
+          "rounded-2xl border border-white/80 dark:border-white/10 bg-white/60 dark:bg-zinc-900/60 backdrop-blur-3xl text-card-foreground shadow-[0_10px_30px_rgba(0,0,0,0.1)]",
+          className,
+        )}
+        data-slot="card"
+        style={style}
+        {...props}
+      />
+    </LiquidGlass>
   );
 }
 
