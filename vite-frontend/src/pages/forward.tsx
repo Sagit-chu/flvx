@@ -4190,9 +4190,10 @@ export default function ForwardPage() {
                     <Table
                       aria-label="全部规则列表"
                       classNames={{
-                        wrapper: "bg-transparent p-0 shadow-none border-none",
-                        th: "bg-default-100/50 text-default-600 font-semibold text-sm border-b border-divider py-3 uppercase tracking-wider",                        td: "py-3 border-b border-divider/50 group-data-[last=true]:border-b-0",
-                        tr: "hover:bg-default-50/50 transition-colors",
+                        wrapper: "bg-transparent p-0 shadow-none border-none overflow-hidden rounded-[24px]",
+                        th: "bg-default-100/50 text-default-600 font-semibold text-sm border-b border-divider py-3 uppercase tracking-wider first:rounded-tl-[24px] last:rounded-tr-[24px]",
+                        td: "py-3 border-b border-divider/50 group-data-[last=true]:border-b-0",
+                        tr: "hover:bg-white/40 dark:hover:bg-white/10 transition-colors group",
                       }}
                     >
                       <TableHeader>
@@ -4440,7 +4441,7 @@ export default function ForwardPage() {
                                     className={`table-fixed ${FORWARD_GROUPED_TABLE_MIN_WIDTH_CLASS}`}
                                     classNames={{
                                       wrapper: "bg-transparent p-0 shadow-none border-none overflow-hidden rounded-2xl",
-                                      th: "bg-default-100/50 text-default-600 font-semibold text-sm border-b border-divider py-3 uppercase tracking-wider",
+                                      th: "bg-default-100/50 text-default-600 font-semibold text-sm border-b border-divider py-3 uppercase tracking-wider first:rounded-tl-[24px] last:rounded-tr-[24px]",
                                       td: "py-3 border-b border-divider/50 group-data-[last=true]:border-b-0",
                                       tr: "hover:bg-white/40 dark:hover:bg-white/10 transition-colors",
                                     }}
