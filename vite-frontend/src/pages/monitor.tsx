@@ -82,13 +82,64 @@ export default function MonitorPage() {
 
   return (
     <AnimatedPage className="px-3 lg:px-6 py-8">
+      {/* 顶部英雄数据指标 (Hero Metrics) */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+        <div className="rounded-3xl border border-white/80 dark:border-white/10 bg-white/60 dark:bg-zinc-900/60 backdrop-blur-3xl shadow-[0_10px_30px_rgba(0,0,0,0.1)] p-6 relative overflow-hidden flex flex-col justify-between h-40">
+          <div className="flex justify-between items-center z-10 relative">
+            <span className="text-default-600 font-medium text-sm">System Load</span>
+          </div>
+          <div className="z-10 relative">
+            <span className="text-4xl font-bold text-foreground">24%</span>
+          </div>
+          <div className="absolute bottom-0 left-0 right-0 h-12 flex items-end gap-1 px-6 pb-4 opacity-50 z-0">
+            <div className="w-full bg-primary/40 h-2 rounded-t-sm" />
+            <div className="w-full bg-primary/40 h-3 rounded-t-sm" />
+            <div className="w-full bg-primary/40 h-1.5 rounded-t-sm" />
+            <div className="w-full bg-primary/40 h-4 rounded-t-sm" />
+            <div className="w-full bg-primary/40 h-2.5 rounded-t-sm" />
+            <div className="w-full bg-primary h-5 rounded-t-sm shadow-[0_0_10px_rgba(0,122,255,0.5)]" />
+          </div>
+        </div>
+
+        <div className="rounded-3xl border border-white/80 dark:border-white/10 bg-white/60 dark:bg-zinc-900/60 backdrop-blur-3xl shadow-[0_10px_30px_rgba(0,0,0,0.1)] p-6 relative overflow-hidden flex flex-col justify-between h-40">
+          <div className="flex justify-between items-center z-10 relative">
+            <span className="text-default-600 font-medium text-sm">Active Connections</span>
+          </div>
+          <div className="z-10 relative">
+            <span className="text-4xl font-bold text-foreground">1,429</span>
+          </div>
+          <div className="absolute bottom-0 left-0 right-0 h-12 flex items-end gap-1 px-6 pb-4 opacity-50 z-0">
+            <div className="w-full bg-success/40 h-3.5 rounded-t-sm" />
+            <div className="w-full bg-success/40 h-4.5 rounded-t-sm" />
+            <div className="w-full bg-success/40 h-2.5 rounded-t-sm" />
+            <div className="w-full bg-success/40 h-6 rounded-t-sm" />
+            <div className="w-full bg-success/40 h-5.5 rounded-t-sm" />
+            <div className="w-full bg-success h-7 rounded-t-sm shadow-[0_0_10px_rgba(52,199,89,0.5)]" />
+          </div>
+        </div>
+
+        <div className="rounded-3xl border border-white/80 dark:border-white/10 bg-white/60 dark:bg-zinc-900/60 backdrop-blur-3xl shadow-[0_10px_30px_rgba(0,0,0,0.1)] p-6 relative overflow-hidden flex flex-col justify-between h-40">
+          <div className="flex justify-between items-center z-10 relative">
+            <span className="text-default-600 font-medium text-sm">Bandwidth</span>
+          </div>
+          <div className="z-10 relative">
+            <span className="text-4xl font-bold text-foreground">42 MB/s</span>
+          </div>
+          <div className="absolute bottom-0 left-0 right-0 h-12 flex items-end gap-1 px-6 pb-4 opacity-50 z-0">
+            <div className="w-full bg-secondary/40 h-2 rounded-t-sm" />
+            <div className="w-full bg-secondary/40 h-3 rounded-t-sm" />
+            <div className="w-full bg-secondary/40 h-5 rounded-t-sm" />
+            <div className="w-full bg-secondary/40 h-8 rounded-t-sm" />
+            <div className="w-full bg-secondary/40 h-7 rounded-t-sm" />
+            <div className="w-full bg-secondary h-10 rounded-t-sm shadow-[0_0_10px_rgba(175,82,222,0.5)]" />
+          </div>
+        </div>
+      </div>
+
       <div className="mb-6 space-y-3">
         <div className="flex items-center justify-between gap-3">
           <div className="min-w-0">
-            <h2 className="text-xl font-semibold truncate">监控</h2>
-            <div className="text-xs text-default-500 truncate">
-              实时节点状态 + 隧道质量检测 + 历史指标图表 + 服务监控（TCP/ICMP）
-            </div>
+            <h2 className="text-xl font-semibold truncate">监控面板</h2>
           </div>
           <div className="flex items-center gap-2">
             <Button
