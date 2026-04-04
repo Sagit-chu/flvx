@@ -208,8 +208,8 @@ function ServerCard({ node, metric, onPress }: { node: any; metric: RealtimeNode
               <span className="font-mono font-medium">{isOnline && metric ? `${metric.cpuUsage.toFixed(1)}%` : "-"}</span>
             </div>
             <Progress
+              classNames={{ track: "h-1", indicator: "h-1 rounded-full", base: "h-1" }}
               color={getColorByUsage(metric?.cpuUsage)}
-              size="sm"
               value={isOnline && metric ? metric.cpuUsage : 0}
             />
           </div>
@@ -219,8 +219,8 @@ function ServerCard({ node, metric, onPress }: { node: any; metric: RealtimeNode
               <span className="font-mono font-medium">{isOnline && metric ? `${metric.memoryUsage.toFixed(1)}%` : "-"}</span>
             </div>
             <Progress
+              classNames={{ track: "h-1", indicator: "h-1 rounded-full", base: "h-1" }}
               color={getColorByUsage(metric?.memoryUsage)}
-              size="sm"
               value={isOnline && metric ? metric.memoryUsage : 0}
             />
           </div>

@@ -1949,7 +1949,7 @@ export default function NodePage() {
                     {(listeners) => (
                       <Card
                         key={node.id}
-                        className={`group relative overflow-visible shadow-sm border border-divider hover:shadow-md transition-shadow duration-200 h-full flex flex-col ${node.expiryReminderDismissed ? "" : expiryMeta.accentClassName}`}
+                        className={`group relative overflow-visible h-full flex flex-col ${node.expiryReminderDismissed ? "" : expiryMeta.accentClassName}`}
                         data-node-card="true"
                       >
                         <CardHeader className="pb-3 md:pb-3">
@@ -1979,13 +1979,20 @@ export default function NodePage() {
                               )}
                               <div className="min-w-0 flex-1 pt-0.5">
                                 <div className="flex items-center gap-2 min-w-0">
-                                  <h3 className="font-semibold text-foreground truncate text-sm leading-5">
+                                  <h3 className="font-semibold text-foreground truncate text-lg leading-5">
                                     {node.name}
                                   </h3>
-                                  <span
-                                    className={`h-2.5 w-2.5 rounded-full flex-shrink-0 ${connectionStatusMeta.color === "success" ? "bg-emerald-500" : "bg-rose-500"}`}
+                                  <div
+                                    className={`flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium flex-shrink-0
+                                      ${connectionStatusMeta.color === "success" ? "bg-emerald-500/20 text-emerald-600" : "bg-rose-500/20 text-rose-600"}
+                                    `}
                                     title={connectionStatusMeta.text}
-                                  />
+                                  >
+                                    <span
+                                      className={`h-1.5 w-1.5 rounded-full ${connectionStatusMeta.color === "success" ? "bg-emerald-500" : "bg-rose-500"}`}
+                                    />
+                                    {connectionStatusMeta.text}
+                                  </div>
                                 </div>
                               </div>
                             </div>
