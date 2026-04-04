@@ -1,6 +1,6 @@
 import {
-  Bar,
-  BarChart,
+  Line,
+  LineChart,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -50,7 +50,7 @@ export const FlowChartCard = ({
         ) : (
           <div className="h-64 lg:h-80 w-full">
             <ResponsiveContainer height="100%" width="100%">
-              <BarChart data={chartData} margin={{ top: 20, right: 0, left: -20, bottom: 0 }}>
+              <LineChart data={chartData} margin={{ top: 20, right: 0, left: -20, bottom: 0 }}>
                 <XAxis
                   axisLine={false}
                   dataKey="time"
@@ -106,12 +106,12 @@ export const FlowChartCard = ({
                   }}
                   cursor={{ fill: "rgba(0, 122, 255, 0.05)" }}
                 />
-                <Bar
+                <Line
                   dataKey="flow"
-                  fill="#007aff"
-                  radius={[6, 6, 6, 6]}
+                  stroke="#007aff"
+                  type="monotone"
                 />
-              </BarChart>
+              </LineChart>
             </ResponsiveContainer>
           </div>
         )}

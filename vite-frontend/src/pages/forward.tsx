@@ -3689,7 +3689,7 @@ export default function ForwardPage() {
     return (
       <Card
         key={forward.id}
-        className="group h-full flex flex-col shadow-sm border border-divider hover:shadow-md transition-shadow duration-200 overflow-hidden"
+        className="group h-full flex flex-col overflow-hidden"
       >
         <CardHeader className="pb-2 md:pb-2">
           <div className="flex justify-between items-start w-full">
@@ -4256,7 +4256,7 @@ export default function ForwardPage() {
               </div>
             </>
           ) : (
-            <Card className="shadow-sm border border-gray-200 dark:border-gray-700 bg-default-50/50">
+            <Card className="bg-default-50/50">
               <CardBody className="text-center py-20 flex flex-col items-center justify-center min-h-[240px]">
                 <h3 className="text-xl font-medium text-foreground tracking-tight mb-2">
                   暂无规则配置
@@ -4302,7 +4302,7 @@ export default function ForwardPage() {
             </DndContext>
           </>
         ) : (
-          <Card className="shadow-sm border border-gray-200 dark:border-gray-700 bg-default-50/50">
+          <Card className="bg-default-50/50">
             <CardBody className="text-center py-20 flex flex-col items-center justify-center min-h-[240px]">
               <h3 className="text-xl font-medium text-foreground tracking-tight mb-2">
                 暂无规则配置
@@ -4561,7 +4561,7 @@ export default function ForwardPage() {
             })}
           </div>
         ) : (
-          <Card className="shadow-sm border border-gray-200 dark:border-gray-700 bg-default-50/50">
+          <Card className="bg-default-50/50">
             <CardBody className="text-center py-20 flex flex-col items-center justify-center min-h-[240px]">
               <h3 className="text-xl font-medium text-foreground tracking-tight mb-2">
                 暂无规则配置
@@ -4682,7 +4682,7 @@ export default function ForwardPage() {
           })}
         </div>
       ) : (
-        <Card className="shadow-sm border border-gray-200 dark:border-gray-700 bg-default-50/50">
+        <Card className="bg-default-50/50">
           <CardBody className="text-center py-20 flex flex-col items-center justify-center min-h-[240px]">
             <h3 className="text-xl font-medium text-foreground tracking-tight mb-2">
               暂无规则配置

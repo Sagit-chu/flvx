@@ -1720,7 +1720,7 @@ export default function TunnelPage() {
                     {(listeners) => (
                       <Card
                         key={tunnel.id}
-                        className="group shadow-sm border border-divider hover:shadow-md transition-shadow duration-200 overflow-hidden"
+                        className="group overflow-hidden"
                       >
                         <CardHeader className="pb-2 md:pb-2">
                           <div className="flex justify-between items-start w-full">
@@ -1985,7 +1985,7 @@ export default function TunnelPage() {
         )
       ) : (
         /* 空状态 */
-        <Card className="shadow-sm border border-gray-200 dark:border-gray-700 bg-default-50/50">
+        <Card className="bg-default-50/50">
           <CardBody className="text-center py-20 flex flex-col items-center justify-center min-h-[240px]">
             <h3 className="text-xl font-medium text-foreground tracking-tight mb-2">
               暂无隧道配置

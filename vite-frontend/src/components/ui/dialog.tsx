@@ -142,8 +142,3 @@ export {
   DialogTitle,
   DialogTrigger,
 };
-alogOverlay,
-  DialogPortal,
-  DialogTitle,
-  DialogTrigger,
-};
