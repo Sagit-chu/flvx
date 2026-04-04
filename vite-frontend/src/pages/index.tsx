@@ -9,7 +9,6 @@ import { Input } from "@/shadcn-bridge/heroui/input";
 import { Button } from "@/shadcn-bridge/heroui/button";
 import { siteConfig } from "@/config/site";
 import { VersionFooter } from "@/components/version-footer";
-import DefaultLayout from "@/layouts/default";
 import { login, LoginData, checkCaptcha, getConfigByName } from "@/api";
 import { writeLoginSession } from "@/utils/session";
 import { useWebViewMode } from "@/hooks/useWebViewMode";
@@ -151,8 +150,8 @@ export default function IndexPage() {
   };
 
   return (
-    <DefaultLayout>
-      <section className="flex flex-col items-center justify-center gap-4 py-4 sm:py-8 md:py-10 pb-20 min-h-[calc(100dvh-120px)] sm:min-h-[calc(100dvh-200px)]">
+    <div className="relative flex flex-col min-h-screen bg-mesh-gradient overflow-hidden">
+      <section className="flex flex-col items-center justify-center flex-1 w-full p-4 relative z-10">
         <motion.div
           animate={{ opacity: 1, y: 0 }}
           className="w-full max-w-[420px] px-4 sm:px-0"
@@ -283,6 +282,6 @@ export default function IndexPage() {
           </div>
         )}
       </section>
-    </DefaultLayout>
+    </div>
   );
 }

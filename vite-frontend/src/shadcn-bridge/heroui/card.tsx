@@ -21,7 +21,7 @@ export function CardHeader({
 export function CardBody({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <CardContent
-      className={cn("p-4 pt-0 md:p-6 md:pt-0", className)}
+      className={cn("p-4 md:p-6", className)}
       {...props}
     />
   );

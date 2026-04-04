@@ -174,7 +174,7 @@ function ServerCard({ node, metric, onPress }: { node: any; metric: RealtimeNode
   
   return (
     <Card
-      className="group relative overflow-hidden shadow-sm border border-divider dark:border-default-100 hover:-translate-y-1 hover:shadow-lg transition-all duration-300 h-full flex flex-col cursor-pointer bg-background"
+      className="group relative hover:-translate-y-1 hover:shadow-[0_20px_40px_rgba(0,0,0,0.15)] transition-all duration-300 h-full flex flex-col cursor-pointer"
       onClick={onPress}
     >
       {/* Dynamic top gradient bar based on status */}
@@ -1160,7 +1160,7 @@ export function MonitorView({ nodeMap, viewMode = "grid" }: MonitorViewProps) {
                 classNames={{
                   th: "bg-default-100/50 text-default-600 font-semibold text-sm border-b border-divider py-3 uppercase tracking-wider",
                   td: "py-3 border-b border-divider/50 group-data-[last=true]:border-b-0",
-                  tr: "hover:bg-default-50/50 transition-colors",
+                  tr: "hover:bg-white/40 dark:hover:bg-white/10 transition-colors",
                 }}
               >
                 <TableHeader>
@@ -1322,7 +1322,7 @@ export function MonitorView({ nodeMap, viewMode = "grid" }: MonitorViewProps) {
                 { label: "↑ 上行速度", value: formatBytesPerSecond(detailRealtimeMetric.netOutSpeed), color: "primary" as const },
                 { label: "运行时间", value: formatUptime(detailRealtimeMetric.uptime), color: "default" as const },
               ].map((item) => (
-                <Card key={item.label} className="border border-divider/60 shadow-sm hover:shadow-md transition-shadow bg-gradient-to-br from-background to-default-50/50">
+                <Card key={item.label} className="hover:shadow-[0_15px_40px_rgba(0,0,0,0.15)] transition-shadow">
                   <CardBody className="py-3 px-4 flex flex-col items-center justify-center min-h-[5rem]">
                     <span className="text-[11px] text-default-500 mb-1.5">{item.label}</span>
                     <span className={`text-sm font-semibold font-mono ${item.color === 'danger' ? 'text-danger' : item.color === 'warning' ? 'text-warning' : item.color === 'success' ? 'text-success' : item.color === 'primary' ? 'text-primary' : ''}`}>
@@ -1445,7 +1445,7 @@ export function MonitorView({ nodeMap, viewMode = "grid" }: MonitorViewProps) {
 
                       {/* Active monitor info bar */}
                       {resolvedActiveMonitor && (
-                        <div className="flex items-center justify-between gap-3 p-3 rounded-lg bg-default-50 dark:bg-default-100/30 border border-divider">
+                        <div className="flex items-center justify-between gap-3 p-3 rounded-2xl bg-white/40 dark:bg-black/40 backdrop-blur-md border border-white/50 dark:border-white/10 shadow-[0_4px_12px_rgba(0,0,0,0.05)]">
                           <div className="flex items-center gap-3 min-w-0 flex-wrap">
                             <Chip size="sm" color="primary" variant="flat">{resolvedActiveMonitor.type.toUpperCase()}</Chip>
                             <span className="font-mono text-xs text-default-500">{resolvedActiveMonitor.target}</span>
@@ -1587,7 +1587,7 @@ export function MonitorView({ nodeMap, viewMode = "grid" }: MonitorViewProps) {
                 classNames={{
                   th: "bg-default-100/50 text-default-600 font-semibold text-sm border-b border-divider py-3 uppercase tracking-wider",
                   td: "py-3 border-b border-divider/50 group-data-[last=true]:border-b-0",
-                  tr: "hover:bg-default-50/50 transition-colors",
+                  tr: "hover:bg-white/40 dark:hover:bg-white/10 transition-colors",
                 }}
               >
                 <TableHeader>

@@ -1985,7 +1985,7 @@ export default function TunnelPage() {
         )
       ) : (
         /* 空状态 */
-        <Card className="bg-default-50/50">
+        <Card>
           <CardBody className="text-center py-20 flex flex-col items-center justify-center min-h-[240px]">
             <h3 className="text-xl font-medium text-foreground tracking-tight mb-2">
               暂无隧道配置
