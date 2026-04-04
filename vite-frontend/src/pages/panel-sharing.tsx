@@ -459,7 +459,7 @@ export default function PanelSharingPage() {
                   {shares.map((share) => (
                     <Card
                       key={share.id}
-                      className="border border-divider shadow-sm"
+                      className="overflow-hidden"
                     >
                       <CardHeader className="flex justify-between pb-2 md:pb-2">
                         <h3 className="font-bold">{share.name}</h3>
@@ -606,7 +606,7 @@ export default function PanelSharingPage() {
                   {remoteUsageNodes.map((node) => (
                     <Card
                       key={node.nodeId}
-                      className="border border-divider shadow-sm"
+                      className="overflow-hidden"
                     >
                       <CardHeader className="flex justify-between pb-2 md:pb-2">
                         <h3 className="font-bold">{node.nodeName}</h3>
