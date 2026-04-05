@@ -35,7 +35,7 @@ function DialogOverlay({
   return (
     <DialogPrimitive.Overlay
       className={cn(
-        "fixed inset-0 z-50 bg-black/30 backdrop-blur-sm data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
+        "fixed inset-0 z-50 bg-black/30 backdrop-blur-md data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
         className,
       )}
       data-slot="dialog-overlay"
@@ -71,7 +71,7 @@ function DialogContent({
         data-slot="dialog-content"
         {...props}
       >
-        <div className="flex flex-col gap-4 p-6 rounded-[inherit] overflow-hidden bg-transparent w-full h-full">
+        <div className="flex flex-col flex-1 gap-4 p-6 rounded-[inherit] overflow-hidden bg-white/40 dark:bg-zinc-900/40 w-full h-full relative z-10 pointer-events-auto">
           {children}
           {showCloseButton && (
             <DialogPrimitive.Close className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none">
