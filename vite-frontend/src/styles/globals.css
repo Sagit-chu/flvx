@@ -242,6 +242,11 @@ body {
   background-color: #1c1c1e;
 }
 
+:root.has-custom-bg .bg-mesh-gradient {
+  background: var(--custom-bg-image) no-repeat center center fixed !important;
+  background-size: cover !important;
+}
+
 @layer utilities {
   .scrollbar-hide {
     /* IE and Edge */

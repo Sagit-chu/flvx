@@ -90,6 +90,25 @@ const LoginRoute = () => {
 function App() {
   const location = useLocation();
 
+  // 处理自定义背景图片
+  useEffect(() => {
+    const updateBg = () => {
+      const customBg = siteConfig.app_bg_image;
+      if (customBg) {
+        document.documentElement.style.setProperty("--custom-bg-image", `url(${customBg})`);
+        document.documentElement.classList.add("has-custom-bg");
+      } else {
+        document.documentElement.style.removeProperty("--custom-bg-image");
+        document.documentElement.classList.remove("has-custom-bg");
+      }
+    };
+    updateBg();
+    window.addEventListener("site-config-updated", updateBg);
+    return () => {
+      window.removeEventListener("site-config-updated", updateBg);
+    };
+  }, []);
+
   // 立即设置页面标题（使用已从缓存读取的配置）
   useEffect(() => {
     document.title = siteConfig.name;

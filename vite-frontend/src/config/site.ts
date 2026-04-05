@@ -20,6 +20,7 @@ const getInitialConfig = () => {
       github_repo: GITHUB_REPO,
       app_logo: "",
       app_favicon: "",
+      app_bg_image: "",
       is_commercial: false,
       hide_footer_brand: false,
     };
@@ -29,6 +30,8 @@ const getInitialConfig = () => {
   const cachedAppLogo = localStorage.getItem(CACHE_PREFIX + "app_logo") || "";
   const cachedAppFavicon =
     localStorage.getItem(CACHE_PREFIX + "app_favicon") || "";
+  const cachedAppBgImage =
+    localStorage.getItem(CACHE_PREFIX + "app_bg_image") || "";
   const isCommercial = localStorage.getItem(CACHE_PREFIX + "is_commercial") === "true";
   const hideFooterBrand = localStorage.getItem(CACHE_PREFIX + "hide_footer_brand") === "true";
 
@@ -40,6 +43,7 @@ const getInitialConfig = () => {
       github_repo: GITHUB_REPO,
       app_logo: cachedAppLogo,
       app_favicon: cachedAppFavicon,
+      app_bg_image: cachedAppBgImage,
       is_commercial: isCommercial,
       hide_footer_brand: hideFooterBrand,
     };
@@ -52,6 +56,7 @@ const getInitialConfig = () => {
     github_repo: GITHUB_REPO,
     app_logo: cachedAppLogo,
     app_favicon: cachedAppFavicon,
+    app_bg_image: cachedAppBgImage,
     is_commercial: isCommercial,
     hide_footer_brand: hideFooterBrand,
   };
@@ -123,7 +128,7 @@ export const getCachedConfig = async (key: string): Promise<string | null> => {
 // 获取所有配置（优先从缓存）
 export const getCachedConfigs = async (): Promise<Record<string, string>> => {
   // 尝试从缓存获取所有配置
-  const configKeys = ["app_name", "app_logo", "app_favicon"];
+  const configKeys = ["app_name", "app_logo", "app_favicon", "app_bg_image"];
   const cachedConfigs: Record<string, string> = {};
   let hasCachedData = false;
 
@@ -263,6 +268,10 @@ export const updateSiteConfig = async (configMap?: Record<string, string>) => {
     resolvedConfigMap,
     "app_favicon",
   );
+  const hasAppBgImage = Object.prototype.hasOwnProperty.call(
+    resolvedConfigMap,
+    "app_bg_image",
+  );
 
   const appName = hasAppName
     ? String(resolvedConfigMap.app_name || "").trim()
@@ -273,6 +282,9 @@ export const updateSiteConfig = async (configMap?: Record<string, string>) => {
   const appFavicon = hasAppFavicon
     ? String(resolvedConfigMap.app_favicon || "").trim()
     : (siteConfig.app_favicon || "").trim();
+  const appBgImage = hasAppBgImage
+    ? String(resolvedConfigMap.app_bg_image || "").trim()
+    : (siteConfig.app_bg_image || "").trim();
 
   if (appName && appName !== siteConfig.name) {
     siteConfig.name = appName;
@@ -280,11 +292,13 @@ export const updateSiteConfig = async (configMap?: Record<string, string>) => {
 
   siteConfig.app_logo = appLogo;
   siteConfig.app_favicon = appFavicon;
+  siteConfig.app_bg_image = appBgImage;
   siteConfig.is_commercial = resolvedConfigMap.is_commercial === "true";
   siteConfig.hide_footer_brand = resolvedConfigMap.hide_footer_brand === "true";
 
   if (typeof document !== "undefined") {
     document.title = siteConfig.name;
+    window.dispatchEvent(new Event("site-config-updated"));
   }
   updateDocumentFavicon(siteConfig.app_favicon);
 };

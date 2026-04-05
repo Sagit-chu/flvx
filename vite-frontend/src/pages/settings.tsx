@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, ChangeEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 
@@ -23,6 +23,7 @@ import {
   deletePanelAddress,
   validatePanelAddress,
 } from "@/utils/panel";
+import { siteConfig, updateSiteConfig } from "@/config/site";
 
 interface PanelAddress {
   name: string;
@@ -46,8 +47,99 @@ export const SettingsPage = () => {
   const [forwardCompactMode, setForwardCompactMode] = useState(false);
   const [forwardCompactModeSaving, setForwardCompactModeSaving] =
     useState(false);
+  const [bgImage, setBgImage] = useState(() => siteConfig.app_bg_image || "");
+  const [bgImageSaving, setBgImageSaving] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const admin = isAdmin();
+
+  const handleBgImageUpload = async (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      toast.error("只能上传图片文件");
+      return;
+    }
+
+    setBgImageSaving(true);
+    try {
+      const compressedImage = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          const img = new Image();
+          img.onload = () => {
+            const canvas = document.createElement("canvas");
+            let width = img.width;
+            let height = img.height;
+            const MAX_WIDTH = 1920;
+            const MAX_HEIGHT = 1080;
+
+            if (width > height) {
+              if (width > MAX_WIDTH) {
+                height = Math.round((height * MAX_WIDTH) / width);
+                width = MAX_WIDTH;
+              }
+            } else {
+              if (height > MAX_HEIGHT) {
+                width = Math.round((width * MAX_HEIGHT) / height);
+                height = MAX_HEIGHT;
+              }
+            }
+
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext("2d");
+            if (!ctx) {
+              reject(new Error("Canvas context is null"));
+              return;
+            }
+            ctx.drawImage(img, 0, 0, width, height);
+            
+            // Output as webp for better compression
+            const dataUrl = canvas.toDataURL("image/webp", 0.8);
+            resolve(dataUrl);
+          };
+          img.onerror = () => reject(new Error("图片加载失败"));
+          img.src = event.target?.result as string;
+        };
+        reader.onerror = () => reject(new Error("文件读取失败"));
+        reader.readAsDataURL(file);
+      });
+
+      setBgImage(compressedImage);
+      // Optional: automatically save after processing
+      // void handleBgImageSave(compressedImage);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "图片处理失败");
+    } finally {
+      setBgImageSaving(false);
+      // Reset input value so the same file can be selected again if needed
+      e.target.value = "";
+    }
+  };
+
+  const handleBgImageSave = async (valueToSave?: string) => {
+    if (!admin || bgImageSaving) return;
+    setBgImageSaving(true);
+    try {
+      const finalValue = typeof valueToSave === "string" ? valueToSave : bgImage;
+      const response = await updateConfig("app_bg_image", finalValue);
+      if (response.code === 0) {
+        siteConfig.app_bg_image = finalValue;
+        // 触发配置更新，刷新相关页面或样式
+        await updateSiteConfig();
+        window.dispatchEvent(new Event("site-config-updated"));
+        toast.success("背景图片设置已保存");
+      } else {
+        toast.error(response.msg || "保存背景失败");
+      }
+    } catch {
+      toast.error("保存背景失败");
+    } finally {
+      setBgImageSaving(false);
+    }
+  };
 
   const setPanelAddressesFunc = (newAddress: PanelAddress[]) => {
     setPanelAddresses(newAddress);
@@ -183,6 +275,83 @@ export const SettingsPage = () => {
       {/* 内容区域 */}
       <div className="max-w-4xl mx-auto px-4 py-6">
         <div className="space-y-6">
+          <Card>
+            <CardBody className="p-6">
+              <h2 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
+                外观设置
+              </h2>
+              <div className="space-y-4">
+                <div className="flex flex-col gap-2">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      自定义背景图片
+                    </label>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
+                      留空则使用系统默认的网格渐变背景。推荐上传 1920x1080 尺寸的图片。
+                    </p>
+                    <div className="flex items-center gap-4">
+                      {bgImage ? (
+                        <div className="relative w-40 h-24 rounded-md overflow-hidden border border-gray-200 dark:border-gray-700 group">
+                          <img src={bgImage} alt="Background Preview" className="w-full h-full object-cover" />
+                        </div>
+                      ) : (
+                        <div className="flex items-center justify-center w-40 h-24 rounded-md border border-dashed border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-800 text-gray-400 text-xs">
+                          无自定义背景
+                        </div>
+                      )}
+                      <div>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          ref={fileInputRef}
+                          onChange={handleBgImageUpload}
+                        />
+                        <Button
+                          color="primary"
+                          variant="flat"
+                          size="sm"
+                          isDisabled={!admin || bgImageSaving}
+                          onPress={() => fileInputRef.current?.click()}
+                        >
+                          选择图片...
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex justify-end gap-2 mt-2">
+                    {bgImage && (
+                      <Button
+                        color="danger"
+                        variant="flat"
+                        isDisabled={!admin || bgImageSaving}
+                        onPress={() => {
+                          setBgImage("");
+                          void handleBgImageSave("");
+                        }}
+                      >
+                        恢复默认
+                      </Button>
+                    )}
+                    <Button 
+                      color="primary" 
+                      isDisabled={!admin}
+                      isLoading={bgImageSaving}
+                      onPress={() => handleBgImageSave()}
+                    >
+                      保存背景
+                    </Button>
+                  </div>
+                  {!admin && (
+                    <p className="mt-2 text-xs text-amber-600 dark:text-amber-400">
+                      仅管理员可修改该全局配置。
+                    </p>
+                  )}
+                </div>
+              </div>
+            </CardBody>
+          </Card>
+
           <Card>
             <CardBody className="p-6">
               <h2 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
