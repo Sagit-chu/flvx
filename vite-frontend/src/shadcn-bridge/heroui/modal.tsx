@@ -149,10 +149,10 @@ export function ModalContent({
         mapSize(resolvedSize),
         context?.classNames?.base,
         resolvedScrollBehavior === "outside"
-          ? "max-h-[90vh] overflow-y-auto"
+          ? "max-h-[90vh] overflow-y-auto scrollbar-hide"
           : "",
         resolvedScrollBehavior === "inside"
-          ? "max-h-[90vh] flex flex-col overflow-hidden [&>[data-slot=modal-body]]:min-h-0 [&>[data-slot=modal-body]]:flex-1 [&>[data-slot=modal-body]]:overflow-y-auto"
+          ? "max-h-[90vh] flex flex-col overflow-hidden [&_[data-slot=modal-body]]:min-h-0 [&_[data-slot=modal-body]]:flex-1 [&_[data-slot=modal-body]]:overflow-y-auto [&_[data-slot=modal-body]]:scrollbar-hide"
           : "",
         className,
       )}

@@ -1076,7 +1076,7 @@ export default function DashboardPage() {
                             </h4>
                             <div className="space-y-1">
                               <button
-                                className={`block px-2 py-1 bg-green-100 dark:bg-green-500/20 text-green-700 dark:text-green-300 rounded font-mono text-xs truncate ${hasMultipleIps(forward.inIp) ? "cursor-pointer hover:bg-green-200 dark:hover:bg-green-500/30" : ""}`}
+                                className={`block px-2 py-1 bg-default-50/50 dark:bg-default-100/20 backdrop-blur-md rounded-lg border border-default-200/50 dark:border-default-700/50 font-mono text-xs truncate text-foreground transition-colors duration-200 ${hasMultipleIps(forward.inIp) ? "cursor-pointer hover:bg-default-100 dark:hover:bg-default-200/50" : ""}`}
                                 disabled={!hasMultipleIps(forward.inIp)}
                                 title={formatInAddress(
                                   forward.inIp,
@@ -1097,7 +1097,7 @@ export default function DashboardPage() {
                                 ↓
                               </div>
                               <button
-                                className={`block px-2 py-1 bg-blue-100 dark:bg-blue-500/20 text-blue-700 dark:text-blue-300 rounded font-mono text-xs truncate ${hasMultipleRemoteAddresses(forward.remoteAddr) ? "cursor-pointer hover:bg-blue-200 dark:hover:bg-blue-500/30" : ""}`}
+                                className={`block px-2 py-1 bg-default-50/50 dark:bg-default-100/20 backdrop-blur-md rounded-lg border border-default-200/50 dark:border-default-700/50 font-mono text-xs truncate text-foreground transition-colors duration-200 ${hasMultipleRemoteAddresses(forward.remoteAddr) ? "cursor-pointer hover:bg-default-100 dark:hover:bg-default-200/50" : ""}`}
                                 disabled={
                                   !hasMultipleRemoteAddresses(
                                     forward.remoteAddr,

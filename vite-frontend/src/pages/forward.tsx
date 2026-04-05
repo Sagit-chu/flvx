@@ -3966,7 +3966,7 @@ export default function ForwardPage() {
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between mb-6 gap-3">
         <div className="flex-1 flex items-center gap-2">
           <Button
-            color={activeFilterCount > 0 ? "primary" : "default"}
+            className="bg-default/10 dark:bg-default/20 backdrop-blur-md text-default-700 dark:text-default-300 font-semibold hover:bg-default/20 dark:hover:bg-default/30"
             startContent={
               <svg
                 className="w-4 h-4"
@@ -3982,7 +3982,6 @@ export default function ForwardPage() {
                 />
               </svg>
             }
-            variant={activeFilterCount > 0 ? "flat" : "bordered"}
             onPress={() => setIsSearchModalOpen(true)}
           >
             高级筛选 {activeFilterCount > 0 ? `(${activeFilterCount})` : ""}

@@ -71,7 +71,7 @@ function DialogContent({
         data-slot="dialog-content"
         {...props}
       >
-        <div className="flex flex-col flex-1 gap-4 p-6 rounded-[inherit] overflow-hidden bg-white/40 dark:bg-zinc-900/40 w-full h-full relative z-10 pointer-events-auto">
+        <div className="flex flex-col flex-1 min-h-0 gap-4 p-6 rounded-[inherit] overflow-hidden bg-white/40 dark:bg-zinc-900/40 w-full h-full relative z-10 pointer-events-auto">
           {children}
           {showCloseButton && (
             <DialogPrimitive.Close className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none">
