@@ -1,4 +1,4 @@
-import React, { useRef, useState, useCallback, useEffect, useId } from "react";
+import React, { useRef, useState, useEffect, useId } from "react";
 import { cn } from "@/lib/utils";
 import { displacementMap } from "./displacement-map";
 
@@ -71,11 +71,9 @@ export interface LiquidGlassProps extends React.ComponentProps<"div"> {
   blurAmount?: number;
   saturation?: number;
   aberrationIntensity?: number;
-  elasticity?: number;
   cornerRadius?: number | string;
   glassClassName?: string;
   wrapperClassName?: string;
-  interactive?: boolean;
 }
 
 export function LiquidGlass({
@@ -88,81 +86,22 @@ export function LiquidGlass({
   blurAmount = 0.5,
   saturation = 180,
   aberrationIntensity = 2,
-  elasticity = 0.15,
   cornerRadius = 24,
-  interactive = true,
-  onMouseEnter,
-  onMouseLeave,
-  onMouseDown,
-  onMouseUp,
   ...props
 }: LiquidGlassProps) {
   const filterId = useId().replace(/:/g, "-");
   const glassRef = useRef<HTMLDivElement>(null);
   
-  const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
   const [isFirefox, setIsFirefox] = useState(false);
 
   useEffect(() => {
     setIsFirefox(navigator.userAgent.toLowerCase().includes("firefox"));
   }, []);
 
-  const handleMouseMove = useCallback((e: MouseEvent) => {
-    if (!interactive) return;
-    setMousePos({ x: e.clientX, y: e.clientY });
-  }, [interactive]);
-
-  useEffect(() => {
-    if (!interactive) return;
-    window.addEventListener("mousemove", handleMouseMove);
-    return () => window.removeEventListener("mousemove", handleMouseMove);
-  }, [handleMouseMove, interactive]);
-
-  const calculateDirectionalScale = useCallback(() => {
-    if (!interactive || !mousePos.x || !mousePos.y || !glassRef.current) return "scale(1)";
-    
-    const rect = glassRef.current.getBoundingClientRect();
-    const centerX = rect.left + rect.width / 2;
-    const centerY = rect.top + rect.height / 2;
-    
-    const deltaX = mousePos.x - centerX;
-    const deltaY = mousePos.y - centerY;
-    
-    const edgeDistanceX = Math.max(0, Math.abs(deltaX) - rect.width / 2);
-    const edgeDistanceY = Math.max(0, Math.abs(deltaY) - rect.height / 2);
-    const edgeDistance = Math.sqrt(edgeDistanceX * edgeDistanceX + edgeDistanceY * edgeDistanceY);
-    
-    const activationZone = 200;
-    if (edgeDistance > activationZone) return "scale(1)";
-    
-    const fadeInFactor = 1 - edgeDistance / activationZone;
-    const centerDistance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
-    if (centerDistance === 0) return "scale(1)";
-    
-    const normalizedX = deltaX / centerDistance;
-    const normalizedY = deltaY / centerDistance;
-    const stretchIntensity = Math.min(centerDistance / 300, 1) * elasticity * fadeInFactor;
-    
-    const scaleX = 1 + Math.abs(normalizedX) * stretchIntensity * 0.3 - Math.abs(normalizedY) * stretchIntensity * 0.15;
-    const scaleY = 1 + Math.abs(normalizedY) * stretchIntensity * 0.3 - Math.abs(normalizedX) * stretchIntensity * 0.15;
-    
-    return `scaleX(${Math.max(0.8, scaleX)}) scaleY(${Math.max(0.8, scaleY)})`;
-  }, [mousePos, elasticity, interactive]);
-
-  const scaleTransform = calculateDirectionalScale();
-
   return (
     <div
-      className={cn("relative flex flex-col group", wrapperClassName)}
-      style={{
-        transform: scaleTransform,
-        transition: interactive ? "transform 0.1s cubic-bezier(0.2, 0.8, 0.2, 1)" : "none",
-        ...style
-      }}
-      onMouseEnter={onMouseEnter}
-      onMouseLeave={onMouseLeave}
-      onMouseDown={onMouseDown}
-      onMouseUp={onMouseUp}
+      className={cn("relative flex flex-col", wrapperClassName)}
+      style={style}
       {...props}
     >
       <GlassFilter 
@@ -179,8 +118,9 @@ export function LiquidGlass({
         )}
         style={{
           borderRadius: cornerRadius,
-          boxShadow: "inset 0 1px 1px rgba(255,255,255,0.8), inset 0 0 0 1px rgba(255,255,255,0.4), inset 0 -1px 1px rgba(0,0,0,0.1)",
-          background: "linear-gradient(135deg, rgba(255,255,255,0.4) 0%, rgba(255,255,255,0) 40%, rgba(255,255,255,0) 60%, rgba(255,255,255,0.1) 100%)",
+          /* A much better, more subtle glass highlight bounding box */
+          boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.2), inset 0 1px 1px rgba(255,255,255,0.5), inset 0 -1px 1px rgba(0,0,0,0.1)",
+          background: "linear-gradient(135deg, rgba(255,255,255,0.2) 0%, rgba(255,255,255,0.05) 100%)",
         }}
       >
         <div
