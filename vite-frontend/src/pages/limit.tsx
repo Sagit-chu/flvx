@@ -267,9 +267,10 @@ export default function LimitPage() {
             aria-label="限速规则列表"
             className="overflow-x-auto min-w-full"
             classNames={{
-              th: "bg-default-100/50 text-default-600 font-semibold text-sm border-b border-divider py-3 uppercase tracking-wider",
+              wrapper: "bg-transparent p-0 shadow-none border-none overflow-hidden rounded-[24px]",
+              th: "bg-white/40 dark:bg-black/40 backdrop-blur-md text-default-600 font-semibold text-sm border-b border-white/20 dark:border-white/10 py-3 uppercase tracking-wider first:rounded-tl-[24px] last:rounded-tr-[24px]",
               td: "py-3 border-b border-divider/50 group-data-[last=true]:border-b-0",
-              tr: "hover:bg-default-50/50 transition-colors",
+              tr: "hover:bg-white/40 dark:hover:bg-white/10 transition-colors",
             }}
           >
             <TableHeader>
