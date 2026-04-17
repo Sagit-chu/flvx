@@ -15,6 +15,7 @@ services:
       JWT_SECRET: ${JWT_SECRET}
       SERVER_ADDR: :6365
       TZ: Asia/Shanghai
+      DASH_RUNTIME_ENABLED: "1"
     ports:
       - "${BACKEND_PORT}:6365"
     volumes:
