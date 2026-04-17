@@ -54,7 +54,7 @@ export const ThemeSettings: React.FC = () => {
   };
 
   return (
-    <Card className="border border-gray-200 dark:border-gray-700">
+    <Card className="shadow-md">
       <CardBody className="p-6">
         <h2 className="text-lg font-medium text-gray-900 dark:text-white mb-5">
           主题设置

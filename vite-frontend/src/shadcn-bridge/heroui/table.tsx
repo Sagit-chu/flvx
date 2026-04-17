@@ -57,7 +57,7 @@ export function TableHeader({
   );
 
   return (
-    <thead className={cn("border-b bg-default-50/60", className)} {...props}>
+    <thead className={cn("border-b", className)} {...props}>
       {hasRow ? children : <TableRow>{children}</TableRow>}
     </thead>
   );

@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
 
+import { AnimatedPage } from "@/components/animated-page";
+import { PageLoadingState } from "@/components/page-state";
 import { Card, CardBody, CardHeader } from "@/shadcn-bridge/heroui/card";
 import { Button } from "@/shadcn-bridge/heroui/button";
 import { Input } from "@/shadcn-bridge/heroui/input";
@@ -22,7 +24,7 @@ import {
   TableRow,
 } from "@/shadcn-bridge/heroui/table";
 import { Chip } from "@/shadcn-bridge/heroui/chip";
-import { Spinner } from "@/shadcn-bridge/heroui/spinner";
+
 import {
   assignGroupPermission,
   assignTunnelsToGroup,
@@ -469,14 +471,12 @@ export default function GroupPage() {
   }
 
   return (
-    <div className="px-3 lg:px-6 py-8 space-y-6">
-      {loading && (
-        <div className="flex justify-center py-10">
-          <Spinner size="lg" />
-        </div>
-      )}
-
-      <Card>
+    <AnimatedPage className="px-3 lg:px-6 py-8 space-y-6">
+      {loading ? (
+        <PageLoadingState message="正在加载..." />
+      ) : (
+        <>
+          <Card>
         <CardHeader className="flex flex-row items-center gap-3 pb-2">
           <h3 className="text-lg font-semibold">隧道分组</h3>
           <Button
@@ -489,7 +489,15 @@ export default function GroupPage() {
           </Button>
         </CardHeader>
         <CardBody>
-          <Table aria-label="隧道分组列表">
+          <Table
+            aria-label="隧道分组列表"
+            classNames={{
+              wrapper: "bg-transparent p-0 shadow-none border-none overflow-hidden rounded-2xl",
+              th: "bg-transparent text-default-600 font-semibold text-sm border-b border-white/20 dark:border-white/10 py-3 uppercase tracking-wider first:rounded-tl-[24px] last:rounded-tr-[24px]",
+              td: "py-3 border-b border-divider/50 group-data-[last=true]:border-b-0",
+              tr: "hover:bg-white/40 dark:hover:bg-white/10 transition-colors",
+            }}
+          >
             <TableHeader>
               <TableColumn>名称</TableColumn>
               <TableColumn>隧道</TableColumn>
@@ -561,7 +569,15 @@ export default function GroupPage() {
           </Button>
         </CardHeader>
         <CardBody>
-          <Table aria-label="用户分组列表">
+          <Table
+            aria-label="用户分组列表"
+            classNames={{
+              wrapper: "bg-transparent p-0 shadow-none border-none overflow-hidden rounded-2xl",
+              th: "bg-transparent text-default-600 font-semibold text-sm border-b border-white/20 dark:border-white/10 py-3 uppercase tracking-wider first:rounded-tl-[24px] last:rounded-tr-[24px]",
+              td: "py-3 border-b border-divider/50 group-data-[last=true]:border-b-0",
+              tr: "hover:bg-white/40 dark:hover:bg-white/10 transition-colors",
+            }}
+          >
             <TableHeader>
               <TableColumn>名称</TableColumn>
               <TableColumn>用户</TableColumn>
@@ -665,7 +681,15 @@ export default function GroupPage() {
             </Button>
           </div>
 
-          <Table aria-label="分组权限列表">
+          <Table
+            aria-label="分组权限列表"
+            classNames={{
+              wrapper: "bg-transparent p-0 shadow-none border-none overflow-hidden rounded-2xl",
+              th: "bg-transparent text-default-600 font-semibold text-sm border-b border-white/20 dark:border-white/10 py-3 uppercase tracking-wider first:rounded-tl-[24px] last:rounded-tr-[24px]",
+              td: "py-3 border-b border-divider/50 group-data-[last=true]:border-b-0",
+              tr: "hover:bg-white/40 dark:hover:bg-white/10 transition-colors",
+            }}
+          >
             <TableHeader>
               <TableColumn>ID</TableColumn>
               <TableColumn>用户分组</TableColumn>
@@ -898,6 +922,8 @@ export default function GroupPage() {
           </ModalFooter>
         </ModalContent>
       </Modal>
-    </div>
+        </>
+      )}
+    </AnimatedPage>
   );
 }

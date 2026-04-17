@@ -134,7 +134,7 @@ export const getTunnelList = () =>
 export const getTunnelById = (id: number) =>
   Network.post<TunnelApiItem>("/tunnel/get", { id });
 export const updateTunnel = (data: TunnelMutationPayload) =>
-  Network.post("/tunnel/update", data);
+  Network.post("/tunnel/update", data, { timeout: 120_000 });
 export const deleteTunnel = (id: number) =>
   Network.post("/tunnel/delete", { id });
 export const previewTunnelDelete = (id: number) =>
@@ -250,6 +250,9 @@ export const updateConfigs = (configMap: Record<string, string>) =>
   Network.post("/config/update", configMap);
 export const updateConfig = (name: string, value: string) =>
   Network.post("/config/update-single", { name, value });
+
+export const activateLicense = (licenseKey: string) =>
+  Network.post("/license/activate", { license_key: licenseKey });
 
 export const exportBackupData = () => Network.post("/backup/export");
 export const importBackupData = (data: BackupImportPayload) =>
@@ -407,6 +410,7 @@ export const importBackup = (data: BackupImportPayload) =>
 export interface AnnouncementData {
   content: string;
   enabled: number;
+  update_time?: number;
 }
 
 export const getAnnouncement = () =>
@@ -526,3 +530,5 @@ export const assignMonitorPermission = (userId: number) =>
 
 export const removeMonitorPermission = (userId: number) =>
   Network.post("/monitor/permission/remove", { userId });
+
+export * from "./runtime-engine";

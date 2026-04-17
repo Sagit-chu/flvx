@@ -288,7 +288,7 @@ const SortableItem = ({
 export default function NodePage() {
   const [nodeList, setNodeList] = useState<Node[]>([]);
   const [nodeOrder, setNodeOrder] = useState<number[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [localSearchKeyword, setLocalSearchKeyword] = useLocalStorageState(
     "node-search-keyword-local",
     "",
@@ -1767,9 +1767,10 @@ export default function NodePage() {
             aria-label="节点列表"
             className="overflow-x-auto min-w-full"
             classNames={{
-              th: "bg-default-100/50 text-default-600 font-semibold text-sm border-b border-divider py-3 uppercase tracking-wider",
+              wrapper: "bg-transparent p-0 shadow-none border-none overflow-hidden rounded-2xl",
+              th: "bg-transparent text-default-600 font-semibold text-sm border-b border-white/20 dark:border-white/10 py-3 uppercase tracking-wider first:rounded-tl-[24px] last:rounded-tr-[24px]",
               td: "py-3 border-b border-divider/50 group-data-[last=true]:border-b-0",
-              tr: "hover:bg-default-50/50 transition-colors",
+              tr: "hover:bg-white/10 dark:hover:bg-white/5 transition-colors",
             }}
           >
             <TableHeader>
@@ -1949,7 +1950,7 @@ export default function NodePage() {
                     {(listeners) => (
                       <Card
                         key={node.id}
-                        className={`group relative overflow-visible shadow-sm border border-divider hover:shadow-md transition-shadow duration-200 h-full flex flex-col ${node.expiryReminderDismissed ? "" : expiryMeta.accentClassName}`}
+                        className={`group relative overflow-visible h-full flex flex-col ${node.expiryReminderDismissed ? "" : expiryMeta.accentClassName}`}
                         data-node-card="true"
                       >
                         <CardHeader className="pb-3 md:pb-3">
@@ -1979,13 +1980,20 @@ export default function NodePage() {
                               )}
                               <div className="min-w-0 flex-1 pt-0.5">
                                 <div className="flex items-center gap-2 min-w-0">
-                                  <h3 className="font-semibold text-foreground truncate text-sm leading-5">
+                                  <h3 className="font-semibold text-foreground truncate text-lg leading-5">
                                     {node.name}
                                   </h3>
-                                  <span
-                                    className={`h-2.5 w-2.5 rounded-full flex-shrink-0 ${connectionStatusMeta.color === "success" ? "bg-emerald-500" : "bg-rose-500"}`}
+                                  <div
+                                    className={`flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium flex-shrink-0
+                                      ${connectionStatusMeta.color === "success" ? "bg-emerald-500/20 text-emerald-600" : "bg-rose-500/20 text-rose-600"}
+                                    `}
                                     title={connectionStatusMeta.text}
-                                  />
+                                  >
+                                    <span
+                                      className={`h-1.5 w-1.5 rounded-full ${connectionStatusMeta.color === "success" ? "bg-emerald-500" : "bg-rose-500"}`}
+                                    />
+                                    {connectionStatusMeta.text}
+                                  </div>
                                 </div>
                               </div>
                             </div>
@@ -2241,7 +2249,7 @@ export default function NodePage() {
                                         )}
                                       </span>
                                     </div>
-                                    <div className="max-h-20 overflow-y-auto rounded bg-white/70 dark:bg-black/20 p-1.5 [scrollbar-width:thin] [&::-webkit-scrollbar]:w-1">
+                                    <div className="max-h-20 overflow-y-auto rounded bg-white/10 dark:bg-black/10 p-1.5 [scrollbar-width:thin] [&::-webkit-scrollbar]:w-1">
                                       {remoteUsage.usedPorts.length > 0 ? (
                                         <div className="flex flex-wrap gap-1">
                                           {remoteUsage.usedPorts.map((port) => (
@@ -2277,7 +2285,7 @@ export default function NodePage() {
                                         remoteUsage.bindings.map((binding) => (
                                           <div
                                             key={binding.bindingId}
-                                            className="rounded border border-default-200 dark:border-default-100/30 bg-white/70 dark:bg-black/20 p-2"
+                                            className="rounded border border-default-200 dark:border-default-100/30 bg-white/10 dark:bg-black/10 p-2"
                                           >
                                             <div className="flex items-center justify-between gap-2">
                                               <span
@@ -2410,7 +2418,7 @@ export default function NodePage() {
         }}
         isOpen={dialogVisible}
         placement="center"
-        scrollBehavior="outside"
+        scrollBehavior="inside"
         size="2xl"
         onClose={() => setDialogVisible(false)}
       >
@@ -2831,7 +2839,7 @@ export default function NodePage() {
         }}
         isOpen={rollbackModalOpen}
         placement="center"
-        scrollBehavior="outside"
+        scrollBehavior="inside"
         size="2xl"
         onOpenChange={setRollbackModalOpen}
       >
@@ -2872,7 +2880,7 @@ export default function NodePage() {
         }}
         isOpen={deleteModalOpen}
         placement="center"
-        scrollBehavior="outside"
+        scrollBehavior="inside"
         size="2xl"
         onOpenChange={setDeleteModalOpen}
       >
@@ -2968,7 +2976,7 @@ export default function NodePage() {
         }}
         isOpen={installCommandModal}
         placement="center"
-        scrollBehavior="outside"
+        scrollBehavior="inside"
         size="2xl"
         onClose={() => setInstallCommandModal(false)}
       >
@@ -3025,7 +3033,7 @@ export default function NodePage() {
         }}
         isOpen={upgradeModalOpen}
         placement="center"
-        scrollBehavior="outside"
+        scrollBehavior="inside"
         size="md"
         onOpenChange={setUpgradeModalOpen}
       >
@@ -3131,7 +3139,7 @@ export default function NodePage() {
         }}
         isOpen={batchDeleteModalOpen}
         placement="center"
-        scrollBehavior="outside"
+        scrollBehavior="inside"
         size="md"
         onOpenChange={setBatchDeleteModalOpen}
       >

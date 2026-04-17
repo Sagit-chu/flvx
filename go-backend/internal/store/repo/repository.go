@@ -683,6 +683,7 @@ func (r *Repository) ListNodes() ([]map[string]interface{}, error) {
 			"remoteToken":               nullableString(n.RemoteToken),
 			"remoteConfig":              nullableString(n.RemoteConfig),
 			"expiryReminderDismissed":   n.ExpiryReminderDismissed,
+			"interfaceName":             nullableString(n.InterfaceName),
 		})
 	}
 	return items, nil

@@ -1,5 +1,6 @@
-import { Route, Routes, useNavigate } from "react-router-dom";
+import { Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import { useEffect } from "react";
+import { AnimatePresence } from "framer-motion";
 
 import IndexPage from "@/pages/index";
 import ChangePasswordPage from "@/pages/change-password";
@@ -45,7 +46,7 @@ const ProtectedRoute = ({
 
   if (!authenticated) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-white dark:bg-black">
+      <div className="flex items-center justify-center min-h-screen bg-mesh-gradient">
         <div className="text-lg text-gray-700 dark:text-gray-200" />
       </div>
     );
@@ -77,7 +78,7 @@ const LoginRoute = () => {
 
   if (authenticated) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-100 dark:bg-black">
+      <div className="flex items-center justify-center min-h-screen bg-mesh-gradient">
         <div className="text-lg text-gray-700 dark:text-gray-200" />
       </div>
     );
@@ -87,6 +88,44 @@ const LoginRoute = () => {
 };
 
 function App() {
+  const location = useLocation();
+
+  // 处理自定义背景图片
+  useEffect(() => {
+    const updateBg = () => {
+      const customBg = siteConfig.app_bg_image;
+      if (customBg) {
+        if (customBg === "theme") {
+          document.documentElement.style.removeProperty("--custom-bg-image");
+          document.documentElement.style.removeProperty("--custom-bg-color");
+          document.documentElement.classList.add("has-theme-bg");
+          document.documentElement.classList.remove("has-custom-bg");
+        } else if (customBg.startsWith("http") || customBg.startsWith("data:") || customBg.startsWith("/") || customBg.startsWith("blob:")) {
+          document.documentElement.style.setProperty("--custom-bg-image", `url(${customBg})`);
+          document.documentElement.style.setProperty("--custom-bg-color", "transparent");
+          document.documentElement.classList.add("has-custom-bg");
+          document.documentElement.classList.remove("has-theme-bg");
+        } else {
+          // Assume solid color like "#ffffff", "white", etc.
+          document.documentElement.style.setProperty("--custom-bg-image", "none");
+          document.documentElement.style.setProperty("--custom-bg-color", customBg);
+          document.documentElement.classList.add("has-custom-bg");
+          document.documentElement.classList.remove("has-theme-bg");
+        }
+      } else {
+        document.documentElement.style.removeProperty("--custom-bg-image");
+        document.documentElement.style.removeProperty("--custom-bg-color");
+        document.documentElement.classList.remove("has-custom-bg");
+        document.documentElement.classList.remove("has-theme-bg");
+      }
+    };
+    updateBg();
+    window.addEventListener("site-config-updated", updateBg);
+    return () => {
+      window.removeEventListener("site-config-updated", updateBg);
+    };
+  }, []);
+
   // 立即设置页面标题（使用已从缓存读取的配置）
   useEffect(() => {
     document.title = siteConfig.name;
@@ -105,106 +144,108 @@ function App() {
   }, []);
 
   return (
-    <Routes>
-      <Route element={<LoginRoute />} path="/" />
-      <Route
-        element={
-          <ProtectedRoute skipLayout={true}>
-            <ChangePasswordPage />
-          </ProtectedRoute>
-        }
-        path="/change-password"
-      />
-      <Route
-        element={
-          <ProtectedRoute>
-            <DashboardPage />
-          </ProtectedRoute>
-        }
-        path="/dashboard"
-      />
-      <Route
-        element={
-          <ProtectedRoute>
-            <MonitorPage />
-          </ProtectedRoute>
-        }
-        path="/monitor"
-      />
-      <Route
-        element={
-          <ProtectedRoute>
-            <ForwardPage />
-          </ProtectedRoute>
-        }
-        path="/forward"
-      />
-      <Route
-        element={
-          <ProtectedRoute>
-            <TunnelPage />
-          </ProtectedRoute>
-        }
-        path="/tunnel"
-      />
-      <Route
-        element={
-          <ProtectedRoute>
-            <NodePage />
-          </ProtectedRoute>
-        }
-        path="/node"
-      />
-      <Route
-        element={
-          <ProtectedRoute useSimpleLayout={true}>
-            <UserPage />
-          </ProtectedRoute>
-        }
-        path="/user"
-      />
-      <Route
-        element={
-          <ProtectedRoute useSimpleLayout={true}>
-            <GroupPage />
-          </ProtectedRoute>
-        }
-        path="/group"
-      />
-      <Route
-        element={
-          <ProtectedRoute>
-            <ProfilePage />
-          </ProtectedRoute>
-        }
-        path="/profile"
-      />
-      <Route
-        element={
-          <ProtectedRoute useSimpleLayout={true}>
-            <LimitPage />
-          </ProtectedRoute>
-        }
-        path="/limit"
-      />
-      <Route
-        element={
-          <ProtectedRoute>
-            <ConfigPage />
-          </ProtectedRoute>
-        }
-        path="/config"
-      />
-      <Route
-        element={
-          <ProtectedRoute useSimpleLayout={true}>
-            <PanelSharingPage />
-          </ProtectedRoute>
-        }
-        path="/panel-sharing"
-      />
-      <Route element={<SettingsPage />} path="/settings" />
-    </Routes>
+    <AnimatePresence mode="wait">
+      <Routes key={location.pathname} location={location}>
+        <Route element={<LoginRoute />} path="/" />
+        <Route
+          element={
+            <ProtectedRoute skipLayout={true}>
+              <ChangePasswordPage />
+            </ProtectedRoute>
+          }
+          path="/change-password"
+        />
+        <Route
+          element={
+            <ProtectedRoute>
+              <DashboardPage />
+            </ProtectedRoute>
+          }
+          path="/dashboard"
+        />
+        <Route
+          element={
+            <ProtectedRoute>
+              <MonitorPage />
+            </ProtectedRoute>
+          }
+          path="/monitor"
+        />
+        <Route
+          element={
+            <ProtectedRoute>
+              <ForwardPage />
+            </ProtectedRoute>
+          }
+          path="/forward"
+        />
+        <Route
+          element={
+            <ProtectedRoute>
+              <TunnelPage />
+            </ProtectedRoute>
+          }
+          path="/tunnel"
+        />
+        <Route
+          element={
+            <ProtectedRoute>
+              <NodePage />
+            </ProtectedRoute>
+          }
+          path="/node"
+        />
+        <Route
+          element={
+            <ProtectedRoute useSimpleLayout={true}>
+              <UserPage />
+            </ProtectedRoute>
+          }
+          path="/user"
+        />
+        <Route
+          element={
+            <ProtectedRoute useSimpleLayout={true}>
+              <GroupPage />
+            </ProtectedRoute>
+          }
+          path="/group"
+        />
+        <Route
+          element={
+            <ProtectedRoute>
+              <ProfilePage />
+            </ProtectedRoute>
+          }
+          path="/profile"
+        />
+        <Route
+          element={
+            <ProtectedRoute useSimpleLayout={true}>
+              <LimitPage />
+            </ProtectedRoute>
+          }
+          path="/limit"
+        />
+        <Route
+          element={
+            <ProtectedRoute>
+              <ConfigPage />
+            </ProtectedRoute>
+          }
+          path="/config"
+        />
+        <Route
+          element={
+            <ProtectedRoute useSimpleLayout={true}>
+              <PanelSharingPage />
+            </ProtectedRoute>
+          }
+          path="/panel-sharing"
+        />
+        <Route element={<SettingsPage />} path="/settings" />
+      </Routes>
+    </AnimatePresence>
   );
 }
 

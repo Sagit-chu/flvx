@@ -14,6 +14,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"go-backend/internal/http/client"
@@ -466,7 +467,16 @@ func (h *Handler) nodeInstall(w http.ResponseWriter, r *http.Request) {
 		response.WriteJSON(w, response.Err(-2, err.Error()))
 		return
 	}
-	cmd := fmt.Sprintf("curl -L https://gcode.hostcentral.cc/https://github.com/Sagit-chu/flvx/releases/download/%s/install.sh -o ./install.sh && chmod +x ./install.sh && VERSION=%s ./install.sh -a %s -s %s", version, version, processServerAddress(panelAddr), secret)
+	enabled, proxyURL := h.getGithubProxyConfig()
+
+	var cmd string
+	if enabled {
+		cmd = fmt.Sprintf("curl -L %s/https://github.com/%s/releases/download/%s/install.sh -o ./install.sh && chmod +x ./install.sh && PROXY_ENABLED=true PROXY_URL=%s VERSION=%s ./install.sh -a %s -s %s",
+			proxyURL, githubRepo, version, proxyURL, version, processServerAddress(panelAddr), secret)
+	} else {
+		cmd = fmt.Sprintf("curl -L https://github.com/%s/releases/download/%s/install.sh -o ./install.sh && chmod +x ./install.sh && PROXY_ENABLED=false VERSION=%s ./install.sh -a %s -s %s",
+			githubRepo, version, version, processServerAddress(panelAddr), secret)
+	}
 	response.WriteJSON(w, response.OK(cmd))
 }
 
@@ -539,6 +549,8 @@ func (h *Handler) nodeCheckStatus(w http.ResponseWriter, r *http.Request) {
 		response.WriteJSON(w, response.Err(-2, err.Error()))
 		return
 	}
+	h.syncRemoteNodeStatuses(items)
+	h.overlayCurrentRuntimeNodeStatuses(r.Context(), items)
 	response.WriteJSON(w, response.OK(items))
 }
 
@@ -693,7 +705,9 @@ func (h *Handler) tunnelCreate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if typeVal == 2 {
-		createdChains, createdServices, applyErr := h.applyTunnelRuntime(runtimeState)
+		createdChains, createdServices, applyErr := h.applyTunnelRuntimeForCurrentEngine(r.Context(), runtimeState, func() ([]int64, []int64, error) {
+			return h.applyTunnelRuntime(runtimeState)
+		})
 		if applyErr != nil {
 			h.rollbackTunnelRuntime(createdChains, createdServices, tunnelID)
 			h.releaseFederationRuntimeRefs(federationReleaseRefs)
@@ -772,6 +786,7 @@ func (h *Handler) tunnelUpdate(w http.ResponseWriter, r *http.Request) {
 		response.WriteJSON(w, response.ErrDefault("隧道ID不能为空"))
 		return
 	}
+	oldChainRows, _ := h.listChainNodesForTunnel(id)
 	oldEntryNodeIDs, _ := h.tunnelEntryNodeIDs(id)
 
 	h.cleanupTunnelRuntime(id)
@@ -782,14 +797,7 @@ func (h *Handler) tunnelUpdate(w http.ResponseWriter, r *http.Request) {
 	ipPreference := asString(req["ipPreference"])
 	localDomain := h.federationLocalDomain()
 
-	tx := h.repo.BeginTx()
-	if tx.Error != nil {
-		response.WriteJSON(w, response.Err(-2, tx.Error.Error()))
-		return
-	}
-	defer func() { tx.Rollback() }()
-
-	runtimeState, err := h.prepareTunnelCreateState(tx, req, typeVal, id)
+	runtimeState, err := h.prepareTunnelCreateState(h.repo.DB(), req, typeVal, id)
 	if err != nil {
 		response.WriteJSON(w, response.ErrDefault(err.Error()))
 		return
@@ -807,6 +815,14 @@ func (h *Handler) tunnelUpdate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	applyTunnelPortsToRequest(req, runtimeState)
+
+	tx := h.repo.BeginTx()
+	if tx.Error != nil {
+		h.releaseFederationRuntimeRefs(federationReleaseRefs)
+		response.WriteJSON(w, response.Err(-2, tx.Error.Error()))
+		return
+	}
+	defer func() { tx.Rollback() }()
 
 	if err := h.repo.UpdateTunnelTx(
 		tx,
@@ -863,7 +879,9 @@ func (h *Handler) tunnelUpdate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if typeVal == 2 {
-		createdChains, createdServices, applyErr := h.applyTunnelRuntime(runtimeState)
+		createdChains, createdServices, applyErr := h.reconcileTunnelRuntimeForCurrentEngine(r.Context(), oldChainRows, runtimeState, func() ([]int64, []int64, error) {
+			return h.applyTunnelRuntime(runtimeState)
+		})
 		if applyErr != nil {
 			h.rollbackTunnelRuntime(createdChains, createdServices, id)
 			h.releaseFederationRuntimeRefs(federationReleaseRefs)
@@ -878,9 +896,14 @@ func (h *Handler) tunnelUpdate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if forwards, fwdErr := h.listForwardsByTunnel(id); fwdErr == nil {
-		for i := range forwards {
-			_ = h.syncForwardServices(&forwards[i], "UpdateService", true)
-		}
+		_ = h.applyForwardRuntimeForCurrentEngine(r.Context(), id, func() error {
+			for i := range forwards {
+				if err := h.syncForwardServices(&forwards[i], "UpdateService", true); err != nil {
+					return err
+				}
+			}
+			return nil
+		})
 	}
 
 	response.WriteJSON(w, response.OKEmpty())
@@ -1292,22 +1315,35 @@ func (h *Handler) tunnelBatchDelete(w http.ResponseWriter, r *http.Request) {
 	success := 0
 	fail := 0
 	failures := make([]batchFailureDetail, 0)
+	var mu sync.Mutex
+	var wg sync.WaitGroup
 	for _, id := range ids {
-		tunnelName, _ := h.repo.GetTunnelName(id)
-		if _, err := h.getTunnelRecord(id); err != nil {
-			fail++
-			failures = appendBatchFailure(failures, id, tunnelName, err)
-			continue
-		}
-		h.cleanupTunnelRuntime(id)
-		h.cleanupFederationRuntime(id)
-		if err := h.deleteTunnelByID(id); err != nil {
-			fail++
-			failures = appendBatchFailure(failures, id, tunnelName, err)
-		} else {
-			success++
-		}
+		wg.Add(1)
+		go func(id int64) {
+			defer wg.Done()
+			tunnelName, _ := h.repo.GetTunnelName(id)
+			if _, err := h.getTunnelRecord(id); err != nil {
+				mu.Lock()
+				fail++
+				failures = appendBatchFailure(failures, id, tunnelName, err)
+				mu.Unlock()
+				return
+			}
+			h.cleanupTunnelRuntime(id)
+			h.cleanupFederationRuntime(id)
+			if err := h.deleteTunnelByID(id); err != nil {
+				mu.Lock()
+				fail++
+				failures = appendBatchFailure(failures, id, tunnelName, err)
+				mu.Unlock()
+			} else {
+				mu.Lock()
+				success++
+				mu.Unlock()
+			}
+		}(id)
 	}
+	wg.Wait()
 	response.WriteJSON(w, response.OK(batchOperationResult{SuccessCount: success, FailCount: fail, Failures: failures}))
 }
 
@@ -1506,24 +1542,37 @@ func (h *Handler) tunnelBatchRedeploy(w http.ResponseWriter, r *http.Request) {
 	success := 0
 	fail := 0
 	failures := make([]batchFailureDetail, 0)
+	var mu sync.Mutex
+	var wg sync.WaitGroup
 	for _, tunnelID := range ids {
-		tunnel, tunnelErr := h.getTunnelRecord(tunnelID)
-		tunnelName := ""
-		if tunnelErr == nil && tunnel != nil {
-			tunnelName, _ = h.repo.GetTunnelName(tunnelID)
-		}
-		if tunnelErr != nil {
-			fail++
-			failures = appendBatchFailure(failures, tunnelID, tunnelName, tunnelErr)
-			continue
-		}
-		if err := h.redeployTunnelAndForwards(tunnelID); err != nil {
-			fail++
-			failures = appendBatchFailure(failures, tunnelID, tunnelName, err)
-			continue
-		}
-		success++
+		wg.Add(1)
+		go func(tunnelID int64) {
+			defer wg.Done()
+			tunnel, tunnelErr := h.getTunnelRecord(tunnelID)
+			tunnelName := ""
+			if tunnelErr == nil && tunnel != nil {
+				tunnelName, _ = h.repo.GetTunnelName(tunnelID)
+			}
+			if tunnelErr != nil {
+				mu.Lock()
+				fail++
+				failures = appendBatchFailure(failures, tunnelID, tunnelName, tunnelErr)
+				mu.Unlock()
+				return
+			}
+			if err := h.redeployTunnelAndForwards(tunnelID); err != nil {
+				mu.Lock()
+				fail++
+				failures = appendBatchFailure(failures, tunnelID, tunnelName, err)
+				mu.Unlock()
+				return
+			}
+			mu.Lock()
+			success++
+			mu.Unlock()
+		}(tunnelID)
 	}
+	wg.Wait()
 	response.WriteJSON(w, response.OK(batchOperationResult{SuccessCount: success, FailCount: fail, Failures: failures}))
 }
 
@@ -1751,12 +1800,15 @@ func (h *Handler) forwardCreate(w http.ResponseWriter, r *http.Request) {
 		response.WriteJSON(w, response.Err(-2, err.Error()))
 		return
 	}
-	if err := h.syncForwardServices(createdForward, "UpdateService", true); err != nil {
+	runtimeMeta, err := h.applyForwardRuntimeForCurrentEngineWithMetadata(r.Context(), forwardID, tunnelID, func() error {
+		return h.syncForwardServices(createdForward, "UpdateService", true)
+	})
+	if err != nil {
 		_ = h.deleteForwardByID(forwardID)
 		response.WriteJSON(w, response.ErrDefault(err.Error()))
 		return
 	}
-	response.WriteJSON(w, response.OKEmpty())
+	writeForwardMutationSuccess(w, nil, runtimeMeta)
 }
 
 func (h *Handler) forwardUpdate(w http.ResponseWriter, r *http.Request) {
@@ -1908,6 +1960,12 @@ func (h *Handler) forwardUpdate(w http.ResponseWriter, r *http.Request) {
 		response.WriteJSON(w, response.Err(-2, err.Error()))
 		return
 	}
+	newPorts, err := h.listForwardPorts(id)
+	if err != nil {
+		h.rollbackForwardMutation(forward, oldPorts)
+		response.WriteJSON(w, response.Err(-2, err.Error()))
+		return
+	}
 	updatedForward, err := h.getForwardRecord(id)
 	if err != nil {
 		h.rollbackForwardMutation(forward, oldPorts)
@@ -1928,13 +1986,16 @@ func (h *Handler) forwardUpdate(w http.ResponseWriter, r *http.Request) {
 		time.Sleep(tunnelServiceBindRetryDelay)
 	}
 
-	syncWarnings, err := h.syncForwardServicesWithWarnings(updatedForward, "UpdateService", true)
+	runtimeMeta, err := h.reconcileForwardRuntimeForCurrentEngineWithMetadata(r.Context(), id, tunnelID, oldPorts, newPorts, func() error {
+		syncWarnings, syncErr := h.syncForwardServicesWithWarnings(updatedForward, "UpdateService", true)
+		warnings = append(warnings, syncWarnings...)
+		return syncErr
+	})
 	if err != nil {
 		h.rollbackForwardMutation(forward, oldPorts)
 		response.WriteJSON(w, response.ErrDefault(err.Error()))
 		return
 	}
-	warnings = append(warnings, syncWarnings...)
 
 	// Best-effort cleanup for old entry nodes after a successful tunnel switch.
 	// Avoid cleaning nodes that are still used by the updated forward.
@@ -1949,11 +2010,22 @@ func (h *Handler) forwardUpdate(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
-	if len(warnings) > 0 {
-		response.WriteJSON(w, response.OK(map[string]interface{}{"warnings": warnings}))
+	writeForwardMutationSuccess(w, warnings, runtimeMeta)
+}
+
+func writeForwardMutationSuccess(w http.ResponseWriter, warnings []string, runtimeMeta *forwardRuntimeMetadata) {
+	if len(warnings) == 0 && runtimeMeta == nil {
+		response.WriteJSON(w, response.OKEmpty())
 		return
 	}
-	response.WriteJSON(w, response.OKEmpty())
+	payload := make(map[string]interface{})
+	if len(warnings) > 0 {
+		payload["warnings"] = warnings
+	}
+	if runtimeMeta != nil {
+		payload["runtime"] = *runtimeMeta
+	}
+	response.WriteJSON(w, response.OK(payload))
 }
 
 func (h *Handler) forwardDelete(w http.ResponseWriter, r *http.Request) {
@@ -2112,25 +2184,40 @@ func (h *Handler) forwardBatchDelete(w http.ResponseWriter, r *http.Request) {
 	s := 0
 	f := 0
 	failures := make([]batchFailureDetail, 0)
+	var mu sync.Mutex
+	var wg sync.WaitGroup
 	for _, id := range ids {
-		forward, accessErr := h.ensureForwardAccessByActor(actorUserID, actorRole, id)
-		if accessErr != nil {
-			f++
-			failures = appendBatchFailure(failures, id, "", accessErr)
-			continue
-		}
-		if err := h.controlForwardServices(forward, "DeleteService", true); err != nil {
-			f++
-			failures = appendBatchFailure(failures, id, forward.Name, err)
-			continue
-		}
-		if err := h.deleteForwardByID(id); err != nil {
-			f++
-			failures = appendBatchFailure(failures, id, forward.Name, err)
-		} else {
-			s++
-		}
+		wg.Add(1)
+		go func(id int64) {
+			defer wg.Done()
+			forward, accessErr := h.ensureForwardAccessByActor(actorUserID, actorRole, id)
+			if accessErr != nil {
+				mu.Lock()
+				f++
+				failures = appendBatchFailure(failures, id, "", accessErr)
+				mu.Unlock()
+				return
+			}
+			if err := h.controlForwardServices(forward, "DeleteService", true); err != nil {
+				mu.Lock()
+				f++
+				failures = appendBatchFailure(failures, id, forward.Name, err)
+				mu.Unlock()
+				return
+			}
+			if err := h.deleteForwardByID(id); err != nil {
+				mu.Lock()
+				f++
+				failures = appendBatchFailure(failures, id, forward.Name, err)
+				mu.Unlock()
+			} else {
+				mu.Lock()
+				s++
+				mu.Unlock()
+			}
+		}(id)
 	}
+	wg.Wait()
 	response.WriteJSON(w, response.OK(batchOperationResult{SuccessCount: s, FailCount: f, Failures: failures}))
 }
 
@@ -2147,25 +2234,40 @@ func (h *Handler) forwardBatchPause(w http.ResponseWriter, r *http.Request) {
 	s := 0
 	f := 0
 	failures := make([]batchFailureDetail, 0)
+	var mu sync.Mutex
+	var wg sync.WaitGroup
 	for _, id := range ids {
-		forward, accessErr := h.ensureForwardAccessByActor(actorUserID, actorRole, id)
-		if accessErr != nil {
-			f++
-			failures = appendBatchFailure(failures, id, "", accessErr)
-			continue
-		}
-		if err := h.controlForwardServices(forward, "PauseService", false); err != nil {
-			f++
-			failures = appendBatchFailure(failures, id, forward.Name, err)
-			continue
-		}
-		if err := h.repo.UpdateForwardStatus(id, 0, time.Now().UnixMilli()); err != nil {
-			f++
-			failures = appendBatchFailure(failures, id, forward.Name, err)
-		} else {
-			s++
-		}
+		wg.Add(1)
+		go func(id int64) {
+			defer wg.Done()
+			forward, accessErr := h.ensureForwardAccessByActor(actorUserID, actorRole, id)
+			if accessErr != nil {
+				mu.Lock()
+				f++
+				failures = appendBatchFailure(failures, id, "", accessErr)
+				mu.Unlock()
+				return
+			}
+			if err := h.controlForwardServices(forward, "PauseService", false); err != nil {
+				mu.Lock()
+				f++
+				failures = appendBatchFailure(failures, id, forward.Name, err)
+				mu.Unlock()
+				return
+			}
+			if err := h.repo.UpdateForwardStatus(id, 0, time.Now().UnixMilli()); err != nil {
+				mu.Lock()
+				f++
+				failures = appendBatchFailure(failures, id, forward.Name, err)
+				mu.Unlock()
+			} else {
+				mu.Lock()
+				s++
+				mu.Unlock()
+			}
+		}(id)
 	}
+	wg.Wait()
 	response.WriteJSON(w, response.OK(batchOperationResult{SuccessCount: s, FailCount: f, Failures: failures}))
 }
 
@@ -2183,30 +2285,47 @@ func (h *Handler) forwardBatchResume(w http.ResponseWriter, r *http.Request) {
 	f := 0
 	now := time.Now().UnixMilli()
 	failures := make([]batchFailureDetail, 0)
+	var mu sync.Mutex
+	var wg sync.WaitGroup
 	for _, id := range ids {
-		forward, accessErr := h.ensureForwardAccessByActor(actorUserID, actorRole, id)
-		if accessErr != nil {
-			f++
-			failures = appendBatchFailure(failures, id, "", accessErr)
-			continue
-		}
-		if err := h.ensureUserTunnelForwardAllowed(forward.UserID, forward.TunnelID, now); err != nil {
-			f++
-			failures = appendBatchFailure(failures, id, forward.Name, err)
-			continue
-		}
-		if err := h.controlForwardServices(forward, "ResumeService", false); err != nil {
-			f++
-			failures = appendBatchFailure(failures, id, forward.Name, err)
-			continue
-		}
-		if err := h.repo.UpdateForwardStatus(id, 1, now); err != nil {
-			f++
-			failures = appendBatchFailure(failures, id, forward.Name, err)
-		} else {
-			s++
-		}
+		wg.Add(1)
+		go func(id int64) {
+			defer wg.Done()
+			forward, accessErr := h.ensureForwardAccessByActor(actorUserID, actorRole, id)
+			if accessErr != nil {
+				mu.Lock()
+				f++
+				failures = appendBatchFailure(failures, id, "", accessErr)
+				mu.Unlock()
+				return
+			}
+			if err := h.ensureUserTunnelForwardAllowed(forward.UserID, forward.TunnelID, now); err != nil {
+				mu.Lock()
+				f++
+				failures = appendBatchFailure(failures, id, forward.Name, err)
+				mu.Unlock()
+				return
+			}
+			if err := h.controlForwardServices(forward, "ResumeService", false); err != nil {
+				mu.Lock()
+				f++
+				failures = appendBatchFailure(failures, id, forward.Name, err)
+				mu.Unlock()
+				return
+			}
+			if err := h.repo.UpdateForwardStatus(id, 1, now); err != nil {
+				mu.Lock()
+				f++
+				failures = appendBatchFailure(failures, id, forward.Name, err)
+				mu.Unlock()
+			} else {
+				mu.Lock()
+				s++
+				mu.Unlock()
+			}
+		}(id)
 	}
+	wg.Wait()
 	response.WriteJSON(w, response.OK(batchOperationResult{SuccessCount: s, FailCount: f, Failures: failures}))
 }
 
@@ -2223,20 +2342,33 @@ func (h *Handler) forwardBatchRedeploy(w http.ResponseWriter, r *http.Request) {
 	s := 0
 	f := 0
 	failures := make([]batchFailureDetail, 0)
+	var mu sync.Mutex
+	var wg sync.WaitGroup
 	for _, id := range ids {
-		forward, accessErr := h.ensureForwardAccessByActor(actorUserID, actorRole, id)
-		if accessErr != nil {
-			f++
-			failures = appendBatchFailure(failures, id, "", accessErr)
-			continue
-		}
-		if err := h.syncForwardServices(forward, "UpdateService", true); err != nil {
-			f++
-			failures = appendBatchFailure(failures, id, forward.Name, err)
-		} else {
-			s++
-		}
+		wg.Add(1)
+		go func(id int64) {
+			defer wg.Done()
+			forward, accessErr := h.ensureForwardAccessByActor(actorUserID, actorRole, id)
+			if accessErr != nil {
+				mu.Lock()
+				f++
+				failures = appendBatchFailure(failures, id, "", accessErr)
+				mu.Unlock()
+				return
+			}
+			if err := h.syncForwardServices(forward, "UpdateService", true); err != nil {
+				mu.Lock()
+				f++
+				failures = appendBatchFailure(failures, id, forward.Name, err)
+				mu.Unlock()
+			} else {
+				mu.Lock()
+				s++
+				mu.Unlock()
+			}
+		}(id)
 	}
+	wg.Wait()
 	response.WriteJSON(w, response.OK(batchOperationResult{SuccessCount: s, FailCount: f, Failures: failures}))
 }
 
@@ -2320,9 +2452,20 @@ func (h *Handler) forwardBatchChangeTunnel(w http.ResponseWriter, r *http.Reques
 			nd, ndErr := h.getNodeRecord(nid)
 			if ndErr != nil {
 				portRangeErr = ndErr
-				continue
+				portRangeOk = false
+				break
 			}
 			if validateErr := validateRemoteNodePort(nd, p); validateErr != nil {
+				portRangeOk = false
+				portRangeErr = validateErr
+				break
+			}
+			if validateErr := validateLocalNodePort(nd, p); validateErr != nil {
+				portRangeOk = false
+				portRangeErr = validateErr
+				break
+			}
+			if validateErr := h.validateForwardPortAvailability(nd, p, id); validateErr != nil {
 				portRangeOk = false
 				portRangeErr = validateErr
 				break
@@ -2340,6 +2483,13 @@ func (h *Handler) forwardBatchChangeTunnel(w http.ResponseWriter, r *http.Reques
 			failures = appendBatchFailure(failures, id, forward.Name, err)
 			continue
 		}
+		newPorts, portsErr := h.listForwardPorts(id)
+		if portsErr != nil {
+			h.rollbackForwardMutation(forward, oldPorts)
+			fail++
+			failures = appendBatchFailure(failures, id, forward.Name, portsErr)
+			continue
+		}
 		updatedForward, fetchErr := h.getForwardRecord(id)
 		if fetchErr != nil {
 			h.rollbackForwardMutation(forward, oldPorts)
@@ -2353,7 +2503,9 @@ func (h *Handler) forwardBatchChangeTunnel(w http.ResponseWriter, r *http.Reques
 			}
 			time.Sleep(tunnelServiceBindRetryDelay)
 		}
-		if err := h.syncForwardServices(updatedForward, "UpdateService", true); err != nil {
+		if err := h.reconcileForwardRuntimeForCurrentEngine(r.Context(), id, req.TargetTunnelID, oldPorts, newPorts, func() error {
+			return h.syncForwardServices(updatedForward, "UpdateService", true)
+		}); err != nil {
 			h.rollbackForwardMutation(forward, oldPorts)
 			fail++
 			failures = appendBatchFailure(failures, id, forward.Name, err)
@@ -2746,7 +2898,11 @@ func (h *Handler) prepareTunnelCreateState(tx *gorm.DB, req map[string]interface
 				}
 				if !isRemote {
 					var err error
-					port, err = h.repo.PickNodePortTx(tx, nodeID, allocated, excludeTunnelID)
+					if excludeTunnelID > 0 {
+						port, err = h.repo.PickNodePortTx(tx, nodeID, allocated, excludeTunnelID)
+					} else {
+						port, err = h.repo.PickRandomNodePortTx(tx, nodeID, allocated, excludeTunnelID)
+					}
 					if err != nil {
 						return nil, err
 					}
@@ -2781,7 +2937,11 @@ func (h *Handler) prepareTunnelCreateState(tx *gorm.DB, req map[string]interface
 					}
 					if !isRemote {
 						var err error
-						port, err = h.repo.PickNodePortTx(tx, nodeID, allocated, excludeTunnelID)
+						if excludeTunnelID > 0 {
+							port, err = h.repo.PickNodePortTx(tx, nodeID, allocated, excludeTunnelID)
+						} else {
+							port, err = h.repo.PickRandomNodePortTx(tx, nodeID, allocated, excludeTunnelID)
+						}
 						if err != nil {
 							return nil, err
 						}
@@ -3407,8 +3567,19 @@ func buildTunnelChainConfig(tunnelID int64, fromNodeID int64, targets []tunnelRu
 	if len(targets) == 0 {
 		return nil, errors.New("转发链目标不能为空")
 	}
-	nodeItems := make([]map[string]interface{}, 0, len(targets))
-	for idx, target := range targets {
+
+	var onlineTargets []tunnelRuntimeNode
+	for _, target := range targets {
+		if node := nodes[target.NodeID]; node != nil && (node.IsRemote == 1 || node.Status == 1) {
+			onlineTargets = append(onlineTargets, target)
+		}
+	}
+	if len(onlineTargets) == 0 {
+		return nil, errors.New("所有目标节点均已失效")
+	}
+
+	nodeItems := make([]map[string]interface{}, 0, len(onlineTargets))
+	for idx, target := range onlineTargets {
 		targetNode := nodes[target.NodeID]
 		if targetNode == nil {
 			return nil, errors.New("节点不存在")
@@ -3438,7 +3609,7 @@ func buildTunnelChainConfig(tunnelID int64, fromNodeID int64, targets []tunnelRu
 		})
 	}
 
-	strategy := defaultString(strings.TrimSpace(targets[0].Strategy), "round")
+	strategy := defaultString(strings.TrimSpace(onlineTargets[0].Strategy), "round")
 	hop := map[string]interface{}{
 		"name": fmt.Sprintf("hop_%d", tunnelID),
 		"selector": map[string]interface{}{
@@ -3655,7 +3826,7 @@ func (h *Handler) replaceTunnelChainsTx(tx *gorm.DB, tunnelID int64, req map[str
 		port := asInt(n["port"], 0)
 		if port <= 0 {
 			var pickErr error
-			port, pickErr = h.repo.PickNodePortTx(tx, nodeID, allocated, 0)
+			port, pickErr = h.repo.PickRandomNodePortTx(tx, nodeID, allocated, 0)
 			if pickErr != nil {
 				return pickErr
 			}
@@ -3685,7 +3856,7 @@ func (h *Handler) replaceTunnelChainsTx(tx *gorm.DB, tunnelID int64, req map[str
 			port := asInt(n["port"], 0)
 			if port <= 0 {
 				var pickErr error
-				port, pickErr = h.repo.PickNodePortTx(tx, nodeID, allocated, 0)
+				port, pickErr = h.repo.PickRandomNodePortTx(tx, nodeID, allocated, 0)
 				if pickErr != nil {
 					return pickErr
 				}

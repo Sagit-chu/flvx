@@ -14,7 +14,9 @@ import (
 	"time"
 
 	"go-backend/internal/http/client"
+	backendruntime "go-backend/internal/runtime"
 	"go-backend/internal/store/model"
+	"go-backend/internal/store/repo"
 	"go-backend/internal/ws"
 )
 
@@ -515,12 +517,64 @@ func (h *Handler) controlForwardServices(forward *forwardRecord, commandType str
 
 func (h *Handler) controlForwardServicesOnNode(nodeID int64, bases []string, commandType string) (bool, error, error) {
 	return controlForwardServiceCommand(bases, commandType, func(name string) error {
-		payload := map[string]interface{}{
-			"services": []string{name},
+		switch strings.ToLower(strings.TrimSpace(commandType)) {
+		case "pauseservice":
+			return h.pauseForwardOnNode(context.Background(), nodeID, name)
+		case "resumeservice":
+			return h.resumeForwardOnNode(context.Background(), nodeID, name)
+		default:
+			payload := map[string]interface{}{
+				"services": []string{name},
+			}
+			_, err := h.sendNodeCommand(nodeID, commandType, payload, false, false)
+			return err
 		}
-		_, err := h.sendNodeCommand(nodeID, commandType, payload, false, false)
-		return err
 	})
+}
+
+func (h *Handler) currentRuntimeClient() (backendruntime.RuntimeClient, error) {
+	if h == nil || h.repo == nil {
+		return nil, errors.New("repository not initialized")
+	}
+	engine, err := h.repo.GetRuntimeEngine()
+	if err != nil {
+		return nil, err
+	}
+	client := h.runtimeClients[backendruntime.Engine(engine)]
+	if client == nil {
+		return nil, fmt.Errorf("runtime client unavailable for engine %q", engine)
+	}
+	return client, nil
+}
+
+func (h *Handler) pauseForwardOnNode(ctx context.Context, nodeID int64, serviceName string) error {
+	return h.controlForwardOnNode(ctx, nodeID, serviceName, func(client backendruntime.RuntimeClient, node repo.Node, services []string) error {
+		return client.PauseServices(ctx, node, services)
+	})
+}
+
+func (h *Handler) resumeForwardOnNode(ctx context.Context, nodeID int64, serviceName string) error {
+	return h.controlForwardOnNode(ctx, nodeID, serviceName, func(client backendruntime.RuntimeClient, node repo.Node, services []string) error {
+		return client.ResumeServices(ctx, node, services)
+	})
+}
+
+func (h *Handler) controlForwardOnNode(ctx context.Context, nodeID int64, serviceName string, control func(backendruntime.RuntimeClient, repo.Node, []string) error) error {
+	if h == nil {
+		return errors.New("handler not initialized")
+	}
+	node, err := h.repo.GetNodeByID(nodeID)
+	if err != nil {
+		return err
+	}
+	if node == nil {
+		return errors.New("节点不存在")
+	}
+	client, err := h.currentRuntimeClient()
+	if err != nil {
+		return err
+	}
+	return control(client, *node, []string{serviceName})
 }
 
 func controlForwardServiceCommand(bases []string, commandType string, send func(name string) error) (bool, error, error) {
@@ -1577,10 +1631,11 @@ func buildForwardServiceConfigs(baseName string, forward *forwardRecord, tunnel 
 		}
 		var serviceAddr string
 		if bindIP != "" {
-			if strings.Contains(bindIP, ":") {
-				serviceAddr = processServerAddress(bindIP)
+			trimmedBindIP := strings.TrimSpace(bindIP)
+			if _, _, err := net.SplitHostPort(trimmedBindIP); err == nil {
+				serviceAddr = processServerAddress(trimmedBindIP)
 			} else {
-				serviceAddr = processServerAddress(fmt.Sprintf("%s:%d", bindIP, port))
+				serviceAddr = processServerAddress(net.JoinHostPort(strings.Trim(trimmedBindIP, "[]"), strconv.Itoa(port)))
 			}
 		} else {
 			serviceAddr = processServerAddress(fmt.Sprintf("%s:%d", listenerAddr, port))

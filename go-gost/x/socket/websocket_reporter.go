@@ -1193,8 +1193,10 @@ func (w *WebSocketReporter) handleUpgradeAgent(data interface{}) error {
 	}
 
 	var req struct {
-		DownloadURL string `json:"downloadUrl"`
-		ChecksumURL string `json:"checksumUrl"`
+		DownloadURL     string `json:"downloadUrl"`
+		ChecksumURL     string `json:"checksumUrl"`
+		DashDownloadURL string `json:"dashDownloadUrl"`
+		DashChecksumURL string `json:"dashChecksumUrl"`
 	}
 	if err := json.Unmarshal(jsonData, &req); err != nil {
 		return fmt.Errorf("解析升级参数失败: %v", err)
@@ -1206,6 +1208,8 @@ func (w *WebSocketReporter) handleUpgradeAgent(data interface{}) error {
 	// 替换架构占位符
 	downloadURL := strings.ReplaceAll(req.DownloadURL, "{ARCH}", runtime.GOARCH)
 	checksumURL := strings.ReplaceAll(req.ChecksumURL, "{ARCH}", runtime.GOARCH)
+	dashDownloadURL := strings.ReplaceAll(req.DashDownloadURL, "{ARCH}", runtime.GOARCH)
+	dashChecksumURL := strings.ReplaceAll(req.DashChecksumURL, "{ARCH}", runtime.GOARCH)
 
 	w.sendUpgradeProgress("downloading", 0, "开始下载升级包...")
 	fmt.Printf("📦 开始下载升级包: %s\n", downloadURL)
@@ -1215,113 +1219,127 @@ func (w *WebSocketReporter) handleUpgradeAgent(data interface{}) error {
 	tmpPath := binaryPath + ".new"
 	backupPath := binaryPath + ".old"
 
-	resp, err := http.Get(downloadURL)
-	if err != nil {
-		return fmt.Errorf("下载升级包失败: %v", err)
-	}
-	defer resp.Body.Close()
+	const dashBinaryPath = "/etc/flux_agent/dash"
+	dashTmpPath := dashBinaryPath + ".new"
+	dashBackupPath := dashBinaryPath + ".old"
 
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("下载升级包失败, HTTP状态码: %d", resp.StatusCode)
-	}
+	downloadFile := func(url, chkUrl, targetPath, backupPath, name string) error {
+		if url == "" {
+			return nil
+		}
+		w.sendUpgradeProgress("downloading", 0, fmt.Sprintf("开始下载%s...", name))
+		resp, err := http.Get(url)
+		if err != nil {
+			return fmt.Errorf("下载%s失败: %v", name, err)
+		}
+		defer resp.Body.Close()
 
-	outFile, err := os.Create(tmpPath)
-	if err != nil {
-		return fmt.Errorf("创建临时文件失败: %v", err)
-	}
-
-	// 带进度的下载
-	totalSize := resp.ContentLength
-	var downloaded int64
-	buf := make([]byte, 32*1024)
-	lastPercent := 0
-	hasher := sha256.New()
-
-	for {
-		n, readErr := resp.Body.Read(buf)
-		if n > 0 {
-			if _, wErr := outFile.Write(buf[:n]); wErr != nil {
-				outFile.Close()
-				os.Remove(tmpPath)
-				return fmt.Errorf("写入升级包失败: %v", wErr)
+		if resp.StatusCode != http.StatusOK {
+			// 非致命错误（比如某些架构还没有dash内核）
+			if name == "dash" {
+				return nil
 			}
-			hasher.Write(buf[:n])
-			downloaded += int64(n)
-			if totalSize > 0 {
-				percent := int(downloaded * 100 / totalSize)
-				if percent-lastPercent >= 10 {
-					lastPercent = percent
-					w.sendUpgradeProgress("downloading", percent, fmt.Sprintf("下载中... %d%%", percent))
+			return fmt.Errorf("下载%s失败, HTTP状态码: %d", name, resp.StatusCode)
+		}
+
+		outFile, err := os.Create(targetPath)
+		if err != nil {
+			return fmt.Errorf("创建%s临时文件失败: %v", name, err)
+		}
+
+		totalSize := resp.ContentLength
+		var downloaded int64
+		buf := make([]byte, 32*1024)
+		lastPercent := 0
+		hasher := sha256.New()
+
+		for {
+			n, readErr := resp.Body.Read(buf)
+			if n > 0 {
+				if _, wErr := outFile.Write(buf[:n]); wErr != nil {
+					outFile.Close()
+					os.Remove(targetPath)
+					return fmt.Errorf("写入%s失败: %v", name, wErr)
 				}
-			}
-		}
-		if readErr != nil {
-			if readErr == io.EOF {
-				break
-			}
-			outFile.Close()
-			os.Remove(tmpPath)
-			return fmt.Errorf("读取升级包失败: %v", readErr)
-		}
-	}
-	outFile.Close()
-
-	if downloaded == 0 {
-		os.Remove(tmpPath)
-		return fmt.Errorf("下载的升级包为空")
-	}
-
-	w.sendUpgradeProgress("downloading", 100, fmt.Sprintf("下载完成 (%d bytes)", downloaded))
-
-	// Checksum 校验
-	if checksumURL != "" {
-		w.sendUpgradeProgress("verifying", 0, "校验文件完整性...")
-		checksumResp, err := http.Get(checksumURL)
-		if err == nil {
-			defer checksumResp.Body.Close()
-			if checksumResp.StatusCode == http.StatusOK {
-				checksumBody, err := io.ReadAll(checksumResp.Body)
-				if err == nil {
-					// 格式: "<hash>  <filename>" 或 "<hash>"
-					expectedHash := strings.TrimSpace(strings.Split(string(checksumBody), " ")[0])
-					actualHash := hex.EncodeToString(hasher.Sum(nil))
-					if !strings.EqualFold(expectedHash, actualHash) {
-						os.Remove(tmpPath)
-						return fmt.Errorf("校验失败: 期望 %s, 实际 %s", expectedHash, actualHash)
+				hasher.Write(buf[:n])
+				downloaded += int64(n)
+				if totalSize > 0 {
+					percent := int(downloaded * 100 / totalSize)
+					if percent-lastPercent >= 10 {
+						lastPercent = percent
+						w.sendUpgradeProgress("downloading", percent, fmt.Sprintf("下载%s中... %d%%", name, percent))
 					}
-					fmt.Printf("✅ Checksum 校验通过: %s\n", actualHash)
 				}
 			}
+			if readErr != nil {
+				if readErr == io.EOF {
+					break
+				}
+				outFile.Close()
+				os.Remove(targetPath)
+				return fmt.Errorf("读取%s失败: %v", name, readErr)
+			}
 		}
-		w.sendUpgradeProgress("verifying", 100, "校验通过")
+		outFile.Close()
+
+		if downloaded == 0 {
+			os.Remove(targetPath)
+			return fmt.Errorf("下载的%s为空", name)
+		}
+
+		w.sendUpgradeProgress("downloading", 100, fmt.Sprintf("下载%s完成", name))
+
+		if chkUrl != "" {
+			w.sendUpgradeProgress("verifying", 0, fmt.Sprintf("校验%s...", name))
+			checksumResp, err := http.Get(chkUrl)
+			if err == nil {
+				defer checksumResp.Body.Close()
+				if checksumResp.StatusCode == http.StatusOK {
+					checksumBody, err := io.ReadAll(checksumResp.Body)
+					if err == nil {
+						expectedHash := strings.TrimSpace(strings.Split(string(checksumBody), " ")[0])
+						actualHash := hex.EncodeToString(hasher.Sum(nil))
+						if !strings.EqualFold(expectedHash, actualHash) {
+							os.Remove(targetPath)
+							return fmt.Errorf("%s校验失败: 期望 %s, 实际 %s", name, expectedHash, actualHash)
+						}
+					}
+				}
+			}
+			w.sendUpgradeProgress("verifying", 100, fmt.Sprintf("%s校验通过", name))
+		}
+
+		if err := os.Chmod(targetPath, 0755); err != nil {
+			os.Remove(targetPath)
+			return fmt.Errorf("设置%s执行权限失败: %v", name, err)
+		}
+
+		if _, err := os.Stat(backupPath[:len(backupPath)-4]); err == nil {
+			oldData, err := os.ReadFile(backupPath[:len(backupPath)-4])
+			if err == nil {
+				_ = os.WriteFile(backupPath, oldData, 0755)
+			}
+		}
+		return nil
 	}
 
-	if err := os.Chmod(tmpPath, 0755); err != nil {
-		os.Remove(tmpPath)
-		return fmt.Errorf("设置执行权限失败: %v", err)
+	if err := downloadFile(downloadURL, checksumURL, tmpPath, backupPath, "gost"); err != nil {
+		return err
 	}
-
-	// 备份旧版本
-	w.sendUpgradeProgress("installing", 50, "备份旧版本...")
-	if _, err := os.Stat(binaryPath); err == nil {
-		// 复制旧文件作为备份（不用 rename，因为可能正在运行）
-		oldData, err := os.ReadFile(binaryPath)
-		if err == nil {
-			_ = os.WriteFile(backupPath, oldData, 0755)
-			fmt.Println("📦 旧版本已备份到", backupPath)
-		}
-	}
+	_ = downloadFile(dashDownloadURL, dashChecksumURL, dashTmpPath, dashBackupPath, "dash")
 
 	w.sendUpgradeProgress("installing", 80, "准备重启...")
-	fmt.Printf("✅ 升级包下载完成 (%d bytes), 准备重启...\n", downloaded)
 
-	// 执行重启脚本
-	// 使用 systemd-run 在独立的 transient unit 中运行重启脚本，
-	// 避免 systemctl stop 杀死 flux_agent cgroup 内所有进程（包括此脚本自身）导致 mv 未执行。
-	script := fmt.Sprintf("sleep 1 && systemctl stop flux_agent && mv %s %s && systemctl start flux_agent", tmpPath, binaryPath)
+	script := fmt.Sprintf("sleep 1 && systemctl stop flux_agent && mv %s %s", tmpPath, binaryPath)
+	if _, err := os.Stat(dashTmpPath); err == nil {
+		script += fmt.Sprintf(" && mv %s %s", dashTmpPath, dashBinaryPath)
+	}
+	script += " && systemctl start flux_agent"
+
 	cmd := exec.Command("systemd-run", "--quiet", "/bin/sh", "-c", script)
 	if err := cmd.Start(); err != nil {
 		os.Remove(tmpPath)
+		os.Remove(dashTmpPath)
 		return fmt.Errorf("启动重启脚本失败: %v", err)
 	}
 

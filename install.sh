@@ -25,10 +25,62 @@ get_architecture() {
 # 安装目录
 INSTALL_DIR="/etc/flux_agent"
 
-# 镜像加速（所有下载均经过镜像源，以支持 IPv6）
+# 镜像加速配置（可由面板传入或交互式询问）
+PROXY_ENABLED="${PROXY_ENABLED:-}"
+PROXY_URL="${PROXY_URL:-}"
+
+# 镜像加速
 maybe_proxy_url() {
   local url="$1"
-  echo "https://gcode.hostcentral.cc/${url}"
+
+  if [[ "$PROXY_ENABLED" == "false" ]]; then
+    echo "$url"
+    return
+  fi
+
+  local proxy="${PROXY_URL:-gcode.hostcentral.cc}"
+
+  if [[ "$proxy" == https://* || "$proxy" == http://* ]]; then
+    proxy="${proxy%/}"
+  else
+    proxy="https://${proxy%/}"
+  fi
+
+  echo "${proxy}/${url}"
+}
+
+ask_proxy_config() {
+  if [[ -n "$PROXY_ENABLED" ]]; then
+    return
+  fi
+
+  if [[ -n "$PROXY_URL" ]]; then
+    PROXY_ENABLED="true"
+    return
+  fi
+
+  echo ""
+  echo "==============================================="
+  echo "           GitHub 加速配置"
+  echo "==============================================="
+  if ! read -r -p "是否开启 GitHub 加速? (Y/n): " proxy_choice; then
+    proxy_choice=""
+  fi
+  case "$proxy_choice" in
+    n|N)
+      PROXY_ENABLED="false"
+      echo "已关闭加速，将直连 GitHub"
+      ;;
+    *)
+      PROXY_ENABLED="true"
+      if ! read -r -p "加速地址 (默认 gcode.hostcentral.cc): " input_url; then
+        input_url=""
+      fi
+      PROXY_URL="${input_url:-gcode.hostcentral.cc}"
+      echo "已开启加速: $PROXY_URL"
+      ;;
+  esac
+  echo "==============================================="
 }
 
 resolve_latest_release_tag() {
@@ -81,9 +133,20 @@ build_download_url() {
     echo "https://github.com/${REPO}/releases/download/${RESOLVED_VERSION}/gost-${ARCH}"
 }
 
-# 解析版本并构建下载地址
-RESOLVED_VERSION=$(resolve_version) || exit 1
-DOWNLOAD_URL=$(maybe_proxy_url "$(build_download_url)")
+build_dash_download_url() {
+    local ARCH=$(get_architecture)
+    echo "https://github.com/${REPO}/releases/download/${RESOLVED_VERSION}/dash-${ARCH}"
+}
+
+ensure_download_url_initialized() {
+  if [[ -n "${DOWNLOAD_URL:-}" ]]; then
+    return 0
+  fi
+
+  RESOLVED_VERSION=$(resolve_version) || return 1
+  DOWNLOAD_URL=$(maybe_proxy_url "$(build_download_url)")
+  DASH_DOWNLOAD_URL=$(maybe_proxy_url "$(build_dash_download_url)")
+}
 
 
 
@@ -210,6 +273,10 @@ done
 # 安装功能
 install_flux_agent() {
   echo "🚀 开始安装 flux_agent..."
+
+  ask_proxy_config
+  ensure_download_url_initialized || exit 1
+
   get_config_params
 
     # 检查并安装 tcpkill
@@ -232,10 +299,19 @@ install_flux_agent() {
   echo "⬇️ 下载 flux_agent 中..."
   curl -L "$DOWNLOAD_URL" -o "$INSTALL_DIR/flux_agent"
   if [[ ! -f "$INSTALL_DIR/flux_agent" || ! -s "$INSTALL_DIR/flux_agent" ]]; then
-    echo "❌ 下载失败，请检查网络或下载链接。"
-    exit 1
+    echo "❌ 下载失败"
+    return 1
   fi
   chmod +x "$INSTALL_DIR/flux_agent"
+
+  # 下载 dash 内核
+  echo "⬇️ 下载 dash 内核中..."
+  curl -L "$DASH_DOWNLOAD_URL" -o "$INSTALL_DIR/dash"
+  if [[ ! -f "$INSTALL_DIR/dash" || ! -s "$INSTALL_DIR/dash" ]]; then
+    echo "⚠️ 下载 dash 失败，非致命错误"
+  else
+    chmod +x "$INSTALL_DIR/dash"
+  fi
   echo "✅ 下载完成"
 
   # 打印版本
@@ -308,6 +384,9 @@ update_flux_agent() {
     echo "❌ flux_agent 未安装，请先选择安装。"
     return 1
   fi
+
+  ask_proxy_config
+  ensure_download_url_initialized || return 1
   
   echo "📥 使用下载地址: $DOWNLOAD_URL"
   
@@ -316,21 +395,33 @@ update_flux_agent() {
   
   # 先下载新版本
   echo "⬇️ 下载最新版本..."
+  echo "⬇️ 下载新版本 flux_agent 中..."
   curl -L "$DOWNLOAD_URL" -o "$INSTALL_DIR/flux_agent.new"
   if [[ ! -f "$INSTALL_DIR/flux_agent.new" || ! -s "$INSTALL_DIR/flux_agent.new" ]]; then
-    echo "❌ 下载失败。"
+    echo "❌ 下载 flux_agent 失败"
     return 1
   fi
 
-  # 停止服务
+  echo "⬇️ 下载新版本 dash 内核中..."
+  curl -L "$DASH_DOWNLOAD_URL" -o "$INSTALL_DIR/dash.new"
+  if [[ ! -f "$INSTALL_DIR/dash.new" || ! -s "$INSTALL_DIR/dash.new" ]]; then
+    echo "⚠️ 下载 dash 失败，跳过更新 dash 内核"
+    rm -f "$INSTALL_DIR/dash.new"
+  fi
+
   if systemctl list-units --full -all | grep -Fq "flux_agent.service"; then
     echo "🛑 停止 flux_agent 服务..."
     systemctl stop flux_agent
   fi
 
-  # 替换文件
+  echo "🔄 替换文件..."
   mv "$INSTALL_DIR/flux_agent.new" "$INSTALL_DIR/flux_agent"
   chmod +x "$INSTALL_DIR/flux_agent"
+
+  if [[ -f "$INSTALL_DIR/dash.new" ]]; then
+    mv "$INSTALL_DIR/dash.new" "$INSTALL_DIR/dash"
+    chmod +x "$INSTALL_DIR/dash"
+  fi
   
   # 打印版本
   echo "🔎 新版本：$($INSTALL_DIR/flux_agent -V)"

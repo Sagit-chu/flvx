@@ -2,6 +2,7 @@ package handler
 
 import (
 	"context"
+	"encoding/json"
 	"log"
 	"sync"
 	"sync/atomic"
@@ -19,6 +20,17 @@ const (
 	tunnelQualityReportInterval = 30 * time.Second // DB save interval
 )
 
+type TunnelQualityHop struct {
+	FromNodeID   int64   `json:"fromNodeId"`
+	FromNodeName string  `json:"fromNodeName"`
+	ToNodeID     int64   `json:"toNodeId"`
+	ToNodeName   string  `json:"toNodeName"`
+	Latency      float64 `json:"latency"`
+	Loss         float64 `json:"loss"`
+	TargetIP     string  `json:"targetIp,omitempty"`
+	TargetPort   int     `json:"targetPort,omitempty"`
+}
+
 // tunnelQualitySnapshot is the in-memory latest probe result for a tunnel.
 type tunnelQualitySnapshot struct {
 	TunnelID           int64   `json:"tunnelId"`
@@ -29,6 +41,7 @@ type tunnelQualitySnapshot struct {
 	Success            bool    `json:"success"`
 	ErrorMessage       string  `json:"errorMessage,omitempty"`
 	Timestamp          int64   `json:"timestamp"`
+	ChainDetails       string  `json:"chainDetails,omitempty"`
 
 	// internal fields for db reporting
 	lastDBWrite int64 `json:"-"`
@@ -215,7 +228,7 @@ func (p *tunnelQualityProber) probeTunnel(tunnelID int64) {
 	}
 
 	ipPreference := h.repo.GetTunnelIPPreference(tunnelID)
-	inNodes, _, outNodes := splitChainNodeGroups(chainRows)
+	inNodes, midNodesGrouped, outNodes := splitChainNodeGroups(chainRows)
 
 	options := diagnosisExecOptions{
 		commandTimeout: tunnelQualityProbeTimeout,
@@ -241,28 +254,85 @@ func (p *tunnelQualityProber) probeTunnel(tunnelID int64) {
 		probeOK := true
 
 		if len(inNodes) > 0 && len(outNodes) > 0 {
-			// Entry → Exit
-			targetNode, nodeErr := h.getNodeRecord(outNodes[0].NodeID)
-			if nodeErr == nil && targetNode != nil {
-				fromNode, _ := h.getNodeRecord(inNodes[0].NodeID)
-				targetIP, targetPort, resolveErr := resolveChainProbeTarget(fromNode, targetNode, outNodes[0].Port, ipPreference, outNodes[0].ConnectIP)
-				if resolveErr == nil {
-					lat, loss, err := p.tcpPingNode(inNodes[0].NodeID, targetIP, targetPort, options)
-					if err == nil {
-						snap.EntryToExitLatency = lat
-						snap.EntryToExitLoss = loss
-					} else {
-						snap.EntryToExitLatency = -1
-						snap.EntryToExitLoss = 100
-						probeOK = false
-					}
-				} else {
-					snap.ErrorMessage = resolveErr.Error()
-					probeOK = false
+			var hops []TunnelQualityHop
+			var totalLat float64
+			remainingSuccessProb := 1.0
+
+			nodesInPath := make([]chainNodeRecord, 0, 2+len(midNodesGrouped))
+			nodesInPath = append(nodesInPath, inNodes[0])
+			for _, midGroup := range midNodesGrouped {
+				if len(midGroup) > 0 {
+					nodesInPath = append(nodesInPath, midGroup[0])
 				}
+			}
+			nodesInPath = append(nodesInPath, outNodes[0])
+
+			for i := 0; i < len(nodesInPath)-1; i++ {
+				source := nodesInPath[i]
+				target := nodesInPath[i+1]
+
+				hop := TunnelQualityHop{
+					FromNodeID:   source.NodeID,
+					FromNodeName: source.NodeName,
+					ToNodeID:     target.NodeID,
+					ToNodeName:   target.NodeName,
+				}
+
+				targetNode, nodeErr := h.getNodeRecord(target.NodeID)
+				if nodeErr != nil || targetNode == nil {
+					snap.ErrorMessage = "节点 " + target.NodeName + " 不可用"
+					probeOK = false
+					hop.Latency = -1
+					hop.Loss = 100
+					hops = append(hops, hop)
+					break
+				}
+				
+				fromNode, _ := h.getNodeRecord(source.NodeID)
+				targetIP, targetPort, resolveErr := resolveChainProbeTarget(fromNode, targetNode, target.Port, ipPreference, target.ConnectIP)
+				if resolveErr != nil {
+					snap.ErrorMessage = "解析节点 " + target.NodeName + " 失败: " + resolveErr.Error()
+					probeOK = false
+					hop.Latency = -1
+					hop.Loss = 100
+					hops = append(hops, hop)
+					break
+				}
+
+				hop.TargetIP = targetIP
+				hop.TargetPort = targetPort
+
+				lat, loss, err := p.tcpPingNode(source.NodeID, targetIP, targetPort, options)
+				if err == nil {
+					hop.Latency = lat
+					hop.Loss = loss
+					totalLat += lat
+					remainingSuccessProb *= (1.0 - loss/100.0)
+					hops = append(hops, hop)
+				} else {
+					probeOK = false
+					hop.Latency = -1
+					hop.Loss = 100
+					hops = append(hops, hop)
+					if snap.ErrorMessage == "" {
+						snap.ErrorMessage = err.Error()
+					}
+					break
+				}
+			}
+
+			if probeOK {
+				snap.EntryToExitLatency = totalLat
+				snap.EntryToExitLoss = (1.0 - remainingSuccessProb) * 100.0
 			} else {
-				snap.ErrorMessage = "出口节点不可用"
-				probeOK = false
+				snap.EntryToExitLatency = -1
+				snap.EntryToExitLoss = 100
+			}
+
+			if len(hops) > 0 {
+				if b, err := json.Marshal(hops); err == nil {
+					snap.ChainDetails = string(b)
+				}
 			}
 		}
 
@@ -374,6 +444,7 @@ func (p *tunnelQualityProber) storeResult(snap *tunnelQualitySnapshot) {
 		Success:            successInt,
 		ErrorMessage:       snap.ErrorMessage,
 		Timestamp:          snap.Timestamp,
+		ChainDetails:       snap.ChainDetails,
 	}
 	if err := h.repo.InsertTunnelQuality(q); err != nil {
 		log.Printf("tunnel_quality_prober: insert db err=%v tunnel_id=%d", err, snap.TunnelID)

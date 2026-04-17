@@ -262,6 +262,24 @@ func (r *Repository) SpeedLimitExists(id int64) (bool, error) {
 	return count > 0, nil
 }
 
+func (r *Repository) CountActiveForwardsByUser(userID int64) (int64, error) {
+	if r == nil || r.db == nil {
+		return 0, errors.New("repository not initialized")
+	}
+	var count int64
+	err := r.db.Model(&model.Forward{}).Where("user_id = ? AND status = 1", userID).Count(&count).Error
+	return count, err
+}
+
+func (r *Repository) CountActiveForwardsByUserTunnel(userID, tunnelID int64) (int64, error) {
+	if r == nil || r.db == nil {
+		return 0, errors.New("repository not initialized")
+	}
+	var count int64
+	err := r.db.Model(&model.Forward{}).Where("user_id = ? AND tunnel_id = ? AND status = 1", userID, tunnelID).Count(&count).Error
+	return count, err
+}
+
 func (r *Repository) GetSpeedLimitSpeed(id int64) (int, error) {
 	if r == nil || r.db == nil {
 		return 0, errors.New("repository not initialized")

@@ -1,6 +1,6 @@
 @import "tailwindcss";
-@import "tw-animate-css";
 @import "./tailwind-theme.pcss";
+@plugin "tailwindcss-animate";
 
 /* GPU acceleration helper - prevents font blurriness during transforms */
 .gpu-accelerated {
@@ -211,3 +211,83 @@ body {
     opacity: 1;
   }
 }
+
+/* Liquid Glass Variables */
+:root {
+  --glass-bg: rgba(255, 255, 255, 0.6);
+  --glass-border: rgba(255, 255, 255, 0.8);
+  --glass-card: rgba(255, 255, 255, 0.7);
+  --glass-overlay: rgba(0, 0, 0, 0.3);
+}
+
+.dark {
+  --glass-bg: rgba(30, 30, 30, 0.6);
+  --glass-border: rgba(255, 255, 255, 0.15);
+  --glass-card: rgba(40, 40, 40, 0.6);
+}
+
+.bg-mesh-gradient {
+  background-color: #f2f2f7;
+  position: relative;
+  z-index: 0;
+}
+
+.bg-mesh-gradient::before {
+  content: "";
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: -1;
+  pointer-events: none;
+  background: url('/images/bg-light.jpg') no-repeat center center;
+  background-size: cover;
+}
+
+.dark .bg-mesh-gradient {
+  background-color: #0b1020;
+}
+
+.dark .bg-mesh-gradient::before {
+  background: url('/images/bg-dark.jpg') no-repeat center center;
+  background-size: cover;
+}
+
+:root.has-theme-bg .bg-mesh-gradient {
+  background-image: none !important;
+  background-color: #f6f7fb !important;
+}
+
+:root.dark.has-theme-bg .bg-mesh-gradient {
+  background-color: #0b1020 !important;
+}
+
+:root.has-theme-bg .bg-mesh-gradient::before {
+  background-image: none !important;
+}
+
+:root.has-custom-bg .bg-mesh-gradient {
+  background-image: none !important;
+  background-color: var(--custom-bg-color, transparent) !important;
+}
+
+:root.has-custom-bg .bg-mesh-gradient::before {
+  background-image: var(--custom-bg-image, none) !important;
+  background-size: cover !important;
+  background-position: center center !important;
+  background-repeat: no-repeat !important;
+}
+
+@layer utilities {
+  .scrollbar-hide {
+    /* IE and Edge */
+    -ms-overflow-style: none;
+    /* Firefox */
+    scrollbar-width: none;
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+}
+

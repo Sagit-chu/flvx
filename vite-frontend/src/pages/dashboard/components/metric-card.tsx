@@ -18,22 +18,24 @@ export const MetricCard = ({
   bottomContent,
 }: MetricCardProps) => {
   return (
-    <Card className="border border-gray-200 dark:border-default-200 shadow-md hover:shadow-lg transition-shadow">
-      <CardBody className="p-3 lg:p-4">
-        <div className="flex flex-col space-y-2">
+    <Card className="h-48 flex flex-col justify-between overflow-hidden">
+      <CardBody className="!p-4 md:!p-6 h-full flex flex-col justify-between overflow-visible">
+        <div className="flex flex-col space-y-4">
           <div className="flex items-center justify-between">
-            <p className="text-xs lg:text-sm text-default-600 truncate">
+            <p className="text-sm font-medium text-default-600 truncate">
               {title}
             </p>
             <div
-              className={`p-1.5 lg:p-2 rounded-lg flex-shrink-0 ${iconClassName}`}
+              className={`p-2 rounded-xl flex-shrink-0 ${iconClassName}`}
             >
               {icon}
             </div>
           </div>
-          <p className="text-base lg:text-xl font-bold text-foreground truncate">
+          <p className="text-2xl lg:text-3xl font-bold text-foreground truncate mt-2">
             {value}
           </p>
+        </div>
+        <div className="mt-auto pt-4">
           {bottomContent}
         </div>
       </CardBody>

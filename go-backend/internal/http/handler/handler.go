@@ -9,6 +9,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"os"
 	"sort"
 	"strconv"
 	"strings"
@@ -17,12 +18,17 @@ import (
 
 	"go-backend/internal/auth"
 	"go-backend/internal/health"
+	"go-backend/internal/http/client"
 	"go-backend/internal/http/middleware"
 	"go-backend/internal/http/response"
+	"go-backend/internal/license"
 	"go-backend/internal/metrics"
+	backendruntime "go-backend/internal/runtime"
 	"go-backend/internal/security"
 	"go-backend/internal/store/repo"
 	"go-backend/internal/ws"
+
+	"github.com/google/uuid"
 )
 
 type Handler struct {
@@ -44,6 +50,12 @@ type Handler struct {
 	pendingUpgradeRedeploy map[int64]struct{}
 
 	qualityProber *tunnelQualityProber
+	dashRuntime   *client.DashRuntimeClient
+	dashEnabled   bool
+
+	runtimeSwitchStarter   runtimeSwitchStarter
+	runtimeClients         map[backendruntime.Engine]backendruntime.RuntimeClient
+	runtimeStatusProviders map[backendruntime.Engine]runtimeStatusProvider
 }
 
 const monitorTunnelQualityEnabledConfigKey = "monitor_tunnel_quality_enabled"
@@ -68,6 +80,10 @@ type configSingleRequest struct {
 	Value string `json:"value"`
 }
 
+type licenseActivateRequest struct {
+	LicenseKey string `json:"license_key"`
+}
+
 type changePasswordRequest struct {
 	NewUsername     string `json:"newUsername"`
 	CurrentPassword string `json:"currentPassword"`
@@ -87,6 +103,10 @@ const (
 )
 
 func New(repo *repo.Repository, jwtSecret string) *Handler {
+	return NewWithOptions(repo, jwtSecret, nil, false)
+}
+
+func NewWithOptions(repo *repo.Repository, jwtSecret string, dashRuntime *client.DashRuntimeClient, dashEnabled bool) *Handler {
 	h := &Handler{
 		repo:                   repo,
 		jwtSecret:              jwtSecret,
@@ -95,8 +115,19 @@ func New(repo *repo.Repository, jwtSecret string) *Handler {
 		healthCheck:            nil,
 		captchaTokens:          make(map[string]int64),
 		pendingUpgradeRedeploy: make(map[int64]struct{}),
+		dashRuntime:            dashRuntime,
+		dashEnabled:            dashEnabled,
 	}
-	h.healthCheck = health.NewChecker(repo, h.wsServer)
+	h.runtimeClients = map[backendruntime.Engine]backendruntime.RuntimeClient{
+		backendruntime.EngineGost: backendruntime.NewGostRuntimeClient(h.wsServer),
+		backendruntime.EngineDash: backendruntime.NewDashRuntimeClient(repo, dashRuntime),
+	}
+	h.runtimeStatusProviders = newRuntimeStatusProviders(dashRuntime)
+	h.runtimeSwitchStarter = newRuntimeSwitchStarter(repo, dashRuntime, dashEnabled)
+	h.healthCheck = health.NewChecker(repo, h.wsServer, func() backendruntime.RuntimeClient {
+		client, _ := h.currentRuntimeClient()
+		return client
+	})
 	h.qualityProber = newTunnelQualityProber(h)
 	h.wsServer.SetNodeOnlineHook(h.onNodeOnline)
 	h.wsServer.SetNodeMetricHook(func(nodeID int64, info ws.SystemInfo) {
@@ -137,6 +168,7 @@ func (h *Handler) Register(mux *http.ServeMux) {
 	mux.HandleFunc("/api/v1/config/list", h.getConfigs)
 	mux.HandleFunc("/api/v1/config/update", h.updateConfigs)
 	mux.HandleFunc("/api/v1/config/update-single", h.updateSingleConfig)
+	mux.HandleFunc("/api/v1/license/activate", h.licenseActivate)
 	mux.HandleFunc("/api/v1/backup/export", h.backupExport)
 	mux.HandleFunc("/api/v1/backup/import", h.backupImport)
 	mux.HandleFunc("/api/v1/backup/restore", h.backupImport)
@@ -229,6 +261,8 @@ func (h *Handler) Register(mux *http.ServeMux) {
 	mux.HandleFunc("/api/v1/federation/node/import", h.nodeImport)
 	mux.HandleFunc("/api/v1/announcement/get", h.getAnnouncement)
 	mux.HandleFunc("/api/v1/announcement/update", h.updateAnnouncement)
+	mux.HandleFunc("/api/v1/system/runtime", h.runtimeSettings)
+	mux.HandleFunc("/api/v1/system/runtime/progress", h.runtimeProgress)
 
 	mux.HandleFunc("/api/v1/monitor/access", h.monitorAccessHandler)
 	mux.HandleFunc("/api/v1/monitor/nodes/", h.monitorNodeMetricsHandler)
@@ -444,6 +478,7 @@ func (h *Handler) nodeList(w http.ResponseWriter, r *http.Request) {
 	}
 
 	h.syncRemoteNodeStatuses(items)
+	h.overlayCurrentRuntimeNodeStatuses(r.Context(), items)
 
 	response.WriteJSON(w, response.OK(items))
 }
@@ -804,6 +839,97 @@ func (h *Handler) flowUpload(w http.ResponseWriter, r *http.Request) {
 	_, _ = w.Write([]byte("ok"))
 }
 
+func (h *Handler) getOrCreateMachineFingerprint() (string, error) {
+	fp, _ := h.repo.GetViteConfigValue("machine_fingerprint")
+	if fp != "" {
+		return fp, nil
+	}
+
+	newFp := uuid.New().String()
+	now := time.Now().UnixMilli()
+	if err := h.repo.UpsertConfig("machine_fingerprint", newFp, now); err != nil {
+		return "", err
+	}
+	return newFp, nil
+}
+
+func (h *Handler) licenseActivate(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		response.WriteJSON(w, response.ErrDefault("请求失败"))
+		return
+	}
+
+	var req licenseActivateRequest
+	if err := decodeJSON(r.Body, &req); err != nil {
+		response.WriteJSON(w, response.ErrDefault("授权码不能为空"))
+		return
+	}
+
+	key := strings.TrimSpace(req.LicenseKey)
+	if key == "" {
+		response.WriteJSON(w, response.ErrDefault("授权码不能为空"))
+		return
+	}
+
+	accountID := license.AccountID
+	if accountID == "" {
+		accountID = os.Getenv("KEYGEN_ACCOUNT_ID")
+	}
+
+	fingerprint, err := h.getOrCreateMachineFingerprint()
+	if err != nil {
+		response.WriteJSON(w, response.ErrDefault("生成设备指纹失败"))
+		return
+	}
+
+	client := license.NewKeygenClient(accountID, "")
+	valResp, err := client.ValidateKeyWithFingerprint(key, fingerprint)
+	if err != nil {
+		response.WriteJSON(w, response.ErrDefault("连接授权服务器失败: "+err.Error()))
+		return
+	}
+
+	if !valResp.Meta.Valid {
+		if valResp.Meta.Code == "NO_MACHINES" || valResp.Meta.Code == "NO_MACHINE" || valResp.Meta.Code == "MACHINE_SCOPE_REQUIRED" || valResp.Meta.Code == "FINGERPRINT_SCOPE_MISMATCH" {
+			// Needs machine activation
+			client.Token = key
+			err = client.ActivateMachine(valResp.Data.ID, fingerprint)
+			if err != nil {
+				// Translate specific error messages or log them
+				response.WriteJSON(w, response.ErrDefault("设备绑定失败: "+err.Error()))
+				return
+			}
+
+			// Validation might still fail with scope if we don't query via machine id, but since activate machine succeeded
+			// we can consider the license valid for our simple usecase
+		} else {
+			response.WriteJSON(w, response.ErrDefault("授权码无效或已过期 (Code: "+valResp.Meta.Code+")"))
+			return
+		}
+	}
+
+	now := time.Now().UnixMilli()
+	if err := h.repo.UpsertConfig("license_key", key, now); err != nil {
+		response.WriteJSON(w, response.Err(-2, err.Error()))
+		return
+	}
+	if err := h.repo.UpsertConfig("is_commercial", "true", now); err != nil {
+		response.WriteJSON(w, response.Err(-2, err.Error()))
+		return
+	}
+
+	expiry := valResp.Data.Attributes.Expiry
+	if expiry == "" {
+		expiry = "never"
+	}
+	if err := h.repo.UpsertConfig("license_expiry", expiry, now); err != nil {
+		response.WriteJSON(w, response.Err(-2, err.Error()))
+		return
+	}
+
+	response.WriteJSON(w, response.OKEmpty())
+}
+
 func (h *Handler) updateConfigs(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		response.WriteJSON(w, response.ErrDefault("请求失败"))
@@ -820,11 +946,24 @@ func (h *Handler) updateConfigs(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	isCommercial, _ := h.repo.GetViteConfigValue("is_commercial")
+	protectedKeys := map[string]bool{
+		"app_name":          true,
+		"app_logo":          true,
+		"app_favicon":       true,
+		"hide_footer_brand": true,
+	}
+
 	now := time.Now().UnixMilli()
 	for k, v := range payload {
 		key := strings.TrimSpace(k)
 		if key == "" {
 			continue
+		}
+
+		if protectedKeys[key] && isCommercial != "true" {
+			response.WriteJSON(w, response.ErrDefault("需要商业版授权"))
+			return
 		}
 
 		value, err := normalizeAndValidateConfigValue(key, v)
@@ -859,13 +998,19 @@ func (h *Handler) updateSingleConfig(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	isCommercial, _ := h.repo.GetViteConfigValue("is_commercial")
+	if (name == "app_name" || name == "app_logo" || name == "app_favicon" || name == "hide_footer_brand") && isCommercial != "true" {
+		response.WriteJSON(w, response.ErrDefault("需要商业版授权"))
+		return
+	}
+
 	value, err := normalizeAndValidateConfigValue(name, req.Value)
 	if err != nil {
 		response.WriteJSON(w, response.ErrDefault(err.Error()))
 		return
 	}
 
-	if value == "" && name != "app_logo" && name != "app_favicon" {
+	if value == "" && name != "app_logo" && name != "app_favicon" && name != "app_bg_image" {
 		response.WriteJSON(w, response.ErrDefault("配置值不能为空"))
 		return
 	}
@@ -1439,15 +1584,22 @@ func (h *Handler) getAnnouncement(w http.ResponseWriter, r *http.Request) {
 
 	if ann == nil {
 		response.WriteJSON(w, response.OK(map[string]interface{}{
-			"content": "",
-			"enabled": 0,
+			"content":     "",
+			"enabled":     0,
+			"update_time": 0,
 		}))
 		return
 	}
 
+	updateTime := ann.CreatedTime
+	if ann.UpdatedTime.Valid {
+		updateTime = ann.UpdatedTime.Int64
+	}
+
 	response.WriteJSON(w, response.OK(map[string]interface{}{
-		"content": ann.Content,
-		"enabled": ann.Enabled,
+		"content":     ann.Content,
+		"enabled":     ann.Enabled,
+		"update_time": updateTime,
 	}))
 }
 

@@ -1,9 +1,11 @@
 package repo
 
 import (
+	"crypto/rand"
 	"database/sql"
 	"errors"
 	"fmt"
+	"math/big"
 	"sort"
 	"strconv"
 	"strings"
@@ -453,6 +455,14 @@ func (r *Repository) IsRemoteNodeTx(tx *gorm.DB, nodeID int64) (bool, error) {
 }
 
 func (r *Repository) PickNodePortTx(tx *gorm.DB, nodeID int64, allocated map[int64]int, excludeTunnelID int64) (int, error) {
+	return r.pickNodePortTx(tx, nodeID, allocated, excludeTunnelID, false)
+}
+
+func (r *Repository) PickRandomNodePortTx(tx *gorm.DB, nodeID int64, allocated map[int64]int, excludeTunnelID int64) (int, error) {
+	return r.pickNodePortTx(tx, nodeID, allocated, excludeTunnelID, true)
+}
+
+func (r *Repository) pickNodePortTx(tx *gorm.DB, nodeID int64, allocated map[int64]int, excludeTunnelID int64, randomPick bool) (int, error) {
 	if tx == nil {
 		return 0, errors.New("database unavailable")
 	}
@@ -505,6 +515,7 @@ func (r *Repository) PickNodePortTx(tx *gorm.DB, nodeID int64, allocated map[int
 		}
 	}
 
+	var available []int
 	for _, candidate := range candidates {
 		if candidate <= 0 {
 			continue
@@ -512,11 +523,25 @@ func (r *Repository) PickNodePortTx(tx *gorm.DB, nodeID int64, allocated map[int
 		if _, ok := used[candidate]; ok {
 			continue
 		}
-		allocated[nodeID] = candidate
-		return candidate, nil
+		available = append(available, candidate)
 	}
 
-	return 0, errors.New("节点端口已满，无可用端口")
+	if len(available) == 0 {
+		return 0, errors.New("节点端口已满，无可用端口")
+	}
+	if !randomPick {
+		allocated[nodeID] = available[0]
+		return available[0], nil
+	}
+
+	idx, err := rand.Int(rand.Reader, big.NewInt(int64(len(available))))
+	if err != nil {
+		allocated[nodeID] = available[0]
+		return available[0], nil
+	}
+	port := available[idx.Int64()]
+	allocated[nodeID] = port
+	return port, nil
 }
 
 func (r *Repository) GetTunnelIPPreference(tunnelID int64) string {

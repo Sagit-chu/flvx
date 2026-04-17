@@ -22,6 +22,7 @@ type userTunnelPolicy struct {
 	OutFlow  int64
 	ExpTime  int64
 	Status   int
+	Num      int
 }
 
 type gostConfigSnapshot struct {
@@ -363,6 +364,16 @@ func (h *Handler) ensureUserTunnelForwardAllowed(userID int64, tunnelID int64, n
 		return err
 	}
 
+	if user.Num > 0 {
+		currentForwardCount, err := h.repo.CountActiveForwardsByUser(userID)
+		if err != nil {
+			return err
+		}
+		if currentForwardCount >= int64(user.Num) {
+			return errors.New("转发数量已达上限")
+		}
+	}
+
 	userTunnelID, _, _, err := h.resolveUserTunnelAndLimiter(userID, tunnelID)
 	if err != nil {
 		return err
@@ -390,6 +401,16 @@ func (h *Handler) ensureUserTunnelForwardAllowed(userID int64, tunnelID int64, n
 	utCurrent := policy.InFlow + policy.OutFlow
 	if utCurrent >= utFlowLimit {
 		return errors.New("该隧道流量已超额，禁止开启转发")
+	}
+
+	if policy.Num > 0 {
+		currentTunnelForwardCount, err := h.repo.CountActiveForwardsByUserTunnel(userID, tunnelID)
+		if err != nil {
+			return err
+		}
+		if currentTunnelForwardCount >= int64(policy.Num) {
+			return errors.New("该隧道转发数量已达上限")
+		}
 	}
 
 	return nil
@@ -442,7 +463,7 @@ func (h *Handler) getUserTunnelPolicy(userTunnelID int64) (*userTunnelPolicy, er
 	return &userTunnelPolicy{
 		ID: ut.ID, UserID: ut.UserID, TunnelID: ut.TunnelID,
 		Flow: ut.Flow, InFlow: ut.InFlow, OutFlow: ut.OutFlow,
-		ExpTime: ut.ExpTime, Status: ut.Status,
+		ExpTime: ut.ExpTime, Status: ut.Status, Num: ut.Num,
 	}, nil
 }
 

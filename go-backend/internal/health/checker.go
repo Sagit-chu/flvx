@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"go-backend/internal/monitoring"
+	backendruntime "go-backend/internal/runtime"
 	"go-backend/internal/store/model"
 	"go-backend/internal/store/repo"
 	"go-backend/internal/ws"
@@ -24,14 +25,16 @@ type nodeCommander interface {
 const serviceMonitorReportInterval = 30 * time.Second // DB write interval per monitor
 
 type Checker struct {
-	repo      *repo.Repository
-	commander nodeCommander
-	lastRun   map[int64]int64
-	inFlight  map[int64]struct{}
+	repo       *repo.Repository
+	commander  nodeCommander
+	runtimeCtx context.Context
+	lastRun    map[int64]int64
+	inFlight   map[int64]struct{}
 
 	// In-memory latest result per monitor (for real-time API reads)
 	latestResults map[int64]*model.ServiceMonitorResult
 	lastDBWrite   map[int64]int64 // last DB write timestamp per monitorID
+	runtimeClient func() backendruntime.RuntimeClient
 
 	mu       sync.RWMutex
 	cancel   context.CancelFunc
@@ -39,14 +42,20 @@ type Checker struct {
 	checking int32 // atomic flag: 1 = runChecks running, 0 = idle
 }
 
-func NewChecker(repo *repo.Repository, commander nodeCommander) *Checker {
+func NewChecker(repo *repo.Repository, commander nodeCommander, runtimeClient ...func() backendruntime.RuntimeClient) *Checker {
+	var runtimeClientProvider func() backendruntime.RuntimeClient
+	if len(runtimeClient) > 0 {
+		runtimeClientProvider = runtimeClient[0]
+	}
 	return &Checker{
 		repo:          repo,
 		commander:     commander,
+		runtimeCtx:    context.Background(),
 		lastRun:       make(map[int64]int64),
 		inFlight:      make(map[int64]struct{}),
 		latestResults: make(map[int64]*model.ServiceMonitorResult),
 		lastDBWrite:   make(map[int64]int64),
+		runtimeClient: runtimeClientProvider,
 	}
 }
 
@@ -66,6 +75,7 @@ func (c *Checker) Start(ctx context.Context) {
 	c.mu.Lock()
 	ctx, cancel := context.WithCancel(ctx)
 	c.cancel = cancel
+	c.runtimeCtx = ctx
 	c.mu.Unlock()
 
 	c.runChecks(ctx)
@@ -316,9 +326,11 @@ func (c *Checker) checkOnNode(m *model.ServiceMonitor, timeoutSec int, timeout t
 		return
 	}
 	if c.commander == nil {
-		result.Success = 0
-		result.ErrorMessage = "节点检查不可用"
-		return
+		if c.selectedRuntimeClient() == nil {
+			result.Success = 0
+			result.ErrorMessage = "节点检查不可用"
+			return
+		}
 	}
 
 	checkType := strings.ToLower(strings.TrimSpace(m.Type))
@@ -330,6 +342,10 @@ func (c *Checker) checkOnNode(m *model.ServiceMonitor, timeoutSec int, timeout t
 	if strings.TrimSpace(m.Target) == "" {
 		result.Success = 0
 		result.ErrorMessage = "检查目标为空"
+		return
+	}
+	if runtimeClient := c.selectedRuntimeClient(); runtimeClient != nil {
+		c.checkOnRuntimeClient(runtimeClient, m, timeoutSec, result)
 		return
 	}
 
@@ -382,6 +398,62 @@ func (c *Checker) checkOnNode(m *model.ServiceMonitor, timeoutSec int, timeout t
 			result.ErrorMessage = s
 		}
 	}
+}
+
+func (c *Checker) selectedRuntimeClient() backendruntime.RuntimeClient {
+	if c == nil || c.runtimeClient == nil {
+		return nil
+	}
+	return c.runtimeClient()
+}
+
+func (c *Checker) runtimeContext() context.Context {
+	if c == nil {
+		return context.Background()
+	}
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	if c.runtimeCtx != nil {
+		return c.runtimeCtx
+	}
+	return context.Background()
+}
+
+func (c *Checker) checkOnRuntimeClient(runtimeClient backendruntime.RuntimeClient, m *model.ServiceMonitor, timeoutSec int, result *model.ServiceMonitorResult) {
+	if c == nil || c.repo == nil {
+		result.Success = 0
+		result.ErrorMessage = "节点检查不可用"
+		return
+	}
+	var node repo.Node
+	if err := c.repo.DB().First(&node, m.NodeID).Error; err != nil {
+		result.Success = 0
+		result.ErrorMessage = err.Error()
+		return
+	}
+	timeout := time.Duration(timeoutSec) * time.Second
+	if timeout <= 0 {
+		timeout = time.Second
+	}
+	ctx, cancel := context.WithTimeout(c.runtimeContext(), timeout)
+	defer cancel()
+	res, err := runtimeClient.CheckService(ctx, node, backendruntime.ServiceCheckRequest{
+		MonitorID:  m.ID,
+		Type:       strings.ToLower(strings.TrimSpace(m.Type)),
+		Target:     m.Target,
+		TimeoutSec: timeoutSec,
+	})
+	if err != nil {
+		result.Success = 0
+		result.ErrorMessage = err.Error()
+		return
+	}
+	if res.Success {
+		result.Success = 1
+	}
+	result.LatencyMs = res.LatencyMs
+	result.StatusCode = res.StatusCode
+	result.ErrorMessage = res.ErrorMessage
 }
 
 func (c *Checker) checkTCP(target string, timeout time.Duration, result *model.ServiceMonitorResult) {

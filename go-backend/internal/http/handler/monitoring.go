@@ -245,6 +245,7 @@ func (h *Handler) monitorTunnelQualityHandler(w http.ResponseWriter, r *http.Req
 			Success:            q.Success == 1,
 			ErrorMessage:       q.ErrorMessage,
 			Timestamp:          q.Timestamp,
+			ChainDetails:       q.ChainDetails,
 		})
 	}
 	response.WriteJSON(w, response.OK(snapshots))

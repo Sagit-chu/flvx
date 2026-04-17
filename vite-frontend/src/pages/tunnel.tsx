@@ -1578,14 +1578,15 @@ export default function TunnelPage() {
       {/* 隧道卡片网格 */}
       {tunnels.length > 0 ? (
         viewMode === "list" ? (
-          <Card>
+          <Card className="bg-white/20 dark:bg-zinc-900/20 backdrop-blur-3xl border border-white/80 dark:border-white/10 shadow-[0_15px_35px_rgba(0,0,0,0.1)]">
           <Table
             aria-label="隧道列表"
             className="overflow-x-auto min-w-full"
             classNames={{
-              th: "bg-default-100/50 text-default-600 font-semibold text-sm border-b border-divider py-3 uppercase tracking-wider",
+              wrapper: "bg-transparent p-0 shadow-none border-none overflow-hidden rounded-[24px]",
+              th: "bg-transparent text-default-600 font-semibold text-sm border-b border-white/20 dark:border-white/10 py-3 uppercase tracking-wider first:rounded-tl-[24px] last:rounded-tr-[24px]",
               td: "py-3 border-b border-divider/50 group-data-[last=true]:border-b-0",
-              tr: "hover:bg-default-50/50 transition-colors",
+              tr: "hover:bg-white/10 dark:hover:bg-white/5 transition-colors",
             }}
           >
             <TableHeader>
@@ -1720,7 +1721,7 @@ export default function TunnelPage() {
                     {(listeners) => (
                       <Card
                         key={tunnel.id}
-                        className="group shadow-sm border border-divider hover:shadow-md transition-shadow duration-200 overflow-hidden"
+                        className="group overflow-hidden bg-white/20 dark:bg-zinc-900/20 backdrop-blur-3xl border border-white/80 dark:border-white/10 shadow-[0_15px_35px_rgba(0,0,0,0.1)]"
                       >
                         <CardHeader className="pb-2 md:pb-2">
                           <div className="flex justify-between items-start w-full">
@@ -1770,7 +1771,7 @@ export default function TunnelPage() {
                             <div className="pt-2 border-t border-divider">
                               <div className="flex items-center justify-center gap-2 text-xs">
                                 {/* 入口节点 */}
-                                <div className="flex items-center gap-1 px-2 py-1 bg-primary-50 dark:bg-primary-100/20 rounded border border-primary-200 dark:border-primary-300/20">
+                                <div className="flex items-center gap-1 px-2 py-1 bg-primary-50/30 dark:bg-primary-100/20 backdrop-blur-md rounded border border-primary-200/50 dark:border-primary-300/20">
                                   <svg
                                     aria-hidden="true"
                                     className="w-3 h-3 text-primary-600"
@@ -1805,7 +1806,7 @@ export default function TunnelPage() {
                                 </svg>
 
                                 {/* 转发链 */}
-                                <div className="flex items-center gap-1 px-2 py-1 bg-secondary-50 dark:bg-secondary-100/20 rounded border border-secondary-200 dark:border-secondary-300/20">
+                                <div className="flex items-center gap-1 px-2 py-1 bg-secondary-50/30 dark:bg-secondary-100/20 backdrop-blur-md rounded border border-secondary-200/50 dark:border-secondary-300/20">
                                   <svg
                                     aria-hidden="true"
                                     className="w-3 h-3 text-secondary-600"
@@ -1843,7 +1844,7 @@ export default function TunnelPage() {
                                 </svg>
 
                                 {/* 出口节点 */}
-                                <div className="flex items-center gap-1 px-2 py-1 bg-success-50 dark:bg-success-100/20 rounded border border-success-200 dark:border-success-300/20">
+                                <div className="flex items-center gap-1 px-2 py-1 bg-success-50/30 dark:bg-success-100/20 backdrop-blur-md rounded border border-success-200/50 dark:border-success-300/20">
                                   <svg
                                     aria-hidden="true"
                                     className="w-3 h-3 text-success-600"
@@ -1870,7 +1871,7 @@ export default function TunnelPage() {
                             <div
                               className={`grid gap-2 ${tunnel.type === 2 && tunnel.ipPreference ? "grid-cols-3" : "grid-cols-2"}`}
                             >
-                              <div className="text-center p-1.5 bg-default-50 dark:bg-default-100/30 rounded">
+                              <div className="text-center p-1.5 bg-white/5 dark:bg-black/5 backdrop-blur-3xl rounded-lg border border-divider">
                                 <div className="text-xs text-default-500">
                                   流量计算
                                 </div>
@@ -1878,7 +1879,7 @@ export default function TunnelPage() {
                                   {getTunnelFlowDisplay(tunnel.flow)}
                                 </div>
                               </div>
-                              <div className="text-center p-1.5 bg-default-50 dark:bg-default-100/30 rounded">
+                              <div className="text-center p-1.5 bg-white/5 dark:bg-black/5 backdrop-blur-3xl rounded-lg border border-divider">
                                 <div className="text-xs text-default-500">
                                   流量倍率
                                 </div>
@@ -1887,7 +1888,7 @@ export default function TunnelPage() {
                                 </div>
                               </div>
                               {tunnel.type === 2 && tunnel.ipPreference && (
-                                <div className="text-center p-1.5 bg-default-50 dark:bg-default-100/30 rounded">
+                                <div className="text-center p-1.5 bg-white/5 dark:bg-black/5 backdrop-blur-3xl rounded-lg border border-divider">
                                   <div className="text-xs text-default-500">
                                     连接偏好
                                   </div>
@@ -1985,7 +1986,7 @@ export default function TunnelPage() {
         )
       ) : (
         /* 空状态 */
-        <Card className="shadow-sm border border-gray-200 dark:border-gray-700 bg-default-50/50">
+        <Card className="bg-white/20 dark:bg-zinc-900/20 backdrop-blur-3xl border border-white/80 dark:border-white/10 shadow-[0_15px_35px_rgba(0,0,0,0.1)]">
           <CardBody className="text-center py-20 flex flex-col items-center justify-center min-h-[240px]">
             <h3 className="text-xl font-medium text-foreground tracking-tight mb-2">
               暂无隧道配置
@@ -2005,7 +2006,7 @@ export default function TunnelPage() {
         }}
         isOpen={modalOpen}
         placement="center"
-        scrollBehavior="outside"
+        scrollBehavior="inside"
         size="2xl"
         onOpenChange={setModalOpen}
       >
@@ -2942,7 +2943,7 @@ export default function TunnelPage() {
         }}
         isOpen={deleteModalOpen}
         placement="center"
-        scrollBehavior="outside"
+        scrollBehavior="inside"
         size="2xl"
         onOpenChange={handleDeleteModalOpenChange}
       >
@@ -3150,7 +3151,7 @@ export default function TunnelPage() {
                   </div>
                 )}
               </ModalHeader>
-              <ModalBody className="bg-content1">
+              <ModalBody className="bg-transparent">
                 {diagnosisResult ? (
                   <div className="space-y-4">
                     {diagnosisLoading && (
@@ -3672,7 +3673,7 @@ export default function TunnelPage() {
                   </div>
                 )}
               </ModalBody>
-              <ModalFooter className="bg-content1 border-t border-divider">
+              <ModalFooter className="bg-transparent border-t border-white/20 dark:border-white/10">
                 <Button variant="light" onPress={onClose}>
                   关闭
                 </Button>

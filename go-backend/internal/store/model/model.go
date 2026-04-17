@@ -728,6 +728,7 @@ type TunnelQuality struct {
 	Success            int     `gorm:"not null;default:1" json:"success"`
 	ErrorMessage       string  `gorm:"column:error_message;type:text" json:"errorMessage,omitempty"`
 	Timestamp          int64   `gorm:"not null;index:idx_tunnel_quality_tunnel_time,priority:2;index:idx_tunnel_quality_time" json:"timestamp"`
+	ChainDetails       string  `gorm:"column:chain_details;type:text" json:"chainDetails,omitempty"`
 }
 
 func (TunnelQuality) TableName() string { return "tunnel_quality" }

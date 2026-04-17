@@ -1,24 +1,38 @@
 package config
 
-import "os"
+import (
+	"os"
+	"strconv"
+	"strings"
+)
 
 type Config struct {
-	Addr        string
-	DBType      string
-	DBPath      string
-	DatabaseURL string
-	JWTSecret   string
-	LogDir      string
+	Addr                  string
+	DBType                string
+	DBPath                string
+	DatabaseURL           string
+	JWTSecret             string
+	LogDir                string
+	RuntimeEngineDefault  string
+	DashRuntimeEnabled    bool
+	DashNodeAPIScheme     string
+	DashNodeAPIPort       string
+	DashRequestTimeoutSec int
 }
 
 func FromEnv() Config {
 	cfg := Config{
-		Addr:        getEnv("SERVER_ADDR", ":6365"),
-		DBType:      getEnv("DB_TYPE", "sqlite"),
-		DBPath:      getEnv("DB_PATH", "/app/data/gost.db"),
-		DatabaseURL: getEnv("DATABASE_URL", ""),
-		JWTSecret:   getEnv("JWT_SECRET", ""),
-		LogDir:      getEnv("LOG_DIR", "/app/logs"),
+		Addr:                  getEnv("SERVER_ADDR", ":6365"),
+		DBType:                getEnv("DB_TYPE", "sqlite"),
+		DBPath:                getEnv("DB_PATH", "/app/data/gost.db"),
+		DatabaseURL:           getEnv("DATABASE_URL", ""),
+		JWTSecret:             getEnv("JWT_SECRET", ""),
+		LogDir:                getEnv("LOG_DIR", "/app/logs"),
+		RuntimeEngineDefault:  DefaultRuntimeEngine(),
+		DashRuntimeEnabled:    getEnv("DASH_RUNTIME_ENABLED", "0") == "1",
+		DashNodeAPIScheme:     getEnv("DASH_NODE_API_SCHEME", "http"),
+		DashNodeAPIPort:       getEnv("DASH_NODE_API_PORT", "8080"),
+		DashRequestTimeoutSec: getEnvInt("DASH_REQUEST_TIMEOUT_SEC", 10),
 	}
 
 	return cfg
@@ -29,4 +43,22 @@ func getEnv(key, fallback string) string {
 		return v
 	}
 	return fallback
+}
+
+func getEnvInt(key string, fallback int) int {
+	if v := os.Getenv(key); v != "" {
+		if parsed, err := strconv.Atoi(v); err == nil {
+			return parsed
+		}
+	}
+	return fallback
+}
+
+func DefaultRuntimeEngine() string {
+	switch strings.ToLower(strings.TrimSpace(getEnv("RUNTIME_ENGINE_DEFAULT", "gost"))) {
+	case "dash":
+		return "dash"
+	default:
+		return "gost"
+	}
 }

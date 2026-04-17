@@ -1,12 +1,109 @@
 package handler
 
 import (
+	"context"
 	"errors"
+	"path/filepath"
 	"reflect"
 	"testing"
 
+	backendruntime "go-backend/internal/runtime"
+	"go-backend/internal/store/model"
 	"go-backend/internal/store/repo"
 )
+
+func TestForwardPauseUsesSelectedRuntimeEngine(t *testing.T) {
+	r, err := repo.Open(filepath.Join(t.TempDir(), "panel.db"))
+	if err != nil {
+		t.Fatalf("open repo: %v", err)
+	}
+	defer r.Close()
+
+	if err := r.DB().Create(&model.Node{
+		Name:          "node-a",
+		Secret:        "secret-a",
+		ServerIP:      "10.0.0.1",
+		Port:          "2024",
+		CreatedTime:   1,
+		Status:        1,
+		TCPListenAddr: "[::]",
+		UDPListenAddr: "[::]",
+	}).Error; err != nil {
+		t.Fatalf("insert node: %v", err)
+	}
+	if err := r.SetRuntimeEngine(repo.RuntimeEngineDash, 10); err != nil {
+		t.Fatalf("set runtime engine: %v", err)
+	}
+
+	gostClient := &stubForwardRuntimeClient{}
+	dashClient := &stubForwardRuntimeClient{}
+	h := New(r, "secret")
+	h.runtimeClients = map[backendruntime.Engine]backendruntime.RuntimeClient{
+		backendruntime.EngineGost: gostClient,
+		backendruntime.EngineDash: dashClient,
+	}
+
+	if err := h.pauseForwardOnNode(context.Background(), 1, "svc-a_tcp"); err != nil {
+		t.Fatalf("pauseForwardOnNode: %v", err)
+	}
+	if gostClient.pauseCalls != 0 {
+		t.Fatalf("expected gost runtime client to be unused, got %d pause calls", gostClient.pauseCalls)
+	}
+	if dashClient.pauseCalls != 1 {
+		t.Fatalf("expected dash runtime client to handle pause once, got %d", dashClient.pauseCalls)
+	}
+	if dashClient.lastNode.ID != 1 {
+		t.Fatalf("expected node id 1, got %d", dashClient.lastNode.ID)
+	}
+	if !reflect.DeepEqual(dashClient.lastServices, []string{"svc-a_tcp"}) {
+		t.Fatalf("expected forwarded services [svc-a_tcp], got %v", dashClient.lastServices)
+	}
+}
+
+func TestForwardResumeUsesSelectedRuntimeEngine(t *testing.T) {
+	r, err := repo.Open(filepath.Join(t.TempDir(), "panel.db"))
+	if err != nil {
+		t.Fatalf("open repo: %v", err)
+	}
+	defer r.Close()
+
+	if err := r.DB().Create(&model.Node{
+		Name:          "node-a",
+		Secret:        "secret-a",
+		ServerIP:      "10.0.0.1",
+		Port:          "2024",
+		CreatedTime:   1,
+		Status:        1,
+		TCPListenAddr: "[::]",
+		UDPListenAddr: "[::]",
+	}).Error; err != nil {
+		t.Fatalf("insert node: %v", err)
+	}
+	if err := r.SetRuntimeEngine(repo.RuntimeEngineDash, 10); err != nil {
+		t.Fatalf("set runtime engine: %v", err)
+	}
+
+	gostClient := &stubForwardRuntimeClient{}
+	dashClient := &stubForwardRuntimeClient{}
+	h := New(r, "secret")
+	h.runtimeClients = map[backendruntime.Engine]backendruntime.RuntimeClient{
+		backendruntime.EngineGost: gostClient,
+		backendruntime.EngineDash: dashClient,
+	}
+
+	if err := h.resumeForwardOnNode(context.Background(), 1, "svc-a_tcp"); err != nil {
+		t.Fatalf("resumeForwardOnNode: %v", err)
+	}
+	if gostClient.resumeCalls != 0 {
+		t.Fatalf("expected gost runtime client to be unused, got %d resume calls", gostClient.resumeCalls)
+	}
+	if dashClient.resumeCalls != 1 {
+		t.Fatalf("expected dash runtime client to handle resume once, got %d", dashClient.resumeCalls)
+	}
+	if !reflect.DeepEqual(dashClient.lastServices, []string{"svc-a_tcp"}) {
+		t.Fatalf("expected forwarded services [svc-a_tcp], got %v", dashClient.lastServices)
+	}
+}
 
 func TestBuildForwardControlServiceNamesPauseResume(t *testing.T) {
 	base := "12_34_56"
@@ -18,6 +115,43 @@ func TestBuildForwardControlServiceNamesPauseResume(t *testing.T) {
 			t.Fatalf("command %s expected %v, got %v", command, want, got)
 		}
 	}
+}
+
+type stubForwardRuntimeClient struct {
+	pauseCalls   int
+	resumeCalls  int
+	lastNode     repo.Node
+	lastServices []string
+}
+
+func (c *stubForwardRuntimeClient) EnsureNodeRuntime(context.Context, repo.Node) (backendruntime.NodeRuntimeProgress, error) {
+	return backendruntime.NodeRuntimeProgress{}, nil
+}
+
+func (c *stubForwardRuntimeClient) RebuildAllRuntime(context.Context) (backendruntime.RebuildRuntimeProgress, error) {
+	return backendruntime.RebuildRuntimeProgress{}, nil
+}
+
+func (c *stubForwardRuntimeClient) GetNodeRuntimeStatus(context.Context, repo.Node) (backendruntime.NodeRuntimeStatus, error) {
+	return backendruntime.NodeRuntimeStatus{}, nil
+}
+
+func (c *stubForwardRuntimeClient) PauseServices(_ context.Context, node repo.Node, services []string) error {
+	c.pauseCalls++
+	c.lastNode = node
+	c.lastServices = append([]string(nil), services...)
+	return nil
+}
+
+func (c *stubForwardRuntimeClient) ResumeServices(_ context.Context, node repo.Node, services []string) error {
+	c.resumeCalls++
+	c.lastNode = node
+	c.lastServices = append([]string(nil), services...)
+	return nil
+}
+
+func (c *stubForwardRuntimeClient) CheckService(context.Context, repo.Node, backendruntime.ServiceCheckRequest) (backendruntime.ServiceCheckResult, error) {
+	return backendruntime.ServiceCheckResult{}, nil
 }
 
 func TestBuildForwardControlServiceNamesDelete(t *testing.T) {
@@ -418,6 +552,63 @@ func TestBuildForwardServiceConfigs_BindIPAlreadyContainsPort(t *testing.T) {
 		if addr != "3.3.3.3:12345" {
 			t.Fatalf("expected bind IP with port 3.3.3.3:12345, got %q", addr)
 		}
+	}
+}
+
+func TestBuildForwardServiceConfigs_IPv6BindIP(t *testing.T) {
+	tests := []struct {
+		name     string
+		bindIP   string
+		port     int
+		wantAddr string
+	}{
+		{
+			name:     "pure ipv6 without port",
+			bindIP:   "2001:db8::1",
+			port:     22000,
+			wantAddr: "[2001:db8::1]:22000",
+		},
+		{
+			name:     "bracketed ipv6 without port",
+			bindIP:   "[2001:db8::2]",
+			port:     22001,
+			wantAddr: "[2001:db8::2]:22001",
+		},
+		{
+			name:     "bracketed ipv6 with port",
+			bindIP:   "[2001:db8::3]:8080",
+			port:     55555,
+			wantAddr: "[2001:db8::3]:8080",
+		},
+		{
+			name:     "ipv6 link-local with zone",
+			bindIP:   "fe80::1%eth0",
+			port:     22002,
+			wantAddr: "[fe80::1%eth0]:22002",
+		},
+		{
+			name:     "ipv6 localhost",
+			bindIP:   "::1",
+			port:     22003,
+			wantAddr: "[::1]:22003",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			forward := &forwardRecord{RemoteAddr: "1.2.3.4:80", Strategy: "fifo", TunnelID: 7}
+			node := &nodeRecord{TCPListenAddr: "[::]", UDPListenAddr: "[::]"}
+			services := buildForwardServiceConfigs("1_2_0", forward, nil, node, tt.port, tt.bindIP, nil, false)
+			if len(services) != 2 {
+				t.Fatalf("expected 2 services, got %d", len(services))
+			}
+			for _, svc := range services {
+				addr, _ := svc["addr"].(string)
+				if addr != tt.wantAddr {
+					t.Fatalf("expected addr %q, got %q", tt.wantAddr, addr)
+				}
+			}
+		})
 	}
 }
 

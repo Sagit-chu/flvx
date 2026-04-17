@@ -44,13 +44,14 @@ export function DropdownTrigger({ children }: { children: React.ReactNode }) {
 
 export interface DropdownMenuProps {
   "aria-label"?: string;
+  className?: string;
   children: React.ReactNode;
 }
 
-export function DropdownMenu({ children }: DropdownMenuProps) {
+export function DropdownMenu({ children, className }: DropdownMenuProps) {
   const { align } = React.useContext(DropdownContext);
 
-  return <DropdownMenuContent align={align}>{children}</DropdownMenuContent>;
+  return <DropdownMenuContent align={align} className={className}>{children}</DropdownMenuContent>;
 }
 
 export interface DropdownItemProps {

@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"go-backend/internal/monitoring"
+	backendruntime "go-backend/internal/runtime"
 	"go-backend/internal/store/model"
 	"go-backend/internal/store/repo"
 	"go-backend/internal/ws"
@@ -18,6 +19,15 @@ type fakeCommander struct {
 	lastData   interface{}
 	res        ws.CommandResult
 	err        error
+	calls      int
+}
+
+type fakeRuntimeClient struct {
+	lastNode repo.Node
+	lastReq  backendruntime.ServiceCheckRequest
+	res      backendruntime.ServiceCheckResult
+	err      error
+	calls    int
 }
 
 type delayedCommander struct {
@@ -42,10 +52,84 @@ func (d *delayedCommander) SendCommand(nodeID int64, cmdType string, data interf
 }
 
 func (f *fakeCommander) SendCommand(nodeID int64, cmdType string, data interface{}, _ time.Duration) (ws.CommandResult, error) {
+	f.calls++
 	f.lastNodeID = nodeID
 	f.lastType = cmdType
 	f.lastData = data
 	return f.res, f.err
+}
+
+func (f *fakeRuntimeClient) EnsureNodeRuntime(context.Context, repo.Node) (backendruntime.NodeRuntimeProgress, error) {
+	return backendruntime.NodeRuntimeProgress{}, nil
+}
+
+func (f *fakeRuntimeClient) RebuildAllRuntime(context.Context) (backendruntime.RebuildRuntimeProgress, error) {
+	return backendruntime.RebuildRuntimeProgress{}, nil
+}
+
+func (f *fakeRuntimeClient) GetNodeRuntimeStatus(context.Context, repo.Node) (backendruntime.NodeRuntimeStatus, error) {
+	return backendruntime.NodeRuntimeStatus{}, nil
+}
+
+func (f *fakeRuntimeClient) PauseServices(context.Context, repo.Node, []string) error {
+	return nil
+}
+
+func (f *fakeRuntimeClient) ResumeServices(context.Context, repo.Node, []string) error {
+	return nil
+}
+
+func (f *fakeRuntimeClient) CheckService(_ context.Context, node repo.Node, req backendruntime.ServiceCheckRequest) (backendruntime.ServiceCheckResult, error) {
+	f.calls++
+	f.lastNode = node
+	f.lastReq = req
+	return f.res, f.err
+}
+
+func TestCheckerUsesSelectedRuntimeEngineForServiceCheck(t *testing.T) {
+	r, err := repo.Open(":memory:")
+	if err != nil {
+		t.Fatalf("open repo: %v", err)
+	}
+	defer r.Close()
+
+	if err := r.DB().Exec(`
+		INSERT INTO node(id, name, secret, server_ip, server_ip_v4, server_ip_v6, port, interface_name, version, http, tls, socks, created_time, updated_time, status, tcp_listen_addr, udp_listen_addr, inx, is_remote)
+		VALUES(7, 'node-a', 'secret-a', '10.0.0.7', '10.0.0.7', '', '2000-2010', '', 'v1', 1, 1, 1, 1, 1, 1, '[::]', '[::]', 0, 0)
+	`).Error; err != nil {
+		t.Fatalf("insert node: %v", err)
+	}
+
+	commander := &fakeCommander{}
+	runtimeClient := &fakeRuntimeClient{res: backendruntime.ServiceCheckResult{Success: true, LatencyMs: 42, StatusCode: 204}}
+	checker := NewChecker(r, commander, func() backendruntime.RuntimeClient { return runtimeClient })
+	limits := checker.loadServiceMonitorLimits()
+	now := time.Now().UnixMilli()
+	monitor := &model.ServiceMonitor{
+		ID:         11,
+		Type:       "tcp",
+		Target:     "example.com:443",
+		TimeoutSec: 5,
+		NodeID:     7,
+	}
+
+	result := checker.executeCheck(monitor, now, limits)
+
+	if runtimeClient.calls != 1 {
+		t.Fatalf("expected runtime client to be called once, got %d", runtimeClient.calls)
+	}
+	if commander.calls != 0 {
+		t.Fatalf("expected websocket commander to be bypassed, got %d calls", commander.calls)
+	}
+	if runtimeClient.lastNode.ID != 7 {
+		t.Fatalf("expected node id 7, got %d", runtimeClient.lastNode.ID)
+	}
+	if runtimeClient.lastReq.MonitorID != 11 || runtimeClient.lastReq.Type != "tcp" || runtimeClient.lastReq.Target != "example.com:443" || runtimeClient.lastReq.TimeoutSec != 5 {
+		t.Fatalf("unexpected runtime check request: %+v", runtimeClient.lastReq)
+	}
+	if result.Success != 1 || result.LatencyMs != 42 || result.StatusCode != 204 {
+		t.Fatalf("unexpected runtime check result: %+v", result)
+	}
 }
 
 func TestTCPHealthCheckViaMonitor(t *testing.T) {

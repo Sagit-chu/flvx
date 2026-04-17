@@ -267,9 +267,10 @@ export default function LimitPage() {
             aria-label="限速规则列表"
             className="overflow-x-auto min-w-full"
             classNames={{
-              th: "bg-default-100/50 text-default-600 font-semibold text-sm border-b border-divider py-3 uppercase tracking-wider",
+              wrapper: "bg-transparent p-0 shadow-none border-none overflow-hidden rounded-[24px]",
+              th: "bg-transparent text-default-600 font-semibold text-sm border-b border-white/20 dark:border-white/10 py-3 uppercase tracking-wider first:rounded-tl-[24px] last:rounded-tr-[24px]",
               td: "py-3 border-b border-divider/50 group-data-[last=true]:border-b-0",
-              tr: "hover:bg-default-50/50 transition-colors",
+              tr: "hover:bg-white/40 dark:hover:bg-white/10 transition-colors",
             }}
           >
             <TableHeader>
@@ -326,7 +327,7 @@ export default function LimitPage() {
         <StaggerList className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4">
           {filteredRules.map((rule) => (
             <StaggerItem key={rule.id}>
-              <Card className="shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden h-full">
+              <Card className="shadow-sm overflow-hidden h-full">
                 <CardHeader className="pb-2 md:pb-2">
                   <div className="flex justify-between items-start w-full">
                     <div>
@@ -412,7 +413,7 @@ export default function LimitPage() {
         )
       ) : (
         /* 空状态 */
-        <Card className="shadow-sm border border-gray-200 dark:border-gray-700 bg-default-50/50">
+        <Card className="shadow-sm bg-default-50/50">
           <CardBody className="text-center py-20 flex flex-col items-center justify-center min-h-[240px]">
             <h3 className="text-xl font-medium text-foreground tracking-tight mb-2">
               暂无限速规则
@@ -432,7 +433,7 @@ export default function LimitPage() {
         }}
         isOpen={modalOpen}
         placement="center"
-        scrollBehavior="outside"
+        scrollBehavior="inside"
         size="2xl"
         onOpenChange={setModalOpen}
       >
@@ -510,7 +511,7 @@ export default function LimitPage() {
         }}
         isOpen={deleteModalOpen}
         placement="center"
-        scrollBehavior="outside"
+        scrollBehavior="inside"
         size="2xl"
         onOpenChange={setDeleteModalOpen}
       >

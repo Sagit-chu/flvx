@@ -5,12 +5,6 @@ import { AnimatePresence, motion } from "framer-motion";
 
 import { Button } from "@/shadcn-bridge/heroui/button";
 import {
-  Dropdown,
-  DropdownTrigger,
-  DropdownMenu,
-  DropdownItem,
-} from "@/shadcn-bridge/heroui/dropdown";
-import {
   Modal,
   ModalContent,
   ModalHeader,
@@ -25,7 +19,7 @@ import { getMonitorAccess, updatePassword } from "@/api";
 import { safeLogout } from "@/utils/logout";
 import { siteConfig } from "@/config/site";
 import { useMobileBreakpoint } from "@/hooks/useMobileBreakpoint";
-import { getAdminFlag, getSessionName } from "@/utils/session";
+import { getAdminFlag } from "@/utils/session";
 
 interface MenuItem {
   path: string;
@@ -48,14 +42,12 @@ export default function AdminLayout({
 }) {
   const navigate = useNavigate();
   const location = useLocation();
-  const { isOpen, onOpen, onOpenChange } = useDisclosure();
-
+  const { isOpen, onOpenChange } = useDisclosure();
   const [mobileMenuVisible, setMobileMenuVisible] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(
     () => localStorage.getItem("sidebar_collapsed") === "true",
   );
-  const [username, setUsername] = useState("");
-  const [isAdmin, setIsAdmin] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(() => getAdminFlag());
   const [monitorAllowed, setMonitorAllowed] = useState<boolean | null>(null);
   const [monitorAccessReason, setMonitorAccessReason] = useState<string | null>(
     null,
@@ -196,10 +188,8 @@ export default function AdminLayout({
 
   useEffect(() => {
     // 获取用户信息
-    const name = getSessionName() || "Admin";
     const adminFlag = getAdminFlag();
 
-    setUsername(name);
     setIsAdmin(adminFlag);
 
     // Monitor permission is not strictly role-based; non-admin users may be
@@ -368,13 +358,13 @@ export default function AdminLayout({
 
   return (
     <div
-      className={`flex ${isMobile ? "min-h-screen" : "h-screen"} bg-gray-100 dark:bg-black`}
+      className={`flex ${isMobile ? "min-h-screen p-0" : "h-screen p-6 gap-6"} bg-mesh-gradient overflow-hidden`}
     >
       {/* 移动端遮罩层 */}
       {isMobile && mobileMenuVisible && (
         <button
           aria-label="关闭菜单"
-          className="fixed inset-0 backdrop-blur-sm bg-white/50 dark:bg-black/30 z-40"
+          className="fixed inset-0 bg-black/30 backdrop-blur-sm z-40"
           type="button"
           onClick={hideMobileMenu}
         />
@@ -383,36 +373,33 @@ export default function AdminLayout({
       {/* 左侧菜单栏 */}
       <aside
         className={`
-        ${isMobile ? "fixed" : "relative"} 
+        ${isMobile ? "fixed h-screen top-0 left-0 rounded-r-3xl" : "relative h-full rounded-3xl"}
         ${isMobile && !mobileMenuVisible ? "-translate-x-full" : "translate-x-0"}
-        ${isMobile ? "w-64" : isCollapsed ? "w-20" : "w-72"} 
-        bg-white dark:bg-black 
-        shadow-lg 
-        border-r border-gray-200 dark:border-gray-600
-        z-50 
+        ${isMobile ? "w-64" : isCollapsed ? "w-20" : "w-[260px]"}
+        bg-white/20 dark:bg-zinc-900/20 backdrop-blur-3xl
+        shadow-[0_10px_30px_rgba(0,0,0,0.1)]
+        border border-white/80 dark:border-white/10
+        z-50
         transition-all duration-300 ease-in-out
-        flex flex-col
-        ${isMobile ? "h-screen" : "h-full"}
-        ${isMobile ? "top-0 left-0" : ""}
-      `}
+        flex flex-col flex-shrink-0      `}
       >
         {/* Logo 区域 */}
-        <div className="px-5 h-14 flex items-center overflow-hidden whitespace-nowrap box-border">
-          <div className="flex-shrink-0 flex items-center justify-center w-10">
-            <BrandLogo size={28} />
+        <div className="px-6 py-8 flex items-center overflow-hidden whitespace-nowrap box-border">
+          <div className="flex-shrink-0 flex items-center justify-center w-10 h-10 rounded-xl bg-primary text-white">
+            <BrandLogo size={24} />
           </div>
           <div
-            className={`transition-all duration-300 overflow-hidden ${isCollapsed ? "max-w-0 opacity-0 ml-0" : "max-w-[180px] opacity-100 ml-2"}`}
+            className={`transition-all duration-300 overflow-hidden ${isCollapsed ? "max-w-0 opacity-0 ml-0" : "max-w-[180px] opacity-100 ml-3"}`}
           >
-            <h1 className="text-sm font-bold text-foreground overflow-hidden whitespace-nowrap text-ellipsis">
+            <h1 className="text-xl font-bold text-foreground overflow-hidden whitespace-nowrap text-ellipsis">
               {siteConfig.name}
             </h1>
           </div>
         </div>
 
         {/* 菜单导航 */}
-        <nav className="flex-1 px-3 py-6 overflow-y-auto overflow-x-hidden">
-          <ul className="space-y-1">
+        <nav className="flex-1 px-4 overflow-y-auto overflow-x-hidden [scrollbar-width:none]">
+          <ul className="space-y-2">
             {filteredMenuItems.map((item) => {
               const isActive = location.pathname === item.path;
               const isMonitor = item.path === "/monitor";
@@ -422,15 +409,15 @@ export default function AdminLayout({
                 <li key={item.path}>
                   <motion.button
                     className={`
-                       w-full flex items-center p-2 rounded-lg text-left
-                       relative min-h-[44px] overflow-hidden transition-colors
+                       w-full flex items-center p-3 rounded-2xl text-left
+                       relative min-h-[48px] overflow-hidden transition-colors
                        ${isMonitorBlocked ? "opacity-60" : ""}
                        ${
                          isActive
-                           ? "text-primary-600 dark:text-primary-300"
+                           ? "text-primary dark:text-primary-400 font-semibold"
                             : isMonitorBlocked
-                              ? "text-gray-500 dark:text-gray-400"
-                              : "text-gray-700 dark:text-gray-200"
+                              ? "text-gray-500 dark:text-gray-400 font-medium"
+                              : "text-gray-600 dark:text-gray-300 font-medium"
                        }
                      `}
                     aria-disabled={isMonitorBlocked}
@@ -446,7 +433,7 @@ export default function AdminLayout({
                   >
                     {isActive && (
                       <motion.div
-                        className="absolute inset-0 rounded-lg bg-primary-100 dark:bg-primary-600/20"
+                        className="absolute inset-0 rounded-2xl bg-white/60 dark:bg-white/10 backdrop-blur-xl shadow-[0_12px_36px_rgba(0,0,0,0.18)] border border-white dark:border-white/20"
                         layoutId="sidebar-active"
                         transition={{
                           type: "spring",
@@ -457,18 +444,18 @@ export default function AdminLayout({
                     )}
                     {!isActive && (
                       <motion.div
-                        className="absolute inset-0 rounded-lg bg-gray-100 dark:bg-gray-900 opacity-0"
+                        className="absolute inset-0 rounded-2xl bg-white/40 dark:bg-white/5 opacity-0"
                         transition={{ duration: 0.15 }}
                         whileHover={{ opacity: 1 }}
                       />
                     )}
-                    <div className="flex-shrink-0 w-10 h-10 flex items-center justify-center relative z-10">
+                    <div className="flex-shrink-0 w-6 h-6 flex items-center justify-center relative z-10">
                       {item.icon}
                     </div>
                     <div
-                      className={`transition-all duration-300 overflow-hidden flex items-center ${isCollapsed ? "max-w-0 opacity-0 ml-0" : "max-w-[200px] opacity-100 ml-2"}`}
+                      className={`transition-all duration-300 overflow-hidden flex items-center ${isCollapsed ? "max-w-0 opacity-0 ml-0" : "max-w-[200px] opacity-100 ml-3"}`}
                     >
-                      <span className="font-medium text-sm relative z-10 whitespace-nowrap">
+                      <span className="relative z-10 whitespace-nowrap">
                         {item.label}
                       </span>
                     </div>
@@ -480,7 +467,7 @@ export default function AdminLayout({
         </nav>
 
         {/* 底部版权信息和折叠按钮 */}
-        <div className="px-5 py-2 pb-4 mt-auto flex-shrink-0 flex items-center justify-between overflow-hidden whitespace-nowrap box-border">
+        <div className="px-5 py-6 mt-auto flex-shrink-0 flex flex-col gap-4 overflow-hidden whitespace-nowrap box-border">
           <div
             className={`transition-all duration-300 overflow-hidden flex items-center ${isCollapsed ? "max-w-0 opacity-0" : "max-w-[200px] opacity-100"}`}
           >
@@ -496,13 +483,12 @@ export default function AdminLayout({
           {!isMobile && (
             <Button
               isIconOnly
-              className="flex-shrink-0 text-gray-400 hover:text-gray-700 dark:text-gray-500 dark:hover:text-gray-300 min-w-0 w-10 h-10 rounded-full ml-auto"
+              className="flex-shrink-0 text-gray-400 hover:text-gray-700 dark:text-gray-500 dark:hover:text-gray-300 min-w-0 w-10 h-10 rounded-full mx-auto"
               size="sm"
               variant="light"
               onPress={toggleCollapse}
             >
               {isCollapsed ? (
-                // 向右扩展的提示
                 <svg
                   className="w-5 h-5"
                   fill="none"
@@ -517,7 +503,6 @@ export default function AdminLayout({
                   />
                 </svg>
               ) : (
-                // 向左收起的提示
                 <svg
                   className="w-5 h-5"
                   fill="none"
@@ -539,106 +524,34 @@ export default function AdminLayout({
 
       {/* 主内容区域 */}
       <div
-        className={`flex flex-col flex-1 ${isMobile ? "min-h-0" : "h-full overflow-hidden"}`}
+        className={`flex flex-col flex-1 ${isMobile ? "min-h-0" : "h-full overflow-hidden"} relative`}
       >
-        {/* 顶部导航栏 */}
-        <header className="bg-white dark:bg-black shadow-md border-b border-gray-200 dark:border-gray-600 h-14 flex items-center justify-between px-4 lg:px-6 relative z-10">
-          <div className="flex items-center gap-4">
-            {/* 移动端菜单按钮 */}
-            {isMobile && (
-              <Button
-                isIconOnly
-                className="lg:hidden"
-                variant="light"
-                onPress={toggleMobileMenu}
-              >
-                <svg
-                  className="w-6 h-6"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    d="M4 6h16M4 12h16M4 18h16"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                  />
-                </svg>
-              </Button>
-            )}
-          </div>
-
-          <div className="flex items-center gap-3">
-            {/* 用户菜单 */}
-            <Dropdown placement="bottom-end">
-              <DropdownTrigger>
-                <Button
-                  className="text-sm font-medium text-foreground"
-                  variant="light"
-                >
-                  {username}
-                  <svg
-                    className="w-4 h-4 ml-1"
-                    fill="currentColor"
-                    viewBox="0 0 20 20"
-                  >
-                    <path
-                      clipRule="evenodd"
-                      d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
-                      fillRule="evenodd"
-                    />
-                  </svg>
-                </Button>
-              </DropdownTrigger>
-              <DropdownMenu aria-label="用户菜单">
-                <DropdownItem
-                  key="change-password"
-                  startContent={
-                    <svg
-                      className="w-4 h-4"
-                      fill="currentColor"
-                      viewBox="0 0 20 20"
-                    >
-                      <path
-                        clipRule="evenodd"
-                        d="M18 8a6 6 0 01-7.743 5.743L10 14l-1 1-1 1H6v2H2v-4l4.257-4.257A6 6 0 1118 8zm-6-4a1 1 0 100 2 2 2 0 012 2 1 1 0 102 0 4 4 0 00-4-4z"
-                        fillRule="evenodd"
-                      />
-                    </svg>
-                  }
-                  onPress={onOpen}
-                >
-                  修改密码
-                </DropdownItem>
-                <DropdownItem
-                  key="logout"
-                  className="text-danger"
-                  color="danger"
-                  startContent={
-                    <svg
-                      className="w-4 h-4"
-                      fill="currentColor"
-                      viewBox="0 0 20 20"
-                    >
-                      <path
-                        clipRule="evenodd"
-                        d="M3 3a1 1 0 00-1 1v12a1 1 0 102 0V4a1 1 0 00-1-1zm10.293 9.293a1 1 0 001.414 1.414l3-3a1 1 0 000-1.414l-3-3a1 1 0 10-1.414 1.414L14.586 9H7a1 1 0 100 2h7.586l-1.293 1.293z"
-                        fillRule="evenodd"
-                      />
-                    </svg>
-                  }
-                  onPress={handleLogout}
-                >
-                  退出登录
-                </DropdownItem>
-              </DropdownMenu>
-            </Dropdown>
-          </div>
-        </header>
+        {/* 移动端菜单按钮 (替代Header) */}
+        {isMobile && (
+          <Button
+            isIconOnly
+            className="absolute top-4 left-4 z-40 bg-white/20 dark:bg-zinc-900/20 backdrop-blur-md shadow-sm border border-white/80 dark:border-white/10"
+            variant="flat"
+            onPress={toggleMobileMenu}
+          >
+            <svg
+              className="w-5 h-5 text-foreground"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                d="M4 6h16M4 12h16M4 18h16"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+              />
+            </svg>
+          </Button>
+        )}
 
         {/* 主内容 */}
-        <main className="flex-1 bg-gray-100 dark:bg-black overflow-y-auto">
+        <main className="flex-1 overflow-y-auto [scrollbar-width:none]">
           <AnimatePresence mode="wait">
             <motion.div
               key={location.pathname}
@@ -662,7 +575,7 @@ export default function AdminLayout({
         }}
         isOpen={isOpen}
         placement="center"
-        scrollBehavior="outside"
+        scrollBehavior="inside"
         size="2xl"
         onOpenChange={() => {
           onOpenChange();

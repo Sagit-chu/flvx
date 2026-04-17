@@ -9,6 +9,7 @@ import (
 
 	"go-backend/internal/config"
 	httpserver "go-backend/internal/http"
+	"go-backend/internal/http/client"
 	"go-backend/internal/http/handler"
 	"go-backend/internal/store/repo"
 )
@@ -41,7 +42,15 @@ func New(cfg config.Config) (*App, error) {
 		return nil, fmt.Errorf("unsupported DB_TYPE %q", cfg.DBType)
 	}
 
-	h := handler.New(r, cfg.JWTSecret)
+	var dashRuntime *client.DashRuntimeClient
+	if cfg.DashRuntimeEnabled {
+		dashRuntime = client.NewDashRuntimeClient(client.DashRuntimeClientConfig{
+			Scheme:  cfg.DashNodeAPIScheme,
+			Port:    cfg.DashNodeAPIPort,
+			Timeout: time.Duration(cfg.DashRequestTimeoutSec) * time.Second,
+		})
+	}
+	h := handler.NewWithOptions(r, cfg.JWTSecret, dashRuntime, cfg.DashRuntimeEnabled)
 	router := httpserver.NewRouter(h, cfg.JWTSecret)
 
 	s := &http.Server{

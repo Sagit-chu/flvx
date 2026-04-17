@@ -1,0 +1,6 @@
+{
+  "repo": "Sagit-chu/Dash",
+  "ref": "main",
+  "binary_name": "dash",
+  "targets": ["linux/amd64", "linux/arm64"]
+}
