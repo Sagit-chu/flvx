@@ -6,8 +6,13 @@ import (
 	"strings"
 	"testing"
 
+	"go-backend/internal/http/handler"
 	"go-backend/internal/store/repo"
 )
+
+func init() {
+	handler.DisableSafeRemoteAddrCheckForTesting = true
+}
 
 func mustLastInsertID(t *testing.T, r *repo.Repository, label string) int64 {
 	t.Helper()

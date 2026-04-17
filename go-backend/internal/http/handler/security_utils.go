@@ -6,9 +6,16 @@ import (
 	"strings"
 )
 
+// DisableSafeRemoteAddrCheckForTesting allows bypassing the safety check during integration tests.
+var DisableSafeRemoteAddrCheckForTesting = false
+
 // IsSafeRemoteAddr checks if a given address is safe to connect to (prevents SSRF/Open Proxy).
 // It resolves domains to IPs to prevent DNS rebinding attacks pointing to internal networks.
 func IsSafeRemoteAddr(addr string) error {
+	if DisableSafeRemoteAddrCheckForTesting {
+		return nil
+	}
+
 	host, _, err := net.SplitHostPort(addr)
 	if err != nil {
 		// If there is no port, try to treat the whole string as host

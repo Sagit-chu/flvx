@@ -350,7 +350,8 @@ func (h *Handler) getConfigByName(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	switch req.Name {
+	configName := strings.ToLower(strings.TrimSpace(req.Name))
+	switch configName {
 	case "license_key", "cloudflare_secret_key", "jwt_secret":
 		response.WriteJSON(w, response.Err(403, "禁止访问敏感配置"))
 		return
