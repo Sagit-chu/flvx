@@ -301,6 +301,10 @@ func (h *Handler) nodeCreate(w http.ResponseWriter, r *http.Request) {
 		response.WriteJSON(w, response.ErrDefault("节点名称和地址不能为空"))
 		return
 	}
+	if err := IsValidNodeAddress(serverIP); err != nil {
+		response.WriteJSON(w, response.ErrDefault(err.Error()))
+		return
+	}
 
 	now := time.Now().UnixMilli()
 	inx := h.repo.NextIndex("node")
@@ -365,6 +369,15 @@ func (h *Handler) nodeUpdate(w http.ResponseWriter, r *http.Request) {
 	newHTTP := asInt(req["http"], currentHTTP)
 	newTLS := asInt(req["tls"], currentTLS)
 	newSocks := asInt(req["socks"], currentSocks)
+	
+	serverIP := asString(req["serverIp"])
+	if serverIP != "" {
+		if err := IsValidNodeAddress(serverIP); err != nil {
+			response.WriteJSON(w, response.ErrDefault(err.Error()))
+			return
+		}
+	}
+
 	if currentStatus == 1 && (newHTTP != currentHTTP || newTLS != currentTLS || newSocks != currentSocks) {
 		if err := h.applyNodeProtocolChange(id, newHTTP, newTLS, newSocks); err != nil {
 			response.WriteJSON(w, response.ErrDefault(err.Error()))
@@ -375,7 +388,7 @@ func (h *Handler) nodeUpdate(w http.ResponseWriter, r *http.Request) {
 	now := time.Now().UnixMilli()
 	if err := h.repo.UpdateNode(id,
 		asString(req["name"]),
-		asString(req["serverIp"]),
+		serverIP,
 		nullableText(asString(req["serverIpV4"])),
 		nullableText(asString(req["serverIpV6"])),
 		defaultString(asString(req["port"]), "1000-65535"),
@@ -1680,6 +1693,10 @@ func (h *Handler) forwardCreate(w http.ResponseWriter, r *http.Request) {
 			response.WriteJSON(w, response.Err(-1, "普通用户无法设置限速规则"))
 			return
 		}
+		if err := IsSafeRemoteAddr(remoteAddr); err != nil {
+			response.WriteJSON(w, response.Err(403, "禁止将目标地址设置为内部网络或保留地址"))
+			return
+		}
 	}
 	speedID := asAnyToInt64Ptr(req["speedId"])
 	speedID, err = h.normalizeSpeedLimitReference(speedID)
@@ -1794,6 +1811,12 @@ func (h *Handler) forwardUpdate(w http.ResponseWriter, r *http.Request) {
 	remoteAddr := strings.TrimSpace(asString(req["remoteAddr"]))
 	if remoteAddr == "" {
 		remoteAddr = forward.RemoteAddr
+	}
+	if actorRole != 0 {
+		if err := IsSafeRemoteAddr(remoteAddr); err != nil {
+			response.WriteJSON(w, response.Err(403, "禁止将目标地址设置为内部网络或保留地址"))
+			return
+		}
 	}
 	strategy := strings.TrimSpace(asString(req["strategy"]))
 	if strategy == "" {

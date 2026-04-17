@@ -350,6 +350,12 @@ func (h *Handler) getConfigByName(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	switch req.Name {
+	case "license_key", "cloudflare_secret_key", "jwt_secret":
+		response.WriteJSON(w, response.Err(403, "禁止访问敏感配置"))
+		return
+	}
+
 	cfg, err := h.repo.GetConfigByName(req.Name)
 	if err != nil {
 		response.WriteJSON(w, response.Err(-2, err.Error()))
@@ -374,6 +380,15 @@ func (h *Handler) getConfigs(w http.ResponseWriter, r *http.Request) {
 		response.WriteJSON(w, response.Err(-2, err.Error()))
 		return
 	}
+
+	// Filter sensitive config keys if the user is not an admin
+	ctxClaims := r.Context().Value(middleware.ClaimsContextKey)
+	if claims, ok := ctxClaims.(auth.Claims); !ok || claims.RoleID != 0 {
+		delete(cfgMap, "license_key")
+		delete(cfgMap, "cloudflare_secret_key")
+		delete(cfgMap, "jwt_secret")
+	}
+
 	response.WriteJSON(w, response.OK(cfgMap))
 }
 
