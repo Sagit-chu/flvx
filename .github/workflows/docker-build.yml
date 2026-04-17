@@ -161,8 +161,7 @@ jobs:
           path: ./dash
 
       - name: Install cross
-        run: |
-          curl -L https://github.com/cross-rs/cross/releases/download/v0.2.5/cross-x86_64-unknown-linux-musl.tar.gz | sudo tar xz -C /usr/local/bin
+        run: cargo install cross --git https://github.com/cross-rs/cross
 
       - name: Build DASH binary (AMD64)
         working-directory: ./dash
