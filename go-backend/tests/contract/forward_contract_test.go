@@ -1102,7 +1102,7 @@ func TestNonAdminCannotSetSpeedIdOrPort(t *testing.T) {
 	if err := repo.DB().Exec(`
 		INSERT INTO tunnel(name, traffic_ratio, type, protocol, flow, created_time, updated_time, status, in_ip, inx)
 		VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-	`, "perm-tunnel", 1.0, 1, "tls", 99999, now, now, 1, nil, 0).Error; err != nil {
+	`, "perm-tunnel", 1.0, 2, "tls", 99999, now, now, 1, nil, 0).Error; err != nil {
 		t.Fatalf("insert tunnel: %v", err)
 	}
 	tunnelID := mustLastInsertID(t, repo, "perm-tunnel")

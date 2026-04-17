@@ -1727,6 +1727,10 @@ func (h *Handler) forwardCreate(w http.ResponseWriter, r *http.Request) {
 		response.WriteJSON(w, response.ErrDefault("隧道已禁用，无法创建转发"))
 		return
 	}
+	if roleID != 0 && tunnel.Type == 1 {
+		response.WriteJSON(w, response.Err(403, "普通用户禁止在端口转发隧道上创建规则，以防滥用服务器网络"))
+		return
+	}
 	if err := h.ensureUserTunnelForwardAllowed(userID, tunnelID, time.Now().UnixMilli()); err != nil {
 		response.WriteJSON(w, response.ErrDefault(err.Error()))
 		return
@@ -1740,10 +1744,6 @@ func (h *Handler) forwardCreate(w http.ResponseWriter, r *http.Request) {
 	if roleID != 0 {
 		if speedIDVal, ok := req["speedId"]; ok && speedIDVal != nil {
 			response.WriteJSON(w, response.Err(-1, "普通用户无法设置限速规则"))
-			return
-		}
-		if err := IsSafeRemoteAddr(remoteAddr); err != nil {
-			response.WriteJSON(w, response.Err(403, "禁止将目标地址设置为内部网络或保留地址"))
 			return
 		}
 	}
@@ -1855,6 +1855,10 @@ func (h *Handler) forwardUpdate(w http.ResponseWriter, r *http.Request) {
 		response.WriteJSON(w, response.ErrDefault("隧道已禁用，无法更新转发"))
 		return
 	}
+	if actorRole != 0 && tunnel.Type == 1 {
+		response.WriteJSON(w, response.Err(403, "普通用户禁止在端口转发隧道上更新规则，以防滥用服务器网络"))
+		return
+	}
 
 	name := strings.TrimSpace(asString(req["name"]))
 	if name == "" {
@@ -1863,12 +1867,6 @@ func (h *Handler) forwardUpdate(w http.ResponseWriter, r *http.Request) {
 	remoteAddr := strings.TrimSpace(asString(req["remoteAddr"]))
 	if remoteAddr == "" {
 		remoteAddr = forward.RemoteAddr
-	}
-	if actorRole != 0 {
-		if err := IsSafeRemoteAddr(remoteAddr); err != nil {
-			response.WriteJSON(w, response.Err(403, "禁止将目标地址设置为内部网络或保留地址"))
-			return
-		}
 	}
 	strategy := strings.TrimSpace(asString(req["strategy"]))
 	if strategy == "" {

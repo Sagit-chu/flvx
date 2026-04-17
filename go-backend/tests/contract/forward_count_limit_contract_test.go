@@ -30,7 +30,7 @@ func TestForwardCreateBlockedWhenUserNumLimitExceeded(t *testing.T) {
 
 	if err := repo.DB().Exec(`
 		INSERT INTO tunnel(id, name, traffic_ratio, type, protocol, flow, created_time, updated_time, status, in_ip, inx)
-		VALUES(?, 'num_limit_tunnel', 1.0, 1, 'tls', 99999, ?, ?, 1, NULL, 0)
+		VALUES(?, 'num_limit_tunnel', 1.0, 2, 'tls', 99999, ?, ?, 1, NULL, 0)
 	`, tunnelID, now, now).Error; err != nil {
 		t.Fatalf("insert tunnel: %v", err)
 	}
@@ -99,7 +99,7 @@ func TestForwardResumeBlockedWhenUserNumLimitExceeded(t *testing.T) {
 
 	if err := repo.DB().Exec(`
 		INSERT INTO tunnel(id, name, traffic_ratio, type, protocol, flow, created_time, updated_time, status, in_ip, inx)
-		VALUES(?, 'num_resume_tunnel', 1.0, 1, 'tls', 99999, ?, ?, 1, NULL, 0)
+		VALUES(?, 'num_resume_tunnel', 1.0, 2, 'tls', 99999, ?, ?, 1, NULL, 0)
 	`, tunnelID, now, now).Error; err != nil {
 		t.Fatalf("insert tunnel: %v", err)
 	}
@@ -178,7 +178,7 @@ func TestForwardCreateBlockedWhenUserTunnelNumLimitExceeded(t *testing.T) {
 
 	if err := repo.DB().Exec(`
 		INSERT INTO tunnel(id, name, traffic_ratio, type, protocol, flow, created_time, updated_time, status, in_ip, inx)
-		VALUES(?, 'ut_num_limit_tunnel', 1.0, 1, 'tls', 99999, ?, ?, 1, NULL, 0)
+		VALUES(?, 'ut_num_limit_tunnel', 1.0, 2, 'tls', 99999, ?, ?, 1, NULL, 0)
 	`, tunnelID, now, now).Error; err != nil {
 		t.Fatalf("insert tunnel: %v", err)
 	}
@@ -239,7 +239,7 @@ func TestForwardCreateAllowedWhenBelowUserNumLimit(t *testing.T) {
 
 	if err := repo.DB().Exec(`
 		INSERT INTO tunnel(id, name, traffic_ratio, type, protocol, flow, created_time, updated_time, status, in_ip, inx)
-		VALUES(?, 'num_ok_tunnel', 1.0, 1, 'tls', 99999, ?, ?, 1, NULL, 0)
+		VALUES(?, 'num_ok_tunnel', 1.0, 2, 'tls', 99999, ?, ?, 1, NULL, 0)
 	`, tunnelID, now, now).Error; err != nil {
 		t.Fatalf("insert tunnel: %v", err)
 	}
@@ -312,7 +312,7 @@ func TestForwardCreateAllowedWhenNumZero(t *testing.T) {
 
 	if err := repo.DB().Exec(`
 		INSERT INTO tunnel(id, name, traffic_ratio, type, protocol, flow, created_time, updated_time, status, in_ip, inx)
-		VALUES(?, 'num_zero_tunnel', 1.0, 1, 'tls', 99999, ?, ?, 1, NULL, 0)
+		VALUES(?, 'num_zero_tunnel', 1.0, 2, 'tls', 99999, ?, ?, 1, NULL, 0)
 	`, tunnelID, now, now).Error; err != nil {
 		t.Fatalf("insert tunnel: %v", err)
 	}

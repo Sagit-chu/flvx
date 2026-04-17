@@ -36,7 +36,7 @@ func TestForwardResumeBlockedWhenUserFlowExceeded(t *testing.T) {
 
 	if err := repo.DB().Exec(`
 		INSERT INTO tunnel(id, name, traffic_ratio, type, protocol, flow, created_time, updated_time, status, in_ip, inx)
-		VALUES(?, 'flow_tunnel', 1.0, 1, 'tls', 99999, ?, ?, 1, NULL, 0)
+		VALUES(?, 'flow_tunnel', 1.0, 2, 'tls', 99999, ?, ?, 1, NULL, 0)
 	`, tunnelID, now, now).Error; err != nil {
 		t.Fatalf("insert tunnel: %v", err)
 	}
@@ -100,7 +100,7 @@ func TestForwardResumeBlockedWhenUserTunnelFlowExceeded(t *testing.T) {
 
 	if err := repo.DB().Exec(`
 		INSERT INTO tunnel(id, name, traffic_ratio, type, protocol, flow, created_time, updated_time, status, in_ip, inx)
-		VALUES(?, 'ut_flow_tunnel', 1.0, 1, 'tls', 99999, ?, ?, 1, NULL, 0)
+		VALUES(?, 'ut_flow_tunnel', 1.0, 2, 'tls', 99999, ?, ?, 1, NULL, 0)
 	`, tunnelID, now, now).Error; err != nil {
 		t.Fatalf("insert tunnel: %v", err)
 	}
@@ -164,7 +164,7 @@ func TestForwardCreateBlockedWhenFlowExceeded(t *testing.T) {
 
 	if err := repo.DB().Exec(`
 		INSERT INTO tunnel(id, name, traffic_ratio, type, protocol, flow, created_time, updated_time, status, in_ip, inx)
-		VALUES(?, 'create_flow_tunnel', 1.0, 1, 'tls', 99999, ?, ?, 1, NULL, 0)
+		VALUES(?, 'create_flow_tunnel', 1.0, 2, 'tls', 99999, ?, ?, 1, NULL, 0)
 	`, tunnelID, now, now).Error; err != nil {
 		t.Fatalf("insert tunnel: %v", err)
 	}

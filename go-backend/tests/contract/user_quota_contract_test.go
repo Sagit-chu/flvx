@@ -29,7 +29,7 @@ func TestForwardCreateBlockedWhenUserQuotaExceeded(t *testing.T) {
 	}
 	if err := repo.DB().Exec(`
 		INSERT INTO tunnel(id, name, traffic_ratio, type, protocol, flow, created_time, updated_time, status, in_ip, inx)
-		VALUES(1, 'quota_tunnel', 1.0, 1, 'tls', 1, ?, ?, 1, NULL, 0)
+		VALUES(1, 'quota_tunnel', 1.0, 2, 'tls', 1, ?, ?, 1, NULL, 0)
 	`, nowMs, nowMs).Error; err != nil {
 		t.Fatalf("insert tunnel: %v", err)
 	}

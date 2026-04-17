@@ -159,20 +159,23 @@ jobs:
           token: ${{ secrets.DASH_REPO_TOKEN || secrets.GITHUB_TOKEN }}
           path: ./dash
 
-      - name: Set up Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: '1.23'
+      - name: Install cross
+        run: |
+          curl -L https://github.com/cross-rs/cross/releases/download/v0.2.5/cross-x86_64-unknown-linux-musl.tar.gz | sudo tar xz -C /usr/local/bin
 
-      - name: Cache Go modules
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cache/go-build
-            ~/go/pkg/mod
-          key: ${{ runner.os }}-go-dash-${{ hashFiles('dash/go.sum') }}
-          restore-keys: |
-            ${{ runner.os }}-go-dash-
+      - name: Build DASH binary (AMD64)
+        working-directory: ./dash
+        run: cross build --target x86_64-unknown-linux-musl --release
+
+      - name: Build DASH binary (ARM64)
+        working-directory: ./dash
+        run: cross build --target aarch64-unknown-linux-musl --release
+
+      - name: Rename binaries
+        working-directory: ./dash
+        run: |
+          mv target/x86_64-unknown-linux-musl/release/dash dash-amd64
+          mv target/aarch64-unknown-linux-musl/release/dash dash-arm64
 
       - name: Install UPX
         run: |
@@ -180,14 +183,6 @@ jobs:
           tar -xf upx-4.2.1-amd64_linux.tar.xz
           sudo mv upx-4.2.1-amd64_linux/upx /usr/local/bin/
           rm -rf upx-4.2.1-amd64_linux*
-
-      - name: Build DASH binary (AMD64)
-        working-directory: ./dash
-        run: CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w -X main.version=${{ needs.check-version.outputs.version }}" -o dash-amd64
-
-      - name: Build DASH binary (ARM64)
-        working-directory: ./dash
-        run: CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -ldflags="-s -w -X main.version=${{ needs.check-version.outputs.version }}" -o dash-arm64
 
       - name: Compress with UPX
         working-directory: ./dash

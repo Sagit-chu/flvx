@@ -1193,6 +1193,7 @@ func (w *WebSocketReporter) handleUpgradeAgent(data interface{}) error {
 	}
 
 	var req struct {
+		Engine          string `json:"engine"`
 		DownloadURL     string `json:"downloadUrl"`
 		ChecksumURL     string `json:"checksumUrl"`
 		DashDownloadURL string `json:"dashDownloadUrl"`
@@ -1203,6 +1204,11 @@ func (w *WebSocketReporter) handleUpgradeAgent(data interface{}) error {
 	}
 	if strings.TrimSpace(req.DownloadURL) == "" {
 		return fmt.Errorf("下载地址不能为空")
+	}
+
+	engine := strings.ToLower(strings.TrimSpace(req.Engine))
+	if engine == "" {
+		engine = "gost" // 默认兼容老版本
 	}
 
 	// 替换架构占位符
@@ -1323,18 +1329,24 @@ func (w *WebSocketReporter) handleUpgradeAgent(data interface{}) error {
 		return nil
 	}
 
-	if err := downloadFile(downloadURL, checksumURL, tmpPath, backupPath, "gost"); err != nil {
-		return err
+	if engine == "dash" {
+		if err := downloadFile(dashDownloadURL, dashChecksumURL, dashTmpPath, dashBackupPath, "dash"); err != nil {
+			return err
+		}
+	} else {
+		if err := downloadFile(downloadURL, checksumURL, tmpPath, backupPath, "gost"); err != nil {
+			return err
+		}
 	}
-	_ = downloadFile(dashDownloadURL, dashChecksumURL, dashTmpPath, dashBackupPath, "dash")
 
 	w.sendUpgradeProgress("installing", 80, "准备重启...")
 
-	script := fmt.Sprintf("sleep 1 && systemctl stop flux_agent && mv %s %s", tmpPath, binaryPath)
-	if _, err := os.Stat(dashTmpPath); err == nil {
-		script += fmt.Sprintf(" && mv %s %s", dashTmpPath, dashBinaryPath)
+	var script string
+	if engine == "dash" {
+		script = fmt.Sprintf("sleep 1 && systemctl stop dash && mv %s %s && systemctl start dash", dashTmpPath, dashBinaryPath)
+	} else {
+		script = fmt.Sprintf("sleep 1 && systemctl stop flux_agent && mv %s %s && systemctl start flux_agent", tmpPath, binaryPath)
 	}
-	script += " && systemctl start flux_agent"
 
 	cmd := exec.Command("systemd-run", "--quiet", "/bin/sh", "-c", script)
 	if err := cmd.Start(); err != nil {

@@ -359,15 +359,44 @@ StandardError=null
 WantedBy=multi-user.target
 EOF
 
+  DASH_SERVICE_FILE="/etc/systemd/system/dash.service"
+  cat > "$DASH_SERVICE_FILE" <<EOF
+[Unit]
+Description=Dash Proxy Kernel
+After=network.target
+
+[Service]
+WorkingDirectory=$INSTALL_DIR
+ExecStart=$INSTALL_DIR/dash
+Restart=on-failure
+StandardOutput=null
+StandardError=null
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
   # 启动服务
   systemctl daemon-reload
   systemctl enable flux_agent
   systemctl start flux_agent
 
+  if [[ -f "$INSTALL_DIR/dash" && -s "$INSTALL_DIR/dash" ]]; then
+    systemctl enable dash
+    systemctl start dash
+  fi
+
   # 检查状态
   echo "🔄 检查服务状态..."
   if systemctl is-active --quiet flux_agent; then
     echo "✅ 安装完成，flux_agent服务已启动并设置为开机启动。"
+    if [[ -f "$INSTALL_DIR/dash" && -s "$INSTALL_DIR/dash" ]]; then
+      if systemctl is-active --quiet dash; then
+        echo "✅ dash 服务已启动并设置为开机启动。"
+      else
+        echo "⚠️ dash 服务启动失败，但这不影响 gost 内核的正常运行。"
+      fi
+    fi
     echo "📁 配置目录: $INSTALL_DIR"
     echo "🔧 服务状态: $(systemctl is-active flux_agent)"
   else
@@ -445,15 +474,22 @@ uninstall_flux_agent() {
 
   # 停止并禁用服务
   if systemctl list-units --full -all | grep -Fq "flux_agent.service"; then
-    echo "🛑 停止并禁用服务..."
+    echo "🛑 停止并禁用相关服务"
     systemctl stop flux_agent 2>/dev/null
     systemctl disable flux_agent 2>/dev/null
+    systemctl stop dash 2>/dev/null
+    systemctl disable dash 2>/dev/null
   fi
 
-  # 删除服务文件
   if [[ -f "/etc/systemd/system/flux_agent.service" ]]; then
     rm -f "/etc/systemd/system/flux_agent.service"
-    echo "🧹 删除服务文件"
+    echo "🧹 删除 flux_agent 服务文件"
+  fi
+
+  if [[ -f "/etc/systemd/system/dash.service" ]]; then
+    rm -f "/etc/systemd/system/dash.service"
+    echo "🧹 删除 dash 服务文件"
+  fi
   fi
 
   # 删除安装目录
