@@ -133,6 +133,11 @@ build_download_url() {
     echo "https://github.com/${REPO}/releases/download/${RESOLVED_VERSION}/gost-${ARCH}"
 }
 
+build_dash_download_url() {
+    local ARCH=$(get_architecture)
+    echo "https://github.com/${REPO}/releases/download/${RESOLVED_VERSION}/dash-${ARCH}"
+}
+
 ensure_download_url_initialized() {
   if [[ -n "${DOWNLOAD_URL:-}" ]]; then
     return 0
@@ -140,6 +145,7 @@ ensure_download_url_initialized() {
 
   RESOLVED_VERSION=$(resolve_version) || return 1
   DOWNLOAD_URL=$(maybe_proxy_url "$(build_download_url)")
+  DASH_DOWNLOAD_URL=$(maybe_proxy_url "$(build_dash_download_url)")
 }
 
 
@@ -293,10 +299,19 @@ install_flux_agent() {
   echo "⬇️ 下载 flux_agent 中..."
   curl -L "$DOWNLOAD_URL" -o "$INSTALL_DIR/flux_agent"
   if [[ ! -f "$INSTALL_DIR/flux_agent" || ! -s "$INSTALL_DIR/flux_agent" ]]; then
-    echo "❌ 下载失败，请检查网络或下载链接。"
-    exit 1
+    echo "❌ 下载失败"
+    return 1
   fi
   chmod +x "$INSTALL_DIR/flux_agent"
+
+  # 下载 dash 内核
+  echo "⬇️ 下载 dash 内核中..."
+  curl -L "$DASH_DOWNLOAD_URL" -o "$INSTALL_DIR/dash"
+  if [[ ! -f "$INSTALL_DIR/dash" || ! -s "$INSTALL_DIR/dash" ]]; then
+    echo "⚠️ 下载 dash 失败，非致命错误"
+  else
+    chmod +x "$INSTALL_DIR/dash"
+  fi
   echo "✅ 下载完成"
 
   # 打印版本
@@ -380,21 +395,33 @@ update_flux_agent() {
   
   # 先下载新版本
   echo "⬇️ 下载最新版本..."
+  echo "⬇️ 下载新版本 flux_agent 中..."
   curl -L "$DOWNLOAD_URL" -o "$INSTALL_DIR/flux_agent.new"
   if [[ ! -f "$INSTALL_DIR/flux_agent.new" || ! -s "$INSTALL_DIR/flux_agent.new" ]]; then
-    echo "❌ 下载失败。"
+    echo "❌ 下载 flux_agent 失败"
     return 1
   fi
 
-  # 停止服务
+  echo "⬇️ 下载新版本 dash 内核中..."
+  curl -L "$DASH_DOWNLOAD_URL" -o "$INSTALL_DIR/dash.new"
+  if [[ ! -f "$INSTALL_DIR/dash.new" || ! -s "$INSTALL_DIR/dash.new" ]]; then
+    echo "⚠️ 下载 dash 失败，跳过更新 dash 内核"
+    rm -f "$INSTALL_DIR/dash.new"
+  fi
+
   if systemctl list-units --full -all | grep -Fq "flux_agent.service"; then
     echo "🛑 停止 flux_agent 服务..."
     systemctl stop flux_agent
   fi
 
-  # 替换文件
+  echo "🔄 替换文件..."
   mv "$INSTALL_DIR/flux_agent.new" "$INSTALL_DIR/flux_agent"
   chmod +x "$INSTALL_DIR/flux_agent"
+
+  if [[ -f "$INSTALL_DIR/dash.new" ]]; then
+    mv "$INSTALL_DIR/dash.new" "$INSTALL_DIR/dash"
+    chmod +x "$INSTALL_DIR/dash"
+  fi
   
   # 打印版本
   echo "🔎 新版本：$($INSTALL_DIR/flux_agent -V)"

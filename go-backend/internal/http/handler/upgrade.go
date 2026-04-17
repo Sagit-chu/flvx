@@ -186,10 +186,14 @@ func (h *Handler) nodeUpgrade(w http.ResponseWriter, r *http.Request) {
 
 	downloadURL := h.buildGithubDownloadURL(version, "gost-{ARCH}")
 	checksumURL := h.buildGithubDownloadURL(version, "gost-{ARCH}.sha256")
+	dashDownloadURL := h.buildGithubDownloadURL(version, "dash-{ARCH}")
+	dashChecksumURL := h.buildGithubDownloadURL(version, "dash-{ARCH}.sha256")
 
 	result, err := h.wsServer.SendCommand(req.ID, "UpgradeAgent", map[string]interface{}{
-		"downloadUrl": downloadURL,
-		"checksumUrl": checksumURL,
+		"downloadUrl":     downloadURL,
+		"checksumUrl":     checksumURL,
+		"dashDownloadUrl": dashDownloadURL,
+		"dashChecksumUrl": dashChecksumURL,
 	}, upgradeTimeout)
 	if err != nil {
 		response.WriteJSON(w, response.Err(-2, fmt.Sprintf("升级失败: %v", err)))
@@ -244,6 +248,8 @@ func (h *Handler) nodeBatchUpgrade(w http.ResponseWriter, r *http.Request) {
 
 	downloadURL := h.buildGithubDownloadURL(version, "gost-{ARCH}")
 	checksumURL := h.buildGithubDownloadURL(version, "gost-{ARCH}.sha256")
+	dashDownloadURL := h.buildGithubDownloadURL(version, "dash-{ARCH}")
+	dashChecksumURL := h.buildGithubDownloadURL(version, "dash-{ARCH}.sha256")
 
 	type upgradeResult struct {
 		ID      int64  `json:"id"`
@@ -263,8 +269,10 @@ func (h *Handler) nodeBatchUpgrade(w http.ResponseWriter, r *http.Request) {
 			defer func() { <-sem }()
 
 			result, err := h.wsServer.SendCommand(nodeID, "UpgradeAgent", map[string]interface{}{
-				"downloadUrl": downloadURL,
-				"checksumUrl": checksumURL,
+				"downloadUrl":     downloadURL,
+				"checksumUrl":     checksumURL,
+				"dashDownloadUrl": dashDownloadURL,
+				"dashChecksumUrl": dashChecksumURL,
 			}, upgradeTimeout)
 			if err != nil {
 				results[index] = upgradeResult{ID: nodeID, Success: false, Message: err.Error()}

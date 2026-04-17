@@ -145,6 +145,86 @@ jobs:
           name: gost-checksum-arm64
           path: ./go-gost/gost-arm64.sha256
 
+  build-dash:
+    name: Build & Compress DASH Binary
+    needs: check-version
+    if: needs.check-version.outputs.should_build_gost == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout DASH repository
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.DASH_REPO }}
+          ref: ${{ env.DASH_REF }}
+          token: ${{ secrets.DASH_REPO_TOKEN || secrets.GITHUB_TOKEN }}
+          path: ./dash
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.23'
+
+      - name: Cache Go modules
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: ${{ runner.os }}-go-dash-${{ hashFiles('dash/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-dash-
+
+      - name: Install UPX
+        run: |
+          wget -q https://github.com/upx/upx/releases/download/v4.2.1/upx-4.2.1-amd64_linux.tar.xz
+          tar -xf upx-4.2.1-amd64_linux.tar.xz
+          sudo mv upx-4.2.1-amd64_linux/upx /usr/local/bin/
+          rm -rf upx-4.2.1-amd64_linux*
+
+      - name: Build DASH binary (AMD64)
+        working-directory: ./dash
+        run: CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w -X main.version=${{ needs.check-version.outputs.version }}" -o dash-amd64
+
+      - name: Build DASH binary (ARM64)
+        working-directory: ./dash
+        run: CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -ldflags="-s -w -X main.version=${{ needs.check-version.outputs.version }}" -o dash-arm64
+
+      - name: Compress with UPX
+        working-directory: ./dash
+        run: |
+          upx --best --lzma dash-amd64
+          upx --best --lzma dash-arm64
+
+      - name: Generate SHA256 checksums
+        working-directory: ./dash
+        run: |
+          sha256sum dash-amd64 > dash-amd64.sha256
+          sha256sum dash-arm64 > dash-arm64.sha256
+
+      - name: Upload DASH AMD64 artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: dash-binary-amd64
+          path: ./dash/dash-amd64
+
+      - name: Upload DASH ARM64 artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: dash-binary-arm64
+          path: ./dash/dash-arm64
+
+      - name: Upload DASH AMD64 checksum artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: dash-checksum-amd64
+          path: ./dash/dash-amd64.sha256
+
+      - name: Upload DASH ARM64 checksum artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: dash-checksum-arm64
+          path: ./dash/dash-arm64.sha256
+
   build-vite:
     name: Build & Push Vite Frontend
     needs: check-version
@@ -240,7 +320,7 @@ jobs:
 
   create-release:
     name: Create Release (Tag Only)
-    needs: [check-version, build-gost, build-vite, build-go-backend]
+    needs: [check-version, build-gost, build-dash, build-vite, build-go-backend]
     if: needs.check-version.outputs.is_tag == 'true'
     runs-on: ubuntu-latest
     permissions:
@@ -272,6 +352,30 @@ jobs:
           name: gost-checksum-arm64
           path: ./artifacts/
 
+      - name: Download DASH AMD64 binary
+        uses: actions/download-artifact@v4
+        with:
+          name: dash-binary-amd64
+          path: ./artifacts/amd64
+
+      - name: Download DASH ARM64 binary
+        uses: actions/download-artifact@v4
+        with:
+          name: dash-binary-arm64
+          path: ./artifacts/arm64
+
+      - name: Download DASH AMD64 checksum
+        uses: actions/download-artifact@v4
+        with:
+          name: dash-checksum-amd64
+          path: ./artifacts/
+
+      - name: Download DASH ARM64 checksum
+        uses: actions/download-artifact@v4
+        with:
+          name: dash-checksum-arm64
+          path: ./artifacts/
+
       - name: Prepare release files
 
         run: |
@@ -282,6 +386,8 @@ jobs:
           # 移动二进制文件
           mv ./artifacts/amd64/gost-amd64 ./artifacts/gost-amd64
           mv ./artifacts/arm64/gost-arm64 ./artifacts/gost-arm64
+          mv ./artifacts/amd64/dash-amd64 ./artifacts/dash-amd64
+          mv ./artifacts/arm64/dash-arm64 ./artifacts/dash-arm64
 
           # 复制并修改 docker-compose 文件
           cp docker-compose-v4.yml ./artifacts/docker-compose-v4.yml
@@ -370,6 +476,14 @@ jobs:
           gh release upload "${VERSION}" ./artifacts/gost-amd64.sha256 --clobber
           gh release upload "${VERSION}" ./artifacts/gost-arm64.sha256 --clobber
 
+          echo "📤 上传 DASH 二进制文件..."
+          gh release upload "${VERSION}" ./artifacts/dash-amd64 --clobber
+          gh release upload "${VERSION}" ./artifacts/dash-arm64 --clobber
+
+          echo "📤 上传 DASH 校验文件..."
+          gh release upload "${VERSION}" ./artifacts/dash-amd64.sha256 --clobber
+          gh release upload "${VERSION}" ./artifacts/dash-arm64.sha256 --clobber
+
           echo "📤 上传安装脚本..."
           gh release upload "${VERSION}" ./artifacts/install.sh --clobber
           gh release upload "${VERSION}" ./artifacts/panel_install.sh --clobber
@@ -380,9 +494,9 @@ jobs:
 
           echo "✅ Release ${VERSION} 创建完成"
 
-  update-release-gost:
-    name: Update GOST Binaries in Release
-    needs: [check-version, build-gost]
+  update-release-binaries:
+    name: Update Binaries in Release
+    needs: [check-version, build-gost, build-dash]
     if: needs.check-version.outputs.is_tag == 'false' && needs.check-version.outputs.should_build == 'false' && needs.check-version.outputs.should_build_gost == 'true'
     runs-on: ubuntu-latest
     permissions:
@@ -414,24 +528,54 @@ jobs:
           name: gost-checksum-arm64
           path: ./artifacts/
 
+      - name: Download DASH AMD64 binary
+        uses: actions/download-artifact@v4
+        with:
+          name: dash-binary-amd64
+          path: ./artifacts/amd64
+
+      - name: Download DASH ARM64 binary
+        uses: actions/download-artifact@v4
+        with:
+          name: dash-binary-arm64
+          path: ./artifacts/arm64
+
+      - name: Download DASH AMD64 checksum
+        uses: actions/download-artifact@v4
+        with:
+          name: dash-checksum-amd64
+          path: ./artifacts/
+
+      - name: Download DASH ARM64 checksum
+        uses: actions/download-artifact@v4
+        with:
+          name: dash-checksum-arm64
+          path: ./artifacts/
+
       - name: Rename binaries
         run: |
           mv ./artifacts/amd64/gost-amd64 ./artifacts/gost-amd64
           mv ./artifacts/arm64/gost-arm64 ./artifacts/gost-arm64
+          mv ./artifacts/amd64/dash-amd64 ./artifacts/dash-amd64
+          mv ./artifacts/arm64/dash-arm64 ./artifacts/dash-arm64
 
-      - name: Update GOST binaries in Release
+      - name: Update binaries in Release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           VERSION="${{ needs.check-version.outputs.version }}"
 
-          echo "🔄 更新 Release ${VERSION} 中的 GOST 二进制文件..."
+          echo "🔄 更新 Release ${VERSION} 中的二进制文件..."
 
           gh release upload "${VERSION}" ./artifacts/gost-amd64 --clobber
           gh release upload "${VERSION}" ./artifacts/gost-arm64 --clobber
+          gh release upload "${VERSION}" ./artifacts/dash-amd64 --clobber
+          gh release upload "${VERSION}" ./artifacts/dash-arm64 --clobber
 
-          echo "📤 上传 GOST 校验文件..."
+          echo "📤 上传校验文件..."
           gh release upload "${VERSION}" ./artifacts/gost-amd64.sha256 --clobber
           gh release upload "${VERSION}" ./artifacts/gost-arm64.sha256 --clobber
+          gh release upload "${VERSION}" ./artifacts/dash-amd64.sha256 --clobber
+          gh release upload "${VERSION}" ./artifacts/dash-arm64.sha256 --clobber
 
-          echo "✅ GOST 二进制文件更新完成"
+          echo "✅ 二进制文件更新完成"
