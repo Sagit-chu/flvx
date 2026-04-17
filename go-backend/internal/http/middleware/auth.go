@@ -109,7 +109,7 @@ func requiresAdmin(path string) bool {
 		return true
 	}
 
-	if strings.HasPrefix(path, "/api/v1/federation/share/") {
+	if strings.HasPrefix(path, "/api/v1/federation/share/") || strings.HasPrefix(path, "/api/v1/federation/node/") {
 		return true
 	}
 
