@@ -454,7 +454,6 @@ uninstall_flux_agent() {
     rm -f "/etc/systemd/system/flux_agent.service"
     echo "🧹 删除服务文件"
   fi
-  fi
 
   # 删除安装目录
   if [[ -d "$INSTALL_DIR" ]]; then
