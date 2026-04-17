@@ -10,6 +10,8 @@ import (
 	"time"
 )
 
+var AccountID = ""
+
 type KeygenClient struct {
 	AccountID  string
 	Token      string

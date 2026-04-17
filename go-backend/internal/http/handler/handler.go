@@ -9,6 +9,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"os"
 	"sort"
 	"strconv"
 	"strings"
@@ -854,7 +855,10 @@ func (h *Handler) licenseActivate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	accountID := "1bc96cac-09de-4cf4-af34-26afdad63a90"
+	accountID := license.AccountID
+	if accountID == "" {
+		accountID = os.Getenv("KEYGEN_ACCOUNT_ID")
+	}
 
 	fingerprint, err := h.getOrCreateMachineFingerprint()
 	if err != nil {

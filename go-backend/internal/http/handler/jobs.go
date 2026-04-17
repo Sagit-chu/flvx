@@ -2,6 +2,7 @@ package handler
 
 import (
 	"context"
+	"os"
 	"time"
 
 	"go-backend/internal/license"
@@ -52,7 +53,10 @@ func (h *Handler) validateLicenseJob() {
 		return
 	}
 
-	accountID := "1bc96cac-09de-4cf4-af34-26afdad63a90"
+	accountID := license.AccountID
+	if accountID == "" {
+		accountID = os.Getenv("KEYGEN_ACCOUNT_ID")
+	}
 
 	key, _ := h.repo.GetViteConfigValue("license_key")
 	isCommercial, _ := h.repo.GetViteConfigValue("is_commercial")

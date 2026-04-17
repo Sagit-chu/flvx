@@ -233,6 +233,7 @@ jobs:
           docker buildx build \
             --platform linux/amd64,linux/arm64 \
             --push \
+            --build-arg KEYGEN_ACCOUNT_ID=${{ secrets.KEYGEN_ACCOUNT_ID }} \
             -t ${{ env.REGISTRY }}/${OWNER}/flux-panel-backend:latest \
             -t ${{ env.REGISTRY }}/${OWNER}/flux-panel-backend:${VERSION} \
             ./go-backend
