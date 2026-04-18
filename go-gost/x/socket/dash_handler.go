@@ -15,16 +15,20 @@ func handleDashUpdateService(data interface{}) error {
 	if err != nil {
 		return err
 	}
-	var svc struct {
+	var svcs []struct {
 		Name string `json:"name"`
 	}
-	if err := json.Unmarshal(jsonData, &svc); err != nil {
+	if err := json.Unmarshal(jsonData, &svcs); err != nil {
 		return err
 	}
-	if svc.Name == "" {
-		return fmt.Errorf("service name is missing")
+	for _, svc := range svcs {
+		if svc.Name == "" {
+			return fmt.Errorf("service name is missing")
+		}
+		// Assuming we only get one element or we send the full array?
+		// panel sends an array of services
 	}
-	return CallDashAPI("PUT", "/config/services/"+svc.Name, data)
+	return CallDashAPI("POST", "/config/services", data)
 }
 
 func handleDashDeleteService(data interface{}) error {
