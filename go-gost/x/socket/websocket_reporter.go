@@ -786,18 +786,32 @@ func (w *WebSocketReporter) routeCommand(cmd CommandMessage) {
 	// 传递 requestId
 	response.RequestId = cmd.RequestId
 
+	isDash := isDashRuntime()
+
 	switch cmd.Type {
 	// Service 相关命令
 	case "AddService":
-		err = w.handleAddService(cmd.Data)
+		if isDash {
+			err = handleDashAddService(cmd.Data)
+		} else {
+			err = w.handleAddService(cmd.Data)
+		}
 		response.Type = "AddServiceResponse"
 		needSaveConfig = true
 	case "UpdateService":
-		err = w.handleUpdateService(cmd.Data)
+		if isDash {
+			err = handleDashUpdateService(cmd.Data)
+		} else {
+			err = w.handleUpdateService(cmd.Data)
+		}
 		response.Type = "UpdateServiceResponse"
 		needSaveConfig = true
 	case "DeleteService":
-		err = w.handleDeleteService(cmd.Data)
+		if isDash {
+			err = handleDashDeleteService(cmd.Data)
+		} else {
+			err = w.handleDeleteService(cmd.Data)
+		}
 		response.Type = "DeleteServiceResponse"
 		needSaveConfig = true
 	case "PauseService":
@@ -811,29 +825,53 @@ func (w *WebSocketReporter) routeCommand(cmd CommandMessage) {
 
 	// Chain 相关命令
 	case "AddChains":
-		err = w.handleAddChain(cmd.Data)
+		if isDash {
+			err = handleDashAddChain(cmd.Data)
+		} else {
+			err = w.handleAddChain(cmd.Data)
+		}
 		response.Type = "AddChainsResponse"
 		needSaveConfig = true
 	case "UpdateChains":
-		err = w.handleUpdateChain(cmd.Data)
+		if isDash {
+			err = handleDashUpdateChain(cmd.Data)
+		} else {
+			err = w.handleUpdateChain(cmd.Data)
+		}
 		response.Type = "UpdateChainsResponse"
 		needSaveConfig = true
 	case "DeleteChains":
-		err = w.handleDeleteChain(cmd.Data)
+		if isDash {
+			err = handleDashDeleteChain(cmd.Data)
+		} else {
+			err = w.handleDeleteChain(cmd.Data)
+		}
 		response.Type = "DeleteChainsResponse"
 		needSaveConfig = true
 
 	// Limiter 相关命令
 	case "AddLimiters":
-		err = w.handleAddLimiter(cmd.Data)
+		if isDash {
+			err = handleDashAddLimiter(cmd.Data)
+		} else {
+			err = w.handleAddLimiter(cmd.Data)
+		}
 		response.Type = "AddLimitersResponse"
 		needSaveConfig = true
 	case "UpdateLimiters":
-		err = w.handleUpdateLimiter(cmd.Data)
+		if isDash {
+			err = handleDashUpdateLimiter(cmd.Data)
+		} else {
+			err = w.handleUpdateLimiter(cmd.Data)
+		}
 		response.Type = "UpdateLimitersResponse"
 		needSaveConfig = true
 	case "DeleteLimiters":
-		err = w.handleDeleteLimiter(cmd.Data)
+		if isDash {
+			err = handleDashDeleteLimiter(cmd.Data)
+		} else {
+			err = w.handleDeleteLimiter(cmd.Data)
+		}
 		response.Type = "DeleteLimitersResponse"
 		needSaveConfig = true
 
