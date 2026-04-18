@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -401,6 +402,13 @@ func (h *Handler) consumeNodePendingUpgradeRedeploy(nodeID int64) bool {
 }
 
 func (h *Handler) onNodeOnline(nodeID int64) {
+	// Sync global runtime engine to the newly connected node
+	if client, err := h.currentRuntimeClient(); err == nil {
+		if node, err := h.repo.GetNodeByID(nodeID); err == nil && node != nil {
+			go client.EnsureNodeRuntime(context.Background(), *node)
+		}
+	}
+
 	if !h.consumeNodePendingUpgradeRedeploy(nodeID) {
 		return
 	}

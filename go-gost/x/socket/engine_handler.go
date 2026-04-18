@@ -33,6 +33,11 @@ func (w *WebSocketReporter) handleSetEngine(data interface{}) error {
 	} else {
 		cfg = make(map[string]interface{})
 	}
+
+	if currentEngine, ok := cfg["engine"].(string); ok && currentEngine == engine {
+		return nil
+	}
+
 	cfg["engine"] = engine
 
 	newData, _ := json.MarshalIndent(cfg, "", "  ")
