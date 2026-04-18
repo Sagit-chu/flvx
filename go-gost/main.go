@@ -119,7 +119,9 @@ func main() {
 	log := xlogger.NewLogger()
 	logger.SetDefault(log)
 
-	if config.Engine == "dash" {
+	socket.InitDashMode()
+
+	if socket.IsDashMode {
 		socket.StartDashSupervisor(context.Background())
 	}
 

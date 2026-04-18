@@ -64,9 +64,11 @@ func createServices(req createServicesRequest) error {
 	}
 
 	// 第三阶段：启动所有服务
-	for _, ps := range parsedServices {
-		if svc := registry.ServiceRegistry().Get(ps.config.Name); svc != nil {
-			go svc.Serve()
+	if !IsDashMode {
+		for _, ps := range parsedServices {
+			if svc := registry.ServiceRegistry().Get(ps.config.Name); svc != nil {
+				go svc.Serve()
+			}
 		}
 	}
 
@@ -106,7 +108,9 @@ func updateServices(req updateServicesRequest) error {
 
 		// 2. 关闭旧服务 (如果存在)
 		if old != nil {
-			old.Close()
+			if !IsDashMode {
+				old.Close()
+			}
 			// 3. 从注册表移除旧服务
 			registry.ServiceRegistry().Unregister(name)
 		}
@@ -124,7 +128,9 @@ func updateServices(req updateServicesRequest) error {
 		}
 
 		// 6. 启动新服务
-		go svc.Serve()
+		if !IsDashMode {
+			go svc.Serve()
+		}
 	}
 
 	// 第三阶段：更新配置
@@ -182,7 +188,9 @@ func deleteServices(req deleteServicesRequest) error {
 	// 第二阶段：删除所有服务
 	for _, std := range servicesToDelete {
 		registry.ServiceRegistry().Unregister(std.name)
-		std.service.Close()
+		if !IsDashMode {
+			std.service.Close()
+		}
 	}
 	// 确保所有请求删除的服务都从注册表中移除（即使之前未找到实例）
 	for _, name := range namesToRemove {
@@ -284,11 +292,13 @@ func pauseServices(req pauseServicesRequest) error {
 		}
 
 		// 暂停服务
-		stp.service.Close()
+		if !IsDashMode {
+			stp.service.Close()
 
-		// 强制断开端口的所有连接
-		if serviceConfig.Addr != "" {
-			_ = kill.ForceClosePortConnections(serviceConfig.Addr)
+			// 强制断开端口的所有连接
+			if serviceConfig.Addr != "" {
+				_ = kill.ForceClosePortConnections(serviceConfig.Addr)
+			}
 		}
 
 		// 记录已暂停的服务
@@ -394,16 +404,20 @@ func resumeServices(req resumeServicesRequest) error {
 	// 逐个恢复服务，如果失败则回滚
 	for _, str := range servicesToResume {
 		// 先关闭现有服务
-		str.service.Close()
+		if !IsDashMode {
+			str.service.Close()
+		}
 		registry.ServiceRegistry().Unregister(str.name)
 
 		// 强制断开端口的所有连接
-		if str.serviceConfig.Addr != "" {
-			_ = kill.ForceClosePortConnections(str.serviceConfig.Addr)
-		}
+		if !IsDashMode {
+			if str.serviceConfig.Addr != "" {
+				_ = kill.ForceClosePortConnections(str.serviceConfig.Addr)
+			}
 
-		// 等待端口释放
-		time.Sleep(500 * time.Millisecond)
+			// 等待端口释放
+			time.Sleep(500 * time.Millisecond)
+		}
 
 		// 重新解析并启动服务
 		svc, err := parser.ParseService(str.serviceConfig)
@@ -420,7 +434,9 @@ func resumeServices(req resumeServicesRequest) error {
 			return errors.New(fmt.Sprintf("service %s already exists", str.name))
 		}
 
-		go svc.Serve()
+		if !IsDashMode {
+			go svc.Serve()
+		}
 
 		// 记录已成功恢复的服务
 		resumedServices = append(resumedServices, str)

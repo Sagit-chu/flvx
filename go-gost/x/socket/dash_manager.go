@@ -2,7 +2,6 @@ package socket
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
@@ -15,35 +14,6 @@ var (
 	dashCancel context.CancelFunc
 	dashPaused bool // Whether to temporarily pause the supervisor from restarting dash
 )
-
-func generateDashConfig() error {
-	configBytes, err := os.ReadFile("/etc/flux_agent/config.json")
-	if err != nil {
-		return err
-	}
-	var cfg struct {
-		Addr   string `json:"addr"`
-		Secret string `json:"secret"`
-	}
-	if err := json.Unmarshal(configBytes, &cfg); err != nil {
-		return err
-	}
-
-	dashYaml := `services:
-  - name: api
-    addr: 127.0.0.1:19090
-    handler:
-      type: auto
-    listener:
-      type: tcp
-log:
-  level: info
-`
-
-	_ = os.Remove("/etc/flux_agent/exit.yaml")
-
-	return os.WriteFile("/etc/flux_agent/dash.yaml", []byte(dashYaml), 0644)
-}
 
 // StartDashSupervisor starts a background goroutine that keeps the dash process running
 // if the binary exists. It will exit when ctx is canceled.
@@ -64,8 +34,9 @@ func StartDashSupervisor(ctx context.Context) {
 				dashPath := "/etc/flux_agent/dash"
 				if _, err := os.Stat(dashPath); err == nil {
 					err := func() error {
-						if err := generateDashConfig(); err != nil {
-							return fmt.Errorf("生成 dash.yaml 失败: %w", err)
+						// Ensure gost.json is initialized with at least the API service
+						if err := saveConfig(); err != nil {
+							return fmt.Errorf("ensure gost.json failed: %w", err)
 						}
 
 						dashMu.Lock()
@@ -73,7 +44,8 @@ func StartDashSupervisor(ctx context.Context) {
 						dashCancel = cancel
 						dashMu.Unlock()
 
-						cmd := exec.CommandContext(ctxDash, dashPath, "--config", "/etc/flux_agent/dash.yaml", "--mode", "entry")
+						// Launch dash using the unified gost.json config
+						cmd := exec.CommandContext(ctxDash, dashPath, "-C", "gost.json")
 						cmd.Stdout = os.Stdout
 						cmd.Stderr = os.Stderr
 						fmt.Println("🚀 启动 dash 内核进程 (由 flux_agent 托管)...")

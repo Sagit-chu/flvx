@@ -3,7 +3,6 @@ package socket
 import (
 	"encoding/json"
 	"fmt"
-	"os"
 )
 
 func handleDashAddService(data interface{}) error {
@@ -145,19 +144,3 @@ func handleDashDeleteLimiter(data interface{}) error {
 	}
 	return CallDashAPI("DELETE", "/config/limiters/"+req.Limiter, nil)
 }
-
-func isDashRuntime() bool {
-	// Parse config.json to check if engine is "dash"
-	configBytes, err := os.ReadFile("config.json")
-	if err != nil {
-		return false
-	}
-	var cfg struct {
-		Engine string `json:"engine"`
-	}
-	if err := json.Unmarshal(configBytes, &cfg); err != nil {
-		return false
-	}
-	return cfg.Engine == "dash"
-}
-

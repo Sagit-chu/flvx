@@ -19,10 +19,12 @@ func createLimiter(req createLimiterRequest) error {
 		return errors.New("limiter " + name + " already exists")
 	}
 
-	v := parser.ParseTrafficLimiter(&req.Data)
+	if !IsDashMode {
+		v := parser.ParseTrafficLimiter(&req.Data)
 
-	if err := registry.TrafficLimiterRegistry().Register(name, v); err != nil {
-		return errors.New("limiter " + name + " already exists")
+		if err := registry.TrafficLimiterRegistry().Register(name, v); err != nil {
+			return errors.New("limiter " + name + " already exists")
+		}
 	}
 
 	config.OnUpdate(func(c *config.Config) error {
@@ -43,10 +45,12 @@ func updateLimiter(req updateLimiterRequest) error {
 
 	req.Data.Name = name
 
-	v := parser.ParseTrafficLimiter(&req.Data)
+	if !IsDashMode {
+		v := parser.ParseTrafficLimiter(&req.Data)
 
-	if err := registry.TrafficLimiterRegistry().Register(name, v); err != nil {
-		return errors.New("limiter " + name + " already exists")
+		if err := registry.TrafficLimiterRegistry().Register(name, v); err != nil {
+			return errors.New("limiter " + name + " already exists")
+		}
 	}
 
 	config.OnUpdate(func(c *config.Config) error {

@@ -22,13 +22,15 @@ func createChain(req createChainRequest) error {
 		return errors.New("chain " + name + " already exists")
 	}
 
-	v, err := parser.ParseChain(&req.Data, logger.Default())
-	if err != nil {
-		return errors.New("create chain " + name + " failed: " + err.Error())
-	}
+	if !IsDashMode {
+		v, err := parser.ParseChain(&req.Data, logger.Default())
+		if err != nil {
+			return errors.New("create chain " + name + " failed: " + err.Error())
+		}
 
-	if err := registry.ChainRegistry().Register(name, v); err != nil {
-		return errors.New("chain " + name + " already exists")
+		if err := registry.ChainRegistry().Register(name, v); err != nil {
+			return errors.New("chain " + name + " already exists")
+		}
 	}
 
 	config.OnUpdate(func(c *config.Config) error {
@@ -49,13 +51,15 @@ func updateChain(req updateChainRequest) error {
 
 	req.Data.Name = name
 
-	v, err := parser.ParseChain(&req.Data, logger.Default())
-	if err != nil {
-		return errors.New("create chain " + name + " failed: " + err.Error())
-	}
+	if !IsDashMode {
+		v, err := parser.ParseChain(&req.Data, logger.Default())
+		if err != nil {
+			return errors.New("create chain " + name + " failed: " + err.Error())
+		}
 
-	if err := registry.ChainRegistry().Register(name, v); err != nil {
-		return errors.New("chain " + name + " already exists")
+		if err := registry.ChainRegistry().Register(name, v); err != nil {
+			return errors.New("chain " + name + " already exists")
+		}
 	}
 
 	config.OnUpdate(func(c *config.Config) error {

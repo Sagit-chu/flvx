@@ -791,26 +791,23 @@ func (w *WebSocketReporter) routeCommand(cmd CommandMessage) {
 	switch cmd.Type {
 	// Service 相关命令
 	case "AddService":
-		if isDash {
+		err = w.handleAddService(cmd.Data)
+		if err == nil && isDash {
 			err = handleDashAddService(cmd.Data)
-		} else {
-			err = w.handleAddService(cmd.Data)
 		}
 		response.Type = "AddServiceResponse"
 		needSaveConfig = true
 	case "UpdateService":
-		if isDash {
+		err = w.handleUpdateService(cmd.Data)
+		if err == nil && isDash {
 			err = handleDashUpdateService(cmd.Data)
-		} else {
-			err = w.handleUpdateService(cmd.Data)
 		}
 		response.Type = "UpdateServiceResponse"
 		needSaveConfig = true
 	case "DeleteService":
-		if isDash {
+		err = w.handleDeleteService(cmd.Data)
+		if err == nil && isDash {
 			err = handleDashDeleteService(cmd.Data)
-		} else {
-			err = w.handleDeleteService(cmd.Data)
 		}
 		response.Type = "DeleteServiceResponse"
 		needSaveConfig = true
@@ -825,52 +822,46 @@ func (w *WebSocketReporter) routeCommand(cmd CommandMessage) {
 
 	// Chain 相关命令
 	case "AddChains":
-		if isDash {
+		err = w.handleAddChain(cmd.Data)
+		if err == nil && isDash {
 			err = handleDashAddChain(cmd.Data)
-		} else {
-			err = w.handleAddChain(cmd.Data)
 		}
 		response.Type = "AddChainsResponse"
 		needSaveConfig = true
 	case "UpdateChains":
-		if isDash {
+		err = w.handleUpdateChain(cmd.Data)
+		if err == nil && isDash {
 			err = handleDashUpdateChain(cmd.Data)
-		} else {
-			err = w.handleUpdateChain(cmd.Data)
 		}
 		response.Type = "UpdateChainsResponse"
 		needSaveConfig = true
 	case "DeleteChains":
-		if isDash {
+		err = w.handleDeleteChain(cmd.Data)
+		if err == nil && isDash {
 			err = handleDashDeleteChain(cmd.Data)
-		} else {
-			err = w.handleDeleteChain(cmd.Data)
 		}
 		response.Type = "DeleteChainsResponse"
 		needSaveConfig = true
 
 	// Limiter 相关命令
 	case "AddLimiters":
-		if isDash {
+		err = w.handleAddLimiter(cmd.Data)
+		if err == nil && isDash {
 			err = handleDashAddLimiter(cmd.Data)
-		} else {
-			err = w.handleAddLimiter(cmd.Data)
 		}
 		response.Type = "AddLimitersResponse"
 		needSaveConfig = true
 	case "UpdateLimiters":
-		if isDash {
+		err = w.handleUpdateLimiter(cmd.Data)
+		if err == nil && isDash {
 			err = handleDashUpdateLimiter(cmd.Data)
-		} else {
-			err = w.handleUpdateLimiter(cmd.Data)
 		}
 		response.Type = "UpdateLimitersResponse"
 		needSaveConfig = true
 	case "DeleteLimiters":
-		if isDash {
+		err = w.handleDeleteLimiter(cmd.Data)
+		if err == nil && isDash {
 			err = handleDashDeleteLimiter(cmd.Data)
-		} else {
-			err = w.handleDeleteLimiter(cmd.Data)
 		}
 		response.Type = "DeleteLimitersResponse"
 		needSaveConfig = true

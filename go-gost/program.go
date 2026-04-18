@@ -16,6 +16,7 @@ import (
 	metrics "github.com/go-gost/x/metrics/service"
 	"github.com/go-gost/x/registry"
 	xservice "github.com/go-gost/x/service"
+	"github.com/go-gost/x/socket"
 	"github.com/judwhite/go-svc"
 	"net/http"
 	"os"
@@ -87,6 +88,10 @@ func (p *program) Start() error {
 }
 
 func (p *program) run(cfg *config.Config) error {
+	if socket.IsDashMode {
+		logger.Default().Info("Dash mode enabled, skipping internal gost services")
+		return nil
+	}
 	for _, svc := range registry.ServiceRegistry().GetAll() {
 		svc := svc
 		go func() {
