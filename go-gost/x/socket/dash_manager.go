@@ -29,8 +29,13 @@ func generateDashConfig() error {
 		return err
 	}
 
-	dashYaml := `api:
-  addr: :19090
+	dashYaml := `services:
+  - name: api
+    addr: 127.0.0.1:19090
+    handler:
+      type: auto
+    listener:
+      type: tcp
 log:
   level: info
 `
@@ -68,7 +73,7 @@ func StartDashSupervisor(ctx context.Context) {
 						dashCancel = cancel
 						dashMu.Unlock()
 
-						cmd := exec.CommandContext(ctxDash, dashPath, "--config", "/etc/flux_agent/dash.yaml")
+						cmd := exec.CommandContext(ctxDash, dashPath, "--config", "/etc/flux_agent/dash.yaml", "--mode", "entry")
 						cmd.Stdout = os.Stdout
 						cmd.Stderr = os.Stderr
 						fmt.Println("🚀 启动 dash 内核进程 (由 flux_agent 托管)...")
