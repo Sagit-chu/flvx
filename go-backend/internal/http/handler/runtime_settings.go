@@ -63,8 +63,8 @@ type runtimeNodeProgress struct {
 
 func newRuntimeStatusProviders() map[backendruntime.Engine]runtimeStatusProvider {
 	return map[backendruntime.Engine]runtimeStatusProvider{
-		backendruntime.EngineGost: backendruntime.NewGostRuntimeClient(),
-		backendruntime.EngineDash: backendruntime.NewGostRuntimeClient(),
+		backendruntime.EngineGost: backendruntime.NewGostRuntimeClient(backendruntime.EngineGost),
+		backendruntime.EngineDash: backendruntime.NewGostRuntimeClient(backendruntime.EngineDash),
 	}
 }
 

@@ -14,27 +14,34 @@ type gostCommandSender interface {
 }
 
 type GostRuntimeClient struct {
+	engine    Engine
 	commander gostCommandSender
 }
 
-func NewGostRuntimeClient(commander ...gostCommandSender) *GostRuntimeClient {
-	client := &GostRuntimeClient{}
+func NewGostRuntimeClient(engine Engine, commander ...gostCommandSender) *GostRuntimeClient {
+	client := &GostRuntimeClient{engine: engine}
 	if len(commander) > 0 {
 		client.commander = commander[0]
 	}
 	return client
 }
 
-func (c *GostRuntimeClient) EnsureNodeRuntime(context.Context, repo.Node) (NodeRuntimeProgress, error) {
-	return NodeRuntimeProgress{Engine: EngineGost, State: ProgressStateSucceeded, Complete: true}, nil
+func (c *GostRuntimeClient) EnsureNodeRuntime(ctx context.Context, node repo.Node) (NodeRuntimeProgress, error) {
+	if c.commander != nil {
+		_, err := c.commander.SendCommand(node.ID, "SetEngine", map[string]interface{}{"engine": string(c.engine)}, 15*time.Second)
+		if err != nil {
+			return NodeRuntimeProgress{Engine: c.engine, State: ProgressStateFailed, Message: err.Error()}, err
+		}
+	}
+	return NodeRuntimeProgress{Engine: c.engine, State: ProgressStateSucceeded, Complete: true}, nil
 }
 
 func (c *GostRuntimeClient) RebuildAllRuntime(context.Context) (RebuildRuntimeProgress, error) {
-	return RebuildRuntimeProgress{Engine: EngineGost, State: ProgressStateSucceeded, Complete: true}, nil
+	return RebuildRuntimeProgress{Engine: c.engine, State: ProgressStateSucceeded, Complete: true}, nil
 }
 
 func (c *GostRuntimeClient) GetNodeRuntimeStatus(context.Context, repo.Node) (NodeRuntimeStatus, error) {
-	return NodeRuntimeStatus{Engine: EngineGost, Ready: true, Progress: ProgressStateSucceeded}, nil
+	return NodeRuntimeStatus{Engine: c.engine, Ready: true, Progress: ProgressStateSucceeded}, nil
 }
 
 func (c *GostRuntimeClient) PauseServices(ctx context.Context, node repo.Node, services []string) error {

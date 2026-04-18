@@ -147,12 +147,17 @@ func handleDashDeleteLimiter(data interface{}) error {
 }
 
 func isDashRuntime() bool {
-	// Simple check: does the dash executable exist in the expected path,
-	// or maybe there's a specific flag/config for it.
-	// We'll just check if the /etc/flux_agent/dash binary is present AND the API responds
-	if _, err := os.Stat("/etc/flux_agent/dash"); err == nil {
-		return true // Could be more sophisticated, but we just want to know if Dash is configured to run
+	// Parse config.json to check if engine is "dash"
+	configBytes, err := os.ReadFile("config.json")
+	if err != nil {
+		return false
 	}
-	return false
+	var cfg struct {
+		Engine string `json:"engine"`
+	}
+	if err := json.Unmarshal(configBytes, &cfg); err != nil {
+		return false
+	}
+	return cfg.Engine == "dash"
 }
 

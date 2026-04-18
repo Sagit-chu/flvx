@@ -114,8 +114,8 @@ func NewWithOptions(repo *repo.Repository, jwtSecret string) *Handler {
 		pendingUpgradeRedeploy: make(map[int64]struct{}),
 	}
 	h.runtimeClients = map[backendruntime.Engine]backendruntime.RuntimeClient{
-		backendruntime.EngineGost: backendruntime.NewGostRuntimeClient(h.wsServer),
-		backendruntime.EngineDash: backendruntime.NewGostRuntimeClient(h.wsServer),
+		backendruntime.EngineGost: backendruntime.NewGostRuntimeClient(backendruntime.EngineGost, h.wsServer),
+		backendruntime.EngineDash: backendruntime.NewGostRuntimeClient(backendruntime.EngineDash, h.wsServer),
 	}
 	h.runtimeStatusProviders = newRuntimeStatusProviders()
 	h.runtimeSwitchStarter = newRuntimeSwitchStarter(repo, h.runtimeClients)

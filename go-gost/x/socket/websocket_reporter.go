@@ -896,6 +896,12 @@ func (w *WebSocketReporter) routeCommand(cmd CommandMessage) {
 		response.Type = "SetProtocolResponse"
 		needSaveConfig = true
 
+	// Set Runtime Engine
+	case "SetEngine":
+		err = w.handleSetEngine(cmd.Data)
+		response.Type = "SetEngineResponse"
+		needSaveConfig = false // Saved directly by handleSetEngine
+
 	// 升级 Agent 命令（异步执行，不需要保存配置）
 	case "UpgradeAgent":
 		err = w.handleUpgradeAgent(cmd.Data)

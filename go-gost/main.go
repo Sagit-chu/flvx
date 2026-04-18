@@ -119,7 +119,9 @@ func main() {
 	log := xlogger.NewLogger()
 	logger.SetDefault(log)
 
-	socket.StartDashSupervisor(context.Background())
+	if config.Engine == "dash" {
+		socket.StartDashSupervisor(context.Background())
+	}
 
 	distro := socket.DetectDistro()
 	fullVersion := fmt.Sprintf("%s (%s/%s)", version, distro, runtime.GOARCH)
