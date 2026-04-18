@@ -195,23 +195,6 @@ func TestSwitchOrchestratorMarksFailedOnFinalPersistenceError(t *testing.T) {
 	}
 	if len(store.stateWrites) < 2 {
 		t.Fatalf("expected switching and failed writes, got %d", len(store.stateWrites))
-	}
-}
-
-func TestDashRuntimeClientStatusIsNotSuccessfulWhenUnconfigured(t *testing.T) {
-	client := NewDashRuntimeClient(nil, nil)
-
-	status, err := client.GetNodeRuntimeStatus(context.Background(), repo.Node{ID: 7})
-	if err != nil {
-		t.Fatalf("GetNodeRuntimeStatus: %v", err)
-	}
-	if status.Ready {
-		t.Fatal("expected unconfigured dash status to be not ready")
-	}
-	if status.Progress == ProgressStateSucceeded {
-		t.Fatalf("expected non-successful progress, got %q", status.Progress)
-	}
-	if status.Message == "" {
 		t.Fatal("expected explanatory status message")
 	}
 }

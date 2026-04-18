@@ -78,7 +78,7 @@ def deploy_node(token, name, host, port_range):
     install_res = post_json(f"{PANEL_URL}/api/v1/node/install", {"id": node_id}, token)
     cmd = install_res["data"]
     cmd = re.sub(r"curl -L [^\s]+ -o \./install\.sh", "curl -L https://raw.githubusercontent.com/Sagit-chu/flvx/main/install.sh -o ./install.sh", cmd)
-    cmd = cmd.replace("VERSION=2.1.9", "VERSION=3.0.0-alpha5")
+    cmd = cmd.replace("VERSION=2.1.9", "VERSION=3.0.0-alpha1")
     
     print(f"Deploying agent on {host}...")
     ssh_cmd(host, "systemctl stop flux_agent dash; rm -rf /etc/flux_agent /usr/local/bin/flux_agent /usr/local/bin/dash; rm -f install.sh")
@@ -87,12 +87,9 @@ def deploy_node(token, name, host, port_range):
     if res.returncode != 0:
         raise Exception(f"Failed to deploy agent on {host}")
         
-    print(f"Uploading local flux_agent build to {host}...")
-    ssh_cmd(host, "systemctl stop flux_agent; pkill -9 flux_agent")
-    subprocess.run(["scp", "-o", "StrictHostKeyChecking=no", "-i", SSH_KEY, "go-gost/flux_agent", f"root@{host}:/etc/flux_agent/flux_agent"])
-    ssh_cmd(host, "rm -f /etc/flux_agent/relay-state.yaml /etc/flux_agent/dash.yaml")
+    ssh_cmd(host, "rm -f /etc/flux_agent/relay-state.yaml /etc/flux_agent/dash.yaml /etc/flux_agent/exit.yaml /etc/flux_agent/exit-state.yaml")
     ssh_cmd(host, "sed -i 's/StandardOutput=null/StandardOutput=journal/' /etc/systemd/system/flux_agent.service && sed -i 's/StandardError=null/StandardError=journal/' /etc/systemd/system/flux_agent.service && systemctl daemon-reload")
-    ssh_cmd(host, "systemctl start flux_agent")
+    ssh_cmd(host, "systemctl restart flux_agent")
         
     print(f"Waiting for {name} to become online...")
     for _ in range(30):

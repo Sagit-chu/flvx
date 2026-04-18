@@ -29,48 +29,13 @@ func generateDashConfig() error {
 		return err
 	}
 
-	dashYaml := fmt.Sprintf(`mode: entry
-panel:
-  server: %s
-  secret: %s
-tunnel:
-  listen: 127.0.0.1:18081
-api:
-  listen: 0.0.0.0:19090
-paths:
-  data_dir: /etc/flux_agent
-  log_dir: /etc/flux_agent
-relay:
-  state_file: /etc/flux_agent/relay-state.yaml
-  active_exit:
-    server: 127.0.0.1:18080
-    token: %s
-`, cfg.Addr, cfg.Secret, cfg.Secret)
+	dashYaml := `api:
+  addr: :19090
+log:
+  level: info
+`
 
-	exitYaml := fmt.Sprintf(`mode: exit
-panel:
-  server: %s
-  secret: %s
-tunnel:
-  listen: 0.0.0.0:18080
-api:
-  listen: 127.0.0.1:19091
-paths:
-  data_dir: /etc/flux_agent
-  log_dir: /etc/flux_agent
-relay:
-  state_file: /etc/flux_agent/exit-state.yaml
-  active_exit:
-    server: 127.0.0.1:18080
-    token: %s
-`, cfg.Addr, cfg.Secret, cfg.Secret)
-
-	_ = os.WriteFile("/etc/flux_agent/exit.yaml", []byte(exitYaml), 0644)
-	go func() {
-	    // run exit node
-	    cmd := exec.Command("/etc/flux_agent/dash", "--config", "/etc/flux_agent/exit.yaml")
-	    cmd.Run()
-	}()
+	_ = os.Remove("/etc/flux_agent/exit.yaml")
 
 	return os.WriteFile("/etc/flux_agent/dash.yaml", []byte(dashYaml), 0644)
 }

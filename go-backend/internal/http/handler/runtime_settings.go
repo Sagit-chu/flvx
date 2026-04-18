@@ -7,7 +7,6 @@ import (
 	"strings"
 	"time"
 
-	"go-backend/internal/http/client"
 	"go-backend/internal/http/response"
 	backendruntime "go-backend/internal/runtime"
 	"go-backend/internal/store/repo"
@@ -62,23 +61,16 @@ type runtimeNodeProgress struct {
 	Message  string `json:"message,omitempty"`
 }
 
-func newRuntimeStatusProviders(dashRuntime *client.DashRuntimeClient) map[backendruntime.Engine]runtimeStatusProvider {
+func newRuntimeStatusProviders() map[backendruntime.Engine]runtimeStatusProvider {
 	return map[backendruntime.Engine]runtimeStatusProvider{
 		backendruntime.EngineGost: backendruntime.NewGostRuntimeClient(),
-		backendruntime.EngineDash: backendruntime.NewDashRuntimeClient(nil, dashRuntime),
+		backendruntime.EngineDash: backendruntime.NewGostRuntimeClient(),
 	}
 }
 
-func newRuntimeSwitchStarter(r *repo.Repository, dashRuntime *client.DashRuntimeClient, dashEnabled bool) runtimeSwitchStarter {
+func newRuntimeSwitchStarter(r *repo.Repository, clients map[backendruntime.Engine]backendruntime.RuntimeClient) runtimeSwitchStarter {
 	if r == nil {
 		return nil
-	}
-
-	clients := map[backendruntime.Engine]backendruntime.RuntimeClient{
-		backendruntime.EngineGost: backendruntime.NewGostRuntimeClient(),
-	}
-	if dashEnabled {
-		clients[backendruntime.EngineDash] = backendruntime.NewDashRuntimeClient(r, dashRuntime)
 	}
 
 	return backendruntime.NewSwitchOrchestrator(r, func() int64 { return time.Now().UnixMilli() }, clients)

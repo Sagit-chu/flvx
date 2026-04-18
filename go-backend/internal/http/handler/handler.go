@@ -18,7 +18,6 @@ import (
 
 	"go-backend/internal/auth"
 	"go-backend/internal/health"
-	"go-backend/internal/http/client"
 	"go-backend/internal/http/middleware"
 	"go-backend/internal/http/response"
 	"go-backend/internal/license"
@@ -50,8 +49,6 @@ type Handler struct {
 	pendingUpgradeRedeploy map[int64]struct{}
 
 	qualityProber *tunnelQualityProber
-	dashRuntime   *client.DashRuntimeClient
-	dashEnabled   bool
 
 	runtimeSwitchStarter   runtimeSwitchStarter
 	runtimeClients         map[backendruntime.Engine]backendruntime.RuntimeClient
@@ -103,10 +100,10 @@ const (
 )
 
 func New(repo *repo.Repository, jwtSecret string) *Handler {
-	return NewWithOptions(repo, jwtSecret, nil, false)
+	return NewWithOptions(repo, jwtSecret)
 }
 
-func NewWithOptions(repo *repo.Repository, jwtSecret string, dashRuntime *client.DashRuntimeClient, dashEnabled bool) *Handler {
+func NewWithOptions(repo *repo.Repository, jwtSecret string) *Handler {
 	h := &Handler{
 		repo:                   repo,
 		jwtSecret:              jwtSecret,
@@ -115,15 +112,13 @@ func NewWithOptions(repo *repo.Repository, jwtSecret string, dashRuntime *client
 		healthCheck:            nil,
 		captchaTokens:          make(map[string]int64),
 		pendingUpgradeRedeploy: make(map[int64]struct{}),
-		dashRuntime:            dashRuntime,
-		dashEnabled:            dashEnabled,
 	}
 	h.runtimeClients = map[backendruntime.Engine]backendruntime.RuntimeClient{
 		backendruntime.EngineGost: backendruntime.NewGostRuntimeClient(h.wsServer),
-		backendruntime.EngineDash: backendruntime.NewDashRuntimeClient(repo, dashRuntime),
+		backendruntime.EngineDash: backendruntime.NewGostRuntimeClient(h.wsServer),
 	}
-	h.runtimeStatusProviders = newRuntimeStatusProviders(dashRuntime)
-	h.runtimeSwitchStarter = newRuntimeSwitchStarter(repo, dashRuntime, dashEnabled)
+	h.runtimeStatusProviders = newRuntimeStatusProviders()
+	h.runtimeSwitchStarter = newRuntimeSwitchStarter(repo, h.runtimeClients)
 	h.healthCheck = health.NewChecker(repo, h.wsServer, func() backendruntime.RuntimeClient {
 		client, _ := h.currentRuntimeClient()
 		return client

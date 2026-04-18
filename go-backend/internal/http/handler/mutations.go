@@ -730,16 +730,6 @@ func (h *Handler) cleanupTunnelRuntime(tunnelID int64) {
 		return
 	}
 
-	if client, err := h.currentRuntimeClient(); err == nil {
-		if deleter, ok := client.(dashRuleDeleter); ok {
-			for _, row := range chainRows {
-				if row.ChainType == 3 {
-					_ = deleter.DeleteRule(context.Background(), row.NodeID, fmt.Sprintf("tunnel-%d", tunnelID))
-				}
-			}
-		}
-	}
-
 	serviceName := fmt.Sprintf("%d_tls", tunnelID)
 	chainName := fmt.Sprintf("chains_%d", tunnelID)
 
