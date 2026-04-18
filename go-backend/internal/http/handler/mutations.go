@@ -705,9 +705,7 @@ func (h *Handler) tunnelCreate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if typeVal == 2 {
-		createdChains, createdServices, applyErr := h.applyTunnelRuntimeForCurrentEngine(r.Context(), runtimeState, func() ([]int64, []int64, error) {
-			return h.applyTunnelRuntime(runtimeState)
-		})
+		createdChains, createdServices, applyErr := h.applyTunnelRuntime(runtimeState)
 		if applyErr != nil {
 			h.rollbackTunnelRuntime(createdChains, createdServices, tunnelID)
 			h.releaseFederationRuntimeRefs(federationReleaseRefs)
@@ -787,7 +785,6 @@ func (h *Handler) tunnelUpdate(w http.ResponseWriter, r *http.Request) {
 		response.WriteJSON(w, response.ErrDefault("隧道ID不能为空"))
 		return
 	}
-	oldChainRows, _ := h.listChainNodesForTunnel(id)
 	oldEntryNodeIDs, _ := h.tunnelEntryNodeIDs(id)
 
 	h.cleanupTunnelRuntime(id)
@@ -880,9 +877,7 @@ func (h *Handler) tunnelUpdate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if typeVal == 2 {
-		createdChains, createdServices, applyErr := h.reconcileTunnelRuntimeForCurrentEngine(r.Context(), oldChainRows, runtimeState, func() ([]int64, []int64, error) {
-			return h.applyTunnelRuntime(runtimeState)
-		})
+		createdChains, createdServices, applyErr := h.applyTunnelRuntime(runtimeState)
 		if applyErr != nil {
 			h.rollbackTunnelRuntime(createdChains, createdServices, id)
 			h.releaseFederationRuntimeRefs(federationReleaseRefs)
@@ -897,14 +892,9 @@ func (h *Handler) tunnelUpdate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if forwards, fwdErr := h.listForwardsByTunnel(id); fwdErr == nil {
-		_ = h.applyForwardRuntimeForCurrentEngine(r.Context(), id, func() error {
-			for i := range forwards {
-				if err := h.syncForwardServices(&forwards[i], "UpdateService", true); err != nil {
-					return err
-				}
-			}
-			return nil
-		})
+		for i := range forwards {
+			_ = h.syncForwardServices(&forwards[i], "UpdateService", true)
+		}
 	}
 
 	response.WriteJSON(w, response.OKEmpty())
@@ -1801,15 +1791,13 @@ func (h *Handler) forwardCreate(w http.ResponseWriter, r *http.Request) {
 		response.WriteJSON(w, response.Err(-2, err.Error()))
 		return
 	}
-	runtimeMeta, err := h.applyForwardRuntimeForCurrentEngineWithMetadata(r.Context(), forwardID, tunnelID, func() error {
-		return h.syncForwardServices(createdForward, "UpdateService", true)
-	})
+	err = h.syncForwardServices(createdForward, "UpdateService", true)
 	if err != nil {
 		_ = h.deleteForwardByID(forwardID)
 		response.WriteJSON(w, response.ErrDefault(err.Error()))
 		return
 	}
-	writeForwardMutationSuccess(w, nil, runtimeMeta)
+	writeForwardMutationSuccess(w, nil)
 }
 
 func (h *Handler) forwardUpdate(w http.ResponseWriter, r *http.Request) {
@@ -1961,8 +1949,7 @@ func (h *Handler) forwardUpdate(w http.ResponseWriter, r *http.Request) {
 		response.WriteJSON(w, response.Err(-2, err.Error()))
 		return
 	}
-	newPorts, err := h.listForwardPorts(id)
-	if err != nil {
+	if _, err := h.listForwardPorts(id); err != nil {
 		h.rollbackForwardMutation(forward, oldPorts)
 		response.WriteJSON(w, response.Err(-2, err.Error()))
 		return
@@ -1987,11 +1974,8 @@ func (h *Handler) forwardUpdate(w http.ResponseWriter, r *http.Request) {
 		time.Sleep(tunnelServiceBindRetryDelay)
 	}
 
-	runtimeMeta, err := h.reconcileForwardRuntimeForCurrentEngineWithMetadata(r.Context(), id, tunnelID, oldPorts, newPorts, func() error {
-		syncWarnings, syncErr := h.syncForwardServicesWithWarnings(updatedForward, "UpdateService", true)
-		warnings = append(warnings, syncWarnings...)
-		return syncErr
-	})
+	syncWarnings, err := h.syncForwardServicesWithWarnings(updatedForward, "UpdateService", true)
+	warnings = append(warnings, syncWarnings...)
 	if err != nil {
 		h.rollbackForwardMutation(forward, oldPorts)
 		response.WriteJSON(w, response.ErrDefault(err.Error()))
@@ -2011,20 +1995,17 @@ func (h *Handler) forwardUpdate(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
-	writeForwardMutationSuccess(w, warnings, runtimeMeta)
+	writeForwardMutationSuccess(w, warnings)
 }
 
-func writeForwardMutationSuccess(w http.ResponseWriter, warnings []string, runtimeMeta *forwardRuntimeMetadata) {
-	if len(warnings) == 0 && runtimeMeta == nil {
+func writeForwardMutationSuccess(w http.ResponseWriter, warnings []string) {
+	if len(warnings) == 0 {
 		response.WriteJSON(w, response.OKEmpty())
 		return
 	}
 	payload := make(map[string]interface{})
 	if len(warnings) > 0 {
 		payload["warnings"] = warnings
-	}
-	if runtimeMeta != nil {
-		payload["runtime"] = *runtimeMeta
 	}
 	response.WriteJSON(w, response.OK(payload))
 }
@@ -2484,8 +2465,7 @@ func (h *Handler) forwardBatchChangeTunnel(w http.ResponseWriter, r *http.Reques
 			failures = appendBatchFailure(failures, id, forward.Name, err)
 			continue
 		}
-		newPorts, portsErr := h.listForwardPorts(id)
-		if portsErr != nil {
+		if _, portsErr := h.listForwardPorts(id); portsErr != nil {
 			h.rollbackForwardMutation(forward, oldPorts)
 			fail++
 			failures = appendBatchFailure(failures, id, forward.Name, portsErr)
@@ -2504,9 +2484,7 @@ func (h *Handler) forwardBatchChangeTunnel(w http.ResponseWriter, r *http.Reques
 			}
 			time.Sleep(tunnelServiceBindRetryDelay)
 		}
-		if err := h.reconcileForwardRuntimeForCurrentEngine(r.Context(), id, req.TargetTunnelID, oldPorts, newPorts, func() error {
-			return h.syncForwardServices(updatedForward, "UpdateService", true)
-		}); err != nil {
+		if err := h.syncForwardServices(updatedForward, "UpdateService", true); err != nil {
 			h.rollbackForwardMutation(forward, oldPorts)
 			fail++
 			failures = appendBatchFailure(failures, id, forward.Name, err)
@@ -3904,11 +3882,6 @@ func (h *Handler) deleteTunnelByID(id int64) error {
 }
 
 func (h *Handler) deleteForwardByID(id int64) error {
-	forward, err := h.getForwardRecord(id)
-	if err == nil {
-		oldPorts, _ := h.listForwardPorts(id)
-		_ = h.reconcileForwardRuntimeForCurrentEngine(context.Background(), id, forward.TunnelID, oldPorts, nil, nil)
-	}
 	return h.repo.DeleteForwardCascade(id)
 }
 
