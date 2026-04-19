@@ -44,8 +44,9 @@ func StartDashSupervisor(ctx context.Context) {
 						dashCancel = cancel
 						dashMu.Unlock()
 
-						// Launch dash using the unified gost.json config and dynamic API listener via -L
-						cmd := exec.CommandContext(ctxDash, dashPath, "-C", "gost.json", "-L", "tcp://127.0.0.1:19090?handler=auto")
+						// Launch dash using the unified gost.json config and explicit --api flag
+						// Dash now supports empty config as long as an API is defined
+						cmd := exec.CommandContext(ctxDash, dashPath, "-C", "gost.json", "--api", "127.0.0.1:19090")
 						cmd.Stdout = os.Stdout
 						cmd.Stderr = os.Stderr
 						fmt.Println("🚀 启动 dash 内核进程 (由 flux_agent 托管)...")
