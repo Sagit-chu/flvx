@@ -662,11 +662,12 @@ func (h *Handler) tunnelCreate(w http.ResponseWriter, r *http.Request) {
 	if trimmed := strings.TrimSpace(inIP); trimmed != "" {
 		tunnelInIP = sql.NullString{String: trimmed, Valid: true}
 	}
+	protocol := defaultString(asString(req["protocol"]), "tls")
 	tunnel := model.Tunnel{
 		Name:         name,
 		TrafficRatio: trafficRatio,
 		Type:         typeVal,
-		Protocol:     "tls",
+		Protocol:     protocol,
 		Flow:         flow,
 		CreatedTime:  now,
 		UpdatedTime:  now,
@@ -822,11 +823,14 @@ func (h *Handler) tunnelUpdate(w http.ResponseWriter, r *http.Request) {
 	}
 	defer func() { tx.Rollback() }()
 
+	protocol := asString(req["protocol"])
+
 	if err := h.repo.UpdateTunnelTx(
 		tx,
 		id,
 		asString(req["name"]),
 		typeVal,
+		protocol,
 		asInt64(req["flow"], 1),
 		asFloat(req["trafficRatio"], 1.0),
 		asInt(req["status"], 1),
@@ -3471,6 +3475,7 @@ func retryTunnelServiceAddWithCleanup(add func() error, cleanup func() error, wa
 }
 
 func (h *Handler) addTunnelServiceOnNode(nodeID, tunnelID int64, serviceData []map[string]interface{}) error {
+	fmt.Printf("DEBUG: addTunnelServiceOnNode nodeID=%d tunnelID=%d payload=%+v\n", nodeID, tunnelID, serviceData)
 	if h == nil {
 		return errors.New("invalid tunnel service context")
 	}
@@ -3637,6 +3642,7 @@ func buildTunnelChainServiceConfig(tunnelID int64, chainNode tunnelRuntimeNode, 
 	if chainNode.ChainType == 3 && strings.TrimSpace(node.InterfaceName) != "" {
 		service["metadata"] = map[string]interface{}{"interface": node.InterfaceName}
 	}
+	fmt.Printf("DEBUG: buildTunnelChainServiceConfig result=%+v\n", service)
 	return []map[string]interface{}{service}
 }
 
