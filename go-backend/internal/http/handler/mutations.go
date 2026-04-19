@@ -1690,6 +1690,7 @@ func (h *Handler) userTunnelUpdate(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) forwardCreate(w http.ResponseWriter, r *http.Request) {
+	fmt.Println("DEBUG: forwardCreate start")
 	var req map[string]interface{}
 	if err := decodeJSON(r.Body, &req); err != nil {
 		response.WriteJSON(w, response.ErrDefault("请求参数错误"))

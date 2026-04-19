@@ -231,6 +231,7 @@ func (h *Handler) syncForwardServices(forward *forwardRecord, method string, all
 }
 
 func (h *Handler) syncForwardServicesWithWarnings(forward *forwardRecord, method string, allowFallbackAdd bool) ([]string, error) {
+	fmt.Printf("DEBUG: syncForwardServicesWithWarnings start forwardID=%d\n", forward.ID)
 	if h == nil || forward == nil {
 		return nil, errors.New("invalid forward sync context")
 	}
@@ -280,6 +281,7 @@ func (h *Handler) syncForwardServicesWithWarnings(forward *forwardRecord, method
 	}
 
 	for _, fp := range ports {
+		fmt.Printf("DEBUG: syncForwardServices nodeID=%d port=%d\n", fp.NodeID, fp.Port)
 		if limiterID != nil && speed != nil {
 			if err := h.ensureLimiterOnNode(fp.NodeID, *limiterID, *speed); err != nil {
 				// If the limiter push fails because the node is offline, skip it with a warning

@@ -3,38 +3,79 @@ package socket
 import (
 	"encoding/json"
 	"fmt"
+	"strconv"
+	"strings"
 )
 
+func sanitizeForDash(v interface{}) interface{} {
+	switch val := v.(type) {
+	case map[string]interface{}:
+		newMap := make(map[string]interface{})
+		for k, v := range val {
+			if k == "failTimeout" {
+				if s, ok := v.(string); ok {
+					s = strings.TrimSuffix(s, "s")
+					if i, err := strconv.ParseInt(s, 10, 64); err == nil {
+						newMap[k] = i
+						continue
+					}
+				}
+			}
+			newMap[k] = sanitizeForDash(v)
+		}
+		return newMap
+	case []interface{}:
+		newSlice := make([]interface{}, len(val))
+		for i, v := range val {
+			newSlice[i] = sanitizeForDash(v)
+		}
+		return newSlice
+	default:
+		return v
+	}
+}
+
 func handleDashAddService(data interface{}) error {
-	return CallDashAPI("POST", "/config/services", data)
+	sanitized := sanitizeForDash(data)
+	jsonData, _ := json.Marshal(sanitized)
+	
+	var svcs []interface{}
+	if err := json.Unmarshal(jsonData, &svcs); err == nil {
+		for _, s := range svcs {
+			if err := CallDashAPI("POST", "/config/services", s); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+	return CallDashAPI("POST", "/config/services", sanitized)
 }
 
 func handleDashUpdateService(data interface{}) error {
-	jsonData, err := json.Marshal(data)
-	if err != nil {
-		return err
-	}
-	var svcs []struct {
-		Name string `json:"name"`
-	}
-	if err := json.Unmarshal(jsonData, &svcs); err != nil {
-		return err
-	}
-	for _, svc := range svcs {
-		if svc.Name == "" {
-			return fmt.Errorf("service name is missing")
+	sanitized := sanitizeForDash(data)
+	jsonData, _ := json.Marshal(sanitized)
+	
+	var svcs []map[string]interface{}
+	if err := json.Unmarshal(jsonData, &svcs); err == nil {
+		for _, s := range svcs {
+			name, _ := s["name"].(string)
+			if name == "" {
+				continue
+			}
+			if err := CallDashAPI("POST", "/config/services", s); err != nil {
+				if err2 := CallDashAPI("PUT", "/config/services/"+name, s); err2 != nil {
+					return fmt.Errorf("POST err: %v; PUT err: %v", err, err2)
+				}
+			}
 		}
-		// Assuming we only get one element or we send the full array?
-		// panel sends an array of services
+		return nil
 	}
-	return CallDashAPI("POST", "/config/services", data)
+	
+	return CallDashAPI("POST", "/config/services", sanitized)
 }
 
 func handleDashDeleteService(data interface{}) error {
-	jsonData, err := json.Marshal(data)
-	if err != nil {
-		return err
-	}
+	jsonData, _ := json.Marshal(data)
 	var req struct {
 		Services []string `json:"services"`
 	}
@@ -42,50 +83,53 @@ func handleDashDeleteService(data interface{}) error {
 		return err
 	}
 	for _, svc := range req.Services {
-		if err := CallDashAPI("DELETE", "/config/services/"+svc, nil); err != nil {
-			return err
-		}
+		_ = CallDashAPI("DELETE", "/config/services/"+svc, nil)
 	}
 	return nil
 }
 
 func handleDashAddChain(data interface{}) error {
-	return CallDashAPI("POST", "/config/chains", data)
+	sanitized := sanitizeForDash(data)
+	jsonData, _ := json.Marshal(sanitized)
+	var items []interface{}
+	if err := json.Unmarshal(jsonData, &items); err == nil {
+		for _, item := range items {
+			if err := CallDashAPI("POST", "/config/chains", item); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+	return CallDashAPI("POST", "/config/chains", sanitized)
 }
 
 func handleDashUpdateChain(data interface{}) error {
-	jsonData, err := json.Marshal(data)
-	if err != nil {
-		return err
+	sanitized := sanitizeForDash(data)
+	jsonData, _ := json.Marshal(sanitized)
+	var items []map[string]interface{}
+	if err := json.Unmarshal(jsonData, &items); err == nil {
+		for _, item := range items {
+			name, _ := item["name"].(string)
+			if name == "" {
+				continue
+			}
+			if err := CallDashAPI("POST", "/config/chains", item); err != nil {
+				if err2 := CallDashAPI("PUT", "/config/chains/"+name, item); err2 != nil {
+					return fmt.Errorf("POST err: %v; PUT err: %v", err, err2)
+				}
+			}
+		}
+		return nil
 	}
-	var req struct {
-		Name string `json:"name"`
-	}
-	// Try parsing as {"chain": "name", "data": {...}}
-	var updateReq struct {
-		Chain string `json:"chain"`
-	}
-	if err := json.Unmarshal(jsonData, &updateReq); err == nil && updateReq.Chain != "" {
-		req.Name = updateReq.Chain
-	} else if err := json.Unmarshal(jsonData, &req); err != nil {
-		return err
-	}
-	if req.Name == "" {
-		return fmt.Errorf("chain name is missing")
-	}
-	return CallDashAPI("PUT", "/config/chains/"+req.Name, data)
+	return handleDashAddChain(data)
 }
 
 func handleDashDeleteChain(data interface{}) error {
-	jsonData, err := json.Marshal(data)
-	if err != nil {
-		return err
-	}
+	jsonData, _ := json.Marshal(data)
 	var req struct {
 		Chain string `json:"chain"`
 	}
 	if err := json.Unmarshal(jsonData, &req); err != nil {
-		// try name string directly
 		var name string
 		if err := json.Unmarshal(jsonData, &name); err == nil {
 			req.Chain = name
@@ -98,38 +142,43 @@ func handleDashDeleteChain(data interface{}) error {
 }
 
 func handleDashAddLimiter(data interface{}) error {
-	return CallDashAPI("POST", "/config/limiters", data)
+	sanitized := sanitizeForDash(data)
+	jsonData, _ := json.Marshal(sanitized)
+	var items []interface{}
+	if err := json.Unmarshal(jsonData, &items); err == nil {
+		for _, item := range items {
+			if err := CallDashAPI("POST", "/config/limiters", item); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+	return CallDashAPI("POST", "/config/limiters", sanitized)
 }
 
 func handleDashUpdateLimiter(data interface{}) error {
-	jsonData, err := json.Marshal(data)
-	if err != nil {
-		return err
+	sanitized := sanitizeForDash(data)
+	jsonData, _ := json.Marshal(sanitized)
+	var items []map[string]interface{}
+	if err := json.Unmarshal(jsonData, &items); err == nil {
+		for _, item := range items {
+			name, _ := item["name"].(string)
+			if name == "" {
+				continue
+			}
+			if err := CallDashAPI("POST", "/config/limiters", item); err != nil {
+				if err2 := CallDashAPI("PUT", "/config/limiters/"+name, item); err2 != nil {
+					return fmt.Errorf("POST err: %v; PUT err: %v", err, err2)
+				}
+			}
+		}
+		return nil
 	}
-	var req struct {
-		Name string `json:"name"`
-	}
-	// Try parsing as {"limiter": "name", "data": {...}}
-	var updateReq struct {
-		Limiter string `json:"limiter"`
-	}
-	if err := json.Unmarshal(jsonData, &updateReq); err == nil && updateReq.Limiter != "" {
-		req.Name = updateReq.Limiter
-	} else if err := json.Unmarshal(jsonData, &req); err != nil {
-		return err
-	}
-	
-	if req.Name == "" {
-		return fmt.Errorf("limiter name is missing")
-	}
-	return CallDashAPI("PUT", "/config/limiters/"+req.Name, data)
+	return handleDashAddLimiter(data)
 }
 
 func handleDashDeleteLimiter(data interface{}) error {
-	jsonData, err := json.Marshal(data)
-	if err != nil {
-		return err
-	}
+	jsonData, _ := json.Marshal(data)
 	var req struct {
 		Limiter string `json:"limiter"`
 	}

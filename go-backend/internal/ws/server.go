@@ -354,6 +354,7 @@ func looksLikeSystemInfoMessage(msg string) bool {
 }
 
 func (s *Server) SendCommand(nodeID int64, cmdType string, data interface{}, timeout time.Duration) (CommandResult, error) {
+	fmt.Printf("DEBUG: SendCommand to nodeID=%d type=%s\n", nodeID, cmdType)
 	if s == nil {
 		return CommandResult{}, errors.New("server not initialized")
 	}

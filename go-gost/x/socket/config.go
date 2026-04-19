@@ -22,7 +22,8 @@ func isDashRuntime() bool {
 
 func InitDashMode() {
 	// Parse config.json to check if engine is "dash"
-	configBytes, err := os.ReadFile("config.json")
+	path := "config.json"
+	configBytes, err := os.ReadFile(path)
 	if err != nil {
 		return
 	}

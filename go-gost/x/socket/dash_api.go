@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"time"
 )
@@ -32,7 +33,8 @@ func CallDashAPI(method, endpoint string, payload interface{}) error {
 	defer resp.Body.Close()
 
 	if resp.StatusCode >= 400 {
-		return fmt.Errorf("dash api error: status %d", resp.StatusCode)
+		body, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("dash api error: status %d, body: %s", resp.StatusCode, string(body))
 	}
 	return nil
 }
