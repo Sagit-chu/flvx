@@ -123,6 +123,7 @@ interface Node {
   serverIpV4?: string;
   serverIpV6?: string;
   extraIPs?: string;
+  runtimeEngine?: string; // gost | dash
 }
 
 interface TunnelForm {
@@ -2494,12 +2495,30 @@ export default function TunnelPage() {
                                       }
                                     }}
                                   >
-                                    <SelectItem key="tls">TLS</SelectItem>
-                                    <SelectItem key="wss">WSS</SelectItem>
-                                    <SelectItem key="tcp">TCP</SelectItem>
-                                    <SelectItem key="mtls">MTLS</SelectItem>
-                                    <SelectItem key="mwss">MWSS</SelectItem>
-                                    <SelectItem key="mtcp">MTCP</SelectItem>
+                                    {(() => {
+                                      const isAnyDash = groupNodes.some(
+                                        (ct) =>
+                                          nodes.find((n) => n.id === ct.nodeId)
+                                            ?.runtimeEngine === "dash",
+                                      );
+
+                                      if (isAnyDash) {
+                                        return [
+                                          <SelectItem key="tcp">TCP</SelectItem>,
+                                          <SelectItem key="quic">QUIC</SelectItem>,
+                                        ];
+                                      }
+
+                                      return [
+                                        <SelectItem key="tls">TLS</SelectItem>,
+                                        <SelectItem key="wss">WSS</SelectItem>,
+                                        <SelectItem key="tcp">TCP</SelectItem>,
+                                        <SelectItem key="quic">QUIC</SelectItem>,
+                                        <SelectItem key="mtls">MTLS</SelectItem>,
+                                        <SelectItem key="mwss">MWSS</SelectItem>,
+                                        <SelectItem key="mtcp">MTCP</SelectItem>,
+                                      ];
+                                    })()}
                                   </Select>
 
                                   {/* 负载策略 - 25% */}
@@ -2794,12 +2813,30 @@ export default function TunnelPage() {
                                   }
                                 }}
                               >
-                                <SelectItem key="tls">TLS</SelectItem>
-                                <SelectItem key="wss">WSS</SelectItem>
-                                <SelectItem key="tcp">TCP</SelectItem>
-                                <SelectItem key="mtls">MTLS</SelectItem>
-                                <SelectItem key="mwss">MWSS</SelectItem>
-                                <SelectItem key="mtcp">MTCP</SelectItem>
+                                {(() => {
+                                  const isAnyDash = (form.outNodeId || []).some(
+                                    (ct) =>
+                                      nodes.find((n) => n.id === ct.nodeId)
+                                        ?.runtimeEngine === "dash",
+                                  );
+
+                                  if (isAnyDash) {
+                                    return [
+                                      <SelectItem key="tcp">TCP</SelectItem>,
+                                      <SelectItem key="quic">QUIC</SelectItem>,
+                                    ];
+                                  }
+
+                                  return [
+                                    <SelectItem key="tls">TLS</SelectItem>,
+                                    <SelectItem key="wss">WSS</SelectItem>,
+                                    <SelectItem key="tcp">TCP</SelectItem>,
+                                    <SelectItem key="quic">QUIC</SelectItem>,
+                                    <SelectItem key="mtls">MTLS</SelectItem>,
+                                    <SelectItem key="mwss">MWSS</SelectItem>,
+                                    <SelectItem key="mtcp">MTCP</SelectItem>,
+                                  ];
+                                })()}
                               </Select>
 
                               {/* 负载策略 - 25% */}

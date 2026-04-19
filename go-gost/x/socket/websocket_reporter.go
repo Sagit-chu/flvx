@@ -791,90 +791,77 @@ func (w *WebSocketReporter) routeCommand(cmd CommandMessage) {
 	switch cmd.Type {
 	// Service 相关命令
 	case "AddService":
-		if isDash {
+		err = w.handleAddService(cmd.Data)
+		if isDash && err == nil {
 			err = handleDashAddService(cmd.Data)
-		} else {
-			err = w.handleAddService(cmd.Data)
 		}
 		response.Type = "AddServiceResponse"
 		needSaveConfig = true
 	case "UpdateService":
-		if isDash {
+		err = w.handleUpdateService(cmd.Data)
+		if isDash && err == nil {
 			err = handleDashUpdateService(cmd.Data)
-		} else {
-			err = w.handleUpdateService(cmd.Data)
 		}
 		response.Type = "UpdateServiceResponse"
 		needSaveConfig = true
 	case "DeleteService":
-		if isDash {
+		err = w.handleDeleteService(cmd.Data)
+		if isDash && err == nil {
 			err = handleDashDeleteService(cmd.Data)
-		} else {
-			err = w.handleDeleteService(cmd.Data)
 		}
 		response.Type = "DeleteServiceResponse"
 		needSaveConfig = true
 	case "PauseService":
-		if !isDash {
-			err = w.handlePauseService(cmd.Data)
-		}
+		err = w.handlePauseService(cmd.Data)
 		response.Type = "PauseServiceResponse"
 		needSaveConfig = true
 	case "ResumeService":
-		if !isDash {
-			err = w.handleResumeService(cmd.Data)
-		}
+		err = w.handleResumeService(cmd.Data)
 		response.Type = "ResumeServiceResponse"
 		needSaveConfig = true
 
 	// Chain 相关命令
 	case "AddChains":
-		if isDash {
+		err = w.handleAddChain(cmd.Data)
+		if isDash && err == nil {
 			err = handleDashAddChain(cmd.Data)
-		} else {
-			err = w.handleAddChain(cmd.Data)
 		}
 		response.Type = "AddChainsResponse"
 		needSaveConfig = true
 	case "UpdateChains":
-		if isDash {
+		err = w.handleUpdateChain(cmd.Data)
+		if isDash && err == nil {
 			err = handleDashUpdateChain(cmd.Data)
-		} else {
-			err = w.handleUpdateChain(cmd.Data)
 		}
 		response.Type = "UpdateChainsResponse"
 		needSaveConfig = true
 	case "DeleteChains":
-		if isDash {
+		err = w.handleDeleteChain(cmd.Data)
+		if isDash && err == nil {
 			err = handleDashDeleteChain(cmd.Data)
-		} else {
-			err = w.handleDeleteChain(cmd.Data)
 		}
 		response.Type = "DeleteChainsResponse"
 		needSaveConfig = true
 
 	// Limiter 相关命令
 	case "AddLimiters":
-		if isDash {
+		err = w.handleAddLimiter(cmd.Data)
+		if isDash && err == nil {
 			err = handleDashAddLimiter(cmd.Data)
-		} else {
-			err = w.handleAddLimiter(cmd.Data)
 		}
 		response.Type = "AddLimitersResponse"
 		needSaveConfig = true
 	case "UpdateLimiters":
-		if isDash {
+		err = w.handleUpdateLimiter(cmd.Data)
+		if isDash && err == nil {
 			err = handleDashUpdateLimiter(cmd.Data)
-		} else {
-			err = w.handleUpdateLimiter(cmd.Data)
 		}
 		response.Type = "UpdateLimitersResponse"
 		needSaveConfig = true
 	case "DeleteLimiters":
-		if isDash {
+		err = w.handleDeleteLimiter(cmd.Data)
+		if isDash && err == nil {
 			err = handleDashDeleteLimiter(cmd.Data)
-		} else {
-			err = w.handleDeleteLimiter(cmd.Data)
 		}
 		response.Type = "DeleteLimitersResponse"
 		needSaveConfig = true
@@ -963,7 +950,7 @@ func (w *WebSocketReporter) handleAddService(data interface{}) error {
 		return fmt.Errorf("预处理duration字段失败: %v", err)
 	}
 
-	var services []config.ServiceConfig
+	var services []*config.ServiceConfig
 	if err := json.Unmarshal(processedData, &services); err != nil {
 		return fmt.Errorf("解析服务配置失败: %v", err)
 	}
@@ -984,7 +971,7 @@ func (w *WebSocketReporter) handleUpdateService(data interface{}) error {
 		return fmt.Errorf("预处理duration字段失败: %v", err)
 	}
 
-	var services []config.ServiceConfig
+	var services []*config.ServiceConfig
 	if err := json.Unmarshal(processedData, &services); err != nil {
 		return fmt.Errorf("解析服务配置失败: %v", err)
 	}
@@ -1042,7 +1029,7 @@ func (w *WebSocketReporter) handleAddChain(data interface{}) error {
 		return fmt.Errorf("序列化数据失败: %v", err)
 	}
 
-	var chainConfig config.ChainConfig
+	var chainConfig *config.ChainConfig
 	if err := json.Unmarshal(jsonData, &chainConfig); err != nil {
 		return fmt.Errorf("解析链配置失败: %v", err)
 	}
@@ -1059,14 +1046,14 @@ func (w *WebSocketReporter) handleUpdateChain(data interface{}) error {
 
 	// 对于更新操作，Java端发送的格式可能是: {"chain": "name", "data": {...}}
 	var updateReq struct {
-		Chain string             `json:"chain"`
-		Data  config.ChainConfig `json:"data"`
+		Chain string              `json:"chain"`
+		Data  *config.ChainConfig `json:"data"`
 	}
 
 	// 尝试解析为更新请求格式
 	if err := json.Unmarshal(jsonData, &updateReq); err != nil {
 		// 如果失败，可能是直接的ChainConfig，从name字段获取chain名称
-		var chainConfig config.ChainConfig
+		var chainConfig *config.ChainConfig
 		if err := json.Unmarshal(jsonData, &chainConfig); err != nil {
 			return fmt.Errorf("解析链配置失败: %v", err)
 		}
@@ -1110,7 +1097,7 @@ func (w *WebSocketReporter) handleAddLimiter(data interface{}) error {
 		return fmt.Errorf("序列化数据失败: %v", err)
 	}
 
-	var limiterConfig config.LimiterConfig
+	var limiterConfig *config.LimiterConfig
 	if err := json.Unmarshal(jsonData, &limiterConfig); err != nil {
 		return fmt.Errorf("解析限流器配置失败: %v", err)
 	}
@@ -1127,14 +1114,14 @@ func (w *WebSocketReporter) handleUpdateLimiter(data interface{}) error {
 
 	// 对于更新操作，Java端发送的格式可能是: {"limiter": "name", "data": {...}}
 	var updateReq struct {
-		Limiter string               `json:"limiter"`
-		Data    config.LimiterConfig `json:"data"`
+		Limiter string                `json:"limiter"`
+		Data    *config.LimiterConfig `json:"data"`
 	}
 
 	// 尝试解析为更新请求格式
 	if err := json.Unmarshal(jsonData, &updateReq); err != nil {
 		// 如果失败，可能是直接的LimiterConfig，从name字段获取limiter名称
-		var limiterConfig config.LimiterConfig
+		var limiterConfig *config.LimiterConfig
 		if err := json.Unmarshal(jsonData, &limiterConfig); err != nil {
 			return fmt.Errorf("解析限流器配置失败: %v", err)
 		}

@@ -20,7 +20,7 @@ func createLimiter(req createLimiterRequest) error {
 	}
 
 	if !IsDashMode {
-		v := parser.ParseTrafficLimiter(&req.Data)
+		v := parser.ParseTrafficLimiter(req.Data)
 
 		if err := registry.TrafficLimiterRegistry().Register(name, v); err != nil {
 			return errors.New("limiter " + name + " already exists")
@@ -28,7 +28,7 @@ func createLimiter(req createLimiterRequest) error {
 	}
 
 	config.OnUpdate(func(c *config.Config) error {
-		c.Limiters = append(c.Limiters, &req.Data)
+		c.Limiters = append(c.Limiters, req.Data)
 		return nil
 	})
 
@@ -46,7 +46,7 @@ func updateLimiter(req updateLimiterRequest) error {
 	req.Data.Name = name
 
 	if !IsDashMode {
-		v := parser.ParseTrafficLimiter(&req.Data)
+		v := parser.ParseTrafficLimiter(req.Data)
 
 		if err := registry.TrafficLimiterRegistry().Register(name, v); err != nil {
 			return errors.New("limiter " + name + " already exists")
@@ -57,13 +57,13 @@ func updateLimiter(req updateLimiterRequest) error {
 		found := false
 		for i := range c.Limiters {
 			if c.Limiters[i].Name == name {
-				c.Limiters[i] = &req.Data
+				c.Limiters[i] = req.Data
 				found = true
 				break
 			}
 		}
 		if !found {
-			c.Limiters = append(c.Limiters, &req.Data)
+			c.Limiters = append(c.Limiters, req.Data)
 		}
 		return nil
 	})
@@ -95,12 +95,12 @@ func deleteLimiter(req deleteLimiterRequest) error {
 }
 
 type createLimiterRequest struct {
-	Data config.LimiterConfig `json:"data"`
+	Data *config.LimiterConfig `json:"data"`
 }
 
 type updateLimiterRequest struct {
-	Limiter string               `json:"limiter"`
-	Data    config.LimiterConfig `json:"data"`
+	Limiter string                `json:"limiter"`
+	Data    *config.LimiterConfig `json:"data"`
 }
 
 type deleteLimiterRequest struct {

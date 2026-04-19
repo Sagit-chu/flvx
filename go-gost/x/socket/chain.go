@@ -23,7 +23,7 @@ func createChain(req createChainRequest) error {
 	}
 
 	if !IsDashMode {
-		v, err := parser.ParseChain(&req.Data, logger.Default())
+		v, err := parser.ParseChain(req.Data, logger.Default())
 		if err != nil {
 			return errors.New("create chain " + name + " failed: " + err.Error())
 		}
@@ -34,7 +34,7 @@ func createChain(req createChainRequest) error {
 	}
 
 	config.OnUpdate(func(c *config.Config) error {
-		c.Chains = append(c.Chains, &req.Data)
+		c.Chains = append(c.Chains, req.Data)
 		return nil
 	})
 
@@ -52,7 +52,7 @@ func updateChain(req updateChainRequest) error {
 	req.Data.Name = name
 
 	if !IsDashMode {
-		v, err := parser.ParseChain(&req.Data, logger.Default())
+		v, err := parser.ParseChain(req.Data, logger.Default())
 		if err != nil {
 			return errors.New("create chain " + name + " failed: " + err.Error())
 		}
@@ -66,13 +66,13 @@ func updateChain(req updateChainRequest) error {
 		found := false
 		for i := range c.Chains {
 			if c.Chains[i].Name == name {
-				c.Chains[i] = &req.Data
+				c.Chains[i] = req.Data
 				found = true
 				break
 			}
 		}
 		if !found {
-			c.Chains = append(c.Chains, &req.Data)
+			c.Chains = append(c.Chains, req.Data)
 		}
 		return nil
 	})
@@ -104,12 +104,12 @@ func deleteChain(req deleteChainRequest) error {
 }
 
 type createChainRequest struct {
-	Data config.ChainConfig `json:"data"`
+	Data *config.ChainConfig `json:"data"`
 }
 
 type updateChainRequest struct {
-	Chain string             `json:"chain"`
-	Data  config.ChainConfig `json:"data"`
+	Chain string              `json:"chain"`
+	Data  *config.ChainConfig `json:"data"`
 }
 
 type deleteChainRequest struct {

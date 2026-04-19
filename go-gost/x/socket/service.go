@@ -21,7 +21,7 @@ func createServices(req createServicesRequest) error {
 
 	// 第一阶段：验证所有服务配置
 	var parsedServices []struct {
-		config  config.ServiceConfig
+		config  *config.ServiceConfig
 		service service.Service
 	}
 
@@ -36,13 +36,13 @@ func createServices(req createServicesRequest) error {
 			return errors.New("service " + name + " already exists")
 		}
 
-		svc, err := parser.ParseService(&serviceConfig)
+		svc, err := parser.ParseService(serviceConfig)
 		if err != nil {
 			return errors.New("create service " + name + " failed: " + err.Error())
 		}
 
 		parsedServices = append(parsedServices, struct {
-			config  config.ServiceConfig
+			config  *config.ServiceConfig
 			service service.Service
 		}{serviceConfig, svc})
 	}
@@ -75,7 +75,7 @@ func createServices(req createServicesRequest) error {
 	// 第四阶段：更新配置
 	config.OnUpdate(func(c *config.Config) error {
 		for _, ps := range parsedServices {
-			c.Services = append(c.Services, &ps.config)
+			c.Services = append(c.Services, ps.config)
 		}
 		return nil
 	})
@@ -100,7 +100,7 @@ func updateServices(req updateServicesRequest) error {
 
 	// 第二阶段：逐个更新服务（Upsert模式：存在则更新，不存在则创建）
 	for i := range req.Data {
-		serviceConfig := &req.Data[i]
+		serviceConfig := req.Data[i]
 		name := serviceConfig.Name
 
 		// 1. 获取旧服务
@@ -135,19 +135,17 @@ func updateServices(req updateServicesRequest) error {
 
 	// 第三阶段：更新配置
 	config.OnUpdate(func(c *config.Config) error {
-		for i := range req.Data {
-			// 创建副本以确保指针安全
-			cfgCopy := req.Data[i]
+		for _, cfg := range req.Data {
 			found := false
 			for j := range c.Services {
-				if c.Services[j].Name == cfgCopy.Name {
-					c.Services[j] = &cfgCopy
+				if c.Services[j].Name == cfg.Name {
+					c.Services[j] = cfg
 					found = true
 					break
 				}
 			}
 			if !found {
-				c.Services = append(c.Services, &cfgCopy)
+				c.Services = append(c.Services, cfg)
 			}
 		}
 		return nil
@@ -547,9 +545,9 @@ type deleteServicesRequest struct {
 }
 
 type updateServicesRequest struct {
-	Data []config.ServiceConfig `json:"data"`
+	Data []*config.ServiceConfig `json:"data"`
 }
 
 type createServicesRequest struct {
-	Data []config.ServiceConfig `json:"data"`
+	Data []*config.ServiceConfig `json:"data"`
 }
