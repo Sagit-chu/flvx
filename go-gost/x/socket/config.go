@@ -43,44 +43,25 @@ func saveConfig() error {
 
 	cfg := config.Global()
 
-	// Ensure Services is at least an empty slice, not nil, to avoid "services": null in JSON
-	if cfg.Services == nil {
-		cfg.Services = []*config.ServiceConfig{}
+	// Use a map to ensure we have full control over the JSON structure
+	// and specifically avoid "services": null
+	services := cfg.Services
+	if services == nil {
+		services = []*config.ServiceConfig{}
 	}
 
-	// Ensure API service is present for Dash if in dash mode
-	// Dash requires at least one service to start via config file
-	if isDashRuntime() {
-		apiFound := false
-		for _, s := range cfg.Services {
-			if s.Name == "api" {
-				apiFound = true
-				break
-			}
-		}
-		if !apiFound {
-			cfg.Services = append(cfg.Services, &config.ServiceConfig{
-				Name: "api",
-				Addr: "127.0.0.1:19090",
-				Handler: &config.HandlerConfig{
-					Type: "auto",
-				},
-				Listener: &config.ListenerConfig{
-					Type: "tcp",
-				},
-			})
-		}
+	data := map[string]interface{}{
+		"services": services,
+		"chains":   cfg.Chains,
+		"authers":  cfg.Authers,
+		"limiters": cfg.Limiters,
+		"api":      cfg.API,
 	}
 
-	f, err := os.Create(file)
+	jsonData, err := json.MarshalIndent(data, "", "  ")
 	if err != nil {
 		return err
 	}
-	defer f.Close()
 
-	if err := cfg.Write(f, "json"); err != nil {
-		return err
-	}
-
-	return nil
+	return os.WriteFile(file, jsonData, 0644)
 }
