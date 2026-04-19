@@ -43,29 +43,6 @@ func saveConfig() error {
 
 	cfg := config.Global()
 
-	// Ensure API service is present for Dash REST API
-	if isDashRuntime() {
-		apiFound := false
-		for _, s := range cfg.Services {
-			if s.Name == "api" {
-				apiFound = true
-				break
-			}
-		}
-		if !apiFound {
-			cfg.Services = append(cfg.Services, &config.ServiceConfig{
-				Name: "api",
-				Addr: "127.0.0.1:19090",
-				Handler: &config.HandlerConfig{
-					Type: "auto",
-				},
-				Listener: &config.ListenerConfig{
-					Type: "tcp",
-				},
-			})
-		}
-	}
-
 	f, err := os.Create(file)
 	if err != nil {
 		return err
