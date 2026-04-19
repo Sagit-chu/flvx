@@ -44,17 +44,29 @@ func saveConfig() error {
 	cfg := config.Global()
 
 	// Use a map to ensure we have full control over the JSON structure
-	// and specifically avoid "services": null
+	// and specifically avoid null values which cause Dash parsing errors
 	services := cfg.Services
 	if services == nil {
 		services = []*config.ServiceConfig{}
 	}
+	chains := cfg.Chains
+	if chains == nil {
+		chains = []*config.ChainConfig{}
+	}
+	authers := cfg.Authers
+	if authers == nil {
+		authers = []*config.AutherConfig{}
+	}
+	limiters := cfg.Limiters
+	if limiters == nil {
+		limiters = []*config.LimiterConfig{}
+	}
 
 	data := map[string]interface{}{
 		"services": services,
-		"chains":   cfg.Chains,
-		"authers":  cfg.Authers,
-		"limiters": cfg.Limiters,
+		"chains":   chains,
+		"authers":  authers,
+		"limiters": limiters,
 		"api":      cfg.API,
 	}
 
