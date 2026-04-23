@@ -118,6 +118,7 @@ interface Forward {
   outFlow: number;
   serviceRunning: boolean;
   federationShareFlow?: number;
+  maxConn?: number;
   createdTime: string;
   userName?: string;
   userId?: number;
