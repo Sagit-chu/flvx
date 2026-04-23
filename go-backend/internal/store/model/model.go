@@ -539,6 +539,7 @@ type ForwardRecord struct {
 	Strategy   string
 	Status     int
 	SpeedID    sql.NullInt64
+	MaxConn    int
 }
 
 // TunnelRecord is a minimal tunnel view used by control plane.
