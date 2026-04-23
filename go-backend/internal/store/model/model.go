@@ -23,6 +23,7 @@ type User struct {
 	CreatedTime   int64         `gorm:"column:created_time;not null"`
 	UpdatedTime   sql.NullInt64 `gorm:"column:updated_time"`
 	Status        int           `gorm:"not null"`
+	MaxConn       int           `gorm:"column:max_conn;not null;default:0"`
 }
 
 func (User) TableName() string { return "user" }
@@ -43,6 +44,7 @@ type Forward struct {
 	Status      int           `gorm:"not null"`
 	Inx         int           `gorm:"not null;default:0"`
 	SpeedID     sql.NullInt64 `gorm:"column:speed_id"`
+	MaxConn     int           `gorm:"column:max_conn;not null;default:0"`
 }
 
 func (Forward) TableName() string { return "forward" }
