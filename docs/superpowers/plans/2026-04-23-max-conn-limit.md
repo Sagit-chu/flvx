@@ -1,6 +1,6 @@
 # 最大连接数限制实现计划
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`[x]`) syntax for tracking.
 
 **Goal:** 在 FLVX 中实现基于用户的全局最大连接数限制和基于单条规则的独立最大连接数限制功能。前端输入框为 0 或空时表示不限制。
 
@@ -27,7 +27,7 @@
 - Modify: `go-gost/x/socket/limiter.go`
 - Modify: `go-gost/x/socket/websocket_reporter.go`
 
-- [ ] **Step 1: 实现 `createConnLimiter` 等功能**
+[x] **Step 1: 实现 `createConnLimiter` 等功能**
 
 在 `go-gost/x/socket/limiter.go` 中参考现有 `createLimiter` 添加对 `CLimiters` 的支持：
 
@@ -101,7 +101,7 @@ func deleteConnLimiter(req deleteLimiterRequest) error {
 }
 ```
 
-- [ ] **Step 2: 在 `WebSocketReporter` 注册命令**
+[x] **Step 2: 在 `WebSocketReporter` 注册命令**
 
 在 `go-gost/x/socket/websocket_reporter.go` 的 `ProcessCommand` 中添加 case：
 
@@ -120,7 +120,7 @@ func deleteConnLimiter(req deleteLimiterRequest) error {
 		needSaveConfig = true
 ```
 
-- [ ] **Step 3: 实现 Handler 方法**
+[x] **Step 3: 实现 Handler 方法**
 
 在 `go-gost/x/socket/websocket_reporter.go` 中添加：
 
@@ -187,7 +187,7 @@ func (w *WebSocketReporter) handleDeleteCLimiter(data interface{}) error {
 }
 ```
 
-- [ ] **Step 4: Commit**
+[x] **Step 4: Commit**
 
 ```bash
 cd go-gost
@@ -204,7 +204,7 @@ cd ..
 - Modify: `go-backend/internal/store/model/model.go`
 - Modify: `go-backend/internal/store/repo/repository.go`
 
-- [ ] **Step 1: 更新数据库模型**
+[x] **Step 1: 更新数据库模型**
 
 在 `go-backend/internal/store/model/model.go` 的 `User` 和 `Forward` 结构体中添加 `MaxConn` 字段。
 
@@ -224,7 +224,7 @@ type Forward struct {
 }
 ```
 
-- [ ] **Step 2: 编写数据库迁移**
+[x] **Step 2: 编写数据库迁移**
 
 在 `go-backend/internal/store/repo/repository.go` 的 `AutoMigrate` 逻辑前（如果有自定义迁移）或利用 gorm 自动迁移机制，由于这是 autoMigrate，添加字段只要 `db.AutoMigrate(&model.User{}, &model.Forward{})` 被调用就能自动加上。确认已执行迁移。由于 `FLVX` 通常会自动执行迁移，只需修改模型即可。我们需要处理默认值，由于使用了 `default:0`，GORM 会处理新增字段的默认值，但为了安全起见，如果在旧环境中，可能直接 alter table。
 
@@ -232,11 +232,11 @@ type Forward struct {
 // 无需手动编写 SQL，依赖现有的 gorm AutoMigrate 即可。
 ```
 
-- [ ] **Step 3: 运行并验证迁移通过**
+[x] **Step 3: 运行并验证迁移通过**
 
 Run: `make build` (在 go-backend 中)，或者运行一个相关的存储单元测试。
 
-- [ ] **Step 4: Commit**
+[x] **Step 4: Commit**
 
 ```bash
 cd go-backend
@@ -253,13 +253,13 @@ cd ..
 - Modify: `go-backend/internal/http/handler/control_plane.go`
 - Modify: `go-backend/internal/store/repo/repository_control.go`
 
-- [ ] **Step 1: 更新存储层以获取 User 的 MaxConn**
+[x] **Step 1: 更新存储层以获取 User 的 MaxConn**
 
 在 `go-backend/internal/store/repo/repository_control.go` 中：
 
 需要一个方法获取 User，或者如果已经有，确保可以拿到 `MaxConn`。
 
-- [ ] **Step 2: 编写下发 CLimiter 到节点的辅助函数**
+[x] **Step 2: 编写下发 CLimiter 到节点的辅助函数**
 
 在 `go-backend/internal/http/handler/control_plane.go`，参考 `ensureLimiterOnNode` 和 `upsertLimiterOnNode`：
 
@@ -288,7 +288,7 @@ func (h *Handler) ensureConnLimiterOnNode(nodeID int64, limiterName string, maxC
 }
 ```
 
-- [ ] **Step 3: 更新组装配置逻辑以绑定 `climiter`**
+[x] **Step 3: 更新组装配置逻辑以绑定 `climiter`**
 
 在 `control_plane.go` 的 `syncForwardServicesWithWarnings` 及其辅助函数 `buildForwardServiceConfigs` 附近：
 
@@ -305,7 +305,7 @@ func buildForwardServiceConfigs(baseName string, forward *model.Forward, tunnel 
 }
 ```
 
-- [ ] **Step 4: 在转发服务同步主流程中决定并下发 `climiter`**
+[x] **Step 4: 在转发服务同步主流程中决定并下发 `climiter`**
 
 在 `syncForwardServicesWithWarnings` (可能在多个重载/处理入口处，如 `ensureForwardServices`)，查出转发所属 user 的 `MaxConn`，以及转发本身的 `MaxConn`。
 
@@ -340,7 +340,7 @@ func buildForwardServiceConfigs(baseName string, forward *model.Forward, tunnel 
 ```
 *(注意：需要确保更新涉及 `buildForwardServiceConfigs` 的所有调用点)*
 
-- [ ] **Step 5: Commit**
+[x] **Step 5: Commit**
 
 ```bash
 cd go-backend
@@ -357,7 +357,7 @@ cd ..
 - Modify: `go-backend/internal/http/handler/admin_user.go`
 - Modify: `go-backend/internal/http/handler/forward.go`
 
-- [ ] **Step 1: 用户接口更新**
+[x] **Step 1: 用户接口更新**
 
 在 `go-backend/internal/http/handler/admin_user.go`，修改用户创建和更新请求的结构体（如果有），接收 `MaxConn`，并在保存到数据库时赋值。
 
@@ -374,17 +374,17 @@ if req.MaxConn != nil {
 
 在获取用户列表时，确保 `MaxConn` 返回给前端。
 
-- [ ] **Step 2: 规则接口更新**
+[x] **Step 2: 规则接口更新**
 
 在 `go-backend/internal/http/handler/forward.go` 中，更新 `CreateForwardReq` 和 `UpdateForwardReq` 结构体，增加 `MaxConn`，并在创建/更新 Forward 时保存到数据库。
 
 如果转发规则的 `MaxConn` 或相关信息改变，触发节点上的规则重载（重新下发服务）。这一步由于更改了数据库，复用现有的 `syncForwardServices` 就会带上最新的配置。
 
-- [ ] **Step 3: 测试接口**
+[x] **Step 3: 测试接口**
 
 Run: 可以启动后使用 curl 测试。
 
-- [ ] **Step 4: Commit**
+[x] **Step 4: Commit**
 
 ```bash
 cd go-backend
@@ -402,12 +402,12 @@ cd ..
 - Modify: `vite-frontend/src/api/index.ts`
 - Modify: `vite-frontend/src/pages/users.tsx` (或者对应的用户管理页面文件)
 
-- [ ] **Step 1: 类型更新**
+[x] **Step 1: 类型更新**
 
 在 `vite-frontend/src/api/types.ts` 中：
 为 `UserApiItem` 和相关的 mutation payload 增加 `maxConn?: number` 属性。
 
-- [ ] **Step 2: UI 修改**
+[x] **Step 2: UI 修改**
 
 在用户创建/编辑弹窗中，增加“最大连接数”输入框：
 (假设使用 `@nextui-org/react` 的 `Input`)
@@ -426,9 +426,9 @@ cd ..
 ```
 并在用户的表格列中展示 `最大连接数`（值为 0 显示“不限制”）。
 
-- [ ] **Step 3: 运行 Vite 进行验证**
+[x] **Step 3: 运行 Vite 进行验证**
 
-- [ ] **Step 4: Commit**
+[x] **Step 4: Commit**
 
 ```bash
 cd vite-frontend
@@ -444,11 +444,11 @@ cd ..
 **Files:**
 - Modify: `vite-frontend/src/pages/forward.tsx`
 
-- [ ] **Step 1: 类型更新**
+[x] **Step 1: 类型更新**
 
 在 `api/types.ts` 中 `ForwardMutationPayload` 和 `ForwardApiItem` 中增加 `maxConn?: number`。
 
-- [ ] **Step 2: UI 修改**
+[x] **Step 2: UI 修改**
 
 在 `vite-frontend/src/pages/forward.tsx` 的创建/编辑规则弹窗（在 "规则限速" 附近）增加“最大连接数”输入框：
 
@@ -468,11 +468,11 @@ cd ..
 
 如果是在列表/卡片中展示，可以增加一个小标签或者 Tooltip 显示其最大连接数设置。
 
-- [ ] **Step 3: 验证**
+[x] **Step 3: 验证**
 
 在前端验证该功能能正确读写规则的连接限制字段。
 
-- [ ] **Step 4: Commit**
+[x] **Step 4: Commit**
 
 ```bash
 cd vite-frontend
