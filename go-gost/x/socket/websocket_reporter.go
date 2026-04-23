@@ -836,6 +836,18 @@ func (w *WebSocketReporter) routeCommand(cmd CommandMessage) {
 		err = w.handleDeleteLimiter(cmd.Data)
 		response.Type = "DeleteLimitersResponse"
 		needSaveConfig = true
+	case "AddCLimiters":
+		err = w.handleAddCLimiter(cmd.Data)
+		response.Type = "AddCLimitersResponse"
+		needSaveConfig = true
+	case "UpdateCLimiters":
+		err = w.handleUpdateCLimiter(cmd.Data)
+		response.Type = "UpdateCLimitersResponse"
+		needSaveConfig = true
+	case "DeleteCLimiters":
+		err = w.handleDeleteCLimiter(cmd.Data)
+		response.Type = "DeleteCLimitersResponse"
+		needSaveConfig = true
 
 	// TCP Ping 诊断命令（只读，不需要保存配置）
 	case "TcpPing":
@@ -1128,6 +1140,67 @@ func (w *WebSocketReporter) handleDeleteLimiter(data interface{}) error {
 	}
 
 	return deleteLimiter(deleteReq)
+}
+
+func (w *WebSocketReporter) handleAddCLimiter(data interface{}) error {
+	jsonData, err := json.Marshal(data)
+	if err != nil {
+		return fmt.Errorf("序列化数据失败: %v", err)
+	}
+
+	var limiterConfig config.LimiterConfig
+	if err := json.Unmarshal(jsonData, &limiterConfig); err != nil {
+		return fmt.Errorf("解析限流器配置失败: %v", err)
+	}
+
+	req := createLimiterRequest{Data: limiterConfig}
+	return createConnLimiter(req)
+}
+
+func (w *WebSocketReporter) handleUpdateCLimiter(data interface{}) error {
+	jsonData, err := json.Marshal(data)
+	if err != nil {
+		return fmt.Errorf("序列化数据失败: %v", err)
+	}
+
+	var updateReq struct {
+		Limiter string               `json:"limiter"`
+		Data    config.LimiterConfig `json:"data"`
+	}
+
+	if err := json.Unmarshal(jsonData, &updateReq); err != nil {
+		var limiterConfig config.LimiterConfig
+		if err := json.Unmarshal(jsonData, &limiterConfig); err != nil {
+			return fmt.Errorf("解析更新请求失败: %v", err)
+		}
+		updateReq.Limiter = limiterConfig.Name
+		updateReq.Data = limiterConfig
+	}
+
+	req := updateLimiterRequest{
+		Limiter: updateReq.Limiter,
+		Data:    updateReq.Data,
+	}
+	return updateConnLimiter(req)
+}
+
+func (w *WebSocketReporter) handleDeleteCLimiter(data interface{}) error {
+	jsonData, err := json.Marshal(data)
+	if err != nil {
+		return fmt.Errorf("序列化数据失败: %v", err)
+	}
+
+	var deleteReq deleteLimiterRequest
+
+	if err := json.Unmarshal(jsonData, &deleteReq); err != nil {
+		var limiterName string
+		if err := json.Unmarshal(jsonData, &limiterName); err != nil {
+			return fmt.Errorf("解析删除请求失败: %v", err)
+		}
+		deleteReq.Limiter = limiterName
+	}
+
+	return deleteConnLimiter(deleteReq)
 }
 
 // handleSetProtocol 处理设置屏蔽协议的命令

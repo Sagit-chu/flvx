@@ -102,3 +102,71 @@ type updateLimiterRequest struct {
 type deleteLimiterRequest struct {
 	Limiter string `json:"limiter"`
 }
+
+func createConnLimiter(req createLimiterRequest) error {
+	name := strings.TrimSpace(req.Data.Name)
+	if name == "" {
+		return errors.New("limiter name is required")
+	}
+	req.Data.Name = name
+
+	if registry.ConnLimiterRegistry().IsRegistered(name) {
+		return errors.New("conn limiter " + name + " already exists")
+	}
+
+	v := parser.ParseConnLimiter(&req.Data)
+
+	if err := registry.ConnLimiterRegistry().Register(name, v); err != nil {
+		return errors.New("conn limiter " + name + " already exists")
+	}
+
+	if c := config.Global(); c != nil {
+		c.CLimiters = append(c.CLimiters, &req.Data)
+	}
+	return nil
+}
+
+func updateConnLimiter(req updateLimiterRequest) error {
+	name := strings.TrimSpace(req.Limiter)
+	req.Data.Name = name
+	if registry.ConnLimiterRegistry().IsRegistered(name) {
+		registry.ConnLimiterRegistry().Unregister(name)
+	}
+
+	v := parser.ParseConnLimiter(&req.Data)
+
+	if err := registry.ConnLimiterRegistry().Register(name, v); err != nil {
+		return errors.New("conn limiter " + name + " already exists")
+	}
+
+	if c := config.Global(); c != nil {
+		for i := range c.CLimiters {
+			if c.CLimiters[i].Name == name {
+				c.CLimiters[i] = &req.Data
+				return nil
+			}
+		}
+		c.CLimiters = append(c.CLimiters, &req.Data)
+	}
+	return nil
+}
+
+func deleteConnLimiter(req deleteLimiterRequest) error {
+	name := strings.TrimSpace(req.Limiter)
+
+	if registry.ConnLimiterRegistry().IsRegistered(name) {
+		registry.ConnLimiterRegistry().Unregister(name)
+	}
+
+	if c := config.Global(); c != nil {
+		limiteres := c.CLimiters
+		c.CLimiters = nil
+		for _, s := range limiteres {
+			if s.Name == name {
+				continue
+			}
+			c.CLimiters = append(c.CLimiters, s)
+		}
+	}
+	return nil
+}
