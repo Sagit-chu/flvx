@@ -157,6 +157,7 @@ interface ForwardForm {
   interfaceName?: string;
   strategy: string;
   speedId: number | null;
+  maxConn?: number;
 }
 
 interface ForwardUserGroup {
@@ -1306,6 +1307,7 @@ export default function ForwardPage() {
     interfaceName: "",
     strategy: "fifo",
     speedId: null,
+    maxConn: 0,
   });
   const [inIpTouched, setInIpTouched] = useState(false);
 
@@ -4723,6 +4725,20 @@ export default function ForwardPage() {
               </ModalHeader>
               <ModalBody>
                 <div className="space-y-4 pb-4">
+                  <Input
+                    label="最大连接数"
+                    placeholder="0 或空表示不限制"
+                    type="number"
+                    min="0"
+                    value={form.maxConn === 0 ? "" : String(form.maxConn || "")}
+                    onChange={(e) => {
+                      const value = Math.max(Number(e.target.value) || 0, 0);
+                      setForm((prev) => ({ ...prev, maxConn: value }));
+                    }}
+                    description="此设置优先于用户的全局连接数限制。0 表示不限制。"
+                    variant="bordered"
+                  />
+
                   <Input
                     errorMessage={errors.name}
                     isInvalid={!!errors.name}

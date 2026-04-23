@@ -219,6 +219,7 @@ export default function UserPage() {
     num: 10,
     expTime: null,
     flowResetTime: 0,
+    maxConn: 0,
   });
   const [userFormLoading, setUserFormLoading] = useState(false);
   const [quotaResetLoading, setQuotaResetLoading] = useState(false);
@@ -514,6 +515,7 @@ export default function UserPage() {
       num: 10,
       expTime: null,
       flowResetTime: 0,
+    maxConn: 0,
       groupIds: [],
     });
     onUserModalOpen();
@@ -1517,6 +1519,28 @@ export default function UserPage() {
                 }}
               />
               <Input
+                label="最大连接数"
+                placeholder="0 或空表示不限制"
+                type="number"
+                min="0"
+                value={userForm.maxConn === 0 ? "" : String(userForm.maxConn || "")}
+                onChange={(e) => {
+                  const value = Math.max(Number(e.target.value) || 0, 0);
+                  setUserForm((prev) => ({ ...prev, maxConn: value }));
+                }}
+              />
+              <Input
+                label="最大连接数"
+                placeholder="0 或空表示不限制"
+                type="number"
+                min="0"
+                value={userForm.maxConn === 0 ? "" : String(userForm.maxConn || "")}
+                onChange={(e) => {
+                  const value = Math.max(Number(e.target.value) || 0, 0);
+                  setUserForm((prev) => ({ ...prev, maxConn: value }));
+                }}
+              />
+              <Input
                 isRequired
                 label="规则数量"
                 max="99999"
@@ -1926,6 +1950,7 @@ export default function UserPage() {
                     <TableColumn>规则数量</TableColumn>
                     <TableColumn>状态</TableColumn>
                     <TableColumn>限速规则</TableColumn>
+                    <TableColumn>最大连接</TableColumn>
                     <TableColumn>重置时间</TableColumn>
                     <TableColumn>到期时间</TableColumn>
                     <TableColumn>操作</TableColumn>

@@ -20,6 +20,7 @@ export interface UserApiItem {
   num: number;
   expTime?: number;
   flowResetTime?: number;
+  maxConn?: number;
   inFlow?: number;
   outFlow?: number;
   dailyQuotaGB?: number;
@@ -200,6 +201,7 @@ export interface UserPackageInfoApiData {
     num: number;
     expTime?: string;
     flowResetTime?: number;
+  maxConn?: number;
     [key: string]: unknown;
   };
   tunnelPermissions: UserTunnelPermissionApiItem[];
@@ -276,6 +278,7 @@ export interface UserMutationPayload {
   num?: number;
   expTime?: number | string;
   flowResetTime?: number;
+  maxConn?: number;
   dailyQuotaGB?: number;
   monthlyQuotaGB?: number;
   tunnelFlow?: number;
@@ -338,6 +341,7 @@ export interface UserTunnelAssignPayload {
   num?: number;
   expTime?: number;
   flowResetTime?: number;
+  maxConn?: number;
   status?: number;
   speedId?: number | null;
   tunnels?: Array<{ tunnelId: number; speedId?: number | null }>;

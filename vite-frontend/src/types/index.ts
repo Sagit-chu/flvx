@@ -44,6 +44,7 @@ export interface UserForm {
   num: number;
   expTime: Date | null;
   flowResetTime: number;
+  maxConn?: number;
   groupIds?: number[];
 }
 
@@ -56,7 +57,8 @@ export interface UserTunnel {
   flow: number; // 流量限制(GB)
   num: number; // 转发数量
   expTime: number; // 过期时间戳
-  flowResetTime: number; // 流量重置日期
+  flowResetTime: number;
+  maxConn?: number; // 流量重置日期
   speedId?: number | null; // 限速规则ID
   speedLimitName?: string; // 限速规则名称
   inFlow?: number; // 下载流量(字节)
@@ -70,6 +72,7 @@ export interface UserTunnelForm {
   num: number;
   expTime: Date | null;
   flowResetTime: number;
+  maxConn?: number;
   speedId: number | null;
 }
 
