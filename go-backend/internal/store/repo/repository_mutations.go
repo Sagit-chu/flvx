@@ -37,7 +37,7 @@ func (r *Repository) UserExistsExcluding(username string, excludeID int64) (bool
 	return cnt > 0, err
 }
 
-func (r *Repository) CreateUser(username, pwdHash string, roleID int, expTime, flow, flowResetTime int64, num, status int, now int64) (int64, error) {
+func (r *Repository) CreateUser(username, pwdHash string, roleID int, expTime, flow, flowResetTime int64, num, status, maxConn int, now int64) (int64, error) {
 	if r == nil || r.db == nil {
 		return 0, errors.New("repository not initialized")
 	}
@@ -51,6 +51,7 @@ func (r *Repository) CreateUser(username, pwdHash string, roleID int, expTime, f
 		OutFlow:       0,
 		FlowResetTime: flowResetTime,
 		Num:           num,
+		MaxConn:       maxConn,
 		CreatedTime:   now,
 		UpdatedTime:   sql.NullInt64{Int64: now, Valid: true},
 		Status:        status,
@@ -73,7 +74,7 @@ func (r *Repository) GetUserRoleID(userID int64) (int, error) {
 	return user.RoleID, nil
 }
 
-func (r *Repository) UpdateUserWithPassword(id int64, username, pwdHash string, flow int64, num int, expTime, flowResetTime int64, status int, now int64) error {
+func (r *Repository) UpdateUserWithPassword(id int64, username, pwdHash string, flow int64, num int, expTime, flowResetTime int64, status, maxConn int, now int64) error {
 	if r == nil || r.db == nil {
 		return errors.New("repository not initialized")
 	}
@@ -87,11 +88,12 @@ func (r *Repository) UpdateUserWithPassword(id int64, username, pwdHash string, 
 			"exp_time":        expTime,
 			"flow_reset_time": flowResetTime,
 			"status":          status,
+			"max_conn":        maxConn,
 			"updated_time":    sql.NullInt64{Int64: now, Valid: true},
 		}).Error
 }
 
-func (r *Repository) UpdateUserWithoutPassword(id int64, username string, flow int64, num int, expTime, flowResetTime int64, status int, now int64) error {
+func (r *Repository) UpdateUserWithoutPassword(id int64, username string, flow int64, num int, expTime, flowResetTime int64, status, maxConn int, now int64) error {
 	if r == nil || r.db == nil {
 		return errors.New("repository not initialized")
 	}
@@ -104,6 +106,7 @@ func (r *Repository) UpdateUserWithoutPassword(id int64, username string, flow i
 			"exp_time":        expTime,
 			"flow_reset_time": flowResetTime,
 			"status":          status,
+			"max_conn":        maxConn,
 			"updated_time":    sql.NullInt64{Int64: now, Valid: true},
 		}).Error
 }
@@ -692,7 +695,7 @@ func (r *Repository) GetMinForwardPort(forwardID int64) sql.NullInt64 {
 	return p
 }
 
-func (r *Repository) UpdateForward(id int64, name string, tunnelID int64, remoteAddr, strategy string, now int64, speedID interface{}) error {
+func (r *Repository) UpdateForward(id int64, name string, tunnelID int64, remoteAddr, strategy string, now int64, speedID interface{}, maxConn int) error {
 	if r == nil || r.db == nil {
 		return errors.New("repository not initialized")
 	}
@@ -704,6 +707,7 @@ func (r *Repository) UpdateForward(id int64, name string, tunnelID int64, remote
 			"remote_addr":  remoteAddr,
 			"strategy":     strategy,
 			"speed_id":     nullInt64FromInterface(speedID),
+			"max_conn":     maxConn,
 			"updated_time": now,
 		}).Error
 }
@@ -778,7 +782,7 @@ func (r *Repository) UpdateForwardPortBindIP(forwardID, nodeID int64, port int, 
 		Update("in_ip", sql.NullString{String: inIP, Valid: strings.TrimSpace(inIP) != ""}).Error
 }
 
-func (r *Repository) RollbackForwardFields(id, userID int64, userName, name string, tunnelID int64, remoteAddr, strategy string, status int, speedID interface{}, now int64) {
+func (r *Repository) RollbackForwardFields(id, userID int64, userName, name string, tunnelID int64, remoteAddr, strategy string, status int, speedID interface{}, maxConn int, now int64) {
 	if r == nil || r.db == nil {
 		return
 	}
@@ -793,6 +797,7 @@ func (r *Repository) RollbackForwardFields(id, userID int64, userName, name stri
 			"strategy":     strategy,
 			"status":       status,
 			"speed_id":     nullInt64FromInterface(speedID),
+			"max_conn":     maxConn,
 			"updated_time": now,
 		}).Error
 }
@@ -1253,7 +1258,7 @@ func (r *Repository) EnsureUserTunnelGrant(userID, tunnelID int64) (int64, bool,
 	return ut.ID, true, nil
 }
 
-func (r *Repository) CreateForwardTx(userID int64, userName, name string, tunnelID int64, remoteAddr, strategy string, now int64, inx int, entryNodeIDs []int64, port int, inIp string, speedID interface{}) (int64, error) {
+func (r *Repository) CreateForwardTx(userID int64, userName, name string, tunnelID int64, remoteAddr, strategy string, now int64, inx int, entryNodeIDs []int64, port int, inIp string, speedID interface{}, maxConn int) (int64, error) {
 	if r == nil || r.db == nil {
 		return 0, errors.New("repository not initialized")
 	}
@@ -1272,6 +1277,7 @@ func (r *Repository) CreateForwardTx(userID int64, userName, name string, tunnel
 			UpdatedTime: now,
 			Status:      1,
 			Inx:         inx,
+			MaxConn:     maxConn,
 			SpeedID:     nullInt64FromInterface(speedID),
 		}
 		if err := tx.Create(&fwd).Error; err != nil {
