@@ -54,6 +54,7 @@ import { Switch } from "@/shadcn-bridge/heroui/switch";
 import { Alert } from "@/shadcn-bridge/heroui/alert";
 import { Progress } from "@/shadcn-bridge/heroui/progress";
 import { Checkbox } from "@/shadcn-bridge/heroui/checkbox";
+import { Accordion, AccordionItem } from "@/shadcn-bridge/heroui/accordion";
 import {
   createForward,
   getForwardList,
@@ -4730,20 +4731,6 @@ export default function ForwardPage() {
               <ModalBody>
                 <div className="space-y-4 pb-4">
                   <Input
-                    label="最大连接数"
-                    placeholder="0 或空表示不限制"
-                    type="number"
-                    min="0"
-                    value={form.maxConn === 0 ? "" : String(form.maxConn || "")}
-                    onChange={(e) => {
-                      const value = Math.max(Number(e.target.value) || 0, 0);
-                      setForm((prev) => ({ ...prev, maxConn: value }));
-                    }}
-                    description="此设置优先于用户的全局连接数限制。0 表示不限制。"
-                    variant="bordered"
-                  />
-
-                  <Input
                     errorMessage={errors.name}
                     isInvalid={!!errors.name}
                     label="规则名称"
@@ -4755,37 +4742,60 @@ export default function ForwardPage() {
                     }
                   />
 
-                  {isAdmin && (
-                    <Select
-                      label="规则限速"
-                      placeholder="不限速"
-                      selectedKeys={
-                        selectedSpeedId !== null
-                          ? [selectedSpeedId.toString()]
-                          : []
-                      }
-                      variant="bordered"
-                      onSelectionChange={(keys) => {
-                        const selectedKey = Array.from(keys)[0] as
-                          | string
-                          | undefined;
-
-                        setForm((prev) => ({
-                          ...prev,
-                          speedId: selectedKey ? Number(selectedKey) : null,
-                        }));
-                      }}
+                  <Accordion variant="bordered">
+                    <AccordionItem
+                      key="advanced"
+                      aria-label="高级设置"
+                      title="高级设置"
                     >
-                      {availableSpeedLimits.map((speedLimit) => (
-                        <SelectItem
-                          key={speedLimit.id.toString()}
-                          textValue={speedLimit.name}
-                        >
-                          {speedLimit.name}
-                        </SelectItem>
-                      ))}
-                    </Select>
-                  )}
+                      <div className="space-y-4 pb-2">
+                        <Input
+                          label="最大连接数"
+                          placeholder="0 或空表示不限制"
+                          type="number"
+                          min="0"
+                          value={form.maxConn === 0 ? "" : String(form.maxConn || "")}
+                          onChange={(e) => {
+                            const value = Math.max(Number(e.target.value) || 0, 0);
+                            setForm((prev) => ({ ...prev, maxConn: value }));
+                          }}
+                          description="此设置优先于用户的全局连接数限制。0 表示不限制。"
+                          variant="bordered"
+                        />
+                        {isAdmin && (
+                          <Select
+                            label="规则限速"
+                            placeholder="不限速"
+                            selectedKeys={
+                              selectedSpeedId !== null
+                                ? [selectedSpeedId.toString()]
+                                : []
+                            }
+                            variant="bordered"
+                            onSelectionChange={(keys) => {
+                              const selectedKey = Array.from(keys)[0] as
+                                | string
+                                | undefined;
+
+                              setForm((prev) => ({
+                                ...prev,
+                                speedId: selectedKey ? Number(selectedKey) : null,
+                              }));
+                            }}
+                          >
+                            {availableSpeedLimits.map((speedLimit) => (
+                              <SelectItem
+                                key={speedLimit.id.toString()}
+                                textValue={speedLimit.name}
+                              >
+                                {speedLimit.name}
+                              </SelectItem>
+                            ))}
+                          </Select>
+                        )}
+                      </div>
+                    </AccordionItem>
+                  </Accordion>
 
                   <Select
                     description={
