@@ -2243,6 +2243,7 @@ export default function ForwardPage() {
           remoteAddr: processedRemoteAddr,
           strategy: addressCount > 1 ? form.strategy : "fifo",
           speedId: normalizedSpeedId,
+          maxConn: form.maxConn,
         };
 
         res = await updateForward(updateData);
@@ -2255,6 +2256,7 @@ export default function ForwardPage() {
           remoteAddr: processedRemoteAddr,
           strategy: addressCount > 1 ? form.strategy : "fifo",
           speedId: normalizedSpeedId,
+          maxConn: form.maxConn,
         };
 
         res = await createForward(createData);
