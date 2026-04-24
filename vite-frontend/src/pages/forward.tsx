@@ -4742,60 +4742,7 @@ export default function ForwardPage() {
                     }
                   />
 
-                  <Accordion variant="bordered">
-                    <AccordionItem
-                      key="advanced"
-                      aria-label="高级设置"
-                      title="高级设置"
-                    >
-                      <div className="space-y-4 pb-2">
-                        <Input
-                          label="最大连接数"
-                          placeholder="0 或空表示不限制"
-                          type="number"
-                          min="0"
-                          value={form.maxConn === 0 ? "" : String(form.maxConn || "")}
-                          onChange={(e) => {
-                            const value = Math.max(Number(e.target.value) || 0, 0);
-                            setForm((prev) => ({ ...prev, maxConn: value }));
-                          }}
-                          description="此设置优先于用户的全局连接数限制。0 表示不限制。"
-                          variant="bordered"
-                        />
-                        {isAdmin && (
-                          <Select
-                            label="规则限速"
-                            placeholder="不限速"
-                            selectedKeys={
-                              selectedSpeedId !== null
-                                ? [selectedSpeedId.toString()]
-                                : []
-                            }
-                            variant="bordered"
-                            onSelectionChange={(keys) => {
-                              const selectedKey = Array.from(keys)[0] as
-                                | string
-                                | undefined;
-
-                              setForm((prev) => ({
-                                ...prev,
-                                speedId: selectedKey ? Number(selectedKey) : null,
-                              }));
-                            }}
-                          >
-                            {availableSpeedLimits.map((speedLimit) => (
-                              <SelectItem
-                                key={speedLimit.id.toString()}
-                                textValue={speedLimit.name}
-                              >
-                                {speedLimit.name}
-                              </SelectItem>
-                            ))}
-                          </Select>
-                        )}
-                      </div>
-                    </AccordionItem>
-                  </Accordion>
+                  
 
                   <Select
                     description={
@@ -4924,7 +4871,61 @@ export default function ForwardPage() {
                       <SelectItem key="hash">哈希模式 - IP哈希</SelectItem>
                     </Select>
                   )}
-                </div>
+                                  <Accordion className="px-0" variant="light">
+                    <AccordionItem
+                      key="advanced"
+                      aria-label="高级设置"
+                      title={<span className="text-small text-default-500 font-medium">高级设置</span>}
+                    >
+                      <div className="space-y-4 pb-2">
+                        <Input
+                          label="最大连接数"
+                          placeholder="0 或空表示不限制"
+                          type="number"
+                          min="0"
+                          value={form.maxConn === 0 ? "" : String(form.maxConn || "")}
+                          onChange={(e) => {
+                            const value = Math.max(Number(e.target.value) || 0, 0);
+                            setForm((prev) => ({ ...prev, maxConn: value }));
+                          }}
+                          description="此设置优先于用户的全局连接数限制。0 表示不限制。"
+                          variant="bordered"
+                        />
+                        {isAdmin && (
+                          <Select
+                            label="规则限速"
+                            placeholder="不限速"
+                            selectedKeys={
+                              selectedSpeedId !== null
+                                ? [selectedSpeedId.toString()]
+                                : []
+                            }
+                            variant="bordered"
+                            onSelectionChange={(keys) => {
+                              const selectedKey = Array.from(keys)[0] as
+                                | string
+                                | undefined;
+
+                              setForm((prev) => ({
+                                ...prev,
+                                speedId: selectedKey ? Number(selectedKey) : null,
+                              }));
+                            }}
+                          >
+                            {availableSpeedLimits.map((speedLimit) => (
+                              <SelectItem
+                                key={speedLimit.id.toString()}
+                                textValue={speedLimit.name}
+                              >
+                                {speedLimit.name}
+                              </SelectItem>
+                            ))}
+                          </Select>
+                        )}
+                      </div>
+                    </AccordionItem>
+                  </Accordion>
+</div>
               </ModalBody>
               <ModalFooter>
                 <Button variant="light" onPress={onClose}>
