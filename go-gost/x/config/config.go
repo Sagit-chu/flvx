@@ -44,9 +44,14 @@ func Set(c *Config) {
 
 func OnUpdate(f func(c *Config) error) error {
 	globalMux.Lock()
-	defer globalMux.Unlock()
+	err := f(global)
+	globalMux.Unlock()
 
-	return f(global)
+	if err == nil {
+		persist()
+	}
+
+	return err
 }
 
 type LogConfig struct {
@@ -573,6 +578,7 @@ func (c *Config) Load() error {
 	if err := v.ReadInConfig(); err != nil {
 		return err
 	}
+	SetPersistPath(v.ConfigFileUsed())
 
 	return v.Unmarshal(c)
 }
@@ -590,6 +596,7 @@ func (c *Config) ReadFile(file string) error {
 	if err := v.ReadInConfig(); err != nil {
 		return err
 	}
+	SetPersistPath(v.ConfigFileUsed())
 	return v.Unmarshal(c)
 }
 

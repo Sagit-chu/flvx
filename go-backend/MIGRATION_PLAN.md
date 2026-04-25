@@ -90,7 +90,7 @@
 | 表名 | Model | 特殊处理 |
 |------|-------|----------|
 | `user` | `User` | `TableName()` 返回 `"user"` (PG 保留字) |
-| `forward` | `Forward` | |
+| `forward` | `Forward` | 增加 `proxy_protocol` 字段 |
 | `forward_port` | `ForwardPort` | |
 | `node` | `Node` | |
 | `speed_limit` | `SpeedLimit` | |

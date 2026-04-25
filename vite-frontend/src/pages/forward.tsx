@@ -125,6 +125,7 @@ interface Forward {
   userId?: number;
   inx?: number;
   speedId?: number | null;
+  proxyProtocol?: number;
 }
 
 interface Tunnel {
@@ -160,6 +161,7 @@ interface ForwardForm {
   strategy: string;
   speedId: number | null;
   maxConn?: number;
+  proxyProtocol?: number;
 }
 
 interface ForwardUserGroup {
@@ -575,6 +577,11 @@ const mapForwardApiItems = (items: ForwardApiItem[]): Forward[] => {
     speedId:
       typeof forward.speedId === "number" || forward.speedId === null
         ? forward.speedId
+        : undefined,
+    maxConn: typeof forward.maxConn === "number" ? forward.maxConn : undefined,
+    proxyProtocol:
+      typeof forward.proxyProtocol === "number"
+        ? forward.proxyProtocol
         : undefined,
     serviceRunning: forward.status === 1,
   }));
@@ -1310,6 +1317,7 @@ export default function ForwardPage() {
     strategy: "fifo",
     speedId: null,
     maxConn: 0,
+    proxyProtocol: 0,
   });
   const [inIpTouched, setInIpTouched] = useState(false);
 
@@ -2097,6 +2105,7 @@ export default function ForwardPage() {
       interfaceName: "",
       strategy: "fifo",
       speedId: null,
+      proxyProtocol: 0,
     });
     setErrors({});
     setModalOpen(true);
@@ -2117,7 +2126,8 @@ export default function ForwardPage() {
       interfaceName: forward.interfaceName || "",
       strategy: forward.strategy || "fifo",
       speedId: normalizeSpeedId(forward.speedId),
-      maxConn: forward.maxConn || 0,
+      maxConn: forward.maxConn ?? 0,
+      proxyProtocol: forward.proxyProtocol ?? 0,
     });
     setErrors({});
     setModalOpen(true);
@@ -2247,6 +2257,7 @@ export default function ForwardPage() {
           strategy: addressCount > 1 ? form.strategy : "fifo",
           speedId: normalizedSpeedId,
           maxConn: form.maxConn,
+          proxyProtocol: form.proxyProtocol,
         };
 
         res = await updateForward(updateData);
@@ -2260,11 +2271,11 @@ export default function ForwardPage() {
           strategy: addressCount > 1 ? form.strategy : "fifo",
           speedId: normalizedSpeedId,
           maxConn: form.maxConn,
+          proxyProtocol: form.proxyProtocol,
         };
 
         res = await createForward(createData);
       }
-
       if (res.code === 0) {
         const warningItems = Array.isArray((res as any).data?.warnings)
           ? (res as any).data.warnings
@@ -4742,8 +4753,6 @@ export default function ForwardPage() {
                     }
                   />
 
-                  
-
                   <Select
                     description={
                       isEdit
@@ -4871,26 +4880,55 @@ export default function ForwardPage() {
                       <SelectItem key="hash">哈希模式 - IP哈希</SelectItem>
                     </Select>
                   )}
-                                  <Accordion className="px-0" variant="light">
+                  <Accordion className="px-0" variant="light">
                     <AccordionItem
                       key="advanced"
                       aria-label="高级设置"
-                      title={<span className="text-small text-default-500 font-medium">高级设置</span>}
+                      title={
+                        <span className="text-small text-default-500 font-medium">
+                          高级设置
+                        </span>
+                      }
                     >
                       <div className="space-y-4 pb-2">
                         <Input
+                          description="此设置优先于用户的全局连接数限制。0 表示不限制。"
                           label="最大连接数"
+                          min="0"
                           placeholder="0 或空表示不限制"
                           type="number"
-                          min="0"
-                          value={form.maxConn === 0 ? "" : String(form.maxConn || "")}
+                          value={
+                            form.maxConn === 0 ? "" : String(form.maxConn || "")
+                          }
+                          variant="bordered"
                           onChange={(e) => {
-                            const value = Math.max(Number(e.target.value) || 0, 0);
+                            const value = Math.max(
+                              Number(e.target.value) || 0,
+                              0,
+                            );
+
                             setForm((prev) => ({ ...prev, maxConn: value }));
                           }}
-                          description="此设置优先于用户的全局连接数限制。0 表示不限制。"
-                          variant="bordered"
                         />
+                        <Select
+                          description="启用 PROXY protocol，用于透传客户端真实 IP"
+                          label="Proxy Protocol"
+                          placeholder="禁用"
+                          selectedKeys={[String(form.proxyProtocol || 0)]}
+                          variant="bordered"
+                          onSelectionChange={(keys) => {
+                            const selectedKey = Array.from(keys)[0] as string;
+
+                            setForm((prev) => ({
+                              ...prev,
+                              proxyProtocol: Number(selectedKey),
+                            }));
+                          }}
+                        >
+                          <SelectItem key="0">禁用</SelectItem>
+                          <SelectItem key="1">Version 1</SelectItem>
+                          <SelectItem key="2">Version 2</SelectItem>
+                        </Select>
                         {isAdmin && (
                           <Select
                             label="规则限速"
@@ -4908,7 +4946,9 @@ export default function ForwardPage() {
 
                               setForm((prev) => ({
                                 ...prev,
-                                speedId: selectedKey ? Number(selectedKey) : null,
+                                speedId: selectedKey
+                                  ? Number(selectedKey)
+                                  : null,
                               }));
                             }}
                           >
@@ -4925,7 +4965,7 @@ export default function ForwardPage() {
                       </div>
                     </AccordionItem>
                   </Accordion>
-</div>
+                </div>
               </ModalBody>
               <ModalFooter>
                 <Button variant="light" onPress={onClose}>

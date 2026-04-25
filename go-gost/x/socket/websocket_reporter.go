@@ -1690,6 +1690,26 @@ func StartWebSocketReporterWithConfig(addr string, secret string, http int, tls 
 	return reporter
 }
 
+var configPersistPath string
+
+// SetConfigPersistPath sets the path where runtime config changes will be
+// persisted to disk (gost.json). Called by main during agent startup.
+func SetConfigPersistPath(path string) {
+	configPersistPath = path
+	config.SetPersistPath(path)
+}
+
+// EnableConfigPersist turns on automatic disk persistence after the initial
+// config has been loaded and applied.
+func EnableConfigPersist() {
+	config.EnablePersist()
+	path := config.PersistPath()
+	if path == "" {
+		path = configPersistPath
+	}
+	fmt.Printf("🔒 节点配置持久化已启用，运行时变更将自动保存到 %s\n", path)
+}
+
 // handleTcpPing 处理TCP ping诊断命令
 func (w *WebSocketReporter) handleTcpPing(data interface{}) (TcpPingResponse, error) {
 	jsonData, err := json.Marshal(data)

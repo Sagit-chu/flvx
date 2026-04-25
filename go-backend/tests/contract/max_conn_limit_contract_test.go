@@ -96,6 +96,7 @@ func TestMaxConnLimit(t *testing.T) {
 		"remoteAddr": "1.1.1.1:443",
 		"strategy":   "fifo",
 		"maxConn":    42,
+		"proxyProtocol": 2,
 	}
 	body, err := json.Marshal(payload)
 	if err != nil {
@@ -118,6 +119,47 @@ func TestMaxConnLimit(t *testing.T) {
 	var forwardID int64
 	if err := r.DB().Raw("SELECT id FROM forward WHERE name = ?", "max-conn-forward").Scan(&forwardID).Error; err != nil {
 		t.Fatalf("get forward ID: %v", err)
+	}
+
+	listOut := requestContractEnvelope(t, router, adminToken, "/api/v1/forward/list", nil)
+	if listOut.Code != 0 {
+		t.Fatalf("expected /forward/list success, got code=%d msg=%s", listOut.Code, listOut.Msg)
+	}
+
+	rows := mustContractSlice(t, listOut.Data, "forward list")
+	var target map[string]interface{}
+	for _, row := range rows {
+		item, ok := row.(map[string]interface{})
+		if !ok {
+			t.Fatalf("expected forward item to be object, got %T", row)
+		}
+		idVal, ok := item["id"].(float64)
+		if !ok {
+			t.Fatalf("expected forward id to be float64, got %T", item["id"])
+		}
+		if int64(idVal) == forwardID {
+			target = item
+			break
+		}
+	}
+	if target == nil {
+		t.Fatalf("forward %d not found in /forward/list response", forwardID)
+	}
+
+	maxConnVal, ok := target["maxConn"].(float64)
+	if !ok {
+		t.Fatalf("expected maxConn to be float64, got %T (%v)", target["maxConn"], target["maxConn"])
+	}
+	if int(maxConnVal) != 42 {
+		t.Fatalf("expected maxConn 42 in /forward/list, got %v", maxConnVal)
+	}
+
+	proxyProtocolVal, ok := target["proxyProtocol"].(float64)
+	if !ok {
+		t.Fatalf("expected proxyProtocol to be float64, got %T (%v)", target["proxyProtocol"], target["proxyProtocol"])
+	}
+	if int(proxyProtocolVal) != 2 {
+		t.Fatalf("expected proxyProtocol 2 in /forward/list, got %v", proxyProtocolVal)
 	}
 
 	commandMu.Lock()

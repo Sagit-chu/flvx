@@ -516,7 +516,7 @@ export default function UserPage() {
       num: 10,
       expTime: null,
       flowResetTime: 0,
-    maxConn: 0,
+      maxConn: 0,
       groupIds: [],
     });
     onUserModalOpen();
@@ -1522,12 +1522,15 @@ export default function UserPage() {
               />
               <Input
                 label="最大连接数"
+                min="0"
                 placeholder="0 或空表示不限制"
                 type="number"
-                min="0"
-                value={userForm.maxConn === 0 ? "" : String(userForm.maxConn || "")}
+                value={
+                  userForm.maxConn === 0 ? "" : String(userForm.maxConn || "")
+                }
                 onChange={(e) => {
                   const value = Math.max(Number(e.target.value) || 0, 0);
+
                   setUserForm((prev) => ({ ...prev, maxConn: value }));
                 }}
               />

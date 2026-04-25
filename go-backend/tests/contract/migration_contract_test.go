@@ -349,9 +349,9 @@ func TestBackupExportImportRestoreContracts(t *testing.T) {
 		tunnelID := mustLastInsertID(t, r, "backup-forward-tunnel")
 
 		if err := r.DB().Exec(`
-			INSERT INTO forward(user_id, user_name, name, tunnel_id, remote_addr, strategy, in_flow, out_flow, created_time, updated_time, status, inx)
-			VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-		`, 1, "admin_user", "backup-forward", tunnelID, "127.0.0.1:9000", "fifo", 0, 0, now, now, 1, 88).Error; err != nil {
+			INSERT INTO forward(user_id, user_name, name, tunnel_id, remote_addr, strategy, in_flow, out_flow, created_time, updated_time, status, inx, proxy_protocol)
+			VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		`, 1, "admin_user", "backup-forward", tunnelID, "127.0.0.1:9000", "fifo", 0, 0, now, now, 1, 88, 2).Error; err != nil {
 			t.Fatalf("seed forward for backup: %v", err)
 		}
 		forwardID := mustLastInsertID(t, r, "backup-forward")
@@ -411,6 +411,9 @@ func TestBackupExportImportRestoreContracts(t *testing.T) {
 			portsRaw, ok := forwardMap["forwardPorts"].([]interface{})
 			if !ok {
 				t.Fatalf("expected forwardPorts for forward %d in payload", forwardID)
+			}
+			if proxyProtocol, ok := forwardMap["proxyProtocol"].(float64); !ok || int(proxyProtocol) != 2 {
+				t.Fatalf("expected exported proxyProtocol 2 for forward %d, got %v", forwardID, forwardMap["proxyProtocol"])
 			}
 			for _, p := range portsRaw {
 				portMap, ok := p.(map[string]interface{})
@@ -474,6 +477,14 @@ func TestBackupExportImportRestoreContracts(t *testing.T) {
 			if got, ok := after[nodeID]; !ok || got != port {
 				t.Fatalf("expected forward_port node=%d port=%d after import, got %v", nodeID, port, after)
 			}
+		}
+
+		var proxyProtocol int
+		if err := r.DB().Raw(`SELECT proxy_protocol FROM forward WHERE id = ?`, forwardID).Row().Scan(&proxyProtocol); err != nil {
+			t.Fatalf("query proxy_protocol after import: %v", err)
+		}
+		if proxyProtocol != 2 {
+			t.Fatalf("expected proxy_protocol 2 after import, got %d", proxyProtocol)
 		}
 	})
 

@@ -116,6 +116,10 @@ func main() {
 
 	fmt.Printf("✅ 配置加载成功 - addr: %s\n", config.Addr)
 
+	// 设置运行时配置持久化路径
+	socket.SetConfigPersistPath("gost.json")
+	// 启用持久化将在 program.Start() 后开启，避免启动加载阶段触发冗余写入
+
 	log := xlogger.NewLogger()
 	logger.SetDefault(log)
 

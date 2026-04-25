@@ -5,7 +5,7 @@ import {
   useNavigate,
   Navigate,
 } from "react-router-dom";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { AnimatePresence } from "framer-motion";
 
 import IndexPage from "@/pages/index";
@@ -39,32 +39,7 @@ const ProtectedRoute = ({
   skipLayout?: boolean;
 }) => {
   const isH5 = useH5Mode();
-  const navigate = useNavigate();
-  const [authenticated, setAuthenticated] = useState(() => isLoggedIn());
-
-  useEffect(() => {
-    const handleSessionChange = () => {
-      const loggedIn = isLoggedIn();
-
-      setAuthenticated(loggedIn);
-
-      if (!loggedIn) {
-        navigate("/", { replace: true });
-      }
-    };
-
-    window.addEventListener(SESSION_UPDATED_EVENT, handleSessionChange);
-
-    return () => {
-      window.removeEventListener(SESSION_UPDATED_EVENT, handleSessionChange);
-    };
-  }, [navigate]);
-
-  useEffect(() => {
-    if (!authenticated) {
-      navigate("/", { replace: true });
-    }
-  }, [authenticated, navigate]);
+  const authenticated = isLoggedIn();
 
   if (!authenticated) {
     return <Navigate replace to="/" />;
@@ -103,6 +78,22 @@ const LoginRoute = () => {
 
 function App() {
   const location = useLocation();
+  const navigate = useNavigate();
+
+  // 全局登录状态监听，当检测到未登录且不在首页时，跳转到首页
+  useEffect(() => {
+    const handleSessionUpdate = () => {
+      if (!isLoggedIn() && location.pathname !== "/") {
+        navigate("/", { replace: true });
+      }
+    };
+
+    window.addEventListener(SESSION_UPDATED_EVENT, handleSessionUpdate);
+
+    return () => {
+      window.removeEventListener(SESSION_UPDATED_EVENT, handleSessionUpdate);
+    };
+  }, [location.pathname, navigate]);
 
   // 处理自定义背景图片
   useEffect(() => {

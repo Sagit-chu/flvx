@@ -241,7 +241,6 @@ export default function AdminLayout({
   // 退出登录
   const handleLogout = () => {
     safeLogout();
-    navigate("/");
   };
 
   // 切换移动端菜单

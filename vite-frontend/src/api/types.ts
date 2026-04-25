@@ -71,6 +71,8 @@ export interface ForwardApiItem {
   userId?: number;
   tunnelId?: number;
   speedId?: number | null;
+  maxConn?: number;
+  proxyProtocol?: number;
   inx?: number;
   [key: string]: unknown;
 }
@@ -201,7 +203,7 @@ export interface UserPackageInfoApiData {
     num: number;
     expTime?: string;
     flowResetTime?: number;
-  maxConn?: number;
+    maxConn?: number;
     [key: string]: unknown;
   };
   tunnelPermissions: UserTunnelPermissionApiItem[];
@@ -370,6 +372,8 @@ export interface ForwardMutationPayload {
   remoteAddr?: string;
   strategy?: string;
   speedId?: number | null;
+  maxConn?: number;
+  proxyProtocol?: number;
 }
 
 export interface SpeedLimitMutationPayload {

@@ -13,6 +13,13 @@ import (
 	"go-backend/internal/http/response"
 )
 
+// failedForward tracks a forward that failed redeployment, for retry.
+type failedForward struct {
+	id      int64
+	forward *forwardRecord
+	err     error
+}
+
 const (
 	githubRepo     = "Sagit-chu/flvx"
 	githubAPIBase  = "https://api.github.com"
@@ -390,6 +397,9 @@ func (h *Handler) consumeNodePendingUpgradeRedeploy(nodeID int64) bool {
 
 func (h *Handler) onNodeOnline(nodeID int64) {
 	h.consumeNodePendingUpgradeRedeploy(nodeID)
+	// Always redeploy rules on reconnection, not just for pending upgrade nodes.
+	// This handles cases where the node restarted and lost its in-memory config
+	// before persistence had time to flush, or if the panel also restarted.
 	h.redeployNodeRuntimeAfterUpgrade(nodeID)
 }
 
@@ -405,6 +415,7 @@ func (h *Handler) redeployNodeRuntimeAfterUpgrade(nodeID int64) {
 		return
 	}
 
+	// First pass: deploy everything
 	tunnelFailed := make(map[int64]struct{})
 	for _, tunnelID := range tunnelIDs {
 		if err := h.redeployTunnelAndForwards(tunnelID); err != nil {
@@ -412,6 +423,9 @@ func (h *Handler) redeployNodeRuntimeAfterUpgrade(nodeID int64) {
 			fmt.Printf("post-upgrade redeploy: tunnel %d failed on node %d: %v\n", tunnelID, nodeID, err)
 		}
 	}
+
+	// Collect forwards that failed independently (not skipped due to tunnel failure)
+	var failedForwards []failedForward
 
 	for _, forwardID := range forwardIDs {
 		forward, getErr := h.getForwardRecord(forwardID)
@@ -422,7 +436,86 @@ func (h *Handler) redeployNodeRuntimeAfterUpgrade(nodeID int64) {
 			continue
 		}
 		if err := h.syncForwardServices(forward, "UpdateService", true); err != nil {
+			failedForwards = append(failedForwards, failedForward{id: forwardID, forward: forward, err: err})
 			fmt.Printf("post-upgrade redeploy: forward %d failed on node %d: %v\n", forwardID, nodeID, err)
 		}
+	}
+
+	// Retry failed items with exponential backoff (max 3 attempts)
+	h.retryFailedRedeploys(nodeID, tunnelFailed, failedForwards)
+}
+
+// isRetryableError returns true if the error looks transient and worth retrying.
+func isRetryableError(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := strings.ToLower(err.Error())
+	// Skip non-retryable errors: not-found, already-exists, validation errors
+	if strings.Contains(msg, "not found") || strings.Contains(msg, "不存在") {
+		return false
+	}
+	if strings.Contains(msg, "already exists") || strings.Contains(msg, "已存在") {
+		return false
+	}
+	// Everything else (timeout, connection lost, port in use, etc.) is retryable
+	return true
+}
+
+// retryFailedRedeploys retries failed tunnels and forwards with exponential backoff.
+func (h *Handler) retryFailedRedeploys(nodeID int64, tunnelFailed map[int64]struct{}, failedForwards []failedForward) {
+	if len(tunnelFailed) == 0 && len(failedForwards) == 0 {
+		return
+	}
+
+	const maxRetries = 3
+	baseDelay := time.Second
+
+	for attempt := 1; attempt <= maxRetries; attempt++ {
+		delay := baseDelay * time.Duration(1<<uint(attempt-1)) // 1s, 2s, 4s
+		time.Sleep(delay)
+
+		// Retry failed tunnels
+		for tunnelID := range tunnelFailed {
+			if err := h.redeployTunnelAndForwards(tunnelID); err == nil {
+				delete(tunnelFailed, tunnelID)
+				fmt.Printf("post-upgrade redeploy retry: tunnel %d succeeded on node %d (attempt %d)\n", tunnelID, nodeID, attempt)
+			} else if !isRetryableError(err) {
+				delete(tunnelFailed, tunnelID) // Non-retryable, don't retry again
+			} else {
+				fmt.Printf("post-upgrade redeploy retry: tunnel %d still failing on node %d (attempt %d): %v\n", tunnelID, nodeID, attempt, err)
+			}
+		}
+
+		// Retry failed forwards
+		var stillFailed []failedForward
+		for _, ff := range failedForwards {
+			if _, skipped := tunnelFailed[ff.forward.TunnelID]; skipped {
+				stillFailed = append(stillFailed, ff) // Tunnel still failed, skip forward
+				continue
+			}
+			if err := h.syncForwardServices(ff.forward, "UpdateService", true); err == nil {
+				fmt.Printf("post-upgrade redeploy retry: forward %d succeeded on node %d (attempt %d)\n", ff.id, nodeID, attempt)
+			} else if !isRetryableError(err) {
+				// Non-retryable, drop it
+			} else {
+				stillFailed = append(stillFailed, ff)
+				fmt.Printf("post-upgrade redeploy retry: forward %d still failing on node %d (attempt %d): %v\n", ff.id, nodeID, attempt, err)
+			}
+		}
+		failedForwards = stillFailed
+
+		if len(tunnelFailed) == 0 && len(failedForwards) == 0 {
+			fmt.Printf("post-upgrade redeploy retry: all items recovered on node %d\n", nodeID)
+			return
+		}
+	}
+
+	// Final summary
+	for tunnelID := range tunnelFailed {
+		fmt.Printf("post-upgrade redeploy: tunnel %d permanently failed on node %d after retries\n", tunnelID, nodeID)
+	}
+	for _, ff := range failedForwards {
+		fmt.Printf("post-upgrade redeploy: forward %d permanently failed on node %d after retries\n", ff.id, nodeID)
 	}
 }

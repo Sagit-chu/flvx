@@ -1705,6 +1705,12 @@ func buildForwardServiceConfigs(baseName string, forward *forwardRecord, tunnel 
 		if cLimiterName != "" {
 			service["climiter"] = cLimiterName
 		}
+		if forward.ProxyProtocol > 0 {
+			if service["metadata"] == nil {
+				service["metadata"] = map[string]interface{}{}
+			}
+			service["metadata"].(map[string]interface{})["proxyProtocol"] = forward.ProxyProtocol
+		}
 		if protocol == "udp" {
 			listenerMetadata := map[string]interface{}{
 				"keepAlive": true,
@@ -1716,7 +1722,10 @@ func buildForwardServiceConfigs(baseName string, forward *forwardRecord, tunnel 
 			service["handler"].(map[string]interface{})["chain"] = fmt.Sprintf("chains_%d", forward.TunnelID)
 		}
 		if tunnel != nil && tunnel.Type == 1 && strings.TrimSpace(node.InterfaceName) != "" {
-			service["metadata"] = map[string]interface{}{"interface": node.InterfaceName}
+			if service["metadata"] == nil {
+				service["metadata"] = map[string]interface{}{}
+			}
+			service["metadata"].(map[string]interface{})["interface"] = node.InterfaceName
 		}
 		if limiterID != nil && *limiterID > 0 {
 			service["limiter"] = strconv.FormatInt(*limiterID, 10)

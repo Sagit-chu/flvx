@@ -124,16 +124,17 @@ func (r *Repository) GetForwardRecord(forwardID int64) (*model.ForwardRecord, er
 		return nil, err
 	}
 	fr := model.ForwardRecord{
-	        ID:         f.ID,
-	        UserID:     f.UserID,
-	        UserName:   f.UserName,
-	        Name:       f.Name,
-	        TunnelID:   f.TunnelID,
-	        RemoteAddr: f.RemoteAddr,
-	        Strategy:   f.Strategy,
-	        Status:     f.Status,
-	        SpeedID:    f.SpeedID,
-	        MaxConn:    f.MaxConn,
+		ID:            f.ID,
+		UserID:        f.UserID,
+		UserName:      f.UserName,
+		Name:          f.Name,
+		TunnelID:      f.TunnelID,
+		RemoteAddr:    f.RemoteAddr,
+		Strategy:      f.Strategy,
+		Status:        f.Status,
+		SpeedID:       f.SpeedID,
+		MaxConn:       f.MaxConn,
+		ProxyProtocol: f.ProxyProtocol,
 	}
 	if strings.TrimSpace(fr.Strategy) == "" {
 		fr.Strategy = "fifo"

@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 
 import { Button } from "@/shadcn-bridge/heroui/button";
@@ -26,7 +25,6 @@ export default function ChangePasswordPage() {
   });
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<Partial<PasswordForm>>({});
-  const navigate = useNavigate();
 
   const validateForm = (): boolean => {
     const newErrors: Partial<PasswordForm> = {};
@@ -98,7 +96,6 @@ export default function ChangePasswordPage() {
 
   const logout = () => {
     safeLogout();
-    navigate("/");
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
