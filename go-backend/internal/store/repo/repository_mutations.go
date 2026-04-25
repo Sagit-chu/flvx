@@ -1320,23 +1320,6 @@ func (r *Repository) BatchUpdateForwardStatus(ids []int64, status int) (int, int
 	return s, f
 }
 
-func (r *Repository) BatchUpdateUserMaxConn(ids []int64, maxConn int) (int, int) {
-	if r == nil || r.db == nil {
-		return 0, len(ids)
-	}
-	s := 0
-	f := 0
-	now := time.Now().UnixMilli()
-	for _, id := range ids {
-		if err := r.db.Model(&model.User{}).Where("id = ?", id).Updates(map[string]interface{}{"max_conn": maxConn, "updated_time": now}).Error; err != nil {
-			f++
-		} else {
-			s++
-		}
-	}
-	return s, f
-}
-
 func (r *Repository) CreateTunnelTx(tx *gorm.DB, name string, trafficRatio float64, typeVal int, flow int64, now int64, status int, inIP interface{}, inx int, ipPreference string) (int64, error) {
 	inIPVal := nullStringFromInterface(inIP)
 	tunnel := model.Tunnel{

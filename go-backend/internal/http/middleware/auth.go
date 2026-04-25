@@ -137,7 +137,7 @@ func requiresAdmin(path string) bool {
 	}
 
 	switch path {
-	case "/api/v1/user/create", "/api/v1/user/list", "/api/v1/user/update", "/api/v1/user/delete", "/api/v1/user/reset", "/api/v1/user/batch-set-max-conn":
+	case "/api/v1/user/create", "/api/v1/user/list", "/api/v1/user/update", "/api/v1/user/delete", "/api/v1/user/reset":
 		return true
 	case "/api/v1/config/update", "/api/v1/config/update-single":
 		return true

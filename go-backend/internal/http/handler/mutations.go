@@ -214,26 +214,6 @@ func (h *Handler) userUpdate(w http.ResponseWriter, r *http.Request) {
 	response.WriteJSON(w, response.OKEmpty())
 }
 
-func (h *Handler) userBatchSetMaxConn(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		response.WriteJSON(w, response.ErrDefault("请求失败"))
-		return
-	}
-	var req struct {
-		UserIDs []int64 `json:"userIds"`
-		MaxConn int     `json:"maxConn"`
-	}
-	if err := decodeJSON(r.Body, &req); err != nil || len(req.UserIDs) == 0 {
-		response.WriteJSON(w, response.ErrDefault("请求参数错误"))
-		return
-	}
-	s, f := h.repo.BatchUpdateUserMaxConn(req.UserIDs, req.MaxConn)
-	response.WriteJSON(w, response.OK(map[string]interface{}{
-		"success": s,
-		"failed":  f,
-	}))
-}
-
 func (h *Handler) userGroups(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		response.WriteJSON(w, response.ErrDefault("请求失败"))

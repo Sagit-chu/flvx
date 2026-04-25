@@ -240,8 +240,6 @@ export const resetUserFlow = (data: { id: number; type: number }) =>
   Network.post("/user/reset", data);
 export const resetUserQuota = (data: UserQuotaResetPayload) =>
   Network.post("/user/quota/reset", data);
-export const batchSetUserMaxConn = (data: { userIds: number[]; maxConn: number }) =>
-  Network.post("/user/batch-set-max-conn", data);
 
 export const getUserGroups = (id: number) =>
   Network.post<number[]>("/user/groups", { id });
