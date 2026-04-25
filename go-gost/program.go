@@ -16,7 +16,6 @@ import (
 	metrics "github.com/go-gost/x/metrics/service"
 	"github.com/go-gost/x/registry"
 	xservice "github.com/go-gost/x/service"
-	"github.com/go-gost/x/socket"
 	"github.com/judwhite/go-svc"
 	"net/http"
 	"os"
@@ -66,10 +65,6 @@ func (p *program) Start() error {
 	if err := loader.Load(cfg); err != nil {
 		return err
 	}
-
-	// Enable config persistence after initial load so runtime mutations
-	// (AddService, UpdateService, DeleteService, etc.) are saved to disk.
-	socket.EnableConfigPersist()
 
 	if err := p.run(cfg); err != nil {
 		return err

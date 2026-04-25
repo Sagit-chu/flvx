@@ -24,7 +24,6 @@ export interface User {
   monthlyUsedBytes?: number;
   disabledByQuota?: number;
   quotaDisabledAt?: number;
-  maxConn?: number;
 }
 
 export interface UserGroup {

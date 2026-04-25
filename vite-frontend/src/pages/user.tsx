@@ -160,7 +160,6 @@ const normalizeUserItem = (item: Partial<User>): User => {
     monthlyUsedBytes: Number(item.monthlyUsedBytes ?? 0),
     disabledByQuota: Number(item.disabledByQuota ?? 0),
     quotaDisabledAt: Number(item.quotaDisabledAt ?? 0),
-    maxConn: item.maxConn != null ? Number(item.maxConn) : undefined,
   };
 };
 
@@ -516,7 +515,7 @@ export default function UserPage() {
       num: 10,
       expTime: null,
       flowResetTime: 0,
-      maxConn: 0,
+    maxConn: 0,
       groupIds: [],
     });
     onUserModalOpen();
@@ -546,7 +545,6 @@ export default function UserPage() {
       num: user.num,
       expTime: user.expTime ? new Date(user.expTime) : null,
       flowResetTime: user.flowResetTime ?? 0,
-      maxConn: user.maxConn ?? 0,
       groupIds: currentGroupIds,
     });
     onUserModalOpen();
@@ -1522,15 +1520,12 @@ export default function UserPage() {
               />
               <Input
                 label="最大连接数"
-                min="0"
                 placeholder="0 或空表示不限制"
                 type="number"
-                value={
-                  userForm.maxConn === 0 ? "" : String(userForm.maxConn || "")
-                }
+                min="0"
+                value={userForm.maxConn === 0 ? "" : String(userForm.maxConn || "")}
                 onChange={(e) => {
                   const value = Math.max(Number(e.target.value) || 0, 0);
-
                   setUserForm((prev) => ({ ...prev, maxConn: value }));
                 }}
               />

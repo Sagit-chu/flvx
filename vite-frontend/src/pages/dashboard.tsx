@@ -50,6 +50,7 @@ export default function DashboardPage() {
   const handleLogout = () => {
     safeLogout();
     toast.success("已退出登录");
+    navigate("/");
   };
 
   const {

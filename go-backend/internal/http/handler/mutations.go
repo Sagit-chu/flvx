@@ -1728,7 +1728,7 @@ func (h *Handler) forwardCreate(w http.ResponseWriter, r *http.Request) {
 	}
 	if roleID != 0 {
 		if err := IsSafeRemoteAddr(remoteAddr); err != nil {
-			response.WriteJSON(w, response.Err(403, err.Error()))
+			response.WriteJSON(w, response.Err(403, "禁止将目标地址设置为内部网络"))
 			return
 		}
 		if speedIDVal, ok := req["speedId"]; ok && speedIDVal != nil {
@@ -1780,9 +1780,7 @@ func (h *Handler) forwardCreate(w http.ResponseWriter, r *http.Request) {
 		userName = "user"
 	}
 	maxConn := asInt(req["maxConn"], 0)
-	proxyProtocol := asInt(req["proxyProtocol"], 0)
-
-	forwardID, err := h.repo.CreateForwardTx(userID, userName, name, tunnelID, remoteAddr, defaultString(asString(req["strategy"]), "fifo"), now, inx, entryNodes, port, inIp, nullableInt(speedID), maxConn, proxyProtocol)
+	forwardID, err := h.repo.CreateForwardTx(userID, userName, name, tunnelID, remoteAddr, defaultString(asString(req["strategy"]), "fifo"), now, inx, entryNodes, port, inIp, nullableInt(speedID), maxConn)
 	if err != nil {
 		response.WriteJSON(w, response.Err(-2, err.Error()))
 		return
@@ -1855,7 +1853,7 @@ func (h *Handler) forwardUpdate(w http.ResponseWriter, r *http.Request) {
 	}
 	if actorRole != 0 {
 		if err := IsSafeRemoteAddr(remoteAddr); err != nil {
-			response.WriteJSON(w, response.Err(403, err.Error()))
+			response.WriteJSON(w, response.Err(403, "禁止将目标地址设置为内部网络"))
 			return
 		}
 	}
@@ -1934,9 +1932,8 @@ func (h *Handler) forwardUpdate(w http.ResponseWriter, r *http.Request) {
 	}
 	now := time.Now().UnixMilli()
 	maxConn := asInt(req["maxConn"], forward.MaxConn)
-	proxyProtocol := asInt(req["proxyProtocol"], forward.ProxyProtocol)
 
-	if err := h.repo.UpdateForward(id, name, tunnelID, remoteAddr, strategy, now, newSpeedID, maxConn, proxyProtocol); err != nil {
+	if err := h.repo.UpdateForward(id, name, tunnelID, remoteAddr, strategy, now, newSpeedID, maxConn); err != nil {
 		response.WriteJSON(w, response.Err(-2, err.Error()))
 		return
 	}
@@ -4088,7 +4085,7 @@ func (h *Handler) rollbackForwardMutation(oldForward *forwardRecord, oldPorts []
 	h.repo.RollbackForwardFields(
 		oldForward.ID, oldForward.UserID, oldForward.UserName, oldForward.Name,
 		oldForward.TunnelID, oldForward.RemoteAddr, oldForward.Strategy, oldForward.Status,
-		oldForward.SpeedID, oldForward.MaxConn, oldForward.ProxyProtocol,
+		oldForward.SpeedID, oldForward.MaxConn,
 		time.Now().UnixMilli(),
 	)
 

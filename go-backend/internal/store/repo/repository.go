@@ -295,17 +295,6 @@ func prepareSQLiteLegacyColumns(db *gorm.DB) error {
 		}
 	}
 
-	if m.HasTable(&model.Forward{}) {
-		for _, field := range []string{"ProxyProtocol"} {
-			if m.HasColumn(&model.Forward{}, field) {
-				continue
-			}
-			if err := m.AddColumn(&model.Forward{}, field); err != nil {
-				return fmt.Errorf("add forward.%s: %w", field, err)
-			}
-		}
-	}
-
 	return nil
 }
 
@@ -725,7 +714,6 @@ func (r *Repository) ListUsers() ([]map[string]interface{}, error) {
 			"flowResetTime": u.FlowResetTime, "createdTime": u.CreatedTime,
 			"updatedTime": nullableInt64(u.UpdatedTime),
 			"inFlow":      u.InFlow, "outFlow": u.OutFlow,
-			"maxConn":     u.MaxConn,
 		}
 		if quota := quotaMap[u.ID]; quota != nil {
 			item["dailyQuotaGB"] = quota.DailyLimitGB
@@ -781,13 +769,11 @@ func (r *Repository) ListForwards() ([]map[string]interface{}, error) {
 		Status       int
 		Inx          int
 		SpeedID      sql.NullInt64
-		MaxConn      int
-		ProxyProtocol int
 	}
 
 	var rows []fwdRow
 	err := r.db.Model(&model.Forward{}).
-		Select("forward.id, forward.user_id, forward.user_name, forward.name, forward.tunnel_id, COALESCE(tunnel.name, '') AS tunnel_name, COALESCE(tunnel.traffic_ratio, 1.0) AS traffic_ratio, forward.remote_addr, COALESCE(forward.strategy, 'fifo') AS strategy, forward.in_flow, forward.out_flow, forward.created_time, forward.status, forward.inx, forward.speed_id, forward.max_conn, forward.proxy_protocol").
+		Select("forward.id, forward.user_id, forward.user_name, forward.name, forward.tunnel_id, COALESCE(tunnel.name, '') AS tunnel_name, COALESCE(tunnel.traffic_ratio, 1.0) AS traffic_ratio, forward.remote_addr, COALESCE(forward.strategy, 'fifo') AS strategy, forward.in_flow, forward.out_flow, forward.created_time, forward.status, forward.inx, forward.speed_id").
 		Joins("LEFT JOIN tunnel ON tunnel.id = forward.tunnel_id").
 		Order("forward.inx ASC, forward.id ASC").
 		Find(&rows).Error
@@ -809,8 +795,6 @@ func (r *Repository) ListForwards() ([]map[string]interface{}, error) {
 			"remoteAddr": row.RemoteAddr, "strategy": row.Strategy,
 			"inFlow": row.InFlow, "outFlow": row.OutFlow,
 			"createdTime": row.CreatedTime, "status": row.Status, "inx": int64(row.Inx),
-			"maxConn": row.MaxConn,
-			"proxyProtocol": row.ProxyProtocol,
 		}
 		if row.SpeedID.Valid {
 			item["speedId"] = row.SpeedID.Int64
@@ -2003,7 +1987,6 @@ func (r *Repository) exportForwards() ([]model.ForwardBackup, error) {
 			TunnelID: f.TunnelID, RemoteAddr: f.RemoteAddr, Strategy: f.Strategy,
 			InFlow: f.InFlow, OutFlow: f.OutFlow, CreatedTime: f.CreatedTime,
 			UpdatedTime: f.UpdatedTime, Status: f.Status, Inx: f.Inx,
-			ProxyProtocol: f.ProxyProtocol,
 		}
 		ports, err := r.exportForwardPorts(f.ID)
 		if err != nil {
@@ -2401,13 +2384,12 @@ func importForwards(tx *gorm.DB, forwards []model.ForwardBackup, now int64) (int
 			UpdatedTime: now,
 			Status:      f.Status,
 			Inx:         f.Inx,
-			ProxyProtocol: f.ProxyProtocol,
 		}
 		err := tx.Clauses(clause.OnConflict{
 			Columns: []clause.Column{{Name: "id"}},
 			DoUpdates: clause.AssignmentColumns([]string{
 				"user_id", "user_name", "name", "tunnel_id", "remote_addr", "strategy",
-				"in_flow", "out_flow", "updated_time", "status", "inx", "proxy_protocol",
+				"in_flow", "out_flow", "updated_time", "status", "inx",
 			}),
 		}).Create(&item).Error
 		if err != nil {
