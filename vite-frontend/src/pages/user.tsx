@@ -58,6 +58,7 @@ import {
   getSpeedLimitList,
   resetUserFlow,
   resetUserQuota,
+  batchSetUserMaxConn,
   getUserGroupList,
   getUserGroups,
   getMonitorPermissionList,
@@ -201,6 +202,10 @@ export default function UserPage() {
     size: 10,
     total: 0,
   });
+  const [selectedUserIds, setSelectedUserIds] = useState<Set<number>>(new Set());
+  const [isBatchMaxConnModalOpen, setIsBatchMaxConnModalOpen] = useState(false);
+  const [batchMaxConnValue, setBatchMaxConnValue] = useState(0);
+  const [batchMaxConnLoading, setBatchMaxConnLoading] = useState(false);
   const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // 用户表单相关状态
@@ -904,6 +909,60 @@ export default function UserPage() {
     }
   };
 
+  const handleBatchSetMaxConn = async () => {
+    if (selectedUserIds.size === 0) {
+      toast.error("请先选择用户");
+      return;
+    }
+
+    setBatchMaxConnLoading(true);
+    try {
+      const response = await batchSetUserMaxConn({
+        userIds: Array.from(selectedUserIds),
+        maxConn: batchMaxConnValue,
+      });
+
+      if (response.code === 0) {
+        const data = response.data as { success: number; failed: number } | null;
+        const { success = 0, failed = 0 } = data || {};
+        if (failed === 0) {
+          toast.success(`成功设置 ${success} 个用户的连接数限制`);
+        } else {
+          toast.success(`成功 ${success} 个，失败 ${failed} 个`);
+        }
+        setIsBatchMaxConnModalOpen(false);
+        setSelectedUserIds(new Set());
+        await loadUsers(searchKeyword);
+      } else {
+        toast.error(response.msg || "批量设置失败");
+      }
+    } catch {
+      toast.error("批量设置失败");
+    } finally {
+      setBatchMaxConnLoading(false);
+    }
+  };
+
+  const toggleSelectUser = (userId: number) => {
+    setSelectedUserIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(userId)) {
+        next.delete(userId);
+      } else {
+        next.add(userId);
+      }
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedUserIds.size === users.length) {
+      setSelectedUserIds(new Set());
+    } else {
+      setSelectedUserIds(new Set(users.map((u) => u.id)));
+    }
+  };
+
   // 隧道流量重置相关函数
   const handleResetTunnelFlow = (userTunnel: UserTunnel) => {
     setTunnelToReset(userTunnel);
@@ -1046,6 +1105,19 @@ export default function UserPage() {
         </div>
 
         <div className="flex items-center gap-2">
+          {selectedUserIds.size > 0 && (
+            <Button
+              color="warning"
+              size="sm"
+              variant="flat"
+              onPress={() => {
+                setBatchMaxConnValue(0);
+                setIsBatchMaxConnModalOpen(true);
+              }}
+            >
+              批量设置连接数 ({selectedUserIds.size})
+            </Button>
+          )}
           <Button
             isIconOnly
             size="sm"
@@ -1092,6 +1164,12 @@ export default function UserPage() {
             }}
           >
             <TableHeader>
+              <TableColumn>
+                <Checkbox
+                  isSelected={selectedUserIds.size === users.length && users.length > 0}
+                  onValueChange={toggleSelectAll}
+                />
+              </TableColumn>
               <TableColumn>用户名</TableColumn>
               <TableColumn>流量统计</TableColumn>
               <TableColumn>配额限制</TableColumn>
@@ -1109,6 +1187,12 @@ export default function UserPage() {
 
                 return (
                   <TableRow key={user.id}>
+                    <TableCell>
+                      <Checkbox
+                        isSelected={selectedUserIds.has(user.id)}
+                        onValueChange={() => toggleSelectUser(user.id)}
+                      />
+                    </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-3">
                         <div className="flex items-center justify-center shrink-0 w-10 h-10 rounded-full bg-primary text-white font-bold text-sm relative">
@@ -1270,6 +1354,11 @@ export default function UserPage() {
                 <Card className="overflow-hidden h-full">
                   <CardHeader className="pb-2 md:pb-2">
                     <div className="flex justify-between items-start w-full">
+                      <Checkbox
+                        className="absolute top-2 right-2 z-10"
+                        isSelected={selectedUserIds.has(user.id)}
+                        onValueChange={() => toggleSelectUser(user.id)}
+                      />
                       <div className="flex items-center gap-3 flex-1 min-w-0">
                         <div className="flex items-center justify-center shrink-0 w-10 h-10 rounded-full bg-primary text-white font-bold text-sm relative">
                           {(user.name || user.user).slice(0, 2).toUpperCase()}
@@ -2520,6 +2609,51 @@ export default function UserPage() {
               onPress={handleConfirmResetTunnelFlow}
             >
               确认重置
+            </Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
+
+      {/* 批量设置最大连接数对话框 */}
+      <Modal
+        backdrop="blur"
+        classNames={{
+          base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-2xl",
+        }}
+        isOpen={isBatchMaxConnModalOpen}
+        placement="center"
+        scrollBehavior="inside"
+        size="md"
+        onClose={() => setIsBatchMaxConnModalOpen(false)}
+      >
+        <ModalContent>
+          <ModalHeader>批量设置最大连接数</ModalHeader>
+          <ModalBody>
+            <p className="text-sm text-default-500">
+              已选择 <span className="font-medium text-foreground">{selectedUserIds.size}</span> 个用户
+            </p>
+            <Input
+              label="最大连接数"
+              placeholder="0 或空表示不限制"
+              type="number"
+              min="0"
+              value={batchMaxConnValue === 0 ? "" : String(batchMaxConnValue)}
+              onChange={(e) => {
+                const value = Math.max(Number(e.target.value) || 0, 0);
+                setBatchMaxConnValue(value);
+              }}
+            />
+          </ModalBody>
+          <ModalFooter>
+            <Button variant="light" onPress={() => setIsBatchMaxConnModalOpen(false)}>
+              取消
+            </Button>
+            <Button
+              color="warning"
+              isLoading={batchMaxConnLoading}
+              onPress={handleBatchSetMaxConn}
+            >
+              确认设置
             </Button>
           </ModalFooter>
         </ModalContent>
