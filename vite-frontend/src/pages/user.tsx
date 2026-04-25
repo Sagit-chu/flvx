@@ -160,6 +160,7 @@ const normalizeUserItem = (item: Partial<User>): User => {
     monthlyUsedBytes: Number(item.monthlyUsedBytes ?? 0),
     disabledByQuota: Number(item.disabledByQuota ?? 0),
     quotaDisabledAt: Number(item.quotaDisabledAt ?? 0),
+    maxConn: item.maxConn != null ? Number(item.maxConn) : undefined,
   };
 };
 
@@ -545,6 +546,7 @@ export default function UserPage() {
       num: user.num,
       expTime: user.expTime ? new Date(user.expTime) : null,
       flowResetTime: user.flowResetTime ?? 0,
+      maxConn: user.maxConn ?? 0,
       groupIds: currentGroupIds,
     });
     onUserModalOpen();
