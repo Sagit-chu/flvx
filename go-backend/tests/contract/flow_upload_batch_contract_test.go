@@ -75,4 +75,33 @@ func TestFlowUploadAggregatesRepeatedItemsAndDisablesQuotaImmediately(t *testing
 	if len(metrics) != 1 || metrics[0].BytesIn != 80 || metrics[0].BytesOut != 110 {
 		t.Fatalf("expected one aggregated metric row, got %#v", metrics)
 	}
+
+	body, err = json.Marshal([]map[string]interface{}{
+		{"n": "20_2_10", "u": 10, "d": 20},
+		{"n": "20_2_10", "u": 10, "d": 20},
+		{"n": "20_2_10_tcp", "u": 10, "d": 20},
+	})
+	if err != nil {
+		t.Fatalf("marshal body: %v", err)
+	}
+	req = httptest.NewRequest(http.MethodPost, "/flow/upload?secret="+node.Secret, bytes.NewReader(body))
+	res = httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+
+	if res.Code != http.StatusOK {
+		t.Fatalf("expected second request status 200, got %d", res.Code)
+	}
+	if got := mustQueryInt(t, repo, `SELECT in_flow FROM forward WHERE id = 20`); got != 140 {
+		t.Fatalf("expected forward in_flow=140 after second request, got %d", got)
+	}
+	if got := mustQueryInt(t, repo, `SELECT out_flow FROM forward WHERE id = 20`); got != 140 {
+		t.Fatalf("expected forward out_flow=140 after second request, got %d", got)
+	}
+	metrics, err = repo.GetTunnelMetrics(tunnel.ID, 0, nowMs+60_000)
+	if err != nil {
+		t.Fatalf("get tunnel metrics after second request: %v", err)
+	}
+	if len(metrics) != 1 || metrics[0].BytesIn != 140 || metrics[0].BytesOut != 140 {
+		t.Fatalf("expected one aggregated metric row after second request, got %#v", metrics)
+	}
 }
