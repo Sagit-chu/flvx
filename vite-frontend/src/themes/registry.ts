@@ -117,8 +117,6 @@ export function activateTheme(id: string): void {
   const pkg = installed.get(id);
 
   if (!pkg) {
-    console.warn(`[FLVX themes] Theme "${id}" is not registered.`);
-
     return;
   }
 

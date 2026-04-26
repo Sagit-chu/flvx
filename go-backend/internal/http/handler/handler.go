@@ -51,6 +51,7 @@ type Handler struct {
 }
 
 const monitorTunnelQualityEnabledConfigKey = "monitor_tunnel_quality_enabled"
+const allowLocalRemoteAddrConfigKey = "allow_local_remote_addr"
 
 type loginRequest struct {
 	Username  string `json:"username"`
@@ -1045,6 +1046,19 @@ func (h *Handler) isTunnelQualityMonitoringEnabled() bool {
 	}
 
 	return strings.TrimSpace(strings.ToLower(cfg.Value)) != "false"
+}
+
+func (h *Handler) allowLocalRemoteAddr() bool {
+	if h == nil || h.repo == nil {
+		return false
+	}
+
+	cfg, err := h.repo.GetConfigByName(allowLocalRemoteAddrConfigKey)
+	if err != nil || cfg == nil {
+		return false
+	}
+
+	return strings.TrimSpace(strings.ToLower(cfg.Value)) == "true"
 }
 
 func (h *Handler) userPackage(w http.ResponseWriter, r *http.Request) {

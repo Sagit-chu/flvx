@@ -360,11 +360,7 @@ export const useDashboardData = (): DashboardDataState => {
           if (updateTime > storedTime) {
             setIsAnnouncementModalOpen(true);
           }
-        } catch (err) {
-          console.warn(
-            "Failed to read localStorage for announcement state",
-            err,
-          );
+        } catch {
           setIsAnnouncementModalOpen(true);
         }
       } else {
@@ -385,8 +381,8 @@ export const useDashboardData = (): DashboardDataState => {
           "flvx_announcement_seen_time",
           announcement.update_time.toString(),
         );
-      } catch (err) {
-        console.warn("Failed to set localStorage for announcement state", err);
+      } catch {
+        // Ignore localStorage write failures and keep the modal dismissed.
       }
     }
   }, [announcement]);
