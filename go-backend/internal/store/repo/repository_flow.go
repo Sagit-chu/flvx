@@ -9,6 +9,90 @@ import (
 	"go-backend/internal/store/model"
 )
 
+type FlowUploadForwardMeta struct {
+	ForwardID    int64
+	TunnelID     int64
+	TrafficRatio float64
+	TunnelFlow   int64
+}
+
+const flowUploadForwardMetaChunkSize = 500
+
+func chunkFlowUploadForwardIDs(ids []int64) [][]int64 {
+	if len(ids) == 0 {
+		return nil
+	}
+	chunks := make([][]int64, 0, (len(ids)+flowUploadForwardMetaChunkSize-1)/flowUploadForwardMetaChunkSize)
+	for start := 0; start < len(ids); start += flowUploadForwardMetaChunkSize {
+		end := start + flowUploadForwardMetaChunkSize
+		if end > len(ids) {
+			end = len(ids)
+		}
+		chunks = append(chunks, ids[start:end])
+	}
+	return chunks
+}
+
+func (r *Repository) GetFlowUploadForwardMetas(forwardIDs []int64) (map[int64]FlowUploadForwardMeta, error) {
+	if r == nil || r.db == nil {
+		return nil, errors.New("repository not initialized")
+	}
+	if len(forwardIDs) == 0 {
+		return map[int64]FlowUploadForwardMeta{}, nil
+	}
+
+	ids := make([]int64, 0, len(forwardIDs))
+	seen := make(map[int64]struct{}, len(forwardIDs))
+	for _, id := range forwardIDs {
+		if id <= 0 {
+			continue
+		}
+		if _, ok := seen[id]; ok {
+			continue
+		}
+		seen[id] = struct{}{}
+		ids = append(ids, id)
+	}
+	if len(ids) == 0 {
+		return map[int64]FlowUploadForwardMeta{}, nil
+	}
+
+	type row struct {
+		ForwardID    int64   `gorm:"column:forward_id"`
+		TunnelID     int64   `gorm:"column:tunnel_id"`
+		TrafficRatio float64 `gorm:"column:traffic_ratio"`
+		TunnelFlow   int64   `gorm:"column:tunnel_flow"`
+	}
+
+	out := make(map[int64]FlowUploadForwardMeta, len(ids))
+	for _, chunk := range chunkFlowUploadForwardIDs(ids) {
+		var rows []row
+		err := r.db.Table("forward AS f").
+			Select("f.id AS forward_id, f.tunnel_id AS tunnel_id, t.traffic_ratio AS traffic_ratio, t.flow AS tunnel_flow").
+			Joins("JOIN tunnel t ON t.id = f.tunnel_id").
+			Where("f.id IN ?", chunk).
+			Scan(&rows).Error
+		if err != nil {
+			return nil, err
+		}
+		for _, row := range rows {
+			if row.TunnelFlow <= 0 {
+				row.TunnelFlow = 1
+			}
+			if row.TrafficRatio <= 0 {
+				row.TrafficRatio = 1
+			}
+			out[row.ForwardID] = FlowUploadForwardMeta{
+				ForwardID:    row.ForwardID,
+				TunnelID:     row.TunnelID,
+				TrafficRatio: row.TrafficRatio,
+				TunnelFlow:   row.TunnelFlow,
+			}
+		}
+	}
+	return out, nil
+}
+
 func (r *Repository) UpdateForwardStatus(forwardID int64, status int, now int64) error {
 	if r == nil || r.db == nil {
 		return errors.New("repository not initialized")

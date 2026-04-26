@@ -61,11 +61,92 @@ type Repository struct {
 	db *gorm.DB
 }
 
+type FlowUploadCounterDelta struct {
+	ForwardID    int64
+	UserID       int64
+	UserTunnelID int64
+	InFlow       int64
+	OutFlow      int64
+}
+
 func (r *Repository) DB() *gorm.DB {
 	if r == nil {
 		return nil
 	}
 	return r.db
+}
+
+func sortedFlowUploadTargetIDs(totals map[int64][2]int64) []int64 {
+	ids := make([]int64, 0, len(totals))
+	for id := range totals {
+		ids = append(ids, id)
+	}
+	sort.Slice(ids, func(i, j int) bool { return ids[i] < ids[j] })
+	return ids
+}
+
+func (r *Repository) ApplyFlowUploadDeltasBatch(deltas []FlowUploadCounterDelta) error {
+	if r == nil || r.db == nil {
+		return errors.New("repository not initialized")
+	}
+	if len(deltas) == 0 {
+		return nil
+	}
+
+	forwardTotals := make(map[int64][2]int64, len(deltas))
+	userTotals := make(map[int64][2]int64, len(deltas))
+	userTunnelTotals := make(map[int64][2]int64, len(deltas))
+	for _, delta := range deltas {
+		if delta.ForwardID > 0 {
+			current := forwardTotals[delta.ForwardID]
+			current[0] += delta.InFlow
+			current[1] += delta.OutFlow
+			forwardTotals[delta.ForwardID] = current
+		}
+		if delta.UserID > 0 {
+			current := userTotals[delta.UserID]
+			current[0] += delta.InFlow
+			current[1] += delta.OutFlow
+			userTotals[delta.UserID] = current
+		}
+		if delta.UserTunnelID > 0 {
+			current := userTunnelTotals[delta.UserTunnelID]
+			current[0] += delta.InFlow
+			current[1] += delta.OutFlow
+			userTunnelTotals[delta.UserTunnelID] = current
+		}
+	}
+
+	return r.db.Transaction(func(tx *gorm.DB) error {
+		for _, forwardID := range sortedFlowUploadTargetIDs(forwardTotals) {
+			total := forwardTotals[forwardID]
+			if err := tx.Model(&model.Forward{}).Where("id = ?", forwardID).UpdateColumns(map[string]interface{}{
+				"in_flow":  gorm.Expr("in_flow + ?", total[0]),
+				"out_flow": gorm.Expr("out_flow + ?", total[1]),
+			}).Error; err != nil {
+				return err
+			}
+		}
+		for _, userID := range sortedFlowUploadTargetIDs(userTotals) {
+			total := userTotals[userID]
+			if err := tx.Model(&model.User{}).Where("id = ?", userID).UpdateColumns(map[string]interface{}{
+				"in_flow":  gorm.Expr("in_flow + ?", total[0]),
+				"out_flow": gorm.Expr("out_flow + ?", total[1]),
+			}).Error; err != nil {
+				return err
+			}
+		}
+		for _, userTunnelID := range sortedFlowUploadTargetIDs(userTunnelTotals) {
+			total := userTunnelTotals[userTunnelID]
+			if err := tx.Model(&model.UserTunnel{}).Where("id = ?", userTunnelID).UpdateColumns(map[string]interface{}{
+				"in_flow":  gorm.Expr("in_flow + ?", total[0]),
+				"out_flow": gorm.Expr("out_flow + ?", total[1]),
+			}).Error; err != nil {
+				return err
+			}
+		}
+		return nil
+	})
 }
 
 // ─── Open / Close ────────────────────────────────────────────────────
