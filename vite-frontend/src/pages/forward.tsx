@@ -4884,6 +4884,7 @@ export default function ForwardPage() {
                     <AccordionItem
                       key="advanced"
                       aria-label="高级设置"
+                      className="border-b-0 [&_[data-slot=accordion-trigger]]:no-underline [&_[data-slot=accordion-trigger]]:hover:no-underline"
                       title={
                         <span className="text-small text-default-500 font-medium">
                           高级设置
