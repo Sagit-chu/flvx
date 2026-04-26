@@ -44,8 +44,11 @@ type Handler struct {
 	jobsStarted bool
 	jobsWG      sync.WaitGroup
 
-	upgradeMu              sync.Mutex
-	pendingUpgradeRedeploy map[int64]struct{}
+	upgradeMu                sync.Mutex
+	pendingUpgradeRedeploy   map[int64]struct{}
+	nodeOnlineRedeployAt     map[int64]time.Time
+	nodeOnlineRedeployQueued map[int64]struct{}
+	nodeOnlineRedeploying    map[int64]struct{}
 
 	qualityProber *tunnelQualityProber
 }
@@ -97,13 +100,16 @@ const (
 
 func New(repo *repo.Repository, jwtSecret string) *Handler {
 	h := &Handler{
-		repo:                   repo,
-		jwtSecret:              jwtSecret,
-		wsServer:               ws.NewServer(repo, jwtSecret),
-		metrics:                metrics.NewIngestionService(repo),
-		healthCheck:            nil,
-		captchaTokens:          make(map[string]int64),
-		pendingUpgradeRedeploy: make(map[int64]struct{}),
+		repo:                     repo,
+		jwtSecret:                jwtSecret,
+		wsServer:                 ws.NewServer(repo, jwtSecret),
+		metrics:                  metrics.NewIngestionService(repo),
+		healthCheck:              nil,
+		captchaTokens:            make(map[string]int64),
+		pendingUpgradeRedeploy:   make(map[int64]struct{}),
+		nodeOnlineRedeployAt:     make(map[int64]time.Time),
+		nodeOnlineRedeployQueued: make(map[int64]struct{}),
+		nodeOnlineRedeploying:    make(map[int64]struct{}),
 	}
 	h.healthCheck = health.NewChecker(repo, h.wsServer)
 	h.qualityProber = newTunnelQualityProber(h)

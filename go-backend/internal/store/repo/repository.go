@@ -22,6 +22,13 @@ import (
 	"go-backend/internal/store/model"
 )
 
+const (
+	defaultPostgresMaxOpenConns = 32
+	defaultPostgresMaxIdleConns = 8
+	defaultPostgresConnMaxIdle  = 5 * time.Minute
+	defaultPostgresConnMaxLife  = 30 * time.Minute
+)
+
 // ─── Type aliases for backward compatibility ─────────────────────────
 // Handlers still reference repo.User, repo.BackupData, etc.
 
@@ -210,6 +217,7 @@ func OpenPostgres(dsn string) (*Repository, error) {
 	if err != nil {
 		return nil, err
 	}
+	configurePostgresPool(sqlDB)
 	if err := sqlDB.Ping(); err != nil {
 		_ = sqlDB.Close()
 		return nil, err
@@ -233,6 +241,16 @@ func OpenPostgres(dsn string) (*Repository, error) {
 	}
 
 	return &Repository{db: db}, nil
+}
+
+func configurePostgresPool(sqlDB *sql.DB) {
+	if sqlDB == nil {
+		return
+	}
+	sqlDB.SetMaxOpenConns(defaultPostgresMaxOpenConns)
+	sqlDB.SetMaxIdleConns(defaultPostgresMaxIdleConns)
+	sqlDB.SetConnMaxIdleTime(defaultPostgresConnMaxIdle)
+	sqlDB.SetConnMaxLifetime(defaultPostgresConnMaxLife)
 }
 
 func (r *Repository) Close() error {
@@ -771,11 +789,11 @@ func (r *Repository) ListNodes() ([]map[string]interface{}, error) {
 			"version":       nullableString(n.Version),
 			"http":          n.HTTP, "tls": n.TLS, "socks": n.Socks,
 			"status": n.Status, "isRemote": n.IsRemote,
-			"remoteUrl":                 nullableString(n.RemoteURL),
-			"remoteToken":               nullableString(n.RemoteToken),
-			"remoteConfig":              nullableString(n.RemoteConfig),
-			"expiryReminderDismissed":   n.ExpiryReminderDismissed,
-			"interfaceName":             nullableString(n.InterfaceName),
+			"remoteUrl":               nullableString(n.RemoteURL),
+			"remoteToken":             nullableString(n.RemoteToken),
+			"remoteConfig":            nullableString(n.RemoteConfig),
+			"expiryReminderDismissed": n.ExpiryReminderDismissed,
+			"interfaceName":           nullableString(n.InterfaceName),
 		})
 	}
 	return items, nil
@@ -806,7 +824,7 @@ func (r *Repository) ListUsers() ([]map[string]interface{}, error) {
 			"flowResetTime": u.FlowResetTime, "createdTime": u.CreatedTime,
 			"updatedTime": nullableInt64(u.UpdatedTime),
 			"inFlow":      u.InFlow, "outFlow": u.OutFlow,
-			"maxConn":     u.MaxConn,
+			"maxConn": u.MaxConn,
 		}
 		if quota := quotaMap[u.ID]; quota != nil {
 			item["dailyQuotaGB"] = quota.DailyLimitGB
@@ -847,22 +865,22 @@ func (r *Repository) ListForwards() ([]map[string]interface{}, error) {
 	}
 
 	type fwdRow struct {
-		ID           int64
-		UserID       int64
-		UserName     string
-		Name         string
-		TunnelID     int64
-		TunnelName   string
-		TrafficRatio float64
-		RemoteAddr   string
-		Strategy     string
-		InFlow       int64
-		OutFlow      int64
-		CreatedTime  int64
-		Status       int
-		Inx          int
-		SpeedID      sql.NullInt64
-		MaxConn      int
+		ID            int64
+		UserID        int64
+		UserName      string
+		Name          string
+		TunnelID      int64
+		TunnelName    string
+		TrafficRatio  float64
+		RemoteAddr    string
+		Strategy      string
+		InFlow        int64
+		OutFlow       int64
+		CreatedTime   int64
+		Status        int
+		Inx           int
+		SpeedID       sql.NullInt64
+		MaxConn       int
 		ProxyProtocol int
 	}
 
@@ -890,7 +908,7 @@ func (r *Repository) ListForwards() ([]map[string]interface{}, error) {
 			"remoteAddr": row.RemoteAddr, "strategy": row.Strategy,
 			"inFlow": row.InFlow, "outFlow": row.OutFlow,
 			"createdTime": row.CreatedTime, "status": row.Status, "inx": int64(row.Inx),
-			"maxConn": row.MaxConn,
+			"maxConn":       row.MaxConn,
 			"proxyProtocol": row.ProxyProtocol,
 		}
 		if row.SpeedID.Valid {
@@ -2469,19 +2487,19 @@ func importForwards(tx *gorm.DB, forwards []model.ForwardBackup, now int64) (int
 	count := 0
 	for _, f := range forwards {
 		item := model.Forward{
-			ID:          f.ID,
-			UserID:      f.UserID,
-			UserName:    f.UserName,
-			Name:        f.Name,
-			TunnelID:    f.TunnelID,
-			RemoteAddr:  f.RemoteAddr,
-			Strategy:    f.Strategy,
-			InFlow:      f.InFlow,
-			OutFlow:     f.OutFlow,
-			CreatedTime: f.CreatedTime,
-			UpdatedTime: now,
-			Status:      f.Status,
-			Inx:         f.Inx,
+			ID:            f.ID,
+			UserID:        f.UserID,
+			UserName:      f.UserName,
+			Name:          f.Name,
+			TunnelID:      f.TunnelID,
+			RemoteAddr:    f.RemoteAddr,
+			Strategy:      f.Strategy,
+			InFlow:        f.InFlow,
+			OutFlow:       f.OutFlow,
+			CreatedTime:   f.CreatedTime,
+			UpdatedTime:   now,
+			Status:        f.Status,
+			Inx:           f.Inx,
 			ProxyProtocol: f.ProxyProtocol,
 		}
 		err := tx.Clauses(clause.OnConflict{
@@ -3436,7 +3454,7 @@ func (r *Repository) GetNodeMetrics(nodeID int64, startMs, endMs int64) ([]model
 
 	rangeMs := endMs - startMs
 	const maxRawRangeMs = int64(60 * 60 * 1000) // 1 hour — return raw data for short ranges
-	const targetPoints = 500                     // target number of chart points for downsampled data
+	const targetPoints = 500                    // target number of chart points for downsampled data
 
 	// For short ranges, return raw data (full resolution).
 	if rangeMs <= maxRawRangeMs {

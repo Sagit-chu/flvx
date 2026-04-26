@@ -145,11 +145,12 @@ type ServiceMonitorCheckResult struct {
 }
 
 const (
-	reporterReadWait  = 60 * time.Second
-	reporterWriteWait = 5 * time.Second
-	wsPingInterval    = 20 * time.Second // 独立 WebSocket ping 间隔
-	initialBackoff    = 2 * time.Second  // 重连初始退避
-	maxBackoff        = 2 * time.Minute  // 重连最大退避
+	reporterReadWait            = 60 * time.Second
+	reporterWriteWait           = 5 * time.Second
+	wsPingInterval              = 20 * time.Second // 独立 WebSocket ping 间隔
+	initialBackoff              = 2 * time.Second  // 重连初始退避
+	maxBackoff                  = 2 * time.Minute  // 重连最大退避
+	defaultMetricReportInterval = 5 * time.Second
 )
 
 type WebSocketReporter struct {
@@ -189,9 +190,9 @@ func NewWebSocketReporter(serverURL string, secret string) *WebSocketReporter {
 
 	return &WebSocketReporter{
 		url:            serverURL,
-		curBackoff:     initialBackoff,   // 当前退避间隔
-		pingInterval:   1 * time.Second,  // 指标上报间隔（每秒采集）
-		configInterval: 10 * time.Minute, // 配置上报间隔
+		curBackoff:     initialBackoff,              // 当前退避间隔
+		pingInterval:   defaultMetricReportInterval, // 指标上报间隔
+		configInterval: 10 * time.Minute,            // 配置上报间隔
 		ctx:            ctx,
 		cancel:         cancel,
 		connected:      false,

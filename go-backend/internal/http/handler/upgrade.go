@@ -39,6 +39,8 @@ var (
 	testKeywordPattern   = regexp.MustCompile(`(?i)(alpha|beta|rc)`)
 )
 
+const nodeOnlineRedeployCooldown = 30 * time.Second
+
 type githubRelease struct {
 	TagName     string `json:"tag_name"`
 	Name        string `json:"name"`
@@ -396,23 +398,120 @@ func (h *Handler) consumeNodePendingUpgradeRedeploy(nodeID int64) bool {
 }
 
 func (h *Handler) onNodeOnline(nodeID int64) {
-	h.consumeNodePendingUpgradeRedeploy(nodeID)
-	// Always redeploy rules on reconnection, not just for pending upgrade nodes.
-	// This handles cases where the node restarted and lost its in-memory config
-	// before persistence had time to flush, or if the panel also restarted.
-	h.redeployNodeRuntimeAfterUpgrade(nodeID)
+	if !h.startNodeOnlineRedeploy(nodeID, time.Now()) {
+		return
+	}
+	defer h.finishNodeOnlineRedeploy(nodeID)
+
+	// Reconcile node runtime on the first reconnect, but suppress rapid flapping
+	// so websocket churn does not trigger repeated full redeploy storms.
+	if !h.redeployNodeRuntimeAfterUpgrade(nodeID) {
+		h.markNodePendingUpgradeRedeploy(nodeID)
+	}
 }
 
-func (h *Handler) redeployNodeRuntimeAfterUpgrade(nodeID int64) {
+func (h *Handler) startNodeOnlineRedeploy(nodeID int64, now time.Time) bool {
+	if h == nil || nodeID <= 0 {
+		return false
+	}
+	if now.IsZero() {
+		now = time.Now()
+	}
+
+	h.upgradeMu.Lock()
+	defer h.upgradeMu.Unlock()
+	if h.pendingUpgradeRedeploy == nil {
+		h.pendingUpgradeRedeploy = make(map[int64]struct{})
+	}
+	if h.nodeOnlineRedeployAt == nil {
+		h.nodeOnlineRedeployAt = make(map[int64]time.Time)
+	}
+	if h.nodeOnlineRedeployQueued == nil {
+		h.nodeOnlineRedeployQueued = make(map[int64]struct{})
+	}
+	if h.nodeOnlineRedeploying == nil {
+		h.nodeOnlineRedeploying = make(map[int64]struct{})
+	}
+
+	_, pendingUpgrade := h.pendingUpgradeRedeploy[nodeID]
+	lastRedeployAt := h.nodeOnlineRedeployAt[nodeID]
+	_, inFlight := h.nodeOnlineRedeploying[nodeID]
+	if fireAt, start := nextNodeOnlineRedeployFireAt(lastRedeployAt, now, pendingUpgrade, inFlight); !start {
+		h.queueNodeOnlineRedeployLocked(nodeID, fireAt)
+		return false
+	}
+
+	delete(h.pendingUpgradeRedeploy, nodeID)
+	h.nodeOnlineRedeployAt[nodeID] = now
+	h.nodeOnlineRedeploying[nodeID] = struct{}{}
+	return true
+}
+
+func nextNodeOnlineRedeployFireAt(lastRedeployAt, now time.Time, pendingUpgrade bool, inFlight bool) (time.Time, bool) {
+	if now.IsZero() {
+		now = time.Now()
+	}
+	if inFlight {
+		fireAt := now.Add(nodeOnlineRedeployCooldown)
+		if !lastRedeployAt.IsZero() {
+			cooldownAt := lastRedeployAt.Add(nodeOnlineRedeployCooldown)
+			if cooldownAt.After(now) {
+				fireAt = cooldownAt
+			}
+		}
+		return fireAt, false
+	}
+	if !pendingUpgrade && !lastRedeployAt.IsZero() && now.Sub(lastRedeployAt) < nodeOnlineRedeployCooldown {
+		return lastRedeployAt.Add(nodeOnlineRedeployCooldown), false
+	}
+	return time.Time{}, true
+}
+
+func (h *Handler) queueNodeOnlineRedeployLocked(nodeID int64, fireAt time.Time) {
+	if h == nil || nodeID <= 0 {
+		return
+	}
+	if h.nodeOnlineRedeployQueued == nil {
+		h.nodeOnlineRedeployQueued = make(map[int64]struct{})
+	}
+	if _, queued := h.nodeOnlineRedeployQueued[nodeID]; queued {
+		return
+	}
+	if fireAt.IsZero() {
+		fireAt = time.Now().Add(nodeOnlineRedeployCooldown)
+	}
+	delay := time.Until(fireAt)
+	if delay < 0 {
+		delay = 0
+	}
+	h.nodeOnlineRedeployQueued[nodeID] = struct{}{}
+	time.AfterFunc(delay, func() {
+		h.upgradeMu.Lock()
+		delete(h.nodeOnlineRedeployQueued, nodeID)
+		h.upgradeMu.Unlock()
+		h.onNodeOnline(nodeID)
+	})
+}
+
+func (h *Handler) finishNodeOnlineRedeploy(nodeID int64) {
+	if h == nil || nodeID <= 0 {
+		return
+	}
+	h.upgradeMu.Lock()
+	delete(h.nodeOnlineRedeploying, nodeID)
+	h.upgradeMu.Unlock()
+}
+
+func (h *Handler) redeployNodeRuntimeAfterUpgrade(nodeID int64) bool {
 	tunnelIDs, err := h.repo.ListActiveTunnelIDsByNode(nodeID)
 	if err != nil {
 		fmt.Printf("post-upgrade redeploy: list tunnels for node %d failed: %v\n", nodeID, err)
-		return
+		return false
 	}
 	forwardIDs, err := h.repo.ListForwardIDsByNode(nodeID)
 	if err != nil {
 		fmt.Printf("post-upgrade redeploy: list forwards for node %d failed: %v\n", nodeID, err)
-		return
+		return false
 	}
 
 	// First pass: deploy everything
@@ -442,7 +541,7 @@ func (h *Handler) redeployNodeRuntimeAfterUpgrade(nodeID int64) {
 	}
 
 	// Retry failed items with exponential backoff (max 3 attempts)
-	h.retryFailedRedeploys(nodeID, tunnelFailed, failedForwards)
+	return h.retryFailedRedeploys(nodeID, tunnelFailed, failedForwards)
 }
 
 // isRetryableError returns true if the error looks transient and worth retrying.
@@ -463,9 +562,9 @@ func isRetryableError(err error) bool {
 }
 
 // retryFailedRedeploys retries failed tunnels and forwards with exponential backoff.
-func (h *Handler) retryFailedRedeploys(nodeID int64, tunnelFailed map[int64]struct{}, failedForwards []failedForward) {
+func (h *Handler) retryFailedRedeploys(nodeID int64, tunnelFailed map[int64]struct{}, failedForwards []failedForward) bool {
 	if len(tunnelFailed) == 0 && len(failedForwards) == 0 {
-		return
+		return true
 	}
 
 	const maxRetries = 3
@@ -507,7 +606,7 @@ func (h *Handler) retryFailedRedeploys(nodeID int64, tunnelFailed map[int64]stru
 
 		if len(tunnelFailed) == 0 && len(failedForwards) == 0 {
 			fmt.Printf("post-upgrade redeploy retry: all items recovered on node %d\n", nodeID)
-			return
+			return true
 		}
 	}
 
@@ -518,4 +617,5 @@ func (h *Handler) retryFailedRedeploys(nodeID int64, tunnelFailed map[int64]stru
 	for _, ff := range failedForwards {
 		fmt.Printf("post-upgrade redeploy: forward %d permanently failed on node %d after retries\n", ff.id, nodeID)
 	}
+	return false
 }

@@ -110,6 +110,14 @@ func TestSanitizeWebSocketURL(t *testing.T) {
 	}
 }
 
+func TestNewWebSocketReporterUsesReducedMetricInterval(t *testing.T) {
+	reporter := NewWebSocketReporter("panel.example.com:443", "abc")
+
+	if reporter.pingInterval != defaultMetricReportInterval {
+		t.Fatalf("expected metric interval %s, got %s", defaultMetricReportInterval, reporter.pingInterval)
+	}
+}
+
 func TestFormatWebSocketDialErrorIncludesHTTPStatus(t *testing.T) {
 	err := errors.New("websocket: bad handshake")
 	resp := &http.Response{
