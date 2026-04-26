@@ -10,7 +10,6 @@
  */
 
 import { registerTheme } from "./registry";
-
 // ── Built-in themes ──────────────────────────────────────────────────────────
 import defaultTheme from "./default";
 import cyberpunkTheme from "./example-cyberpunk";

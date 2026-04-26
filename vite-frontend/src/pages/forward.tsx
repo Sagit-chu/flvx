@@ -2600,7 +2600,7 @@ export default function ForwardPage() {
         try {
           document.execCommand("copy");
           toast.success(`已复制${label}`);
-        } catch (err) {
+        } catch {
           toast.error("复制失败");
         }
         document.body.removeChild(textArea);
