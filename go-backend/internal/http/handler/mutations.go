@@ -1726,11 +1726,13 @@ func (h *Handler) forwardCreate(w http.ResponseWriter, r *http.Request) {
 		response.WriteJSON(w, response.ErrDefault("转发名称和目标地址不能为空"))
 		return
 	}
-	if roleID != 0 {
+	if roleID != 0 && !h.allowLocalRemoteAddr() {
 		if err := IsSafeRemoteAddr(remoteAddr); err != nil {
 			response.WriteJSON(w, response.Err(403, err.Error()))
 			return
 		}
+	}
+	if roleID != 0 {
 		if speedIDVal, ok := req["speedId"]; ok && speedIDVal != nil {
 			response.WriteJSON(w, response.Err(-1, "普通用户无法设置限速规则"))
 			return
@@ -1853,7 +1855,7 @@ func (h *Handler) forwardUpdate(w http.ResponseWriter, r *http.Request) {
 	if remoteAddr == "" {
 		remoteAddr = forward.RemoteAddr
 	}
-	if actorRole != 0 {
+	if actorRole != 0 && !h.allowLocalRemoteAddr() {
 		if err := IsSafeRemoteAddr(remoteAddr); err != nil {
 			response.WriteJSON(w, response.Err(403, err.Error()))
 			return

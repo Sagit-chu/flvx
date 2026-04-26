@@ -185,6 +185,13 @@ const CONFIG_ITEMS: ConfigItem[] = [
     dependsOn: "github_proxy_enabled",
     dependsValue: "true",
   },
+  {
+    key: "allow_local_remote_addr",
+    label: "允许转发到本地地址",
+    description:
+      "开启后，普通用户创建或编辑规则时可将目标地址指向 127.0.0.1、10.x.x.x、172.16-31.x.x、192.168.x.x 等本地或内网地址。默认关闭以降低开放代理风险。",
+    type: "switch",
+  },
 ];
 
 const BACKUP_TYPE_OPTIONS = [
@@ -219,6 +226,7 @@ const getInitialConfigs = (): Record<string, string> => {
     "app_favicon",
     "github_proxy_enabled",
     "github_proxy_url",
+    "allow_local_remote_addr",
   ];
   const initialConfigs: Record<string, string> = {};
 
