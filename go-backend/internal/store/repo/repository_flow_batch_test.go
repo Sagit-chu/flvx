@@ -86,6 +86,31 @@ func TestGetFlowUploadForwardMetasAndApplyFlowUploadDeltasBatch(t *testing.T) {
 	}
 }
 
+func TestGetFlowUploadForwardMetasKeepsForwardsWhenTunnelRowMissing(t *testing.T) {
+	r, err := Open(filepath.Join(t.TempDir(), "flow-batch-missing-tunnel.db"))
+	if err != nil {
+		t.Fatalf("open repo: %v", err)
+	}
+	defer r.Close()
+
+	now := time.Now().UnixMilli()
+	if err := r.DB().Exec(`INSERT INTO forward(id, user_id, user_name, name, tunnel_id, remote_addr, strategy, in_flow, out_flow, created_time, updated_time, status, inx) VALUES(25, 2, 'u2', 'f25', 99, '1.1.1.1:80', 'fifo', 0, 0, ?, ?, 1, 0)`, now, now).Error; err != nil {
+		t.Fatalf("insert forward: %v", err)
+	}
+
+	metas, err := r.GetFlowUploadForwardMetas([]int64{25})
+	if err != nil {
+		t.Fatalf("get metas: %v", err)
+	}
+	meta, ok := metas[25]
+	if !ok {
+		t.Fatalf("expected metadata for forward with missing tunnel row")
+	}
+	if meta.ForwardID != 25 || meta.TunnelID != 99 || meta.TrafficRatio != 1 || meta.TunnelFlow != 1 {
+		t.Fatalf("unexpected fallback meta: %#v", meta)
+	}
+}
+
 func TestAddUserQuotaUsageBatchReturnsNormalizedViews(t *testing.T) {
 	r, err := Open(filepath.Join(t.TempDir(), "quota-batch.db"))
 	if err != nil {

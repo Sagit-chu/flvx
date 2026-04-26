@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"go-backend/internal/store/model"
+	"go-backend/internal/store/repo"
 )
 
 type tunnelTrafficDelta struct {
@@ -21,75 +22,42 @@ func unixMilliBucketMinute(nowMs int64) int64 {
 	return nowMs - (nowMs % minuteMs)
 }
 
-func (h *Handler) recordTunnelMetricsFromFlowItems(nodeID int64, items []flowItem, nowMs int64) {
-	if h == nil || h.repo == nil {
-		return
+func collectFlowUploadForwardIDs(items []flowItem) []int64 {
+	ids := make([]int64, 0, len(items))
+	seen := make(map[int64]struct{}, len(items))
+	for _, item := range items {
+		forwardID, _, _, ok := parseFlowServiceIDs(strings.TrimSpace(item.N))
+		if !ok || forwardID <= 0 {
+			continue
+		}
+		if _, exists := seen[forwardID]; exists {
+			continue
+		}
+		seen[forwardID] = struct{}{}
+		ids = append(ids, forwardID)
 	}
-	if nodeID <= 0 || len(items) == 0 {
-		return
-	}
+	return ids
+}
 
+func (h *Handler) recordTunnelMetricsFromForwardBatch(nodeID int64, forwardDeltas map[int64]tunnelTrafficDelta, metas map[int64]repo.FlowUploadForwardMeta, nowMs int64) {
+	if h == nil || h.repo == nil || nodeID <= 0 || len(forwardDeltas) == 0 {
+		return
+	}
 	bucketTs := unixMilliBucketMinute(nowMs)
 	if bucketTs <= 0 {
 		return
 	}
 
-	forwardDeltas := make(map[int64]tunnelTrafficDelta)
-	var skippedParse, skippedZero int
-	for _, item := range items {
-		name := strings.TrimSpace(item.N)
-		if name == "" || name == "web_api" {
-			continue
-		}
-		forwardID, _, _, ok := parseFlowServiceIDs(name)
-		if !ok {
-			skippedParse++
-			continue
-		}
-		if item.D == 0 && item.U == 0 {
-			skippedZero++
-			continue
-		}
-		d := forwardDeltas[forwardID]
-		d.bytesIn += item.D
-		d.bytesOut += item.U
-		forwardDeltas[forwardID] = d
-	}
-	if len(forwardDeltas) == 0 {
-		if len(items) > 0 {
-			log.Printf("monitoring debug op=tunnel_metric.no_forward_deltas node_id=%d items=%d skipped_parse=%d skipped_zero=%d", nodeID, len(items), skippedParse, skippedZero)
-		}
-		return
-	}
-
-	forwardIDs := make([]int64, 0, len(forwardDeltas))
-	for id := range forwardDeltas {
-		forwardIDs = append(forwardIDs, id)
-	}
-
-	forwardTunnelMap, err := h.repo.MapForwardIDsToTunnelIDs(forwardIDs)
-	if err != nil {
-		log.Printf("monitoring write skipped op=tunnel_metric.map_forward_to_tunnel node_id=%d err=%v", nodeID, err)
-		return
-	}
-	if len(forwardTunnelMap) == 0 {
-		log.Printf("monitoring debug op=tunnel_metric.no_tunnel_map node_id=%d forward_ids=%v", nodeID, forwardIDs)
-		return
-	}
-
 	tunnelAgg := make(map[int64]tunnelTrafficDelta)
 	for forwardID, delta := range forwardDeltas {
-		tunnelID := forwardTunnelMap[forwardID]
-		if tunnelID <= 0 {
+		meta, ok := metas[forwardID]
+		if !ok || meta.TunnelID <= 0 {
 			continue
 		}
-		a := tunnelAgg[tunnelID]
-		a.bytesIn += delta.bytesIn
-		a.bytesOut += delta.bytesOut
-		tunnelAgg[tunnelID] = a
-	}
-	if len(tunnelAgg) == 0 {
-		return
+		current := tunnelAgg[meta.TunnelID]
+		current.bytesIn += delta.bytesIn
+		current.bytesOut += delta.bytesOut
+		tunnelAgg[meta.TunnelID] = current
 	}
 
 	metrics := make([]*model.TunnelMetric, 0, len(tunnelAgg))
@@ -98,14 +66,11 @@ func (h *Handler) recordTunnelMetricsFromFlowItems(nodeID int64, items []flowIte
 			continue
 		}
 		metrics = append(metrics, &model.TunnelMetric{
-			TunnelID:     tunnelID,
-			NodeID:       nodeID,
-			Timestamp:    bucketTs,
-			BytesIn:      delta.bytesIn,
-			BytesOut:     delta.bytesOut,
-			Connections:  0,
-			Errors:       0,
-			AvgLatencyMs: 0,
+			TunnelID:  tunnelID,
+			NodeID:    nodeID,
+			Timestamp: bucketTs,
+			BytesIn:   delta.bytesIn,
+			BytesOut:  delta.bytesOut,
 		})
 	}
 	if len(metrics) == 0 {
@@ -114,7 +79,7 @@ func (h *Handler) recordTunnelMetricsFromFlowItems(nodeID int64, items []flowIte
 
 	if err := h.repo.UpsertTunnelMetricBuckets(metrics); err != nil {
 		log.Printf("monitoring write failed op=tunnel_metric.upsert_buckets node_id=%d bucket_ts=%d count=%d err=%v", nodeID, bucketTs, len(metrics), err)
-	} else {
-		log.Printf("monitoring ok op=tunnel_metric.upsert_buckets node_id=%d bucket_ts=%d count=%d", nodeID, bucketTs, len(metrics))
+		return
 	}
+	log.Printf("monitoring ok op=tunnel_metric.upsert_buckets node_id=%d bucket_ts=%d count=%d", nodeID, bucketTs, len(metrics))
 }

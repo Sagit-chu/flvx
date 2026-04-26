@@ -69,7 +69,7 @@ func (r *Repository) GetFlowUploadForwardMetas(forwardIDs []int64) (map[int64]Fl
 		var rows []row
 		err := r.db.Table("forward AS f").
 			Select("f.id AS forward_id, f.tunnel_id AS tunnel_id, t.traffic_ratio AS traffic_ratio, t.flow AS tunnel_flow").
-			Joins("JOIN tunnel t ON t.id = f.tunnel_id").
+			Joins("LEFT JOIN tunnel t ON t.id = f.tunnel_id").
 			Where("f.id IN ?", chunk).
 			Scan(&rows).Error
 		if err != nil {

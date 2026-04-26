@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"net/url"
 	"sort"
@@ -796,11 +797,16 @@ func (h *Handler) flowUpload(w http.ResponseWriter, r *http.Request) {
 	if err == nil && strings.TrimSpace(raw) != "" {
 		var items []flowItem
 		if json.Unmarshal([]byte(raw), &items) == nil {
-			nowMs := time.Now().UnixMilli()
-			h.recordTunnelMetricsFromFlowItems(node.ID, items, nowMs)
-			for _, item := range items {
-				h.processFlowItem(node.ID, item)
+			now := time.Now()
+			forwardIDs := collectFlowUploadForwardIDs(items)
+			metas, metaErr := h.repo.GetFlowUploadForwardMetas(forwardIDs)
+			if metaErr != nil {
+				log.Printf("flow upload metadata lookup failed node_id=%d err=%v", node.ID, metaErr)
+				metas = map[int64]repo.FlowUploadForwardMeta{}
 			}
+			batch := h.buildFlowUploadBatch(items, metas)
+			h.recordTunnelMetricsFromForwardBatch(node.ID, batch.forwardTraffic, metas, now.UnixMilli())
+			h.applyFlowUploadBatch(node.ID, batch, now)
 		}
 	}
 
