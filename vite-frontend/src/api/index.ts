@@ -418,8 +418,11 @@ export interface AnnouncementData {
 
 export const getAnnouncement = () =>
   Network.get<AnnouncementData>("/announcement/get");
-export const updateAnnouncement = (data: AnnouncementData) =>
-  Network.post("/announcement/update", data);
+export const updateAnnouncement = ({
+  content,
+  enabled,
+}: Pick<AnnouncementData, "content" | "enabled">) =>
+  Network.post("/announcement/update", { content, enabled });
 
 export const getNodeMetrics = (
   nodeId: number,
