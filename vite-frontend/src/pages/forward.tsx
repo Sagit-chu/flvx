@@ -4893,10 +4893,10 @@ export default function ForwardPage() {
                     >
                       <div className="space-y-4 pb-2">
                         <Input
-                          description="此设置优先于用户的全局连接数限制。0 表示不限制。"
+                          description="大于 0 时优先于用户全局限制；0 或空表示使用用户全局限制，用户也为 0 时不限制。"
                           label="最大连接数"
                           min="0"
-                          placeholder="0 或空表示不限制"
+                          placeholder="0 或空表示使用用户全局限制"
                           type="number"
                           value={
                             form.maxConn === 0 ? "" : String(form.maxConn || "")

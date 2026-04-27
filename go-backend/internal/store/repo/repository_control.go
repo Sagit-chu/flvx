@@ -45,15 +45,17 @@ func (r *Repository) ListForwardsByTunnelTx(tx *gorm.DB, tunnelID int64) ([]mode
 	rows := make([]model.ForwardRecord, 0, len(forwards))
 	for _, f := range forwards {
 		rows = append(rows, model.ForwardRecord{
-			ID:         f.ID,
-			UserID:     f.UserID,
-			UserName:   f.UserName,
-			Name:       f.Name,
-			TunnelID:   f.TunnelID,
-			RemoteAddr: f.RemoteAddr,
-			Strategy:   f.Strategy,
-			Status:     f.Status,
-			SpeedID:    f.SpeedID,
+			ID:            f.ID,
+			UserID:        f.UserID,
+			UserName:      f.UserName,
+			Name:          f.Name,
+			TunnelID:      f.TunnelID,
+			RemoteAddr:    f.RemoteAddr,
+			Strategy:      f.Strategy,
+			Status:        f.Status,
+			SpeedID:       f.SpeedID,
+			MaxConn:       f.MaxConn,
+			ProxyProtocol: f.ProxyProtocol,
 		})
 	}
 	for i := range rows {
@@ -63,7 +65,6 @@ func (r *Repository) ListForwardsByTunnelTx(tx *gorm.DB, tunnelID int64) ([]mode
 	}
 	return rows, nil
 }
-
 
 func (r *Repository) ListActiveTunnelIDsByNode(nodeID int64) ([]int64, error) {
 	if r == nil || r.db == nil {
@@ -142,7 +143,6 @@ func (r *Repository) ListForwardPortsTx(tx *gorm.DB, forwardID int64) ([]model.F
 	return rows, nil
 }
 
-
 func (r *Repository) HasOtherForwardOnNodePort(nodeID int64, port int, currentForwardID int64) (bool, error) {
 	if r == nil || r.db == nil {
 		return false, errors.New("repository not initialized")
@@ -168,7 +168,6 @@ func (r *Repository) HasOtherForwardOnNodePortTx(tx *gorm.DB, nodeID int64, port
 
 	return count > 0, nil
 }
-
 
 func (r *Repository) GetTunnelOutProtocol(tunnelID int64) (string, error) {
 	if r == nil || r.db == nil {

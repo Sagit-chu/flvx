@@ -8,7 +8,7 @@ import (
 	"go-backend/internal/store/repo"
 )
 
-func TestBuildForwardServiceConfigsPreservesProxyProtocolWithInterfaceMetadata(t *testing.T) {
+func TestBuildForwardServiceConfigsSendsProxyProtocolToForwardHandler(t *testing.T) {
 	forward := &forwardRecord{
 		ID:            1,
 		UserID:        2,
@@ -30,15 +30,27 @@ func TestBuildForwardServiceConfigsPreservesProxyProtocolWithInterfaceMetadata(t
 	}
 
 	for _, service := range services {
-		metadata, ok := service["metadata"].(map[string]interface{})
+		serviceMetadata, ok := service["metadata"].(map[string]interface{})
 		if !ok {
 			t.Fatalf("expected metadata map, got %T", service["metadata"])
 		}
-		if metadata["interface"] != "eth0" {
-			t.Fatalf("expected interface metadata eth0, got %v", metadata["interface"])
+		if serviceMetadata["interface"] != "eth0" {
+			t.Fatalf("expected interface metadata eth0, got %v", serviceMetadata["interface"])
 		}
-		if metadata["proxyProtocol"] != 2 {
-			t.Fatalf("expected proxyProtocol 2, got %v", metadata["proxyProtocol"])
+		if _, ok := serviceMetadata["proxyProtocol"]; ok {
+			t.Fatalf("proxyProtocol should not be listener metadata: %v", serviceMetadata)
+		}
+
+		handlerConfig, ok := service["handler"].(map[string]interface{})
+		if !ok {
+			t.Fatalf("expected handler config map, got %T", service["handler"])
+		}
+		handlerMetadata, ok := handlerConfig["metadata"].(map[string]interface{})
+		if !ok {
+			t.Fatalf("expected handler metadata map, got %T", handlerConfig["metadata"])
+		}
+		if handlerMetadata["proxyProtocol"] != 2 {
+			t.Fatalf("expected handler proxyProtocol 2, got %v", handlerMetadata["proxyProtocol"])
 		}
 	}
 }

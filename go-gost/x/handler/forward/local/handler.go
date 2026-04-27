@@ -16,6 +16,7 @@ import (
 	"github.com/go-gost/core/recorder"
 	ctxvalue "github.com/go-gost/x/ctx"
 	xnet "github.com/go-gost/x/internal/net"
+	"github.com/go-gost/x/internal/net/proxyproto"
 	"github.com/go-gost/x/internal/util/forwarder"
 	"github.com/go-gost/x/internal/util/sniffing"
 	tls_util "github.com/go-gost/x/internal/util/tls"
@@ -251,6 +252,8 @@ func (h *forwardHandler) Handle(ctx context.Context, conn net.Conn, opts ...hand
 			marker.Reset()
 		}
 		defer cc.Close()
+
+		cc = proxyproto.WrapClientConn(h.md.proxyProtocol, conn.RemoteAddr(), conn.LocalAddr(), cc)
 
 		if err := xnet.Transport(conn, cc); err != nil {
 			if marker := target.Marker(); marker != nil {

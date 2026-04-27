@@ -114,15 +114,17 @@ func (r *Repository) ListActiveForwardsByUser(userID int64) ([]model.ForwardReco
 	rows := make([]model.ForwardRecord, 0, len(forwards))
 	for _, f := range forwards {
 		rows = append(rows, model.ForwardRecord{
-			ID:         f.ID,
-			UserID:     f.UserID,
-			UserName:   f.UserName,
-			Name:       f.Name,
-			TunnelID:   f.TunnelID,
-			RemoteAddr: f.RemoteAddr,
-			Strategy:   f.Strategy,
-			Status:     f.Status,
-			SpeedID:    f.SpeedID,
+			ID:            f.ID,
+			UserID:        f.UserID,
+			UserName:      f.UserName,
+			Name:          f.Name,
+			TunnelID:      f.TunnelID,
+			RemoteAddr:    f.RemoteAddr,
+			Strategy:      f.Strategy,
+			Status:        f.Status,
+			SpeedID:       f.SpeedID,
+			MaxConn:       f.MaxConn,
+			ProxyProtocol: f.ProxyProtocol,
 		})
 	}
 	for i := range rows {
@@ -145,15 +147,17 @@ func (r *Repository) ListActiveForwardsByUserTunnel(userID, tunnelID int64) ([]m
 	rows := make([]model.ForwardRecord, 0, len(forwards))
 	for _, f := range forwards {
 		rows = append(rows, model.ForwardRecord{
-			ID:         f.ID,
-			UserID:     f.UserID,
-			UserName:   f.UserName,
-			Name:       f.Name,
-			TunnelID:   f.TunnelID,
-			RemoteAddr: f.RemoteAddr,
-			Strategy:   f.Strategy,
-			Status:     f.Status,
-			SpeedID:    f.SpeedID,
+			ID:            f.ID,
+			UserID:        f.UserID,
+			UserName:      f.UserName,
+			Name:          f.Name,
+			TunnelID:      f.TunnelID,
+			RemoteAddr:    f.RemoteAddr,
+			Strategy:      f.Strategy,
+			Status:        f.Status,
+			SpeedID:       f.SpeedID,
+			MaxConn:       f.MaxConn,
+			ProxyProtocol: f.ProxyProtocol,
 		})
 	}
 	for i := range rows {
@@ -176,15 +180,17 @@ func (r *Repository) ListForwardsByUserAndTunnel(userID, tunnelID int64) ([]mode
 	rows := make([]model.ForwardRecord, 0, len(forwards))
 	for _, f := range forwards {
 		rows = append(rows, model.ForwardRecord{
-			ID:         f.ID,
-			UserID:     f.UserID,
-			UserName:   f.UserName,
-			Name:       f.Name,
-			TunnelID:   f.TunnelID,
-			RemoteAddr: f.RemoteAddr,
-			Strategy:   f.Strategy,
-			Status:     f.Status,
-			SpeedID:    f.SpeedID,
+			ID:            f.ID,
+			UserID:        f.UserID,
+			UserName:      f.UserName,
+			Name:          f.Name,
+			TunnelID:      f.TunnelID,
+			RemoteAddr:    f.RemoteAddr,
+			Strategy:      f.Strategy,
+			Status:        f.Status,
+			SpeedID:       f.SpeedID,
+			MaxConn:       f.MaxConn,
+			ProxyProtocol: f.ProxyProtocol,
 		})
 	}
 	for i := range rows {

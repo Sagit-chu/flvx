@@ -138,6 +138,15 @@ func (h *Handler) userUpdate(w http.ResponseWriter, r *http.Request) {
 		response.WriteJSON(w, response.ErrDefault("请不要作死"))
 		return
 	}
+	oldUser, err := h.repo.GetUserByID(id)
+	if err != nil {
+		response.WriteJSON(w, response.Err(-2, err.Error()))
+		return
+	}
+	if oldUser == nil {
+		response.WriteJSON(w, response.ErrDefault("用户不存在"))
+		return
+	}
 
 	dup, err := h.repo.UserExistsExcluding(username, id)
 	if err != nil {
@@ -208,6 +217,17 @@ func (h *Handler) userUpdate(w http.ResponseWriter, r *http.Request) {
 			for _, gid := range affected {
 				_ = h.syncPermissionsByUserGroup(gid)
 			}
+		}
+	}
+	if oldUser.MaxConn != maxConn {
+		warnings, syncErr := h.syncUserMaxConnForwards(id)
+		if syncErr != nil {
+			response.WriteJSON(w, response.ErrDefault(fmt.Sprintf("最大连接数下发失败: %v", syncErr)))
+			return
+		}
+		if len(warnings) > 0 {
+			response.WriteJSON(w, response.OK(map[string]interface{}{"warnings": warnings}))
+			return
 		}
 	}
 
@@ -4252,6 +4272,26 @@ func (h *Handler) syncUserTunnelForwards(userID, tunnelID int64) error {
 	}
 
 	return nil
+}
+
+func (h *Handler) syncUserMaxConnForwards(userID int64) ([]string, error) {
+	forwards, err := h.listActiveForwardsByUser(userID)
+	if err != nil {
+		return nil, err
+	}
+	warnings := make([]string, 0)
+	for i := range forwards {
+		f := &forwards[i]
+		if f.MaxConn > 0 {
+			continue
+		}
+		syncWarnings, syncErr := h.syncForwardServicesWithWarnings(f, "UpdateService", true)
+		warnings = append(warnings, syncWarnings...)
+		if syncErr != nil {
+			return warnings, syncErr
+		}
+	}
+	return warnings, nil
 }
 
 // cleanupForwardsForUserTunnel deletes all forwarding rules belonging to a

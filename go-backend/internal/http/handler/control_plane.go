@@ -1706,10 +1706,11 @@ func buildForwardServiceConfigs(baseName string, forward *forwardRecord, tunnel 
 			service["climiter"] = cLimiterName
 		}
 		if forward.ProxyProtocol > 0 {
-			if service["metadata"] == nil {
-				service["metadata"] = map[string]interface{}{}
+			handlerConfig := service["handler"].(map[string]interface{})
+			if handlerConfig["metadata"] == nil {
+				handlerConfig["metadata"] = map[string]interface{}{}
 			}
-			service["metadata"].(map[string]interface{})["proxyProtocol"] = forward.ProxyProtocol
+			handlerConfig["metadata"].(map[string]interface{})["proxyProtocol"] = forward.ProxyProtocol
 		}
 		if protocol == "udp" {
 			listenerMetadata := map[string]interface{}{
@@ -1831,12 +1832,12 @@ func (h *Handler) ensureLimiterOnNode(nodeID int64, limiterID int64, speed int) 
 
 func (h *Handler) ensureConnLimiterOnNode(nodeID int64, limiterName string, maxConn int) error {
 	limitStr := fmt.Sprintf("$ %d", maxConn)
-	
+
 	payload := map[string]interface{}{
 		"name":   limiterName,
 		"limits": []string{limitStr},
 	}
-	
+
 	if _, err := h.sendNodeCommand(nodeID, "AddCLimiters", payload, false, false); err != nil {
 		if !isAlreadyExistsMessage(err.Error()) {
 			return fmt.Errorf("连接限制器下发失败: %w", err)
@@ -1851,7 +1852,6 @@ func (h *Handler) ensureConnLimiterOnNode(nodeID int64, limiterName string, maxC
 	}
 	return nil
 }
-
 
 func buildLimiterAddPayload(limiterID int64, speed int) (string, map[string]interface{}) {
 	rate := float64(speed) / 8.0

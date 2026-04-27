@@ -14,6 +14,7 @@ import (
 
 type metadata struct {
 	readTimeout   time.Duration
+	proxyProtocol int
 	httpKeepalive bool
 
 	sniffing                    bool
@@ -38,6 +39,7 @@ func (h *forwardHandler) parseMetadata(md mdata.Metadata) (err error) {
 	if h.md.readTimeout <= 0 {
 		h.md.readTimeout = 15 * time.Second
 	}
+	h.md.proxyProtocol = mdutil.GetInt(md, "proxyProtocol")
 
 	h.md.httpKeepalive = mdutil.GetBool(md, "http.keepalive")
 
