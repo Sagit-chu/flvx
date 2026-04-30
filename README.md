@@ -184,7 +184,6 @@ This fork (FLVX) is no longer a light patch on top of the upstream project. It h
 
 | 网络       | 地址                                                                 |
 |------------|----------------------------------------------------------------------|
-| BNB(BEP20) | `0xa608708fdc6279a2433fd4b82f0b72b8cbe97ed5`                          |
-| TRC20      | `TM8VYdU3s3gSX5PC8swjAJrAzZFCHKqG2k`                                  |
-| Aptos      | `0x49427bfcba1006a346447430689b2307ac156316bb34850d1d3029ff9d118da5`  |
-| polygon    |  `0xa608708fdc6279a2433fd4b82f0b72b8cbe97ed5`    |
+| BNB(BEP20) | `0x271327ce49140e670eA0F772d9886BF90E9022Ee`                          |
+| TRC20      | `TARxZWggaxFqYgxGVBxPkyykgYKNmGndmE`                                  |
+| polygon    |  `0x271327ce49140e670eA0F772d9886BF90E9022Ee`    |
