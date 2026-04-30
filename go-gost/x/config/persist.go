@@ -40,19 +40,19 @@ func EnablePersist() {
 }
 
 // persist writes the current global config to the configured file atomically.
-func persist() {
+func persist() error {
 	persistMu.Lock()
 	path := persistPath
 	enabled := persistEnable
 	persistMu.Unlock()
 
 	if !enabled || path == "" {
-		return
+		return nil
 	}
 
 	cfg := Global()
 	if cfg == nil {
-		return
+		return nil
 	}
 
 	var buf bytes.Buffer
@@ -60,7 +60,7 @@ func persist() {
 	enc.SetIndent("", "  ")
 	if err := enc.Encode(cfg); err != nil {
 		fmt.Printf("⚠️ config persist: marshal failed: %v\n", err)
-		return
+		return fmt.Errorf("config persist: marshal failed: %w", err)
 	}
 
 	// Atomic write: write to temp file then rename
@@ -68,7 +68,7 @@ func persist() {
 	tmp, err := os.CreateTemp(dir, ".gost-*.tmp")
 	if err != nil {
 		fmt.Printf("⚠️ config persist: create temp file failed: %v\n", err)
-		return
+		return fmt.Errorf("config persist: create temp file failed: %w", err)
 	}
 	tmpName := tmp.Name()
 
@@ -76,19 +76,20 @@ func persist() {
 		tmp.Close()
 		os.Remove(tmpName)
 		fmt.Printf("⚠️ config persist: write failed: %v\n", err)
-		return
+		return fmt.Errorf("config persist: write failed: %w", err)
 	}
 	if err := tmp.Close(); err != nil {
 		os.Remove(tmpName)
 		fmt.Printf("⚠️ config persist: close temp file failed: %v\n", err)
-		return
+		return fmt.Errorf("config persist: close temp file failed: %w", err)
 	}
 
 	if err := os.Rename(tmpName, path); err != nil {
 		os.Remove(tmpName)
 		fmt.Printf("⚠️ config persist: rename failed: %v\n", err)
-		return
+		return fmt.Errorf("config persist: rename failed: %w", err)
 	}
 
 	fmt.Printf("💾 节点配置已持久化到 %s\n", path)
+	return nil
 }

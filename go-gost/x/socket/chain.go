@@ -31,12 +31,10 @@ func createChain(req createChainRequest) error {
 		return errors.New("chain " + name + " already exists")
 	}
 
-	config.OnUpdate(func(c *config.Config) error {
+	return config.OnUpdate(func(c *config.Config) error {
 		c.Chains = append(c.Chains, &req.Data)
 		return nil
 	})
-
-	return nil
 }
 
 func updateChain(req updateChainRequest) error {
@@ -58,7 +56,7 @@ func updateChain(req updateChainRequest) error {
 		return errors.New("chain " + name + " already exists")
 	}
 
-	config.OnUpdate(func(c *config.Config) error {
+	return config.OnUpdate(func(c *config.Config) error {
 		found := false
 		for i := range c.Chains {
 			if c.Chains[i].Name == name {
@@ -72,8 +70,6 @@ func updateChain(req updateChainRequest) error {
 		}
 		return nil
 	})
-
-	return nil
 }
 
 func deleteChain(req deleteChainRequest) error {
@@ -84,7 +80,7 @@ func deleteChain(req deleteChainRequest) error {
 		registry.ChainRegistry().Unregister(name)
 	}
 
-	config.OnUpdate(func(c *config.Config) error {
+	return config.OnUpdate(func(c *config.Config) error {
 		chains := c.Chains
 		c.Chains = nil
 		for _, s := range chains {
@@ -95,8 +91,6 @@ func deleteChain(req deleteChainRequest) error {
 		}
 		return nil
 	})
-
-	return nil
 }
 
 type createChainRequest struct {

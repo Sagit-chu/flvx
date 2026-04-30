@@ -201,6 +201,52 @@ func TestDeleteForwardServiceCandidatesDeletesAllMatchingVariants(t *testing.T) 
 	}
 }
 
+func TestBuildForwardServiceDeleteNamesBatchesAndDeduplicatesVariants(t *testing.T) {
+	bases := []string{"57_7_7", "57_7_0", "57_7_7"}
+	got := buildForwardServiceDeleteNames(bases)
+	want := []string{"57_7_7_tcp", "57_7_7_udp", "57_7_7", "57_7_0_tcp", "57_7_0_udp", "57_7_0"}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("expected %v, got %v", want, got)
+	}
+}
+
+func TestRemovedTunnelRuntimeNodeIDsSeparatesChainAndServiceRoles(t *testing.T) {
+	oldRows := []chainNodeRecord{
+		{NodeID: 1, ChainType: 1},
+		{NodeID: 2, ChainType: 2},
+		{NodeID: 3, ChainType: 3},
+		{NodeID: 5, ChainType: 2},
+		{NodeID: 6, ChainType: 3},
+	}
+	newRows := []chainNodeRecord{
+		{NodeID: 2, ChainType: 3},
+		{NodeID: 3, ChainType: 3},
+		{NodeID: 5, ChainType: 1},
+	}
+
+	removedChains := removedTunnelRuntimeNodeIDs(oldRows, newRows, tunnelRuntimeNeedsChain)
+	if want := []int64{1, 2}; !reflect.DeepEqual(removedChains, want) {
+		t.Fatalf("expected removed chains %v, got %v", want, removedChains)
+	}
+
+	removedServices := removedTunnelRuntimeNodeIDs(oldRows, newRows, tunnelRuntimeNeedsService)
+	if want := []int64{5, 6}; !reflect.DeepEqual(removedServices, want) {
+		t.Fatalf("expected removed services %v, got %v", want, removedServices)
+	}
+}
+
+func TestTunnelForwardRuntimeNeedsSyncOnlyWhenTypeOrEntriesChange(t *testing.T) {
+	if tunnelForwardRuntimeNeedsSync(2, 2, []int64{1, 2}, []int64{2, 1}) {
+		t.Fatalf("same tunnel type and same entry set should not resync forwards")
+	}
+	if !tunnelForwardRuntimeNeedsSync(1, 2, []int64{1}, []int64{1}) {
+		t.Fatalf("type change should resync forwards")
+	}
+	if !tunnelForwardRuntimeNeedsSync(2, 2, []int64{1}, []int64{1, 2}) {
+		t.Fatalf("entry set change should resync forwards")
+	}
+}
+
 func TestValidateForwardPortAvailabilityRejectsOtherForwardOccupancy(t *testing.T) {
 	h := &Handler{repo: nil}
 	node := &nodeRecord{ID: 9, Name: "test-node"}

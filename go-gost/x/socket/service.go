@@ -3,6 +3,7 @@ package socket
 import (
 	"errors"
 	"fmt"
+	"reflect"
 	"strings"
 	"time"
 
@@ -54,9 +55,8 @@ func createServices(req createServicesRequest) error {
 		if err := registry.ServiceRegistry().Register(ps.config.Name, ps.service); err != nil {
 			// 如果注册失败，回滚已注册的服务
 			for _, regName := range registeredServices {
-				if svc := registry.ServiceRegistry().Get(regName); svc != nil {
+				if registry.ServiceRegistry().Get(regName) != nil {
 					registry.ServiceRegistry().Unregister(regName)
-					svc.Close()
 				}
 			}
 			return errors.New("service " + ps.config.Name + " already exists")
@@ -72,14 +72,12 @@ func createServices(req createServicesRequest) error {
 	}
 
 	// 第四阶段：更新配置
-	config.OnUpdate(func(c *config.Config) error {
+	return config.OnUpdate(func(c *config.Config) error {
 		for _, ps := range parsedServices {
 			c.Services = append(c.Services, &ps.config)
 		}
 		return nil
 	})
-
-	return nil
 }
 
 func updateServices(req updateServicesRequest) error {
@@ -98,17 +96,23 @@ func updateServices(req updateServicesRequest) error {
 	}
 
 	// 第二阶段：逐个更新服务（Upsert模式：存在则更新，不存在则创建）
+	changedServices := make([]struct {
+		config  config.ServiceConfig
+		service service.Service
+	}, 0, len(req.Data))
 	for i := range req.Data {
 		serviceConfig := &req.Data[i]
 		name := serviceConfig.Name
+		if registry.ServiceRegistry().Get(name) != nil && serviceConfigUnchanged(name, *serviceConfig) {
+			continue
+		}
 
 		// 1. 获取旧服务
 		old := registry.ServiceRegistry().Get(name)
 
 		// 2. 关闭旧服务 (如果存在)
 		if old != nil {
-			old.Close()
-			// 3. 从注册表移除旧服务
+			// 3. 从注册表移除旧服务；registry 会负责关闭旧服务。
 			registry.ServiceRegistry().Unregister(name)
 		}
 
@@ -117,6 +121,10 @@ func updateServices(req updateServicesRequest) error {
 		if err != nil {
 			return errors.New("create service " + name + " failed: " + err.Error())
 		}
+		changedServices = append(changedServices, struct {
+			config  config.ServiceConfig
+			service service.Service
+		}{*serviceConfig, svc})
 
 		// 5. 注册新服务
 		if err := registry.ServiceRegistry().Register(name, svc); err != nil {
@@ -127,12 +135,15 @@ func updateServices(req updateServicesRequest) error {
 		// 6. 启动新服务
 		go svc.Serve()
 	}
+	if len(changedServices) == 0 {
+		return nil
+	}
 
 	// 第三阶段：更新配置
-	config.OnUpdate(func(c *config.Config) error {
-		for i := range req.Data {
+	if err := config.OnUpdate(func(c *config.Config) error {
+		for i := range changedServices {
 			// 创建副本以确保指针安全
-			cfgCopy := req.Data[i]
+			cfgCopy := changedServices[i].config
 			found := false
 			for j := range c.Services {
 				if c.Services[j].Name == cfgCopy.Name {
@@ -146,9 +157,28 @@ func updateServices(req updateServicesRequest) error {
 			}
 		}
 		return nil
-	})
+	}); err != nil {
+		return err
+	}
 
 	return nil
+}
+
+func serviceConfigUnchanged(name string, next config.ServiceConfig) bool {
+	cfg := config.Global()
+	if cfg == nil {
+		return false
+	}
+	next.Status = nil
+	for _, current := range cfg.Services {
+		if current == nil || strings.TrimSpace(current.Name) != name {
+			continue
+		}
+		currentCopy := *current
+		currentCopy.Status = nil
+		return reflect.DeepEqual(currentCopy, next)
+	}
+	return false
 }
 
 func deleteServices(req deleteServicesRequest) error {
@@ -183,7 +213,6 @@ func deleteServices(req deleteServicesRequest) error {
 	// 第二阶段：删除所有服务
 	for _, std := range servicesToDelete {
 		registry.ServiceRegistry().Unregister(std.name)
-		std.service.Close()
 	}
 	// 确保所有请求删除的服务都从注册表中移除（即使之前未找到实例）
 	for _, name := range namesToRemove {
@@ -193,7 +222,7 @@ func deleteServices(req deleteServicesRequest) error {
 	}
 
 	// 第三阶段：更新配置
-	config.OnUpdate(func(c *config.Config) error {
+	err := config.OnUpdate(func(c *config.Config) error {
 		services := c.Services
 		c.Services = nil
 		for _, s := range services {
@@ -211,8 +240,7 @@ func deleteServices(req deleteServicesRequest) error {
 		return nil
 	})
 	xservice.GetGlobalTrafficManager().RemoveServices(namesToRemove...)
-
-	return nil
+	return err
 }
 
 func pauseServices(req pauseServicesRequest) error {

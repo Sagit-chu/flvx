@@ -782,7 +782,6 @@ func (w *WebSocketReporter) routeCommand(cmd CommandMessage) {
 	fmt.Println("🔔 收到命令: ", string(jsonBytes))
 	var err error
 	var response CommandResponse
-	var needSaveConfig bool // 标记是否需要保存配置（只有状态变更命令才需要）
 
 	// 传递 requestId
 	response.RequestId = cmd.RequestId
@@ -792,63 +791,49 @@ func (w *WebSocketReporter) routeCommand(cmd CommandMessage) {
 	case "AddService":
 		err = w.handleAddService(cmd.Data)
 		response.Type = "AddServiceResponse"
-		needSaveConfig = true
 	case "UpdateService":
 		err = w.handleUpdateService(cmd.Data)
 		response.Type = "UpdateServiceResponse"
-		needSaveConfig = true
 	case "DeleteService":
 		err = w.handleDeleteService(cmd.Data)
 		response.Type = "DeleteServiceResponse"
-		needSaveConfig = true
 	case "PauseService":
 		err = w.handlePauseService(cmd.Data)
 		response.Type = "PauseServiceResponse"
-		needSaveConfig = true
 	case "ResumeService":
 		err = w.handleResumeService(cmd.Data)
 		response.Type = "ResumeServiceResponse"
-		needSaveConfig = true
 
 	// Chain 相关命令
 	case "AddChains":
 		err = w.handleAddChain(cmd.Data)
 		response.Type = "AddChainsResponse"
-		needSaveConfig = true
 	case "UpdateChains":
 		err = w.handleUpdateChain(cmd.Data)
 		response.Type = "UpdateChainsResponse"
-		needSaveConfig = true
 	case "DeleteChains":
 		err = w.handleDeleteChain(cmd.Data)
 		response.Type = "DeleteChainsResponse"
-		needSaveConfig = true
 
 	// Limiter 相关命令
 	case "AddLimiters":
 		err = w.handleAddLimiter(cmd.Data)
 		response.Type = "AddLimitersResponse"
-		needSaveConfig = true
 	case "UpdateLimiters":
 		err = w.handleUpdateLimiter(cmd.Data)
 		response.Type = "UpdateLimitersResponse"
-		needSaveConfig = true
 	case "DeleteLimiters":
 		err = w.handleDeleteLimiter(cmd.Data)
 		response.Type = "DeleteLimitersResponse"
-		needSaveConfig = true
 	case "AddCLimiters":
 		err = w.handleAddCLimiter(cmd.Data)
 		response.Type = "AddCLimitersResponse"
-		needSaveConfig = true
 	case "UpdateCLimiters":
 		err = w.handleUpdateCLimiter(cmd.Data)
 		response.Type = "UpdateCLimitersResponse"
-		needSaveConfig = true
 	case "DeleteCLimiters":
 		err = w.handleDeleteCLimiter(cmd.Data)
 		response.Type = "DeleteCLimitersResponse"
-		needSaveConfig = true
 
 	// TCP Ping 诊断命令（只读，不需要保存配置）
 	case "TcpPing":
@@ -876,7 +861,6 @@ func (w *WebSocketReporter) routeCommand(cmd CommandMessage) {
 	case "SetProtocol":
 		err = w.handleSetProtocol(cmd.Data)
 		response.Type = "SetProtocolResponse"
-		needSaveConfig = true
 
 	// 升级 Agent 命令（异步执行，不需要保存配置）
 	case "UpgradeAgent":
@@ -893,20 +877,6 @@ func (w *WebSocketReporter) routeCommand(cmd CommandMessage) {
 	default:
 		err = fmt.Errorf("未知命令类型: %s", cmd.Type)
 		response.Type = "UnknownCommandResponse"
-	}
-
-	// 只有状态变更命令才保存配置
-	if needSaveConfig {
-		if saveErr := saveConfig(); saveErr != nil {
-			fmt.Printf("❌ 保存配置失败: %v\n", saveErr)
-			if err == nil {
-				err = fmt.Errorf("保存配置失败: %v", saveErr)
-			} else {
-				err = fmt.Errorf("%v; 保存配置失败: %v", err, saveErr)
-			}
-		} else {
-			fmt.Println("✅ 配置已保存到 gost.json")
-		}
 	}
 
 	// 发送响应

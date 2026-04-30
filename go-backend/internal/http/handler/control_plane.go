@@ -484,13 +484,39 @@ func (h *Handler) forwardServiceBaseCandidates(forward *forwardRecord) ([]string
 }
 
 func (h *Handler) deleteForwardServiceBasesOnNode(nodeID int64, bases []string) error {
-	return deleteForwardServiceCandidates(bases, func(name string) error {
-		payload := map[string]interface{}{
-			"services": []string{name},
+	names := buildForwardServiceDeleteNames(bases)
+	if len(names) == 0 {
+		return nil
+	}
+	payload := map[string]interface{}{"services": names}
+	_, err := h.sendNodeCommand(nodeID, "DeleteService", payload, false, true)
+	return err
+}
+
+func buildForwardServiceDeleteNames(bases []string) []string {
+	names := make([]string, 0, len(bases)*3)
+	seen := make(map[string]struct{}, len(bases)*3)
+	appendName := func(name string) {
+		name = strings.TrimSpace(name)
+		if name == "" {
+			return
 		}
-		_, err := h.sendNodeCommand(nodeID, "DeleteService", payload, false, false)
-		return err
-	})
+		if _, ok := seen[name]; ok {
+			return
+		}
+		seen[name] = struct{}{}
+		names = append(names, name)
+	}
+	for _, base := range bases {
+		base = strings.TrimSpace(base)
+		if base == "" {
+			continue
+		}
+		appendName(base + "_tcp")
+		appendName(base + "_udp")
+		appendName(base)
+	}
+	return names
 }
 
 func (h *Handler) controlForwardServices(forward *forwardRecord, commandType string, tolerateNotFound bool) error {
@@ -520,6 +546,25 @@ func (h *Handler) controlForwardServices(forward *forwardRecord, commandType str
 	candidateTunnelIDs = append(candidateTunnelIDs, userTunnelIDs...)
 	candidateTunnelIDs = append(candidateTunnelIDs, allUserTunnelIDs...)
 	bases := buildForwardServiceBaseCandidates(forward.ID, forward.UserID, userTunnelID, candidateTunnelIDs)
+	if strings.EqualFold(strings.TrimSpace(commandType), "DeleteService") {
+		seen := map[int64]struct{}{}
+		for _, fp := range ports {
+			if _, ok := seen[fp.NodeID]; ok {
+				continue
+			}
+			seen[fp.NodeID] = struct{}{}
+			if err := h.deleteForwardServiceBasesOnNode(fp.NodeID, bases); err != nil {
+				if isNodeOfflineOrTimeoutError(err) {
+					continue
+				}
+				if tolerateNotFound && isNotFoundError(err) {
+					continue
+				}
+				return err
+			}
+		}
+		return nil
+	}
 	seen := map[int64]struct{}{}
 	healed := false
 	for _, fp := range ports {

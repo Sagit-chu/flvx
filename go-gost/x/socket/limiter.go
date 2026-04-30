@@ -25,12 +25,10 @@ func createLimiter(req createLimiterRequest) error {
 		return errors.New("limiter " + name + " already exists")
 	}
 
-	config.OnUpdate(func(c *config.Config) error {
+	return config.OnUpdate(func(c *config.Config) error {
 		c.Limiters = append(c.Limiters, &req.Data)
 		return nil
 	})
-
-	return nil
 }
 
 func updateLimiter(req updateLimiterRequest) error {
@@ -49,7 +47,7 @@ func updateLimiter(req updateLimiterRequest) error {
 		return errors.New("limiter " + name + " already exists")
 	}
 
-	config.OnUpdate(func(c *config.Config) error {
+	return config.OnUpdate(func(c *config.Config) error {
 		found := false
 		for i := range c.Limiters {
 			if c.Limiters[i].Name == name {
@@ -63,8 +61,6 @@ func updateLimiter(req updateLimiterRequest) error {
 		}
 		return nil
 	})
-
-	return nil
 }
 
 func deleteLimiter(req deleteLimiterRequest) error {
@@ -75,7 +71,7 @@ func deleteLimiter(req deleteLimiterRequest) error {
 		registry.TrafficLimiterRegistry().Unregister(name)
 	}
 
-	config.OnUpdate(func(c *config.Config) error {
+	return config.OnUpdate(func(c *config.Config) error {
 		limiteres := c.Limiters
 		c.Limiters = nil
 		for _, s := range limiteres {
@@ -86,8 +82,6 @@ func deleteLimiter(req deleteLimiterRequest) error {
 		}
 		return nil
 	})
-
-	return nil
 }
 
 type createLimiterRequest struct {
@@ -120,10 +114,10 @@ func createConnLimiter(req createLimiterRequest) error {
 		return errors.New("conn limiter " + name + " already exists")
 	}
 
-	if c := config.Global(); c != nil {
+	return config.OnUpdate(func(c *config.Config) error {
 		c.CLimiters = append(c.CLimiters, &req.Data)
-	}
-	return nil
+		return nil
+	})
 }
 
 func updateConnLimiter(req updateLimiterRequest) error {
@@ -139,7 +133,7 @@ func updateConnLimiter(req updateLimiterRequest) error {
 		return errors.New("conn limiter " + name + " already exists")
 	}
 
-	if c := config.Global(); c != nil {
+	return config.OnUpdate(func(c *config.Config) error {
 		for i := range c.CLimiters {
 			if c.CLimiters[i].Name == name {
 				c.CLimiters[i] = &req.Data
@@ -147,8 +141,8 @@ func updateConnLimiter(req updateLimiterRequest) error {
 			}
 		}
 		c.CLimiters = append(c.CLimiters, &req.Data)
-	}
-	return nil
+		return nil
+	})
 }
 
 func deleteConnLimiter(req deleteLimiterRequest) error {
@@ -158,7 +152,7 @@ func deleteConnLimiter(req deleteLimiterRequest) error {
 		registry.ConnLimiterRegistry().Unregister(name)
 	}
 
-	if c := config.Global(); c != nil {
+	return config.OnUpdate(func(c *config.Config) error {
 		limiteres := c.CLimiters
 		c.CLimiters = nil
 		for _, s := range limiteres {
@@ -167,6 +161,6 @@ func deleteConnLimiter(req deleteLimiterRequest) error {
 			}
 			c.CLimiters = append(c.CLimiters, s)
 		}
-	}
-	return nil
+		return nil
+	})
 }

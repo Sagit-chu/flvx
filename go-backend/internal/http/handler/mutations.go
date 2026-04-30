@@ -748,21 +748,8 @@ func (h *Handler) cleanupTunnelRuntime(tunnelID int64) {
 		return
 	}
 
-	protocol := strings.TrimSpace(tunnel.Protocol)
-	if protocol == "" {
-		protocol = "tls"
-	}
 	chainName := fmt.Sprintf("chains_%d", tunnelID)
-	serviceNames := []string{
-		fmt.Sprintf("tunnel_%d", tunnelID),
-		fmt.Sprintf("%d_tls", tunnelID),
-		fmt.Sprintf("%d_kcp", tunnelID),
-		fmt.Sprintf("%d_wss", tunnelID),
-		fmt.Sprintf("%d_mtls", tunnelID),
-		fmt.Sprintf("%d_mwss", tunnelID),
-		fmt.Sprintf("%d_tcp", tunnelID),
-		fmt.Sprintf("%d_mtcp", tunnelID),
-	}
+	serviceNames := tunnelRuntimeServiceNames(tunnelID)
 
 	for _, row := range chainRows {
 		if row.ChainType == 1 {
@@ -773,6 +760,70 @@ func (h *Handler) cleanupTunnelRuntime(tunnelID int64) {
 		} else if row.ChainType == 3 {
 			_, _ = h.sendNodeCommand(row.NodeID, "DeleteService", map[string]interface{}{"services": serviceNames}, false, true)
 		}
+	}
+}
+
+func tunnelRuntimeServiceNames(tunnelID int64) []string {
+	return []string{
+		fmt.Sprintf("tunnel_%d", tunnelID),
+		fmt.Sprintf("%d_tls", tunnelID),
+		fmt.Sprintf("%d_kcp", tunnelID),
+		fmt.Sprintf("%d_wss", tunnelID),
+		fmt.Sprintf("%d_mtls", tunnelID),
+		fmt.Sprintf("%d_mwss", tunnelID),
+		fmt.Sprintf("%d_tcp", tunnelID),
+		fmt.Sprintf("%d_mtcp", tunnelID),
+	}
+}
+
+func tunnelRuntimeNeedsChain(row chainNodeRecord) bool {
+	return row.ChainType == 1 || row.ChainType == 2
+}
+
+func tunnelRuntimeNeedsService(row chainNodeRecord) bool {
+	return row.ChainType == 2 || row.ChainType == 3
+}
+
+func removedTunnelRuntimeNodeIDs(oldRows, newRows []chainNodeRecord, needsRuntime func(chainNodeRecord) bool) []int64 {
+	if len(oldRows) == 0 || needsRuntime == nil {
+		return nil
+	}
+	newRuntimeNodes := make(map[int64]struct{}, len(newRows))
+	for _, row := range newRows {
+		if row.NodeID <= 0 || !needsRuntime(row) {
+			continue
+		}
+		newRuntimeNodes[row.NodeID] = struct{}{}
+	}
+	seen := make(map[int64]struct{}, len(oldRows))
+	removed := make([]int64, 0)
+	for _, row := range oldRows {
+		if row.NodeID <= 0 || !needsRuntime(row) {
+			continue
+		}
+		if _, ok := seen[row.NodeID]; ok {
+			continue
+		}
+		seen[row.NodeID] = struct{}{}
+		if _, stillNeeded := newRuntimeNodes[row.NodeID]; stillNeeded {
+			continue
+		}
+		removed = append(removed, row.NodeID)
+	}
+	return removed
+}
+
+func (h *Handler) cleanupObsoleteTunnelRuntime(tunnelID int64, oldRows, newRows []chainNodeRecord) {
+	if h == nil || tunnelID <= 0 || len(oldRows) == 0 {
+		return
+	}
+	chainName := fmt.Sprintf("chains_%d", tunnelID)
+	for _, nodeID := range removedTunnelRuntimeNodeIDs(oldRows, newRows, tunnelRuntimeNeedsChain) {
+		_, _ = h.sendNodeCommand(nodeID, "DeleteChains", map[string]interface{}{"chain": chainName}, false, true)
+	}
+	serviceNames := tunnelRuntimeServiceNames(tunnelID)
+	for _, nodeID := range removedTunnelRuntimeNodeIDs(oldRows, newRows, tunnelRuntimeNeedsService) {
+		_, _ = h.sendNodeCommand(nodeID, "DeleteService", map[string]interface{}{"services": serviceNames}, false, true)
 	}
 }
 
@@ -819,12 +870,15 @@ func (h *Handler) tunnelUpdate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	oldEntryNodeIDs, _ := h.tunnelEntryNodeIDs(id)
-
-	h.cleanupTunnelRuntime(id)
+	typeVal := asInt(req["type"], 1)
+	oldTunnel, _ := h.getTunnelRecord(id)
+	oldChainRows, _ := h.listChainNodesForTunnel(id)
+	if oldTunnel != nil && oldTunnel.Type == 2 && typeVal != 2 {
+		h.cleanupTunnelRuntime(id)
+	}
 	h.cleanupFederationRuntime(id)
 
 	now := time.Now().UnixMilli()
-	typeVal := asInt(req["type"], 1)
 	ipPreference := asString(req["ipPreference"])
 	localDomain := h.federationLocalDomain()
 
@@ -917,13 +971,19 @@ func (h *Handler) tunnelUpdate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if typeVal == 2 {
-		createdChains, createdServices, applyErr := h.applyTunnelRuntime(runtimeState)
+		applyRuntime := h.applyTunnelRuntime
+		if oldTunnel != nil && oldTunnel.Type == 2 {
+			applyRuntime = h.applyTunnelRuntimeUpsert
+		}
+		createdChains, createdServices, applyErr := applyRuntime(runtimeState)
 		if applyErr != nil {
 			updateProtocol := "tls"
 			if len(runtimeState.InNodes) > 0 && strings.TrimSpace(runtimeState.InNodes[0].Protocol) != "" {
 				updateProtocol = strings.TrimSpace(runtimeState.InNodes[0].Protocol)
 			}
-			h.rollbackTunnelRuntime(createdChains, createdServices, id, updateProtocol)
+			if oldTunnel == nil || oldTunnel.Type != 2 {
+				h.rollbackTunnelRuntime(createdChains, createdServices, id, updateProtocol)
+			}
 			h.releaseFederationRuntimeRefs(federationReleaseRefs)
 			_ = h.repo.DeleteFederationTunnelBindingsByTunnel(id)
 			if len(federationReleaseRefs) == 0 && shouldDeferTunnelRuntimeApplyError(applyErr) {
@@ -933,15 +993,33 @@ func (h *Handler) tunnelUpdate(w http.ResponseWriter, r *http.Request) {
 			response.WriteJSON(w, response.ErrDefault(applyErr.Error()))
 			return
 		}
+		newChainRows, _ := h.listChainNodesForTunnel(id)
+		h.cleanupObsoleteTunnelRuntime(id, oldChainRows, newChainRows)
 	}
 
-	if forwards, fwdErr := h.listForwardsByTunnel(id); fwdErr == nil {
+	oldType := 0
+	if oldTunnel != nil {
+		oldType = oldTunnel.Type
+	}
+	if tunnelForwardRuntimeNeedsSync(oldType, typeVal, oldEntryNodeIDs, newEntryNodeIDs) {
+		forwards, fwdErr := h.listForwardsByTunnel(id)
+		if fwdErr != nil {
+			response.WriteJSON(w, response.OKEmpty())
+			return
+		}
 		for i := range forwards {
 			_ = h.syncForwardServices(&forwards[i], "UpdateService", true)
 		}
 	}
 
 	response.WriteJSON(w, response.OKEmpty())
+}
+
+func tunnelForwardRuntimeNeedsSync(oldType, newType int, oldEntryNodeIDs, newEntryNodeIDs []int64) bool {
+	if oldType != newType {
+		return true
+	}
+	return !sameInt64Set(oldEntryNodeIDs, newEntryNodeIDs)
 }
 
 func sameInt64Set(a, b []int64) bool {
@@ -3358,6 +3436,14 @@ func (h *Handler) cleanupFederationRuntime(tunnelID int64) {
 }
 
 func (h *Handler) applyTunnelRuntime(state *tunnelCreateState) ([]int64, []int64, error) {
+	return h.applyTunnelRuntimeWithMode(state, false)
+}
+
+func (h *Handler) applyTunnelRuntimeUpsert(state *tunnelCreateState) ([]int64, []int64, error) {
+	return h.applyTunnelRuntimeWithMode(state, true)
+}
+
+func (h *Handler) applyTunnelRuntimeWithMode(state *tunnelCreateState, upsert bool) ([]int64, []int64, error) {
 	if h == nil || state == nil {
 		return nil, nil, errors.New("invalid tunnel runtime state")
 	}
@@ -3376,7 +3462,7 @@ func (h *Handler) applyTunnelRuntime(state *tunnelCreateState) ([]int64, []int64
 		if err != nil {
 			return createdChains, createdServices, err
 		}
-		if _, err := h.sendNodeCommand(inNode.NodeID, "AddChains", chainData, true, false); err != nil {
+		if err := h.applyTunnelChainOnNode(inNode.NodeID, chainData, upsert); err != nil {
 			if shouldDeferTunnelRuntimeApplyError(err) {
 				continue
 			}
@@ -3399,7 +3485,7 @@ func (h *Handler) applyTunnelRuntime(state *tunnelCreateState) ([]int64, []int64
 			if err != nil {
 				return createdChains, createdServices, err
 			}
-			if _, err := h.sendNodeCommand(chainNode.NodeID, "AddChains", chainData, true, false); err != nil {
+			if err := h.applyTunnelChainOnNode(chainNode.NodeID, chainData, upsert); err != nil {
 				if shouldDeferTunnelRuntimeApplyError(err) {
 					continue
 				}
@@ -3408,7 +3494,7 @@ func (h *Handler) applyTunnelRuntime(state *tunnelCreateState) ([]int64, []int64
 			createdChains = append(createdChains, chainNode.NodeID)
 
 			serviceData := buildTunnelChainServiceConfig(state.TunnelID, chainNode, state.Nodes[chainNode.NodeID], len(nextTargets))
-			if err := h.addTunnelServiceOnNode(chainNode.NodeID, state.TunnelID, serviceData); err != nil {
+			if err := h.addTunnelServiceOnNodeWithMode(chainNode.NodeID, state.TunnelID, serviceData, upsert); err != nil {
 				if shouldDeferTunnelRuntimeApplyError(err) {
 					continue
 				}
@@ -3424,7 +3510,7 @@ func (h *Handler) applyTunnelRuntime(state *tunnelCreateState) ([]int64, []int64
 			continue
 		}
 		serviceData := buildTunnelChainServiceConfig(state.TunnelID, outNode, state.Nodes[outNode.NodeID], 1)
-		if err := h.addTunnelServiceOnNode(outNode.NodeID, state.TunnelID, serviceData); err != nil {
+		if err := h.addTunnelServiceOnNodeWithMode(outNode.NodeID, state.TunnelID, serviceData, upsert); err != nil {
 			if shouldDeferTunnelRuntimeApplyError(err) {
 				continue
 			}
@@ -3434,6 +3520,27 @@ func (h *Handler) applyTunnelRuntime(state *tunnelCreateState) ([]int64, []int64
 	}
 
 	return createdChains, createdServices, nil
+}
+
+func (h *Handler) applyTunnelChainOnNode(nodeID int64, chainData map[string]interface{}, upsert bool) error {
+	if upsert {
+		return h.upsertTunnelChainOnNode(nodeID, chainData)
+	}
+	_, err := h.sendNodeCommand(nodeID, "AddChains", chainData, true, false)
+	return err
+}
+
+func (h *Handler) upsertTunnelChainOnNode(nodeID int64, chainData map[string]interface{}) error {
+	if h == nil {
+		return errors.New("invalid tunnel chain context")
+	}
+	chainName := asString(chainData["name"])
+	if strings.TrimSpace(chainName) == "" {
+		return errors.New("转发链名称不能为空")
+	}
+	payload := map[string]interface{}{"chain": chainName, "data": chainData}
+	_, err := h.sendNodeCommand(nodeID, "UpdateChains", payload, true, false)
+	return err
 }
 
 func retryTunnelServiceAddWithCleanup(add func() error, cleanup func() error, wait time.Duration) error {
@@ -3457,6 +3564,10 @@ func retryTunnelServiceAddWithCleanup(add func() error, cleanup func() error, wa
 }
 
 func (h *Handler) addTunnelServiceOnNode(nodeID, tunnelID int64, serviceData []map[string]interface{}) error {
+	return h.addTunnelServiceOnNodeWithMode(nodeID, tunnelID, serviceData, false)
+}
+
+func (h *Handler) addTunnelServiceOnNodeWithMode(nodeID, tunnelID int64, serviceData []map[string]interface{}, upsert bool) error {
 	if h == nil {
 		return errors.New("invalid tunnel service context")
 	}
@@ -3466,9 +3577,13 @@ func (h *Handler) addTunnelServiceOnNode(nodeID, tunnelID int64, serviceData []m
 			serviceName = strings.TrimSpace(name)
 		}
 	}
+	command := "AddService"
+	if upsert {
+		command = "UpdateService"
+	}
 	return retryTunnelServiceAddWithCleanup(
 		func() error {
-			_, err := h.sendNodeCommand(nodeID, "AddService", serviceData, true, false)
+			_, err := h.sendNodeCommand(nodeID, command, serviceData, true, false)
 			return err
 		},
 		func() error {
@@ -3487,16 +3602,7 @@ func (h *Handler) rollbackTunnelRuntime(chainNodeIDs, serviceNodeIDs []int64, tu
 		protocol = "tls"
 	}
 	seenServices := make(map[int64]struct{})
-	serviceNames := []string{
-		fmt.Sprintf("tunnel_%d", tunnelID),
-		fmt.Sprintf("%d_tls", tunnelID),
-		fmt.Sprintf("%d_kcp", tunnelID),
-		fmt.Sprintf("%d_wss", tunnelID),
-		fmt.Sprintf("%d_mtls", tunnelID),
-		fmt.Sprintf("%d_mwss", tunnelID),
-		fmt.Sprintf("%d_tcp", tunnelID),
-		fmt.Sprintf("%d_mtcp", tunnelID),
-	}
+	serviceNames := tunnelRuntimeServiceNames(tunnelID)
 	for i := len(serviceNodeIDs) - 1; i >= 0; i-- {
 		nodeID := serviceNodeIDs[i]
 		if _, ok := seenServices[nodeID]; ok {

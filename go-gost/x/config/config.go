@@ -48,7 +48,7 @@ func OnUpdate(f func(c *Config) error) error {
 	globalMux.Unlock()
 
 	if err == nil {
-		persist()
+		err = persist()
 	}
 
 	return err
