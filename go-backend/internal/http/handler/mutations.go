@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"math/big"
 	"net"
 	"net/http"
@@ -3314,6 +3315,8 @@ func (h *Handler) applyFederationRuntime(state *tunnelCreateState, localDomain s
 			nextTargets := state.OutNodes
 			if hopIdx+1 < len(state.ChainHops) {
 				nextTargets = state.ChainHops[hopIdx+1]
+			} else {
+				nextTargets = h.orderBestExitTargets(state.TunnelID, chainNode.NodeID, nextTargets)
 			}
 			applyTargets := make([]client.RuntimeTarget, 0, len(nextTargets))
 			for _, target := range nextTargets {
@@ -3343,7 +3346,7 @@ func (h *Handler) applyFederationRuntime(state *tunnelCreateState, localDomain s
 				ResourceKey:   resourceKey,
 				Role:          "middle",
 				Protocol:      defaultString(chainNode.Protocol, "tls"),
-				Strategy:      defaultString(chainNode.Strategy, "round"),
+				Strategy:      runtimeStrategyForTargets(chainNode, nextTargets),
 				Targets:       applyTargets,
 			}
 			applyRes, err := fc.ApplyRole(remoteURL, remoteToken, localDomain, applyReq)
@@ -3457,6 +3460,8 @@ func (h *Handler) applyTunnelRuntimeWithMode(state *tunnelCreateState, upsert bo
 		targets := state.OutNodes
 		if len(state.ChainHops) > 0 {
 			targets = state.ChainHops[0]
+		} else {
+			targets = h.orderBestExitTargets(state.TunnelID, inNode.NodeID, targets)
 		}
 		chainData, err := buildTunnelChainConfig(state.TunnelID, inNode.NodeID, targets, state.Nodes, state.IPPreference)
 		if err != nil {
@@ -3472,11 +3477,13 @@ func (h *Handler) applyTunnelRuntimeWithMode(state *tunnelCreateState, upsert bo
 	}
 
 	for i, hop := range state.ChainHops {
-		nextTargets := state.OutNodes
-		if i+1 < len(state.ChainHops) {
-			nextTargets = state.ChainHops[i+1]
-		}
 		for _, chainNode := range hop {
+			nextTargets := state.OutNodes
+			if i+1 < len(state.ChainHops) {
+				nextTargets = state.ChainHops[i+1]
+			} else {
+				nextTargets = h.orderBestExitTargets(state.TunnelID, chainNode.NodeID, nextTargets)
+			}
 			node := state.Nodes[chainNode.NodeID]
 			if node != nil && (node.IsRemote == 1 || node.Status != 1) {
 				continue
@@ -3527,6 +3534,130 @@ func (h *Handler) applyTunnelChainOnNode(nodeID int64, chainData map[string]inte
 		return h.upsertTunnelChainOnNode(nodeID, chainData)
 	}
 	_, err := h.sendNodeCommand(nodeID, "AddChains", chainData, true, false)
+	return err
+}
+
+func (h *Handler) applyBestExitChainOrder(tunnelID, ownerNodeID int64, outNodes []chainNodeRecord, scores []bestExitCandidateScore, ipPreference string) error {
+	if h == nil {
+		log.Printf("best_exit: invalid chain update context tunnel=%d owner=%d", tunnelID, ownerNodeID)
+		return errors.New("invalid best exit chain update context")
+	}
+	if tunnelID <= 0 || ownerNodeID <= 0 || len(outNodes) == 0 {
+		log.Printf("best_exit: invalid chain update input tunnel=%d owner=%d exits=%d", tunnelID, ownerNodeID, len(outNodes))
+		return fmt.Errorf("invalid best exit chain update input tunnel=%d owner=%d exits=%d", tunnelID, ownerNodeID, len(outNodes))
+	}
+	targets := chainRecordsToRuntimeTargets(outNodes)
+	orderedIDs := make([]int64, 0, len(scores))
+	for _, score := range scores {
+		if score.ExitNodeID > 0 {
+			orderedIDs = append(orderedIDs, score.ExitNodeID)
+		}
+	}
+	targets = orderRuntimeTargetsByNodeID(targets, orderedIDs)
+	nodes := make(map[int64]*nodeRecord, len(targets)+1)
+	if owner, err := h.getNodeRecord(ownerNodeID); err == nil && owner != nil {
+		nodes[ownerNodeID] = owner
+	}
+	for _, target := range targets {
+		if node, err := h.getNodeRecord(target.NodeID); err == nil && node != nil {
+			nodes[target.NodeID] = node
+		}
+	}
+	owner := nodes[ownerNodeID]
+	if owner != nil && owner.IsRemote == 1 {
+		if err := h.applyRemoteBestExitChainOrder(tunnelID, ownerNodeID, owner, targets, nodes, ipPreference); err != nil {
+			log.Printf("best_exit: update remote federation chain failed tunnel=%d owner=%d err=%v", tunnelID, ownerNodeID, err)
+			return err
+		}
+		log.Printf("best_exit: updated remote federation chain tunnel=%d owner=%d best_exit=%d", tunnelID, ownerNodeID, targets[0].NodeID)
+		return nil
+	}
+	chainData, err := buildTunnelChainConfig(tunnelID, ownerNodeID, targets, nodes, ipPreference)
+	if err != nil {
+		log.Printf("best_exit: build chain failed tunnel=%d owner=%d err=%v", tunnelID, ownerNodeID, err)
+		return err
+	}
+	if err := h.applyTunnelChainOnNode(ownerNodeID, chainData, true); err != nil {
+		log.Printf("best_exit: update chain failed tunnel=%d owner=%d err=%v", tunnelID, ownerNodeID, err)
+		return err
+	}
+	log.Printf("best_exit: updated chain tunnel=%d owner=%d best_exit=%d", tunnelID, ownerNodeID, targets[0].NodeID)
+	return nil
+}
+
+func (h *Handler) applyRemoteBestExitChainOrder(tunnelID, ownerNodeID int64, owner *nodeRecord, targets []tunnelRuntimeNode, nodes map[int64]*nodeRecord, ipPreference string) error {
+	if h == nil || h.repo == nil || owner == nil {
+		return errors.New("invalid remote best exit update context")
+	}
+	bindings, err := h.repo.ListActiveFederationTunnelBindingsByTunnel(tunnelID)
+	if err != nil {
+		return err
+	}
+	var binding *repo.FederationTunnelBinding
+	for i := range bindings {
+		if bindings[i].NodeID == ownerNodeID && bindings[i].ChainType == 2 && bindings[i].Status == 1 {
+			binding = &bindings[i]
+			break
+		}
+	}
+	if binding == nil {
+		return fmt.Errorf("active federation middle binding not found for tunnel=%d owner=%d", tunnelID, ownerNodeID)
+	}
+
+	remoteURL := strings.TrimSpace(owner.RemoteURL)
+	if remoteURL == "" {
+		remoteURL = strings.TrimSpace(binding.RemoteURL)
+	}
+	remoteToken := strings.TrimSpace(owner.RemoteToken)
+	if remoteURL == "" || remoteToken == "" {
+		return errors.New("远程节点缺少共享配置")
+	}
+
+	applyTargets := make([]client.RuntimeTarget, 0, len(targets))
+	for _, target := range targets {
+		targetNode := nodes[target.NodeID]
+		if targetNode == nil {
+			return errors.New("节点不存在")
+		}
+		host, hostErr := selectTunnelDialHost(owner, targetNode, ipPreference, target.ConnectIP)
+		if hostErr != nil {
+			return hostErr
+		}
+		if target.Port <= 0 {
+			return errors.New("节点端口不能为空")
+		}
+		applyTargets = append(applyTargets, client.RuntimeTarget{
+			Host:     host,
+			Port:     target.Port,
+			Protocol: defaultString(target.Protocol, "tls"),
+		})
+	}
+
+	ownerRuntimeNode := tunnelRuntimeNode{NodeID: ownerNodeID, Protocol: "tls", Strategy: "round", ChainType: 2}
+	if chainRows, listErr := h.repo.ListChainNodesForTunnel(tunnelID); listErr == nil {
+		for _, row := range chainRows {
+			if row.NodeID == ownerNodeID && row.ChainType == 2 {
+				ownerRuntimeNode = tunnelRuntimeNode{
+					NodeID:    row.NodeID,
+					Protocol:  row.Protocol,
+					Strategy:  row.Strategy,
+					Inx:       int(row.Inx),
+					ChainType: row.ChainType,
+					Port:      row.Port,
+					ConnectIP: row.ConnectIP,
+				}
+				break
+			}
+		}
+	}
+
+	_, err = client.NewFederationClient().ApplyRole(remoteURL, remoteToken, h.federationLocalDomain(), client.RuntimeApplyRoleRequest{
+		ResourceKey: strings.TrimSpace(binding.ResourceKey),
+		Role:        "middle",
+		Protocol:    defaultString(ownerRuntimeNode.Protocol, "tls"),
+		Strategy:    runtimeStrategyForTargets(ownerRuntimeNode, targets),
+		Targets:     applyTargets,
+	})
 	return err
 }
 
@@ -3700,7 +3831,7 @@ func buildTunnelChainConfig(tunnelID int64, fromNodeID int64, targets []tunnelRu
 		})
 	}
 
-	strategy := defaultString(strings.TrimSpace(targets[0].Strategy), "round")
+	strategy := runtimeTunnelStrategy(defaultString(strings.TrimSpace(targets[0].Strategy), "round"))
 	hop := map[string]interface{}{
 		"name": fmt.Sprintf("hop_%d", tunnelID),
 		"selector": map[string]interface{}{
@@ -3718,6 +3849,24 @@ func buildTunnelChainConfig(tunnelID int64, fromNodeID int64, targets []tunnelRu
 		"name": fmt.Sprintf("chains_%d", tunnelID),
 		"hops": []map[string]interface{}{hop},
 	}, nil
+}
+
+func (h *Handler) orderBestExitTargets(tunnelID, ownerNodeID int64, targets []tunnelRuntimeNode) []tunnelRuntimeNode {
+	if len(targets) <= 1 || !isBestTunnelStrategy(targets[0].Strategy) {
+		return append([]tunnelRuntimeNode(nil), targets...)
+	}
+	if h == nil || h.bestExit == nil {
+		return append([]tunnelRuntimeNode(nil), targets...)
+	}
+	return h.bestExit.orderTargets(bestExitOwnerKey{TunnelID: tunnelID, OwnerNodeID: ownerNodeID}, targets)
+}
+
+func runtimeStrategyForTargets(owner tunnelRuntimeNode, targets []tunnelRuntimeNode) string {
+	strategy := defaultString(owner.Strategy, "round")
+	if len(targets) > 0 {
+		strategy = defaultString(targets[0].Strategy, strategy)
+	}
+	return runtimeTunnelStrategy(strategy)
 }
 
 func buildTunnelChainServiceConfig(tunnelID int64, chainNode tunnelRuntimeNode, node *nodeRecord, nextHopCandidateCount int) []map[string]interface{} {

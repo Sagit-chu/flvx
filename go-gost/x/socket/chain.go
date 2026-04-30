@@ -38,21 +38,21 @@ func createChain(req createChainRequest) error {
 }
 
 func updateChain(req updateChainRequest) error {
-
 	name := strings.TrimSpace(req.Chain)
-
-	if registry.ChainRegistry().IsRegistered(name) {
-		registry.ChainRegistry().Unregister(name)
+	if name == "" {
+		name = strings.TrimSpace(req.Data.Name)
+	}
+	if name == "" {
+		return errors.New("chain name is required")
 	}
 
 	req.Data.Name = name
-
 	v, err := parser.ParseChain(&req.Data, logger.Default())
 	if err != nil {
 		return errors.New("create chain " + name + " failed: " + err.Error())
 	}
 
-	if err := registry.ChainRegistry().Register(name, v); err != nil {
+	if err := registry.ReplaceChain(name, v); err != nil {
 		return errors.New("chain " + name + " already exists")
 	}
 

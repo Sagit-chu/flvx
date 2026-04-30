@@ -52,6 +52,7 @@ type Handler struct {
 	nodeOnlineRedeploying    map[int64]struct{}
 
 	qualityProber *tunnelQualityProber
+	bestExit      *bestExitManager
 }
 
 const monitorTunnelQualityEnabledConfigKey = "monitor_tunnel_quality_enabled"
@@ -111,6 +112,7 @@ func New(repo *repo.Repository, jwtSecret string) *Handler {
 		nodeOnlineRedeployAt:     make(map[int64]time.Time),
 		nodeOnlineRedeployQueued: make(map[int64]struct{}),
 		nodeOnlineRedeploying:    make(map[int64]struct{}),
+		bestExit:                 newBestExitManager(),
 	}
 	h.healthCheck = health.NewChecker(repo, h.wsServer)
 	h.qualityProber = newTunnelQualityProber(h)

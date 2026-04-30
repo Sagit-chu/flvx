@@ -281,6 +281,63 @@ func TestBuildFederationServiceConfig_NonTLSProtocol_NoNodelay(t *testing.T) {
 	}
 }
 
+func TestFederationRuntimeChainNameDerivesFromBindingID(t *testing.T) {
+	if got := federationRuntimeChainName("12"); got != "fed_chain_12" {
+		t.Fatalf("expected fed_chain_12, got %q", got)
+	}
+	if got := federationRuntimeChainName(" 12 "); got != "fed_chain_12" {
+		t.Fatalf("expected trimmed fed_chain_12, got %q", got)
+	}
+	if got := federationRuntimeChainName(""); got != "" {
+		t.Fatalf("expected blank binding ID to stay blank, got %q", got)
+	}
+}
+
+func TestBuildFederationMiddleChainConfigUsesExistingChainNameAndBestStrategy(t *testing.T) {
+	chainData, err := buildFederationMiddleChainConfig("fed_chain_12", 12, "tls", tunnelStrategyBest, []federationRuntimeTarget{
+		{Host: "10.0.0.31", Port: 30031, Protocol: "tls"},
+		{Host: "10.0.0.30", Port: 30030, Protocol: "tls"},
+	}, "")
+	if err != nil {
+		t.Fatalf("build chain: %v", err)
+	}
+	if chainData["name"] != "fed_chain_12" {
+		t.Fatalf("expected existing chain name, got %v", chainData["name"])
+	}
+	hops := chainData["hops"].([]map[string]interface{})
+	selector := hops[0]["selector"].(map[string]interface{})
+	if selector["strategy"] != bestExitRuntimeStrategy {
+		t.Fatalf("expected best strategy to map to fifo, got %v", selector["strategy"])
+	}
+	nodes := hops[0]["nodes"].([]map[string]interface{})
+	if nodes[0]["addr"] != "10.0.0.31:30031" || nodes[1]["addr"] != "10.0.0.30:30030" {
+		t.Fatalf("expected target order to be preserved, got %+v", nodes)
+	}
+}
+
+func TestUpdateChainPayloadWrapsChainDataForAgentUpdate(t *testing.T) {
+	chainData := map[string]interface{}{
+		"name": "fed_chain_12",
+		"hops": []map[string]interface{}{},
+	}
+
+	payload := updateChainPayload("fed_chain_12", chainData)
+	if len(payload) != 2 {
+		t.Fatalf("expected exact wrapper with 2 keys, got %+v", payload)
+	}
+	if payload["chain"] != "fed_chain_12" {
+		t.Fatalf("expected chain name in wrapper, got %v", payload["chain"])
+	}
+	wrappedData, ok := payload["data"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("expected wrapped chain data map, got %T", payload["data"])
+	}
+	chainData["name"] = "fed_chain_12_updated"
+	if wrappedData["name"] != "fed_chain_12_updated" {
+		t.Fatalf("expected wrapper to preserve chainData identity, got %+v", wrappedData)
+	}
+}
+
 func TestFederationRuntimeReservePortRejectsWhenShareFlowExceeded(t *testing.T) {
 	r, err := repo.Open(filepath.Join(t.TempDir(), "panel.db"))
 	if err != nil {

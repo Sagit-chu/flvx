@@ -242,6 +242,7 @@ func (p *tunnelQualityProber) probeTunnel(tunnelID int64) {
 		pingTimeoutMS:  tunnelQualityPingTimeoutMs,
 		timeoutMessage: "探测超时",
 	}
+	p.probeBestExitOwners(tunnelID, inNodes, midNodesGrouped, outNodes, ipPreference, options)
 
 	switch tunnel.Type {
 	case 1:
@@ -373,6 +374,51 @@ func (p *tunnelQualityProber) probeTunnel(tunnelID int64) {
 	}
 
 	p.storeResult(snap)
+}
+
+func (p *tunnelQualityProber) probeBestExitOwners(tunnelID int64, inNodes []chainNodeRecord, chainHops [][]chainNodeRecord, outNodes []chainNodeRecord, ipPreference string, options diagnosisExecOptions) {
+	if p == nil || p.handler == nil || p.handler.bestExit == nil || len(outNodes) <= 1 {
+		return
+	}
+	if !isBestTunnelStrategy(outNodes[0].Strategy) {
+		return
+	}
+	owners := bestExitChainOwners(inNodes, chainHops)
+	if len(owners) == 0 {
+		return
+	}
+	nodeMap := make(map[int64]*nodeRecord, len(owners)+len(outNodes))
+	for _, owner := range owners {
+		if node, err := p.handler.getNodeRecord(owner.NodeID); err == nil && node != nil {
+			nodeMap[owner.NodeID] = node
+		}
+	}
+	for _, exit := range outNodes {
+		if node, err := p.handler.getNodeRecord(exit.NodeID); err == nil && node != nil {
+			nodeMap[exit.NodeID] = node
+		}
+	}
+	// This best-exit decision cache is per decision round; the display-oriented
+	// tunnel quality snapshot may still collect its own first-exit public probe.
+	roundPinger := newBestExitRoundPinger(p.tcpPingNode)
+	for _, owner := range owners {
+		if nodeMap[owner.NodeID] == nil {
+			continue
+		}
+		key := bestExitOwnerKey{TunnelID: tunnelID, OwnerNodeID: owner.NodeID}
+		p.handler.bestExit.ensureApplied(key, outNodes[0].NodeID, time.Now())
+		scores := evaluateBestExitOwner(owner, outNodes, nodeMap, ipPreference, options, roundPinger)
+		decision := p.handler.bestExit.observeScores(key, scores, time.Now())
+		if decision.Switch {
+			now := time.Now()
+			if err := p.handler.applyBestExitChainOrder(tunnelID, owner.NodeID, outNodes, decision.Scores, ipPreference); err != nil {
+				log.Printf("best_exit: switch apply failed tunnel=%d owner=%d exit=%d err=%v", tunnelID, owner.NodeID, decision.ExitNodeID, err)
+				p.handler.bestExit.recordApplyFailure(key, decision.ExitNodeID, now)
+				continue
+			}
+			p.handler.bestExit.setApplied(key, decision.ExitNodeID, time.Now())
+		}
+	}
 }
 
 func (p *tunnelQualityProber) tcpPingNode(nodeID int64, ip string, port int, options diagnosisExecOptions) (latency float64, loss float64, err error) {

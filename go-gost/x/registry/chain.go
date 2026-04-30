@@ -12,8 +12,23 @@ type chainRegistry struct {
 	registry[chain.Chainer]
 }
 
+func ReplaceChain(name string, v chain.Chainer) error {
+	if name == "" {
+		return nil
+	}
+	if r, ok := chainReg.(*chainRegistry); ok {
+		r.replace(name, v)
+		return nil
+	}
+	return chainReg.Register(name, v)
+}
+
 func (r *chainRegistry) Register(name string, v chain.Chainer) error {
 	return r.registry.Register(name, v)
+}
+
+func (r *chainRegistry) replace(name string, v chain.Chainer) {
+	r.m.Store(name, v)
 }
 
 func (r *chainRegistry) Get(name string) chain.Chainer {

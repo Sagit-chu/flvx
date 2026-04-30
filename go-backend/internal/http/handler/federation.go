@@ -85,6 +85,81 @@ type federationRuntimeReleaseRoleRequest struct {
 	ResourceKey   string `json:"resourceKey"`
 }
 
+func federationRuntimeChainName(bindingID string) string {
+	bindingID = strings.TrimSpace(bindingID)
+	if bindingID == "" {
+		return ""
+	}
+	return "fed_chain_" + bindingID
+}
+
+func buildFederationMiddleChainConfig(chainName string, runtimeID int64, protocol, strategy string, targets []federationRuntimeTarget, interfaceName string) (map[string]interface{}, error) {
+	chainName = strings.TrimSpace(chainName)
+	if chainName == "" {
+		return nil, fmt.Errorf("chain name is required")
+	}
+	if len(targets) == 0 {
+		return nil, fmt.Errorf("targets are required for middle role")
+	}
+	protocol = defaultString(protocol, "tls")
+	nodeItems := make([]map[string]interface{}, 0, len(targets))
+	for i, target := range targets {
+		host := strings.TrimSpace(target.Host)
+		if host == "" || target.Port <= 0 {
+			return nil, fmt.Errorf("Invalid target")
+		}
+		targetProtocol := defaultString(target.Protocol, protocol)
+		connector := map[string]interface{}{
+			"type": "relay",
+		}
+		if isTCPTunnelProtocol(targetProtocol) {
+			connector["metadata"] = map[string]interface{}{
+				"nodelay":               true,
+				"mux.keepaliveInterval": "15s",
+				"mux.keepaliveTimeout":  "45s",
+			}
+		}
+		if isKCPTunnelProtocol(targetProtocol) {
+			connector["metadata"] = map[string]interface{}{
+				"connectTimeout": "30s",
+			}
+		}
+		nodeItems = append(nodeItems, map[string]interface{}{
+			"name":      fmt.Sprintf("node_%d", i+1),
+			"addr":      processServerAddress(fmt.Sprintf("%s:%d", host, target.Port)),
+			"connector": connector,
+			"dialer":    buildTunnelDialerConfig(targetProtocol),
+		})
+	}
+
+	chainData := map[string]interface{}{
+		"name": chainName,
+		"hops": []map[string]interface{}{
+			{
+				"name": fmt.Sprintf("hop_%d", runtimeID),
+				"selector": map[string]interface{}{
+					"strategy":    runtimeTunnelStrategy(strategy),
+					"maxFails":    1,
+					"failTimeout": int64(600000000000),
+				},
+				"nodes": nodeItems,
+			},
+		},
+	}
+	if strings.TrimSpace(interfaceName) != "" {
+		hops := chainData["hops"].([]map[string]interface{})
+		hops[0]["interface"] = interfaceName
+	}
+	return chainData, nil
+}
+
+func updateChainPayload(chainName string, chainData map[string]interface{}) map[string]interface{} {
+	return map[string]interface{}{
+		"chain": chainName,
+		"data":  chainData,
+	}
+}
+
 type federationRuntimeDiagnoseRequest struct {
 	IP       string `json:"ip"`
 	Port     int    `json:"port"`
@@ -145,8 +220,8 @@ type remoteUsageNodeItem struct {
 
 func buildFederationServiceConfig(serviceName, addr, protocol, role, chainName string, targetCount int, interfaceName string) map[string]interface{} {
 	service := map[string]interface{}{
-		"name":     serviceName,
-		"addr":     addr,
+		"name": serviceName,
+		"addr": addr,
 		"handler": map[string]interface{}{
 			"type": "relay",
 		},
@@ -1056,7 +1131,43 @@ func (h *Handler) federationRuntimeApplyRole(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
+	node, err := h.getNodeRecord(share.NodeID)
+	if err != nil {
+		response.WriteJSON(w, response.ErrDefault(err.Error()))
+		return
+	}
+
+	protocol := defaultString(req.Protocol, runtime.Protocol)
+	strategy := defaultString(req.Strategy, "round")
+	chainName := defaultString(runtime.ChainName, federationRuntimeChainName(runtime.BindingID))
+	if chainName == "" {
+		chainName = federationRuntimeChainName(fmt.Sprintf("%d", runtime.ID))
+	}
+	serviceName := fmt.Sprintf("fed_svc_%d", runtime.ID)
 	if runtime.Applied == 1 && strings.TrimSpace(runtime.BindingID) != "" {
+		if req.Role == "middle" && len(req.Targets) > 0 {
+			chainData, buildErr := buildFederationMiddleChainConfig(chainName, runtime.ID, protocol, strategy, req.Targets, node.InterfaceName)
+			if buildErr != nil {
+				response.WriteJSON(w, response.ErrDefault(buildErr.Error()))
+				return
+			}
+			if _, err := h.sendNodeCommand(share.NodeID, "UpdateChains", updateChainPayload(chainName, chainData), false, false); err != nil {
+				response.WriteJSON(w, response.ErrDefault(err.Error()))
+				return
+			}
+			targetBytes, _ := json.Marshal(req.Targets)
+			runtime.Role = req.Role
+			runtime.ChainName = chainName
+			runtime.Protocol = protocol
+			runtime.Strategy = strategy
+			runtime.Target = string(targetBytes)
+			runtime.Status = 1
+			runtime.UpdatedTime = time.Now().UnixMilli()
+			if err := h.repo.UpdatePeerShareRuntime(runtime); err != nil {
+				response.WriteJSON(w, response.Err(-2, err.Error()))
+				return
+			}
+		}
 		response.WriteJSON(w, response.OK(map[string]interface{}{
 			"bindingId":     runtime.BindingID,
 			"allocatedPort": runtime.Port,
@@ -1076,70 +1187,11 @@ func (h *Handler) federationRuntimeApplyRole(w http.ResponseWriter, r *http.Requ
 		}
 	}
 
-	node, err := h.getNodeRecord(share.NodeID)
-	if err != nil {
-		response.WriteJSON(w, response.ErrDefault(err.Error()))
-		return
-	}
-
-	protocol := defaultString(req.Protocol, runtime.Protocol)
-	strategy := defaultString(req.Strategy, "round")
-	chainName := fmt.Sprintf("fed_chain_%d", runtime.ID)
-	serviceName := fmt.Sprintf("fed_svc_%d", runtime.ID)
-
 	if req.Role == "middle" {
-		if len(req.Targets) == 0 {
-			response.WriteJSON(w, response.ErrDefault("targets are required for middle role"))
+		chainData, buildErr := buildFederationMiddleChainConfig(chainName, runtime.ID, protocol, strategy, req.Targets, node.InterfaceName)
+		if buildErr != nil {
+			response.WriteJSON(w, response.ErrDefault(buildErr.Error()))
 			return
-		}
-		nodeItems := make([]map[string]interface{}, 0, len(req.Targets))
-		for i, target := range req.Targets {
-			host := strings.TrimSpace(target.Host)
-			if host == "" || target.Port <= 0 {
-				response.WriteJSON(w, response.ErrDefault("Invalid target"))
-				return
-			}
-			targetProtocol := defaultString(target.Protocol, protocol)
-			connector := map[string]interface{}{
-				"type": "relay",
-			}
-			if isTCPTunnelProtocol(targetProtocol) {
-				connector["metadata"] = map[string]interface{}{
-					"nodelay":               true,
-					"mux.keepaliveInterval": "15s",
-					"mux.keepaliveTimeout":  "45s",
-				}
-			}
-			if isKCPTunnelProtocol(targetProtocol) {
-				connector["metadata"] = map[string]interface{}{
-					"connectTimeout": "30s",
-				}
-			}
-			nodeItems = append(nodeItems, map[string]interface{}{
-				"name":      fmt.Sprintf("node_%d", i+1),
-				"addr":      processServerAddress(fmt.Sprintf("%s:%d", host, target.Port)),
-				"connector": connector,
-				"dialer":    buildTunnelDialerConfig(targetProtocol),
-			})
-		}
-
-		chainData := map[string]interface{}{
-			"name": chainName,
-			"hops": []map[string]interface{}{
-				{
-					"name": fmt.Sprintf("hop_%d", runtime.ID),
-					"selector": map[string]interface{}{
-						"strategy":    strategy,
-						"maxFails":    1,
-						"failTimeout": int64(600000000000),
-					},
-					"nodes": nodeItems,
-				},
-			},
-		}
-		if strings.TrimSpace(node.InterfaceName) != "" {
-			hops := chainData["hops"].([]map[string]interface{})
-			hops[0]["interface"] = node.InterfaceName
 		}
 		if _, err := h.sendNodeCommand(share.NodeID, "AddChains", chainData, true, false); err != nil {
 			response.WriteJSON(w, response.ErrDefault(err.Error()))
