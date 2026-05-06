@@ -27,8 +27,17 @@ import {
   getAnnouncement,
   updateAnnouncement,
   getStorageSummary,
+  getSystemUpgradeVersion,
+  checkSystemUpgrade,
+  runSystemUpgrade,
   type AnnouncementData,
 } from "@/api";
+import type {
+  SystemUpgradeCheckApiData,
+  SystemUpgradeRunApiData,
+  SystemUpgradeReleaseApiItem,
+  SystemUpgradeVersionApiData,
+} from "@/api/types";
 import { BackIcon, SettingsIcon } from "@/components/icons";
 import { ThemeSettings } from "@/components/theme-settings";
 import { isAdmin } from "@/utils/auth";
@@ -292,6 +301,19 @@ export default function ConfigPage() {
   const [updateChannel, setUpdateChannel] = useState<UpdateReleaseChannel>(
     getUpdateReleaseChannel(),
   );
+  const [systemUpgradeInfo, setSystemUpgradeInfo] =
+    useState<SystemUpgradeVersionApiData | null>(null);
+  const [systemUpgradeChecking, setSystemUpgradeChecking] = useState(false);
+  const [systemUpgradeExecuting, setSystemUpgradeExecuting] = useState(false);
+  const [systemUpgradeLoading, setSystemUpgradeLoading] = useState(true);
+  const [systemUpgradeModalOpen, setSystemUpgradeModalOpen] = useState(false);
+  const [systemUpgradeReleases, setSystemUpgradeReleases] = useState<
+    SystemUpgradeReleaseApiItem[]
+  >([]);
+  const [systemUpgradeCheckedChannel, setSystemUpgradeCheckedChannel] =
+    useState<UpdateReleaseChannel | null>(null);
+  const [systemUpgradeSelectedVersion, setSystemUpgradeSelectedVersion] =
+    useState("");
   const [previewLoadFailed, setPreviewLoadFailed] = useState<
     Partial<Record<BrandPreviewKey, boolean>>
   >({});
@@ -299,6 +321,20 @@ export default function ConfigPage() {
     Partial<Record<BrandPreviewKey, boolean>>
   >({});
   const [storageSummary, setStorageSummary] = useState("加载中...");
+  const systemUpgradeReleasesMatchChannel =
+    systemUpgradeCheckedChannel === updateChannel;
+  const systemUpgradeHasConfirmedUpdate = Boolean(
+    systemUpgradeInfo?.hasUpdate &&
+      systemUpgradeReleasesMatchChannel &&
+      systemUpgradeReleases.length > 0,
+  );
+  const canOpenSystemUpgradeModal = Boolean(
+    systemUpgradeInfo?.capability.capable &&
+      systemUpgradeHasConfirmedUpdate &&
+      !systemUpgradeLoading &&
+      !systemUpgradeChecking &&
+      !systemUpgradeExecuting,
+  );
 
   const canGoBack =
     typeof window !== "undefined" &&
@@ -373,11 +409,36 @@ export default function ConfigPage() {
     }
   };
 
+  const loadSystemUpgradeInfo = async (channel = updateChannel) => {
+    setSystemUpgradeLoading(true);
+    try {
+      const response = await getSystemUpgradeVersion();
+
+      if (response.code === 0 && response.data) {
+        setSystemUpgradeInfo({
+          ...response.data,
+          channel,
+          hasUpdate:
+            response.data.channel === channel ? response.data.hasUpdate : false,
+          latestVersion:
+            response.data.channel === channel ? response.data.latestVersion : "",
+        });
+      } else {
+        setSystemUpgradeInfo(null);
+      }
+    } catch {
+      setSystemUpgradeInfo(null);
+    } finally {
+      setSystemUpgradeLoading(false);
+    }
+  };
+
   useEffect(() => {
     const timer = setTimeout(() => {
       loadConfigs(initialConfigs);
       loadAnnouncement();
       loadStorageSummary();
+      void loadSystemUpgradeInfo();
     }, 100);
 
     return () => clearTimeout(timer);
@@ -417,9 +478,90 @@ export default function ConfigPage() {
   const handleUpdateChannelChange = (channel: UpdateReleaseChannel) => {
     setUpdateChannel(channel);
     setUpdateReleaseChannel(channel);
+    setSystemUpgradeSelectedVersion("");
+    setSystemUpgradeReleases([]);
+    setSystemUpgradeCheckedChannel(null);
+    void loadSystemUpgradeInfo(channel);
     toast.success(
       `更新通道已切换为${channel === "stable" ? "稳定版" : "开发版"}`,
     );
+  };
+
+  const handleCheckSystemUpgrade = async () => {
+    const channel = updateChannel;
+
+    setSystemUpgradeChecking(true);
+    try {
+      const response = await checkSystemUpgrade(channel);
+
+      if (response.code === 0 && response.data) {
+        const data = response.data as SystemUpgradeCheckApiData;
+
+        setSystemUpgradeInfo(data);
+        setSystemUpgradeReleases(data.releases || []);
+        setSystemUpgradeCheckedChannel(channel);
+        setSystemUpgradeSelectedVersion("");
+        if (data.latestVersion && !data.hasUpdate) {
+          toast.success("当前已是最新版本");
+
+          return false;
+        }
+        toast.success(
+          data.latestVersion
+            ? `已检查到最新版本 ${data.latestVersion}`
+            : "未获取到可用版本",
+        );
+
+        return Boolean(data.capability.capable && data.hasUpdate && data.releases?.length);
+      } else {
+        setSystemUpgradeReleases([]);
+        setSystemUpgradeCheckedChannel(null);
+        toast.error(response.msg || "检查更新失败");
+      }
+    } catch {
+      setSystemUpgradeReleases([]);
+      setSystemUpgradeCheckedChannel(null);
+      toast.error("检查更新失败，请重试");
+    } finally {
+      setSystemUpgradeChecking(false);
+    }
+
+    return false;
+  };
+
+  const handleOpenSystemUpgradeModal = async () => {
+    if (!canOpenSystemUpgradeModal) {
+      const checked = await handleCheckSystemUpgrade();
+
+      if (!checked) {
+        return;
+      }
+    }
+    setSystemUpgradeModalOpen(true);
+  };
+
+  const handleConfirmSystemUpgrade = async () => {
+    setSystemUpgradeExecuting(true);
+    try {
+      const response = await runSystemUpgrade(
+        systemUpgradeSelectedVersion || undefined,
+        updateChannel,
+      );
+
+      if (response.code === 0 && response.data) {
+        const data = response.data as SystemUpgradeRunApiData;
+
+        setSystemUpgradeModalOpen(false);
+        setSystemUpgradeSelectedVersion("");
+        toast.success(data.message || "升级已触发，请稍后刷新页面");
+      } else {
+        toast.error(response.msg || "面板升级失败");
+      }
+    } catch {
+      toast.error("面板升级失败，请重试");
+    } finally {
+      setSystemUpgradeExecuting(false);
+    }
   };
 
   const handleActivateLicense = async () => {
@@ -1329,6 +1471,7 @@ export default function ConfigPage() {
             </div>
 
             <Select
+              aria-label="更新通道"
               selectedKeys={[updateChannel]}
               size="md"
               variant="bordered"
@@ -1364,6 +1507,163 @@ export default function ConfigPage() {
             </div>
             <div className="rounded-lg border border-divider bg-default-50/60 dark:bg-default-100/10 px-4 py-3 text-sm font-semibold text-default-800 dark:text-default-200">
               {storageSummary}
+            </div>
+          </div>
+
+          <Divider className="my-2" />
+
+          <div className="space-y-4 rounded-xl border border-divider bg-default-50/60 p-4 dark:bg-default-100/10">
+            <div className="space-y-1">
+              <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                面板自升级
+              </p>
+              <p className="text-xs text-gray-500 dark:text-gray-400">
+                检查当前版本、可用发布并在容器环境中触发面板升级。
+              </p>
+            </div>
+
+            {systemUpgradeLoading ? (
+              <div className="flex items-center gap-2 rounded-lg border border-divider bg-background px-4 py-3 text-sm text-default-500">
+                <Spinner size="sm" />
+                正在加载升级状态...
+              </div>
+            ) : (
+              <div className="space-y-4 rounded-lg border border-divider bg-background px-4 py-4 text-sm text-default-700 dark:text-default-300">
+                <div className="grid gap-3 md:grid-cols-2">
+                  <div>
+                    <p className="text-xs text-default-500">当前版本</p>
+                    <p className="mt-1 font-medium">
+                      {systemUpgradeInfo?.currentVersion || "未获取到版本信息"}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-default-500">最新版本</p>
+                    <p className="mt-1 font-medium">
+                      {systemUpgradeInfo?.latestVersion || "未获取到可用版本"}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-default-500">当前通道</p>
+                    <p className="mt-1 font-medium">
+                      {systemUpgradeInfo?.channel === "dev"
+                        ? "开发版"
+                        : systemUpgradeInfo?.channel === "stable"
+                          ? "稳定版"
+                          : updateChannel === "dev"
+                            ? "开发版"
+                            : "稳定版"}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-default-500">升级能力</p>
+                    <p className="mt-1 font-medium">
+                      {systemUpgradeInfo?.capability.capable
+                        ? "可升级"
+                        : "当前不可升级"}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="grid gap-3 md:grid-cols-2">
+                  <div>
+                    <p className="text-xs text-default-500">部署目录</p>
+                    <p className="mt-1 break-all font-medium">
+                      {systemUpgradeInfo?.capability.deployDir || "未获取到部署目录"}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-default-500">后端容器</p>
+                    <p className="mt-1 break-all font-medium">
+                      {systemUpgradeInfo?.capability.backendContainer ||
+                        "未获取到容器信息"}
+                    </p>
+                  </div>
+                </div>
+
+                {!systemUpgradeInfo?.capability.capable && (
+                  <div className="rounded-lg border border-warning-200 bg-warning-50 px-4 py-3 text-warning-800 dark:border-warning-900/40 dark:bg-warning-950/30 dark:text-warning-200">
+                    <p className="text-xs font-medium">当前无法升级</p>
+                    <ul className="mt-2 list-disc space-y-1 pl-4 text-xs">
+                      {(systemUpgradeInfo?.capability.reasons?.length
+                        ? systemUpgradeInfo.capability.reasons
+                        : ["暂未获取到不可升级原因"]
+                      ).map((reason) => (
+                        <li key={reason}>{reason}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                <div className="space-y-3">
+                  <div className="flex flex-col gap-1">
+                    <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                      可用发布版本
+                    </p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                      选择指定版本后执行升级；留空则使用当前通道下最新可用版本。
+                    </p>
+                  </div>
+
+                  <Select
+                    aria-label="目标版本"
+                    isDisabled={
+                      !systemUpgradeReleasesMatchChannel ||
+                      systemUpgradeReleases.length === 0 ||
+                      systemUpgradeExecuting
+                    }
+                    placeholder={
+                      systemUpgradeReleasesMatchChannel &&
+                      systemUpgradeReleases.length > 0
+                        ? "留空时自动选择最新版本"
+                        : "请先检查当前通道更新"
+                    }
+                    selectedKeys={
+                      systemUpgradeSelectedVersion
+                        ? [systemUpgradeSelectedVersion]
+                        : []
+                    }
+                    size="md"
+                    variant="bordered"
+                    onSelectionChange={(keys) => {
+                      const selected = Array.from(keys)[0] as string | undefined;
+
+                      setSystemUpgradeSelectedVersion(selected || "");
+                    }}
+                  >
+                    {(systemUpgradeReleasesMatchChannel
+                      ? systemUpgradeReleases
+                      : []
+                    ).map((release) => (
+                      <SelectItem
+                        key={release.version}
+                        description={release.publishedAt || "暂无发布时间"}
+                      >
+                        {release.name || release.version}
+                      </SelectItem>
+                    ))}
+                  </Select>
+                </div>
+              </div>
+            )}
+
+            <div className="flex flex-col gap-3 pt-1 sm:flex-row sm:justify-end">
+              <Button
+                variant="flat"
+                isLoading={systemUpgradeChecking}
+                onPress={handleCheckSystemUpgrade}
+              >
+                检查更新
+              </Button>
+              <Button
+                color="primary"
+                isDisabled={
+                  !canOpenSystemUpgradeModal
+                }
+                isLoading={systemUpgradeExecuting}
+                onPress={handleOpenSystemUpgradeModal}
+              >
+                立即升级
+              </Button>
             </div>
           </div>
 
@@ -1599,6 +1899,62 @@ export default function ConfigPage() {
                   onPress={triggerImportFilePicker}
                 >
                   下一步选择文件
+                </Button>
+              </ModalFooter>
+            </>
+          )}
+        </ModalContent>
+      </Modal>
+
+      <Modal
+        backdrop="blur"
+        classNames={{
+          base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-2xl overflow-hidden",
+        }}
+        isOpen={systemUpgradeModalOpen}
+        onOpenChange={(open) => {
+          if (!systemUpgradeExecuting) {
+            setSystemUpgradeModalOpen(open);
+          }
+        }}
+      >
+        <ModalContent>
+          {(onClose) => (
+            <>
+              <ModalHeader>确认面板升级</ModalHeader>
+              <ModalBody>
+                <div className="space-y-3 text-sm text-default-700 dark:text-default-300">
+                  <p>
+                    升级过程需要访问 Docker Socket，并会在短时间内中断当前面板服务。
+                  </p>
+                  <p>
+                    请确认已经允许面板管理容器与宿主机 Docker 交互，并且可以接受升级期间的临时不可用。
+                  </p>
+                  <div className="space-y-2 rounded-lg border border-warning-200 bg-warning-50 px-4 py-3 text-warning-800 dark:border-warning-900/40 dark:bg-warning-950/30 dark:text-warning-200">
+                    <p className="text-xs font-medium">升级前请确认</p>
+                    <ul className="list-disc space-y-1 pl-4 text-xs">
+                      <li>Docker Socket 可用且挂载权限正常。</li>
+                      <li>当前面板允许短暂停止和重启。</li>
+                      <li>已选择正确的更新通道与目标版本。</li>
+                    </ul>
+                  </div>
+                </div>
+              </ModalBody>
+              <ModalFooter>
+                <Button
+                  isDisabled={systemUpgradeExecuting}
+                  variant="light"
+                  onPress={onClose}
+                >
+                  取消
+                </Button>
+                <Button
+                  color="primary"
+                  isDisabled={systemUpgradeExecuting}
+                  isLoading={systemUpgradeExecuting}
+                  onPress={handleConfirmSystemUpgrade}
+                >
+                  确认升级
                 </Button>
               </ModalFooter>
             </>

@@ -200,6 +200,14 @@ export interface NodeReleaseApiItem {
   channel: "stable" | "dev";
 }
 
+export interface SystemUpgradeReleaseApiItem {
+  version: string;
+  name: string;
+  publishedAt: string;
+  prerelease: boolean;
+  channel: "stable" | "dev";
+}
+
 export interface UserPackageInfoApiData {
   userInfo: {
     flow: number;
@@ -482,6 +490,36 @@ export interface StorageSummaryApiData {
   dbType: string;
   databaseSizeBytes: number;
   databaseSizeText: string;
+}
+
+export interface SystemUpgradeCapabilityApiData {
+  capable: boolean;
+  reasons: string[];
+  deployDir: string;
+  backendContainer: string;
+}
+
+export interface SystemUpgradeVersionApiData {
+  currentVersion: string;
+  latestVersion: string;
+  hasUpdate: boolean;
+  channel: "stable" | "dev";
+  reason?: string;
+  capability: SystemUpgradeCapabilityApiData;
+}
+
+export interface SystemUpgradeCheckApiData
+  extends SystemUpgradeVersionApiData {
+  releases: SystemUpgradeReleaseApiItem[];
+}
+
+export interface SystemUpgradeRunApiData {
+  version: string;
+  channel: "stable" | "dev";
+  composeAsset: string;
+  helperContainer: string;
+  backendImageId: string;
+  message: string;
 }
 
 export interface MonitorNodeApiItem {

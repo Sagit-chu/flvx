@@ -42,6 +42,9 @@ import type {
   MonitorAccessApiData,
   TunnelQualityApiItem,
   StorageSummaryApiData,
+  SystemUpgradeCheckApiData,
+  SystemUpgradeRunApiData,
+  SystemUpgradeVersionApiData,
 } from "./types";
 
 import axios from "axios";
@@ -257,6 +260,24 @@ export const updateConfig = (name: string, value: string) =>
 
 export const getStorageSummary = () =>
   Network.get<StorageSummaryApiData>("/system/storage");
+
+export const getSystemUpgradeVersion = () =>
+  Network.post<SystemUpgradeVersionApiData>("/system/version");
+
+export const checkSystemUpgrade = (channel: ReleaseChannel = "stable") =>
+  Network.post<SystemUpgradeCheckApiData>("/system/check-updates", {
+    channel,
+  });
+
+export const runSystemUpgrade = (
+  version?: string,
+  channel: ReleaseChannel = "stable",
+) =>
+  Network.post<SystemUpgradeRunApiData>(
+    "/system/upgrade",
+    { version: version || "", channel },
+    { timeout: 60 * 1000 },
+  );
 
 export const activateLicense = (licenseKey: string) =>
   Network.post("/license/activate", { license_key: licenseKey });

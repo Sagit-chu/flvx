@@ -160,7 +160,6 @@ export function ModalContent({
       showCloseButton={false}
       {...props}
     >
-      <DialogTitle className="sr-only">Modal Dialog</DialogTitle>
       {renderedChildren}
     </BaseDialogContent>
   );
@@ -173,15 +172,17 @@ export function ModalHeader({
   const context = useModalContext();
 
   return (
-    <div
-      className={cn(
-        "text-lg font-semibold",
-        context?.classNames?.header,
-        className,
-      )}
-      data-slot="modal-header"
-      {...props}
-    />
+    <DialogTitle asChild>
+      <div
+        className={cn(
+          "text-lg font-semibold",
+          context?.classNames?.header,
+          className,
+        )}
+        data-slot="modal-header"
+        {...props}
+      />
+    </DialogTitle>
   );
 }
 

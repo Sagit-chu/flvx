@@ -15,10 +15,15 @@ services:
       JWT_SECRET: ${JWT_SECRET}
       SERVER_ADDR: :6365
       TZ: Asia/Shanghai
+      FLUX_VERSION: ${FLUX_VERSION:-dev}
+      PANEL_DEPLOY_DIR: /opt/flvx-panel
+      PANEL_BACKEND_CONTAINER: flux-panel-backend
     ports:
       - "${BACKEND_PORT}:6365"
     volumes:
       - sqlite_data:/app/data
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./:/opt/flvx-panel
     networks:
       - gost-network
     stop_grace_period: 30s

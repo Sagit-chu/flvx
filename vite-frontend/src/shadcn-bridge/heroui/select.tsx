@@ -23,6 +23,7 @@ interface ClassNameMap {
 }
 
 export interface SelectProps<T = unknown> extends FieldMetaProps {
+  "aria-label"?: string;
   children?: React.ReactNode | ((item: T) => React.ReactNode);
   className?: string;
   classNames?: ClassNameMap;
@@ -146,6 +147,7 @@ function textSizeClass(size: SelectProps["size"]) {
 }
 
 export function Select<T>({
+  "aria-label": ariaLabel,
   children,
   className,
   classNames,
@@ -365,6 +367,7 @@ export function Select<T>({
             aria-controls={`${generatedId}-listbox`}
             aria-expanded={isExpanded}
             aria-haspopup="listbox"
+            aria-label={label ? undefined : ariaLabel}
             className={cn(
               "flex w-full min-w-0 items-center gap-2 overflow-hidden rounded-md border border-input bg-background px-3 py-2 text-left shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-ring",
               isDisabled ? "cursor-not-allowed opacity-60" : "",
@@ -406,6 +409,7 @@ export function Select<T>({
           )}
           disabled={isDisabled}
           id={generatedId}
+          aria-label={label ? undefined : ariaLabel}
           required={isRequired}
           value={singleValue}
           onChange={handleChange}
