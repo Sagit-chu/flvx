@@ -1,6 +1,6 @@
 # FLVX
 
-> **联系我们**: [Telegram群组](https://t.me/flvxpanel)
+> **联系我们**: [Telegram群组](https://t.me/flvxchannel)
 
 
 ## 特性
