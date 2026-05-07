@@ -158,6 +158,9 @@ type WebSocketReporter struct {
 	addr              string // 保存服务器地址
 	secret            string // 保存密钥
 	version           string // 保存版本号
+	http              int
+	tls               int
+	socks             int
 	preferredWSScheme string
 	conn              *websocket.Conn
 	curBackoff        time.Duration // 当前重连退避间隔
@@ -296,9 +299,9 @@ func (w *WebSocketReporter) connect() error {
 		Socks  int    `json:"socks"`
 	}
 
-	var cfg LocalConfig
+	cfg := LocalConfig{Http: w.http, Tls: w.tls, Socks: w.socks}
 	if b, err := os.ReadFile("config.json"); err == nil {
-		json.Unmarshal(b, &cfg)
+		_ = json.Unmarshal(b, &cfg)
 	}
 
 	candidates := buildWebSocketCandidates(w.addr, w.secret, w.version, cfg.Http, cfg.Tls, cfg.Socks, w.preferredWSScheme)
@@ -1369,7 +1372,7 @@ func (w *WebSocketReporter) handleUpgradeAgent(data interface{}) error {
 	// 执行重启脚本
 	// 使用 systemd-run 在独立的 transient unit 中运行重启脚本，
 	// 避免 systemctl stop 杀死 flux_agent cgroup 内所有进程（包括此脚本自身）导致 mv 未执行。
-	script := fmt.Sprintf("sleep 1 && systemctl stop flux_agent && mv %s %s && systemctl start flux_agent", tmpPath, binaryPath)
+	script := buildAgentRestartScript(tmpPath, binaryPath)
 	cmd := exec.Command("systemd-run", "--quiet", "/bin/sh", "-c", script)
 	if err := cmd.Start(); err != nil {
 		os.Remove(tmpPath)
@@ -1401,6 +1404,14 @@ func (w *WebSocketReporter) handleRollbackAgent(data interface{}) error {
 
 	fmt.Println("🔄 回退脚本已启动, Agent 将在 1 秒后重启...")
 	return nil
+}
+
+func buildAgentRestartScript(tmpPath, binaryPath string) string {
+	return fmt.Sprintf(
+		"sleep 1 && systemctl stop flux_agent && legacy_service='' && for service_file in /etc/systemd/system/gost.service /lib/systemd/system/gost.service /usr/lib/systemd/system/gost.service; do if [ -f \"$service_file\" ] && grep -Fq \"WorkingDirectory=/etc/gost\" \"$service_file\" && (grep -Fq \"ExecStart=/etc/gost/gost\" \"$service_file\" || (grep -Fq \"ExecStart=/usr/local/bin/gost\" \"$service_file\" && [ -f /etc/gost/config.json ] && [ -f /etc/gost/gost.json ])); then legacy_service=\"$service_file\"; break; fi; done && if [ -n \"$legacy_service\" ]; then (systemctl stop gost 2>/dev/null || true) && (systemctl disable gost 2>/dev/null || true) && rm -f /usr/local/bin/gost /etc/gost/gost \"$legacy_service\" && (systemctl daemon-reload 2>/dev/null || true); fi && mv %s %s && systemctl start flux_agent",
+		tmpPath,
+		binaryPath,
+	)
 }
 
 // updateLocalConfigJSON 将 http/tls/socks 写入工作目录下的 config.json
@@ -1650,13 +1661,16 @@ func StartWebSocketReporterWithConfig(addr string, secret string, http int, tls 
 	candidates := buildWebSocketCandidates(addr, secret, version, http, tls, socks, "")
 	fullURL := candidates[0]
 
-	fmt.Printf("🔗 WebSocket连接URL: %s\n", fullURL)
+	fmt.Printf("🔗 WebSocket连接URL: %s\n", sanitizeWebSocketURL(fullURL))
 
 	reporter := NewWebSocketReporter(fullURL, secret)
-	// 保存 addr, secret, version 供重连时使用
+	// 保存 addr, secret, version 和协议能力供重连时使用
 	reporter.addr = addr
 	reporter.secret = secret
 	reporter.version = version
+	reporter.http = http
+	reporter.tls = tls
+	reporter.socks = socks
 	reporter.Start()
 	return reporter
 }

@@ -1,14 +1,44 @@
 package socket
 
 import (
+	"bytes"
 	"errors"
 	"io"
 	"net/http"
+	"os"
+	"runtime"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/gorilla/websocket"
 )
+
+func captureStdout(t *testing.T, fn func()) string {
+	t.Helper()
+
+	orig := os.Stdout
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatalf("create stdout pipe: %v", err)
+	}
+	os.Stdout = w
+	defer func() {
+		os.Stdout = orig
+		_ = w.Close()
+		_ = r.Close()
+	}()
+
+	fn()
+
+	_ = w.Close()
+
+	var buf bytes.Buffer
+	if _, err := io.Copy(&buf, r); err != nil {
+		t.Fatalf("read stdout: %v", err)
+	}
+	return buf.String()
+}
 
 func TestBuildWebSocketCandidatesSecureFirst(t *testing.T) {
 	candidates := buildWebSocketCandidates("panel.example.com:443", "abc", "2.0.2", 1, 0, 1, "")
@@ -131,5 +161,105 @@ func TestFormatWebSocketDialErrorIncludesHTTPStatus(t *testing.T) {
 	}
 	if !strings.Contains(msg, "forbidden") {
 		t.Fatalf("expected response body in message, got %s", msg)
+	}
+}
+
+func TestAgentUpgradeRestartScriptStopsLegacyGostService(t *testing.T) {
+	script := buildAgentRestartScript("/tmp/flux_agent.new", "/etc/flux_agent/flux_agent")
+
+	if !strings.Contains(script, "systemctl stop flux_agent") {
+		t.Fatalf("expected script to stop flux_agent, got %s", script)
+	}
+	if !strings.Contains(script, "mv /tmp/flux_agent.new /etc/flux_agent/flux_agent") {
+		t.Fatalf("expected script to replace the flux_agent binary, got %s", script)
+	}
+	if !strings.Contains(script, "systemctl stop gost") {
+		t.Fatalf("expected script to stop the legacy gost service, got %s", script)
+	}
+	if !strings.Contains(script, "systemctl disable gost") {
+		t.Fatalf("expected script to disable the legacy gost service, got %s", script)
+	}
+	if !strings.Contains(script, "rm -f /usr/local/bin/gost") {
+		t.Fatalf("expected script to remove the legacy gost binary, got %s", script)
+	}
+	if !strings.Contains(script, "WorkingDirectory=/etc/gost") {
+		t.Fatalf("expected script to scope cleanup to the legacy FLVX gost service definition, got %s", script)
+	}
+	if !strings.Contains(script, "systemctl start flux_agent") {
+		t.Fatalf("expected script to restart flux_agent, got %s", script)
+	}
+	if strings.Contains(script, "systemctl stop flux_agent && systemctl stop gost 2>/dev/null || true") {
+		t.Fatalf("expected legacy gost cleanup fallback to be scoped, got %s", script)
+	}
+	if runtime.GOARCH == "" {
+		t.Fatalf("unexpected empty runtime arch")
+	}
+}
+
+func TestStartWebSocketReporterWithConfigPreservesProtocolDefaultsWithoutConfigFile(t *testing.T) {
+	origDial := wsDial
+	defer func() { wsDial = origDial }()
+
+	origWD, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("get working directory: %v", err)
+	}
+	t.Cleanup(func() {
+		_ = os.Chdir(origWD)
+	})
+	if err := os.Chdir(t.TempDir()); err != nil {
+		t.Fatalf("change working directory: %v", err)
+	}
+
+	urls := make(chan string, 1)
+	wsDial = func(_ *websocket.Dialer, rawURL string) (*websocket.Conn, *http.Response, error) {
+		select {
+		case urls <- rawURL:
+		default:
+		}
+		return nil, nil, errors.New("dial failed")
+	}
+
+	reporter := StartWebSocketReporterWithConfig("panel.example.com:443", "abc", 1, 0, 1, "2.0.2")
+	defer reporter.Stop()
+
+	select {
+	case rawURL := <-urls:
+		if !strings.Contains(rawURL, "http=1&tls=0&socks=1") {
+			t.Fatalf("expected reconnect URL to preserve startup protocol values, got %s", rawURL)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("timed out waiting for websocket dial")
+	}
+}
+
+func TestStartWebSocketReporterWithConfigLogsSanitizedURL(t *testing.T) {
+	origDial := wsDial
+	defer func() { wsDial = origDial }()
+
+	ready := make(chan struct{}, 1)
+	wsDial = func(_ *websocket.Dialer, rawURL string) (*websocket.Conn, *http.Response, error) {
+		select {
+		case ready <- struct{}{}:
+		default:
+		}
+		return nil, nil, errors.New("dial failed")
+	}
+
+	output := captureStdout(t, func() {
+		reporter := StartWebSocketReporterWithConfig("panel.example.com:443", "abc123", 1, 0, 1, "2.0.2")
+		select {
+		case <-ready:
+		case <-time.After(2 * time.Second):
+			t.Fatal("timed out waiting for websocket dial")
+		}
+		reporter.Stop()
+	})
+
+	if strings.Contains(output, "secret=abc123") {
+		t.Fatalf("expected logged websocket URL to mask the node secret, got %s", output)
+	}
+	if !strings.Contains(output, "secret=%2A%2A%2A") {
+		t.Fatalf("expected logged websocket URL to include masked secret, got %s", output)
 	}
 }

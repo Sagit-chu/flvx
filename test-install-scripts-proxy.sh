@@ -98,11 +98,16 @@ EOF
   chmod +x "$INSTALL_DIR/flux_agent"
 
   local ask_called="0"
+  local cleanup_called="0"
 
   ask_proxy_config() {
     ask_called="1"
     PROXY_ENABLED="false"
     DOWNLOAD_URL=""
+  }
+
+  cleanup_legacy_gost_installation() {
+    cleanup_called="1"
   }
 
   check_and_install_tcpkill() { :; }
@@ -133,6 +138,7 @@ EOF
   update_flux_agent >/dev/null
 
   assert_equals "1" "$ask_called" "update_flux_agent should ask for proxy config before downloading"
+  assert_equals "1" "$cleanup_called" "update_flux_agent should clean up legacy gost before restarting the agent"
   assert_equals "$(build_download_url)" "$DOWNLOAD_URL" "update_flux_agent should honor the prompted proxy choice"
 )
 
@@ -153,6 +159,198 @@ test_update_flux_agent_skips_proxy_prompt_when_not_installed() (
 
   assert_equals "1" "$rc" "update_flux_agent should fail when the agent is not installed"
   assert_equals "0" "$ask_called" "update_flux_agent should not prompt for proxy config when the agent is missing"
+)
+
+test_install_flux_agent_preserves_legacy_gost_when_download_fails() (
+  set -euo pipefail
+  load_script_without_main "$ROOT_DIR/install.sh"
+
+  INSTALL_DIR=$(mktemp -d)
+  cat > "$INSTALL_DIR/flux_agent" <<'EOF'
+#!/bin/bash
+echo "old version"
+EOF
+  chmod +x "$INSTALL_DIR/flux_agent"
+  SERVER_ADDR="panel.example.com:443"
+  SECRET="secret"
+  DOWNLOAD_URL="https://example.com/gost"
+
+  local cleanup_called="0"
+  local rc="0"
+
+  ask_proxy_config() { :; }
+  ensure_download_url_initialized() { :; }
+  get_config_params() { :; }
+  check_and_install_tcpkill() { :; }
+  cleanup_legacy_gost_installation() {
+    cleanup_called="1"
+  }
+  systemctl() { return 0; }
+  curl() { return 0; }
+
+  ( install_flux_agent >/dev/null ) || rc="$?"
+
+  assert_equals "1" "$rc" "install_flux_agent should fail when the download artifact is missing"
+  assert_equals "0" "$cleanup_called" "install_flux_agent should preserve legacy gost when download fails"
+  [[ -f "$INSTALL_DIR/flux_agent" ]] || fail "install_flux_agent should keep the existing flux_agent binary when download fails"
+)
+
+test_update_flux_agent_preserves_legacy_gost_when_download_fails() (
+  set -euo pipefail
+  load_script_without_main "$ROOT_DIR/install.sh"
+
+  INSTALL_DIR=$(mktemp -d)
+  cat > "$INSTALL_DIR/flux_agent" <<'EOF'
+#!/bin/bash
+echo "old version"
+EOF
+  chmod +x "$INSTALL_DIR/flux_agent"
+  cat > "$INSTALL_DIR/flux_agent.new" <<'EOF'
+#!/bin/bash
+echo "stale version"
+EOF
+  chmod +x "$INSTALL_DIR/flux_agent.new"
+
+  local cleanup_called="0"
+  local rc="0"
+
+  ask_proxy_config() {
+    PROXY_ENABLED="false"
+    DOWNLOAD_URL="https://example.com/gost"
+  }
+  check_and_install_tcpkill() { :; }
+  cleanup_legacy_gost_installation() {
+    cleanup_called="1"
+  }
+  systemctl() { return 0; }
+  curl() { return 0; }
+
+  update_flux_agent >/dev/null || rc="$?"
+
+  assert_equals "1" "$rc" "update_flux_agent should fail when the download artifact is missing"
+  assert_equals "0" "$cleanup_called" "update_flux_agent should preserve legacy gost when download fails"
+  [[ ! -f "$INSTALL_DIR/flux_agent.new" ]] || fail "update_flux_agent should remove stale download artifacts before retrying"
+)
+
+test_install_flux_agent_writes_json_safe_config() (
+  set -euo pipefail
+  load_script_without_main "$ROOT_DIR/install.sh"
+
+  INSTALL_DIR=$(mktemp -d)
+  SERVER_ADDR='panel"addr'
+  SECRET='sec\ret"1'
+  DOWNLOAD_URL="https://example.com/gost"
+
+  ask_proxy_config() { :; }
+  ensure_download_url_initialized() { :; }
+  get_config_params() { :; }
+  check_and_install_tcpkill() { :; }
+  cleanup_legacy_gost_installation() { :; }
+  systemctl() { return 0; }
+  curl() {
+    local output=""
+    while [[ $# -gt 0 ]]; do
+      if [[ "$1" == "-o" ]]; then
+        output="$2"
+        shift 2
+        continue
+      fi
+      shift
+    done
+
+    cat > "$output" <<'EOF'
+#!/bin/bash
+echo "new version"
+EOF
+    chmod +x "$output"
+  }
+
+  ( install_flux_agent >/dev/null 2>/dev/null ) || true
+
+  local actual
+  actual=$(<"$INSTALL_DIR/config.json")
+  local expected=$'{\n  "addr": "panel\\"addr",\n  "secret": "sec\\\\ret\\"1"\n}'
+
+  assert_equals "$expected" "$actual" "install_flux_agent should JSON-escape config values"
+)
+
+test_cleanup_legacy_gost_installation_removes_service_and_binary() (
+  set -euo pipefail
+  load_script_without_main "$ROOT_DIR/install.sh"
+
+  LEGACY_GOST_BINARY=$(mktemp)
+  LEGACY_GOST_SERVICE_FILE_ETC=$(mktemp)
+  LEGACY_GOST_SERVICE_FILE_LIB=$(mktemp -u)
+  LEGACY_GOST_SERVICE_FILE_USR_LIB=$(mktemp -u)
+  LEGACY_GOST_CONFIG_DIR=$(mktemp -d)
+  cat > "$LEGACY_GOST_SERVICE_FILE_ETC" <<EOF
+[Unit]
+Description=Gost Proxy Service
+
+[Service]
+WorkingDirectory=$LEGACY_GOST_CONFIG_DIR
+ExecStart=$LEGACY_GOST_CONFIG_DIR/gost
+EOF
+  : > "$LEGACY_GOST_CONFIG_DIR/config.json"
+  : > "$LEGACY_GOST_CONFIG_DIR/gost.json"
+
+  local systemctl_calls=""
+
+  systemctl() {
+    systemctl_calls+=$'\n'"$*"
+    if [[ "$1" == "list-units" ]]; then
+      printf 'gost.service loaded active running\n'
+    fi
+    return 0
+  }
+
+  cleanup_legacy_gost_installation >/dev/null
+
+  if [[ -e "$LEGACY_GOST_BINARY" ]]; then
+    fail "cleanup_legacy_gost_installation should remove the legacy gost binary"
+  fi
+  if [[ -e "$LEGACY_GOST_SERVICE_FILE_ETC" ]]; then
+    fail "cleanup_legacy_gost_installation should remove the legacy gost service file"
+  fi
+  [[ "$systemctl_calls" == *"stop gost"* ]] || fail "cleanup_legacy_gost_installation should stop the legacy gost service"
+  [[ "$systemctl_calls" == *"disable gost"* ]] || fail "cleanup_legacy_gost_installation should disable the legacy gost service"
+  [[ "$systemctl_calls" == *"daemon-reload"* ]] || fail "cleanup_legacy_gost_installation should reload systemd after removing the legacy service"
+)
+
+test_cleanup_legacy_gost_installation_preserves_unrelated_gost() (
+  set -euo pipefail
+  load_script_without_main "$ROOT_DIR/install.sh"
+
+  LEGACY_GOST_BINARY=$(mktemp)
+  LEGACY_GOST_SERVICE_FILE_ETC=$(mktemp)
+  LEGACY_GOST_SERVICE_FILE_LIB=$(mktemp -u)
+  LEGACY_GOST_SERVICE_FILE_USR_LIB=$(mktemp -u)
+  LEGACY_GOST_CONFIG_DIR=$(mktemp -d)
+  cat > "$LEGACY_GOST_SERVICE_FILE_ETC" <<'EOF'
+[Unit]
+Description=Unrelated Gost Service
+
+[Service]
+WorkingDirectory=/srv/custom-gost
+ExecStart=/usr/local/bin/gost -C /srv/custom-gost/gost.yaml
+EOF
+
+  local systemctl_calls=""
+
+  systemctl() {
+    systemctl_calls+=$'\n'"$*"
+    if [[ "$1" == "list-units" ]]; then
+      printf 'gost.service loaded active running\n'
+    fi
+    return 0
+  }
+
+  cleanup_legacy_gost_installation >/dev/null
+
+  [[ -e "$LEGACY_GOST_BINARY" ]] || fail "cleanup_legacy_gost_installation should preserve unrelated gost binaries"
+  [[ -e "$LEGACY_GOST_SERVICE_FILE_ETC" ]] || fail "cleanup_legacy_gost_installation should preserve unrelated gost service files"
+  [[ "$systemctl_calls" != *"stop gost"* ]] || fail "cleanup_legacy_gost_installation should not stop unrelated gost services"
+  [[ "$systemctl_calls" != *"disable gost"* ]] || fail "cleanup_legacy_gost_installation should not disable unrelated gost services"
 )
 
 test_install_script_accepts_proxy_url_env_without_prompt() (
@@ -303,6 +501,11 @@ test_install_script_asks_for_proxy_config
 test_install_script_recomputes_download_url_after_prompt
 test_update_flux_agent_asks_for_proxy_config
 test_update_flux_agent_skips_proxy_prompt_when_not_installed
+test_install_flux_agent_preserves_legacy_gost_when_download_fails
+test_update_flux_agent_preserves_legacy_gost_when_download_fails
+test_install_flux_agent_writes_json_safe_config
+test_cleanup_legacy_gost_installation_removes_service_and_binary
+test_cleanup_legacy_gost_installation_preserves_unrelated_gost
 test_install_script_accepts_proxy_url_env_without_prompt
 test_panel_install_script_can_disable_proxy
 test_panel_install_script_recomputes_compose_urls_after_prompt

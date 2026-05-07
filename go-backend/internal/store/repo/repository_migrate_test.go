@@ -117,6 +117,68 @@ func TestOpenBackfillsSQLiteLegacyTunnelProbeTargetColumns(t *testing.T) {
 	}
 }
 
+func TestOpenBackfillsSQLiteLegacyForwardColumns(t *testing.T) {
+	dbPath := filepath.Join(t.TempDir(), "legacy-forward.db")
+	db, err := gorm.Open(gsqlite.Open(dbPath), &gorm.Config{
+		Logger: logger.Default.LogMode(logger.Silent),
+	})
+	if err != nil {
+		t.Fatalf("open legacy sqlite: %v", err)
+	}
+
+	if err := db.Exec(`
+		CREATE TABLE forward (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			user_id INTEGER NOT NULL,
+			user_name VARCHAR(100) NOT NULL,
+			name VARCHAR(100) NOT NULL,
+			tunnel_id INTEGER NOT NULL,
+			remote_addr TEXT NOT NULL,
+			strategy VARCHAR(100) NOT NULL DEFAULT 'fifo',
+			in_flow INTEGER NOT NULL DEFAULT 0,
+			out_flow INTEGER NOT NULL DEFAULT 0,
+			created_time INTEGER NOT NULL,
+			updated_time INTEGER NOT NULL,
+			status INTEGER NOT NULL,
+			inx INTEGER NOT NULL DEFAULT 0,
+			speed_id INTEGER
+		)
+	`).Error; err != nil {
+		t.Fatalf("create legacy forward table: %v", err)
+	}
+	if err := db.Exec(`
+		INSERT INTO forward(id, user_id, user_name, name, tunnel_id, remote_addr, strategy, in_flow, out_flow, created_time, updated_time, status, inx, speed_id)
+		VALUES(1, 2, 'legacy-user', 'legacy-forward', 3, '127.0.0.1:9000', 'fifo', 0, 0, 1, 1, 1, 0, NULL)
+	`).Error; err != nil {
+		t.Fatalf("insert legacy forward: %v", err)
+	}
+	if sqlDB, _ := db.DB(); sqlDB != nil {
+		_ = sqlDB.Close()
+	}
+
+	r, err := Open(dbPath)
+	if err != nil {
+		t.Fatalf("open migrated sqlite: %v", err)
+	}
+	t.Cleanup(func() { _ = r.Close() })
+
+	m := r.DB().Migrator()
+	for _, field := range []string{"MaxConn", "IPMaxConn", "IPSpeedID", "ProxyProtocol"} {
+		if !m.HasColumn(&model.Forward{}, field) {
+			t.Fatalf("expected forward.%s column to exist", field)
+		}
+	}
+
+	var maxConn, ipMaxConn, proxyProtocol int
+	var ipSpeedID sql.NullInt64
+	if err := r.DB().Raw(`SELECT max_conn, ip_max_conn, ip_speed_id, proxy_protocol FROM forward WHERE id = 1`).Row().Scan(&maxConn, &ipMaxConn, &ipSpeedID, &proxyProtocol); err != nil {
+		t.Fatalf("query forward defaults: %v", err)
+	}
+	if maxConn != 0 || ipMaxConn != 0 || ipSpeedID.Valid || proxyProtocol != 0 {
+		t.Fatalf("expected default forward columns 0/0/NULL/0, got max_conn=%d ip_max_conn=%d ip_speed_id=%+v proxy_protocol=%d", maxConn, ipMaxConn, ipSpeedID, proxyProtocol)
+	}
+}
+
 func TestMigrateSchemaRunsPostgresIDRepairEvenAtCurrentVersion(t *testing.T) {
 	db, err := gorm.Open(gsqlite.Open(":memory:"), &gorm.Config{
 		Logger: logger.Default.LogMode(logger.Silent),

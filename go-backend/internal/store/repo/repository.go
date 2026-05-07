@@ -304,6 +304,7 @@ func autoMigrateAll(db *gorm.DB) error {
 	m := db.Migrator()
 	hasNode := m.HasTable(&model.Node{})
 	hasTunnel := m.HasTable(&model.Tunnel{})
+	hasForward := m.HasTable(&model.Forward{})
 
 	for _, item := range models {
 		if hasNode {
@@ -313,6 +314,11 @@ func autoMigrateAll(db *gorm.DB) error {
 		}
 		if hasTunnel {
 			if _, ok := item.(*model.Tunnel); ok {
+				continue
+			}
+		}
+		if hasForward {
+			if _, ok := item.(*model.Forward); ok {
 				continue
 			}
 		}
@@ -396,7 +402,7 @@ func prepareSQLiteLegacyColumns(db *gorm.DB) error {
 	}
 
 	if m.HasTable(&model.Forward{}) {
-		for _, field := range []string{"ProxyProtocol"} {
+		for _, field := range []string{"MaxConn", "IPMaxConn", "IPSpeedID", "ProxyProtocol"} {
 			if m.HasColumn(&model.Forward{}, field) {
 				continue
 			}

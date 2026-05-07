@@ -24,6 +24,11 @@ get_architecture() {
 
 # 安装目录
 INSTALL_DIR="/etc/flux_agent"
+LEGACY_GOST_BINARY="/usr/local/bin/gost"
+LEGACY_GOST_CONFIG_DIR="/etc/gost"
+LEGACY_GOST_SERVICE_FILE_ETC="/etc/systemd/system/gost.service"
+LEGACY_GOST_SERVICE_FILE_LIB="/lib/systemd/system/gost.service"
+LEGACY_GOST_SERVICE_FILE_USR_LIB="/usr/lib/systemd/system/gost.service"
 
 # 镜像加速配置（可由面板传入或交互式询问）
 PROXY_ENABLED="${PROXY_ENABLED:-}"
@@ -234,6 +239,69 @@ check_and_install_tcpkill() {
   return 0
 }
 
+json_escape() {
+  local value="$1"
+  value=${value//\\/\\\\}
+  value=${value//\"/\\\"}
+  value=${value//$'\n'/\\n}
+  value=${value//$'\r'/\\r}
+  value=${value//$'\t'/\\t}
+  printf '%s' "$value"
+}
+
+write_flux_agent_config() {
+  local path="$1"
+  printf '{\n  "addr": "%s",\n  "secret": "%s"\n}\n' \
+    "$(json_escape "$SERVER_ADDR")" \
+    "$(json_escape "$SECRET")" > "$path"
+}
+
+cleanup_legacy_gost_installation() {
+  local matched_service_files=()
+  local service_file=""
+  local removed_service_file="0"
+
+  for service_file in "$LEGACY_GOST_SERVICE_FILE_ETC" "$LEGACY_GOST_SERVICE_FILE_LIB" "$LEGACY_GOST_SERVICE_FILE_USR_LIB"; do
+    if [[ ! -f "$service_file" ]]; then
+      continue
+    fi
+    if ! grep -Fq "WorkingDirectory=$LEGACY_GOST_CONFIG_DIR" "$service_file"; then
+      continue
+    fi
+    if grep -Fq "ExecStart=$LEGACY_GOST_CONFIG_DIR/gost" "$service_file" || \
+      (grep -Fq "ExecStart=$LEGACY_GOST_BINARY" "$service_file" && [[ -f "$LEGACY_GOST_CONFIG_DIR/config.json" && -f "$LEGACY_GOST_CONFIG_DIR/gost.json" ]]); then
+      matched_service_files+=("$service_file")
+    fi
+  done
+
+  if [[ ${#matched_service_files[@]} -eq 0 ]]; then
+    return 0
+  fi
+
+  if systemctl list-units --full -all 2>/dev/null | grep -Fq "gost.service"; then
+    systemctl stop gost 2>/dev/null || true
+    systemctl disable gost 2>/dev/null || true
+  fi
+
+  for service_file in "${matched_service_files[@]}"; do
+    if [[ -f "$service_file" ]]; then
+      rm -f "$service_file"
+      removed_service_file="1"
+    fi
+  done
+
+  if [[ -f "$LEGACY_GOST_BINARY" ]]; then
+    rm -f "$LEGACY_GOST_BINARY"
+  fi
+  if [[ -f "$LEGACY_GOST_CONFIG_DIR/gost" ]]; then
+    rm -f "$LEGACY_GOST_CONFIG_DIR/gost"
+  fi
+
+  if [[ "$removed_service_file" == "1" ]]; then
+    systemctl daemon-reload 2>/dev/null || true
+  fi
+}
+
 
 # 获取用户输入的配置参数
 get_config_params() {
@@ -279,6 +347,8 @@ install_flux_agent() {
 
   mkdir -p "$INSTALL_DIR"
 
+  local tmp_binary="$INSTALL_DIR/flux_agent.new"
+
   # 停止并禁用已有服务
   if systemctl list-units --full -all | grep -Fq "flux_agent.service"; then
     echo "🔍 检测到已存在的flux_agent服务"
@@ -286,16 +356,17 @@ install_flux_agent() {
     systemctl disable flux_agent 2>/dev/null && echo "🚫 禁用自启"
   fi
 
-  # 删除旧文件
-  [[ -f "$INSTALL_DIR/flux_agent" ]] && echo "🧹 删除旧文件 flux_agent" && rm -f "$INSTALL_DIR/flux_agent"
-
   # 下载 flux_agent
   echo "⬇️ 下载 flux_agent 中..."
-  curl -L "$DOWNLOAD_URL" -o "$INSTALL_DIR/flux_agent"
-  if [[ ! -f "$INSTALL_DIR/flux_agent" || ! -s "$INSTALL_DIR/flux_agent" ]]; then
+  rm -f "$tmp_binary"
+  curl -L "$DOWNLOAD_URL" -o "$tmp_binary"
+  if [[ ! -f "$tmp_binary" || ! -s "$tmp_binary" ]]; then
+    rm -f "$tmp_binary"
     echo "❌ 下载失败，请检查网络或下载链接。"
     exit 1
   fi
+  cleanup_legacy_gost_installation
+  mv "$tmp_binary" "$INSTALL_DIR/flux_agent"
   chmod +x "$INSTALL_DIR/flux_agent"
   echo "✅ 下载完成"
 
@@ -305,12 +376,7 @@ install_flux_agent() {
   # 写入 config.json (安装时总是创建新的)
   CONFIG_FILE="$INSTALL_DIR/config.json"
   echo "📄 创建新配置: config.json"
-  cat > "$CONFIG_FILE" <<EOF
-{
-  "addr": "$SERVER_ADDR",
-  "secret": "$SECRET"
-}
-EOF
+  write_flux_agent_config "$CONFIG_FILE"
 
   # 写入 gost.json
   GOST_CONFIG="$INSTALL_DIR/gost.json"
@@ -380,11 +446,13 @@ update_flux_agent() {
   
   # 先下载新版本
   echo "⬇️ 下载最新版本..."
+  rm -f "$INSTALL_DIR/flux_agent.new"
   curl -L "$DOWNLOAD_URL" -o "$INSTALL_DIR/flux_agent.new"
   if [[ ! -f "$INSTALL_DIR/flux_agent.new" || ! -s "$INSTALL_DIR/flux_agent.new" ]]; then
     echo "❌ 下载失败。"
     return 1
   fi
+  cleanup_legacy_gost_installation
 
   # 停止服务
   if systemctl list-units --full -all | grep -Fq "flux_agent.service"; then
