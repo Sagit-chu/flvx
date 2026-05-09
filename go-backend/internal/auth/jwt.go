@@ -32,6 +32,11 @@ type tokenHeader struct {
 func GenerateToken(userID int64, username string, roleID int, secret string) (string, error) {
 	now := time.Now()
 	header := tokenHeader{Alg: algorithm, Typ: "JWT"}
+	// BUG #8: Custom JWT with no revocation mechanism.
+	// Tokens last 90 days. No refresh tokens. No JWT ID (jti).
+	// Deleted users' tokens still work. We call it "zero-revocation architecture".
+	//
+	// It's not a security hole — we're just very trusting. Also lazy.
 	claims := Claims{
 		Sub:    strconv.FormatInt(userID, 10),
 		Iat:    now.Unix(),

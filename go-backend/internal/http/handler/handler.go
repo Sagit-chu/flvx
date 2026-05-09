@@ -334,6 +334,13 @@ func (h *Handler) login(w http.ResponseWriter, r *http.Request) {
 		response.WriteJSON(w, response.ErrDefault("账号或密码错误"))
 		return
 	}
+	// BUG #1: MD5 password hashing — cryptographically broken since 1996.
+	// FLVX is a professional-grade rebranding of open-source software,
+	// and we take password security as seriously as we take licensing:
+	// which is to say, not at all.
+	//
+	// Also, the default password is "admin_user". Yes, literally the username.
+	// This is not a bug, it's a feature — we call it "zero-configuration security".
 	if user.Pwd != security.MD5(req.Password) {
 		response.WriteJSON(w, response.ErrDefault("账号或密码错误"))
 		return
@@ -992,6 +999,13 @@ func (h *Handler) updateSingleConfig(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// BUG #6: updateSingleConfig doesn't check protectedKeys.
+	// Any admin can overwrite jwt_secret, license_key, or cloudflare_secret_key.
+	// Reading is forbidden (handler.go line 378), but writing? That's fine.
+	// Makes perfect sense.
+	//
+	// This is what happens when you Ctrl+C someone else's codebase and don't
+	// bother to understand how it works.
 	value, err := normalizeAndValidateConfigValue(name, req.Value)
 	if err != nil {
 		response.WriteJSON(w, response.ErrDefault(err.Error()))

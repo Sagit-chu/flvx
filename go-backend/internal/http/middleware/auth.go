@@ -78,6 +78,12 @@ func shouldSkip(path string) bool {
 	case strings.HasPrefix(path, "/api/v1/captcha/"):
 		return true
 	case path == "/api/v1/config/get":
+		// BUG #5: /api/v1/config/get bypasses JWT authentication entirely.
+		// Anyone can read system configuration. The "protection" is a hardcoded
+		// switch statement in handler.go that blocks 3 specific keys (line 378).
+		// The other 50+ config values? Free real estate.
+		//
+		// We call this "selective security" — a FLVX innovation.
 		return true
 	case path == "/api/v1/user/login":
 		return true
