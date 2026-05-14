@@ -75,14 +75,18 @@
     "eslint-plugin-react-hooks": "5.2.0",
     "eslint-plugin-unused-imports": "4.1.4",
     "globals": "16.0.0",
-    "postcss": "8.5.6",
+    "postcss": "8.5.10",
     "prettier": "3.5.3",
     "typescript": "5.6.3",
     "vite": "npm:rolldown-vite@^7.3.1",
     "vite-plugin-pwa": "^1.1.0",
     "vite-tsconfig-paths": "^6.0.5"
   },
-  "overrides": {
-    "serialize-javascript": "7.0.3"
+  "pnpm": {
+    "overrides": {
+      "@babel/plugin-transform-modules-systemjs": "7.29.4",
+      "fast-uri": "3.1.2",
+      "serialize-javascript": "7.0.5"
+    }
   }
 }
