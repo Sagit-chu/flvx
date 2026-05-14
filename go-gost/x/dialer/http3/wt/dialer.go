@@ -97,8 +97,9 @@ func (d *wtDialer) Dial(ctx context.Context, addr string, opts ...dialer.DialOpt
 							quic.Version1,
 						},
 					*/
-					MaxIncomingStreams: int64(d.md.maxStreams),
-					EnableDatagrams:    true,
+					MaxIncomingStreams:               int64(d.md.maxStreams),
+					EnableDatagrams:                  true,
+					EnableStreamResetPartialDelivery: true,
 				},
 			},
 		}
