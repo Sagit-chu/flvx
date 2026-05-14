@@ -19,7 +19,7 @@ import (
 	metrics "github.com/go-gost/x/metrics/wrapper"
 	stats "github.com/go-gost/x/observer/stats/wrapper"
 	"github.com/go-gost/x/registry"
-	"github.com/pion/dtls/v2"
+	"github.com/pion/dtls/v3"
 )
 
 func init() {
@@ -65,19 +65,19 @@ func (l *dtlsListener) Init(md md.Metadata) (err error) {
 	config := dtls.Config{
 		Certificates:         tlsCfg.Certificates,
 		ExtendedMasterSecret: dtls.RequireExtendedMasterSecret,
-		// Create timeout context for accepted connection.
-		ConnectContextMaker: func() (context.Context, func()) {
-			return context.WithTimeout(context.Background(), 30*time.Second)
-		},
-		ClientCAs:      tlsCfg.ClientCAs,
-		ClientAuth:     dtls.ClientAuthType(tlsCfg.ClientAuth),
-		FlightInterval: l.md.flightInterval,
-		MTU:            l.md.mtu,
+		ClientCAs:            tlsCfg.ClientCAs,
+		ClientAuth:           dtls.ClientAuthType(tlsCfg.ClientAuth),
+		FlightInterval:       l.md.flightInterval,
+		MTU:                  l.md.mtu,
 	}
 
 	ln, err := dtls.Listen(network, laddr, &config)
 	if err != nil {
 		return
+	}
+	ln = &handshakeListener{
+		Listener: ln,
+		timeout:  30 * time.Second,
 	}
 	ln = proxyproto.WrapListener(l.options.ProxyProtocol, ln, 10*time.Second)
 	ln = metrics.WrapListener(l.options.Service, ln)
@@ -116,4 +116,29 @@ func (l *dtlsListener) Addr() net.Addr {
 
 func (l *dtlsListener) Close() error {
 	return l.ln.Close()
+}
+
+type handshakeListener struct {
+	net.Listener
+	timeout time.Duration
+}
+
+func (l *handshakeListener) Accept() (net.Conn, error) {
+	c, err := l.Listener.Accept()
+	if err != nil {
+		return nil, err
+	}
+	dtlsConn, ok := c.(*dtls.Conn)
+	if !ok {
+		return c, nil
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), l.timeout)
+	err = dtlsConn.HandshakeContext(ctx)
+	cancel()
+	if err != nil {
+		_ = c.Close()
+		return nil, err
+	}
+	return c, nil
 }

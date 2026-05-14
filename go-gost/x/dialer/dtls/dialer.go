@@ -10,7 +10,8 @@ import (
 	md "github.com/go-gost/core/metadata"
 	xdtls "github.com/go-gost/x/internal/util/dtls"
 	"github.com/go-gost/x/registry"
-	"github.com/pion/dtls/v2"
+	"github.com/pion/dtls/v3"
+	dtlsnet "github.com/pion/dtls/v3/pkg/net"
 )
 
 func init() {
@@ -66,8 +67,12 @@ func (d *dtlsDialer) Dial(ctx context.Context, addr string, opts ...dialer.DialO
 		MTU:                  d.md.mtu,
 	}
 
-	c, err := dtls.ClientWithContext(ctx, conn, &config)
+	c, err := dtls.Client(dtlsnet.PacketConnFromConn(conn), conn.RemoteAddr(), &config)
 	if err != nil {
+		return nil, err
+	}
+	if err := c.HandshakeContext(ctx); err != nil {
+		_ = c.Close()
 		return nil, err
 	}
 	return xdtls.Conn(c, d.md.bufferSize), nil
