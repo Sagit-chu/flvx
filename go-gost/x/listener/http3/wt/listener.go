@@ -102,7 +102,7 @@ func (l *wtListener) Init(md md.Metadata) (err error) {
 		Allow0RTT:          true,
 	}
 	l.srv = &wt.Server{
-		H3: http3.Server{
+		H3: &http3.Server{
 			Addr:       l.options.Addr,
 			TLSConfig:  l.options.TLSConfig,
 			QUICConfig: quicCfg,
@@ -182,7 +182,7 @@ func (l *wtListener) mux(s *wt.Session, log logger.Logger) (err error) {
 	}()
 
 	for {
-		var stream wt.Stream
+		var stream *wt.Stream
 		stream, err = s.AcceptStream(s.Context())
 		if err != nil {
 			log.Errorf("accept stream: %v", err)
@@ -193,7 +193,7 @@ func (l *wtListener) mux(s *wt.Session, log logger.Logger) (err error) {
 		case l.cqueue <- wt_util.Conn(s, stream):
 		default:
 			stream.Close()
-			l.logger.Warnf("connection queue is full, stream %v discarded", stream.StreamID())
+			l.logger.Warn("connection queue is full, stream discarded")
 		}
 	}
 }

@@ -7,7 +7,7 @@ import (
 )
 
 type quicConn struct {
-	quic.Stream
+	*quic.Stream
 	laddr net.Addr
 	raddr net.Addr
 }

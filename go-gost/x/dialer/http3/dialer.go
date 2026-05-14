@@ -72,7 +72,7 @@ func (d *http3Dialer) Dial(ctx context.Context, addr string, opts ...dialer.Dial
 				// Timeout:   60 * time.Second,
 				Transport: &http3.Transport{
 					TLSClientConfig: d.options.TLSConfig,
-					Dial: func(ctx context.Context, adr string, tlsCfg *tls.Config, cfg *quic.Config) (quic.EarlyConnection, error) {
+					Dial: func(ctx context.Context, adr string, tlsCfg *tls.Config, cfg *quic.Config) (*quic.Conn, error) {
 						// d.options.Logger.Infof("dial: %s/%s, %s", addr, network, host)
 						udpAddr, err := net.ResolveUDPAddr("udp", addr)
 						if err != nil {

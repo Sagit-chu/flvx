@@ -156,7 +156,7 @@ func (l *quicListener) listenLoop() {
 	}
 }
 
-func (l *quicListener) mux(ctx context.Context, session quic.Connection) {
+func (l *quicListener) mux(ctx context.Context, session *quic.Conn) {
 	defer session.CloseWithError(0, "closed")
 
 	for {

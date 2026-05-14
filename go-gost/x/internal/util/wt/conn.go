@@ -9,10 +9,10 @@ import (
 
 type conn struct {
 	session *wt.Session
-	stream  wt.Stream
+	stream  *wt.Stream
 }
 
-func Conn(session *wt.Session, stream wt.Stream) net.Conn {
+func Conn(session *wt.Session, stream *wt.Stream) net.Conn {
 	return &conn{
 		session: session,
 		stream:  stream,

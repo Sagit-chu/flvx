@@ -160,7 +160,7 @@ func (l *icmpListener) listenLoop() {
 	}
 }
 
-func (l *icmpListener) mux(ctx context.Context, session quic.EarlyConnection) {
+func (l *icmpListener) mux(ctx context.Context, session *quic.Conn) {
 	defer session.CloseWithError(0, "closed")
 
 	for {

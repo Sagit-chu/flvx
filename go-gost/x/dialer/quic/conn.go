@@ -8,7 +8,7 @@ import (
 )
 
 type quicSession struct {
-	session quic.EarlyConnection
+	session *quic.Conn
 }
 
 func (session *quicSession) GetConn() (*quicConn, error) {
@@ -28,7 +28,7 @@ func (session *quicSession) Close() error {
 }
 
 type quicConn struct {
-	quic.Stream
+	*quic.Stream
 	laddr net.Addr
 	raddr net.Addr
 }
