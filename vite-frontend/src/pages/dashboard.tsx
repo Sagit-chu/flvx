@@ -45,7 +45,7 @@ interface AddressItem {
 
 export default function DashboardPage() {
   const navigate = useNavigate();
-  const username = getSessionName() || "User";
+  const username = getSessionName() || "用户";
 
   const handleLogout = () => {
     safeLogout();
@@ -651,10 +651,10 @@ export default function DashboardPage() {
       <div className="flex justify-between items-center mb-6">
         <div>
           <h1 className="text-2xl lg:text-3xl font-bold text-foreground">
-            Good morning, {username}
+            早上好，{username}
           </h1>
           <p className="text-sm text-default-500 mt-1">
-            Here&apos;s what&apos;s happening with your network today.
+            这里是今天的网络运行概况。
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -693,6 +693,29 @@ export default function DashboardPage() {
               >
                 个人资料
               </DropdownItem>
+              {isAdmin ? (
+                <DropdownItem
+                  key="admin"
+                  startContent={
+                    <svg
+                      className="w-4 h-4"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                      />
+                    </svg>
+                  }
+                  onPress={() => navigate("/admin")}
+                >
+                  管理后台
+                </DropdownItem>
+              ) : null}
               <DropdownItem
                 key="logout"
                 className="text-danger"

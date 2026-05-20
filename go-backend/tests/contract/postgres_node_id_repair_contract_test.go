@@ -77,7 +77,7 @@ func TestPostgresNodeCreateRepairsMissingIDDefaultContract(t *testing.T) {
 	}
 
 	jwtSecret := "postgres-contract-secret"
-	router := httpserver.NewRouter(handler.New(r, jwtSecret), jwtSecret)
+	router := httpserver.NewRouter(handler.New(r, jwtSecret), jwtSecret, "")
 	token, err := auth.GenerateToken(1, "admin_user", 0, jwtSecret)
 	if err != nil {
 		t.Fatalf("generate admin token: %v", err)

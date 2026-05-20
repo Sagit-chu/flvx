@@ -10,12 +10,14 @@ import {
 import { BrandLogo } from "@/components/brand-logo";
 import { siteConfig, getCachedConfig } from "@/config/site";
 import { useWebViewMode } from "@/hooks/useWebViewMode";
+import { getAdminFlag } from "@/utils/session";
 
 export const Navbar = () => {
   const navigate = useNavigate();
   // 初始状态使用siteConfig中已经从缓存读取的值，避免闪烁
   const [appName, setAppName] = useState(siteConfig.name);
   const isWebView = useWebViewMode();
+  const isAdmin = getAdminFlag();
 
   useEffect(() => {
     // 异步检查是否有更新的配置
@@ -77,11 +79,11 @@ export const Navbar = () => {
 
         <NavbarContent className="basis-1/5 sm:basis-full" justify="end">
           {/* WebView设置图标 */}
-          {isWebView && (
+          {isWebView && isAdmin && (
             <button
               className="p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors"
               title="面板设置"
-              onClick={() => navigate("/config")}
+              onClick={() => navigate("/admin/config")}
             >
               <svg
                 className="w-5 h-5"

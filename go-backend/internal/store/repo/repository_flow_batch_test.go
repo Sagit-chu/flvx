@@ -159,6 +159,58 @@ func TestAddUserQuotaUsageBatchReturnsNormalizedViews(t *testing.T) {
 	}
 }
 
+func TestSubscriptionQuotaUsageAndReset(t *testing.T) {
+	r, err := Open(filepath.Join(t.TempDir(), "subscription-quota.db"))
+	if err != nil {
+		t.Fatalf("open repo: %v", err)
+	}
+	defer r.Close()
+
+	now := time.Now()
+	nowMs := now.UnixMilli()
+	if err := r.DB().Exec(`INSERT INTO user(id, user, pwd, role_id, exp_time, flow, in_flow, out_flow, flow_reset_time, num, created_time, updated_time, status) VALUES(2, 'u2', 'pwd', 1, 2727251700000, 99999, 0, 0, 1, 99999, ?, ?, 1)`, nowMs, nowMs).Error; err != nil {
+		t.Fatalf("insert user: %v", err)
+	}
+	if err := r.DB().Exec(`INSERT INTO plan(id, name, category, price_cents, currency, duration_days, flow, daily_quota_gb, monthly_quota_gb, num, created_time, updated_time, status) VALUES(101, 'plan-a', 'cat-a', 100, 'CNY', 30, 10, 1, 10, 5, ?, ?, 1)`, nowMs, nowMs).Error; err != nil {
+		t.Fatalf("insert plan: %v", err)
+	}
+	if err := r.DB().Exec(`INSERT INTO plan_entitlement(plan_id, scope_type, scope_id, created_time) VALUES(101, 'tunnel', 1, ?)`, nowMs).Error; err != nil {
+		t.Fatalf("insert entitlement: %v", err)
+	}
+	if err := r.DB().Exec(`INSERT INTO user_subscription(id, user_id, plan_id, order_id, status, starts_at, expires_at, snapshot, created_time, updated_time) VALUES(201, 2, 101, 301, 'active', ?, ?, '', ?, ?)`, nowMs, now.Add(24*time.Hour).UnixMilli(), nowMs, nowMs).Error; err != nil {
+		t.Fatalf("insert subscription: %v", err)
+	}
+
+	if err := r.AddSubscriptionQuotaUsageBatch([]FlowUploadCounterDelta{
+		{ForwardID: 20, UserID: 2, TunnelID: 1, UserTunnelID: 10, InFlow: 480, OutFlow: 660},
+		{ForwardID: 21, UserID: 2, TunnelID: 99, UserTunnelID: 11, InFlow: 1000, OutFlow: 1000},
+	}, now); err != nil {
+		t.Fatalf("add subscription usage: %v", err)
+	}
+	var quota struct {
+		DailyLimitGB     int64
+		MonthlyLimitGB   int64
+		DailyUsedBytes   int64
+		MonthlyUsedBytes int64
+	}
+	if err := r.DB().Table("user_subscription_quota").Where("subscription_id = ?", 201).Scan(&quota).Error; err != nil {
+		t.Fatalf("load quota: %v", err)
+	}
+	if quota.DailyLimitGB != 1 || quota.MonthlyLimitGB != 10 || quota.DailyUsedBytes != 1140 || quota.MonthlyUsedBytes != 1140 {
+		t.Fatalf("unexpected subscription quota: %#v", quota)
+	}
+
+	if err := r.ResetSubscriptionQuotaUsage(201, now); err != nil {
+		t.Fatalf("reset quota: %v", err)
+	}
+	if err := r.DB().Table("user_subscription_quota").Where("subscription_id = ?", 201).Scan(&quota).Error; err != nil {
+		t.Fatalf("reload quota: %v", err)
+	}
+	if quota.DailyUsedBytes != 0 || quota.MonthlyUsedBytes != 0 {
+		t.Fatalf("expected reset subscription quota usage, got %#v", quota)
+	}
+}
+
 func mustFlowBatchCount(t *testing.T, r *Repository, query string, args ...interface{}) int64 {
 	t.Helper()
 	var value int64

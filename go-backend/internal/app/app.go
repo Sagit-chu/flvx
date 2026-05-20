@@ -42,7 +42,7 @@ func New(cfg config.Config) (*App, error) {
 	}
 
 	h := handler.New(r, cfg.JWTSecret)
-	router := httpserver.NewRouter(h, cfg.JWTSecret)
+	router := httpserver.NewRouter(h, cfg.JWTSecret, cfg.CORSOrigins)
 
 	s := &http.Server{
 		Addr:              cfg.Addr,

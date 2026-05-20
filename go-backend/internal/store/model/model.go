@@ -155,6 +155,22 @@ type UserQuota struct {
 
 func (UserQuota) TableName() string { return "user_quota" }
 
+type UserSubscriptionQuota struct {
+	SubscriptionID   int64 `gorm:"column:subscription_id;primaryKey"`
+	UserID           int64 `gorm:"column:user_id;not null;index"`
+	PlanID           int64 `gorm:"column:plan_id;not null;index"`
+	DailyLimitGB     int64 `gorm:"column:daily_limit_gb;not null;default:0"`
+	MonthlyLimitGB   int64 `gorm:"column:monthly_limit_gb;not null;default:0"`
+	DailyUsedBytes   int64 `gorm:"column:daily_used_bytes;not null;default:0"`
+	MonthlyUsedBytes int64 `gorm:"column:monthly_used_bytes;not null;default:0"`
+	DayKey           int64 `gorm:"column:day_key;not null;default:0"`
+	MonthKey         int64 `gorm:"column:month_key;not null;default:0"`
+	CreatedTime      int64 `gorm:"column:created_time;not null"`
+	UpdatedTime      int64 `gorm:"column:updated_time;not null"`
+}
+
+func (UserSubscriptionQuota) TableName() string { return "user_subscription_quota" }
+
 type ChainTunnel struct {
 	ID        int64          `gorm:"primaryKey;autoIncrement"`
 	TunnelID  int64          `gorm:"column:tunnel_id;not null"`
@@ -242,6 +258,262 @@ type GroupPermissionGrant struct {
 }
 
 func (GroupPermissionGrant) TableName() string { return "group_permission_grant" }
+
+type Plan struct {
+	ID                  int64         `gorm:"primaryKey;autoIncrement" json:"id"`
+	Name                string        `gorm:"type:varchar(100);not null" json:"name"`
+	Description         string        `gorm:"type:text;not null;default:''" json:"description"`
+	Category            string        `gorm:"type:varchar(100);not null;default:'默认'" json:"category"`
+	PriceCents          int64         `gorm:"column:price_cents;not null;default:0" json:"priceCents"`
+	ResetFlowPriceCents int64         `gorm:"column:reset_flow_price_cents;not null;default:0" json:"resetFlowPriceCents"`
+	Currency            string        `gorm:"type:varchar(10);not null;default:'CNY'" json:"currency"`
+	DurationDays        int           `gorm:"column:duration_days;not null;default:30" json:"durationDays"`
+	Flow                int64         `gorm:"not null;default:0" json:"flow"`
+	DailyQuotaGB        int64         `gorm:"column:daily_quota_gb;not null;default:0" json:"dailyQuotaGB"`
+	MonthlyQuotaGB      int64         `gorm:"column:monthly_quota_gb;not null;default:0" json:"monthlyQuotaGB"`
+	Num                 int           `gorm:"not null;default:0" json:"num"`
+	MaxConn             int           `gorm:"column:max_conn;not null;default:0" json:"maxConn"`
+	SpeedID             sql.NullInt64 `gorm:"column:speed_id" json:"speedId"`
+	Sort                int           `gorm:"not null;default:0" json:"sort"`
+	Status              int           `gorm:"not null;default:1" json:"status"`
+	CreatedTime         int64         `gorm:"column:created_time;not null" json:"createdTime"`
+	UpdatedTime         int64         `gorm:"column:updated_time;not null" json:"updatedTime"`
+}
+
+func (Plan) TableName() string { return "plan" }
+
+type PlanEntitlement struct {
+	ID          int64  `gorm:"primaryKey;autoIncrement"`
+	PlanID      int64  `gorm:"column:plan_id;not null;uniqueIndex:idx_plan_entitlement_unique"`
+	ScopeType   string `gorm:"column:scope_type;type:varchar(20);not null;uniqueIndex:idx_plan_entitlement_unique"`
+	ScopeID     int64  `gorm:"column:scope_id;not null;uniqueIndex:idx_plan_entitlement_unique"`
+	CreatedTime int64  `gorm:"column:created_time;not null"`
+}
+
+func (PlanEntitlement) TableName() string { return "plan_entitlement" }
+
+type InviteCode struct {
+	ID          int64  `gorm:"primaryKey;autoIncrement" json:"id"`
+	Code        string `gorm:"type:varchar(64);not null;uniqueIndex" json:"code"`
+	MaxUses     int    `gorm:"column:max_uses;not null;default:1" json:"maxUses"`
+	UsedCount   int    `gorm:"column:used_count;not null;default:0" json:"usedCount"`
+	ExpTime     int64  `gorm:"column:exp_time;not null;default:0" json:"expTime"`
+	Status      int    `gorm:"not null;default:1" json:"status"`
+	CreatedTime int64  `gorm:"column:created_time;not null" json:"createdTime"`
+	UpdatedTime int64  `gorm:"column:updated_time;not null" json:"updatedTime"`
+}
+
+func (InviteCode) TableName() string { return "invite_code" }
+
+type InviteCodeUsage struct {
+	ID          int64  `gorm:"primaryKey;autoIncrement"`
+	CodeID      int64  `gorm:"column:code_id;not null;index"`
+	UserID      int64  `gorm:"column:user_id;not null;index"`
+	Username    string `gorm:"type:varchar(100);not null"`
+	CreatedTime int64  `gorm:"column:created_time;not null"`
+}
+
+func (InviteCodeUsage) TableName() string { return "invite_code_usage" }
+
+type CommerceOrder struct {
+	ID                int64  `gorm:"primaryKey;autoIncrement" json:"id"`
+	OrderNo           string `gorm:"column:order_no;type:varchar(64);not null;uniqueIndex" json:"orderNo"`
+	UserID            int64  `gorm:"column:user_id;not null;index" json:"userId"`
+	PlanID            int64  `gorm:"column:plan_id;not null;index" json:"planId"`
+	AmountCents       int64  `gorm:"column:amount_cents;not null" json:"amountCents"`
+	Currency          string `gorm:"type:varchar(10);not null;default:'CNY'" json:"currency"`
+	Status            string `gorm:"type:varchar(30);not null;default:'pending'" json:"status"`
+	PaymentStatus     string `gorm:"column:payment_status;type:varchar(30);not null;default:'unpaid'" json:"paymentStatus"`
+	FulfillmentStatus string `gorm:"column:fulfillment_status;type:varchar(30);not null;default:'pending'" json:"fulfillmentStatus"`
+	RefundStatus      string `gorm:"column:refund_status;type:varchar(30);not null;default:'none'" json:"refundStatus"`
+	RefundAmountCents int64  `gorm:"column:refund_amount_cents;not null;default:0" json:"refundAmountCents"`
+	RefundReason      string `gorm:"column:refund_reason;type:text;not null;default:''" json:"refundReason"`
+	OrderType         string `gorm:"column:order_type;type:varchar(30);not null;default:'new'" json:"orderType"`
+	PaymentProvider   string `gorm:"column:payment_provider;type:varchar(30);not null;default:'epay'" json:"paymentProvider"`
+	ProviderTradeNo   string `gorm:"column:provider_trade_no;type:varchar(100);not null;default:'';index" json:"providerTradeNo"`
+	Snapshot          string `gorm:"type:text;not null;default:''" json:"snapshot"`
+	PaidTime          int64  `gorm:"column:paid_time;not null;default:0" json:"paidTime"`
+	ProvisionedTime   int64  `gorm:"column:provisioned_time;not null;default:0" json:"provisionedTime"`
+	CancelledTime     int64  `gorm:"column:cancelled_time;not null;default:0" json:"cancelledTime"`
+	RefundedTime      int64  `gorm:"column:refunded_time;not null;default:0" json:"refundedTime"`
+	FailureReason     string `gorm:"column:failure_reason;type:text;not null;default:''" json:"failureReason"`
+	CreatedTime       int64  `gorm:"column:created_time;not null" json:"createdTime"`
+	UpdatedTime       int64  `gorm:"column:updated_time;not null" json:"updatedTime"`
+}
+
+func (CommerceOrder) TableName() string { return "commerce_order" }
+
+type PaymentRecord struct {
+	ID              int64  `gorm:"primaryKey;autoIncrement"`
+	OrderID         int64  `gorm:"column:order_id;not null;index"`
+	OrderNo         string `gorm:"column:order_no;type:varchar(64);not null;index"`
+	Provider        string `gorm:"type:varchar(30);not null;uniqueIndex:idx_payment_provider_trade"`
+	ProviderTradeNo string `gorm:"column:provider_trade_no;type:varchar(100);not null;uniqueIndex:idx_payment_provider_trade"`
+	AmountCents     int64  `gorm:"column:amount_cents;not null"`
+	Status          string `gorm:"type:varchar(30);not null"`
+	RawPayload      string `gorm:"column:raw_payload;type:text;not null;default:''"`
+	CreatedTime     int64  `gorm:"column:created_time;not null"`
+	UpdatedTime     int64  `gorm:"column:updated_time;not null"`
+}
+
+func (PaymentRecord) TableName() string { return "payment_record" }
+
+type UserSubscription struct {
+	ID          int64  `gorm:"primaryKey;autoIncrement" json:"id"`
+	UserID      int64  `gorm:"column:user_id;not null;index" json:"userId"`
+	PlanID      int64  `gorm:"column:plan_id;not null;index" json:"planId"`
+	OrderID     int64  `gorm:"column:order_id;not null;index" json:"orderId"`
+	Status      string `gorm:"type:varchar(30);not null;default:'active'" json:"status"`
+	StartsAt    int64  `gorm:"column:starts_at;not null" json:"startsAt"`
+	ExpiresAt   int64  `gorm:"column:expires_at;not null" json:"expiresAt"`
+	Snapshot    string `gorm:"type:text;not null;default:''" json:"snapshot"`
+	CreatedTime int64  `gorm:"column:created_time;not null" json:"createdTime"`
+	UpdatedTime int64  `gorm:"column:updated_time;not null" json:"updatedTime"`
+}
+
+func (UserSubscription) TableName() string { return "user_subscription" }
+
+type AuditLog struct {
+	ID          int64  `gorm:"primaryKey;autoIncrement" json:"id"`
+	ActorID     int64  `gorm:"column:actor_id;not null;default:0;index" json:"actorId"`
+	ActorName   string `gorm:"column:actor_name;type:varchar(100);not null;default:''" json:"actorName"`
+	Action      string `gorm:"type:varchar(100);not null;index" json:"action"`
+	TargetType  string `gorm:"column:target_type;type:varchar(50);not null;index" json:"targetType"`
+	TargetID    int64  `gorm:"column:target_id;not null;default:0;index" json:"targetId"`
+	Summary     string `gorm:"type:text;not null;default:''" json:"summary"`
+	Payload     string `gorm:"type:text;not null;default:''" json:"payload"`
+	CreatedTime int64  `gorm:"column:created_time;not null;index" json:"createdTime"`
+}
+
+func (AuditLog) TableName() string { return "audit_log" }
+
+type Notification struct {
+	ID          int64  `gorm:"primaryKey;autoIncrement" json:"id"`
+	UserID      int64  `gorm:"column:user_id;not null;index" json:"userId"`
+	Title       string `gorm:"type:varchar(120);not null" json:"title"`
+	Content     string `gorm:"type:text;not null;default:''" json:"content"`
+	Level       string `gorm:"type:varchar(20);not null;default:'info'" json:"level"`
+	ReadTime    int64  `gorm:"column:read_time;not null;default:0" json:"readTime"`
+	CreatedTime int64  `gorm:"column:created_time;not null;index" json:"createdTime"`
+}
+
+func (Notification) TableName() string { return "notification" }
+
+type RefundRequest struct {
+	ID          int64  `gorm:"primaryKey;autoIncrement" json:"id"`
+	OrderID     int64  `gorm:"column:order_id;not null;index" json:"orderId"`
+	OrderNo     string `gorm:"column:order_no;type:varchar(64);not null;index" json:"orderNo"`
+	UserID      int64  `gorm:"column:user_id;not null;index" json:"userId"`
+	AmountCents int64  `gorm:"column:amount_cents;not null" json:"amountCents"`
+	Reason      string `gorm:"type:text;not null;default:''" json:"reason"`
+	AdminNote   string `gorm:"column:admin_note;type:text;not null;default:''" json:"adminNote"`
+	Status      string `gorm:"type:varchar(30);not null;default:'pending';index" json:"status"`
+	CreatedTime int64  `gorm:"column:created_time;not null" json:"createdTime"`
+	UpdatedTime int64  `gorm:"column:updated_time;not null" json:"updatedTime"`
+	HandledTime int64  `gorm:"column:handled_time;not null;default:0" json:"handledTime"`
+}
+
+func (RefundRequest) TableName() string { return "refund_request" }
+
+type SupportTicket struct {
+	ID           int64  `gorm:"primaryKey;autoIncrement" json:"id"`
+	UserID       int64  `gorm:"column:user_id;not null;index" json:"userId"`
+	Title        string `gorm:"type:varchar(160);not null" json:"title"`
+	Category     string `gorm:"type:varchar(50);not null;default:'general'" json:"category"`
+	Status       string `gorm:"type:varchar(30);not null;default:'open';index" json:"status"`
+	Priority     string `gorm:"type:varchar(20);not null;default:'normal'" json:"priority"`
+	InternalNote string `gorm:"column:internal_note;type:text;not null;default:''" json:"internalNote"`
+	CreatedTime  int64  `gorm:"column:created_time;not null" json:"createdTime"`
+	UpdatedTime  int64  `gorm:"column:updated_time;not null" json:"updatedTime"`
+	ClosedTime   int64  `gorm:"column:closed_time;not null;default:0" json:"closedTime"`
+}
+
+func (SupportTicket) TableName() string { return "support_ticket" }
+
+type SupportTicketMessage struct {
+	ID            int64  `gorm:"primaryKey;autoIncrement" json:"id"`
+	TicketID      int64  `gorm:"column:ticket_id;not null;index" json:"ticketId"`
+	UserID        int64  `gorm:"column:user_id;not null;default:0;index" json:"userId"`
+	IsAdmin       int    `gorm:"column:is_admin;not null;default:0" json:"isAdmin"`
+	Content       string `gorm:"type:text;not null" json:"content"`
+	AttachmentURL string `gorm:"column:attachment_url;type:text;not null;default:''" json:"attachmentUrl"`
+	CreatedTime   int64  `gorm:"column:created_time;not null" json:"createdTime"`
+}
+
+func (SupportTicketMessage) TableName() string { return "support_ticket_message" }
+
+type WalletLedger struct {
+	ID                int64  `gorm:"primaryKey;autoIncrement" json:"id"`
+	UserID            int64  `gorm:"column:user_id;not null;index" json:"userId"`
+	AmountCents       int64  `gorm:"column:amount_cents;not null" json:"amountCents"`
+	BalanceAfterCents int64  `gorm:"column:balance_after_cents;not null;default:0" json:"balanceAfterCents"`
+	Type              string `gorm:"type:varchar(30);not null;index" json:"type"`
+	RefType           string `gorm:"column:ref_type;type:varchar(50);not null;default:''" json:"refType"`
+	RefID             int64  `gorm:"column:ref_id;not null;default:0" json:"refId"`
+	Note              string `gorm:"type:text;not null;default:''" json:"note"`
+	CreatedTime       int64  `gorm:"column:created_time;not null" json:"createdTime"`
+}
+
+func (WalletLedger) TableName() string { return "wallet_ledger" }
+
+type UserWallet struct {
+	UserID       int64 `gorm:"column:user_id;primaryKey" json:"userId"`
+	BalanceCents int64 `gorm:"column:balance_cents;not null;default:0" json:"balanceCents"`
+	CreatedTime  int64 `gorm:"column:created_time;not null" json:"createdTime"`
+	UpdatedTime  int64 `gorm:"column:updated_time;not null" json:"updatedTime"`
+}
+
+func (UserWallet) TableName() string { return "user_wallet" }
+
+type Coupon struct {
+	ID             int64  `gorm:"primaryKey;autoIncrement" json:"id"`
+	Code           string `gorm:"type:varchar(64);not null;uniqueIndex" json:"code"`
+	Name           string `gorm:"type:varchar(100);not null;default:''" json:"name"`
+	DiscountType   string `gorm:"column:discount_type;type:varchar(20);not null;default:'fixed'" json:"discountType"`
+	DiscountValue  int64  `gorm:"column:discount_value;not null;default:0" json:"discountValue"`
+	PlanID         int64  `gorm:"column:plan_id;not null;default:0;index" json:"planId"`
+	Category       string `gorm:"type:varchar(100);not null;default:''" json:"category"`
+	MinAmountCents int64  `gorm:"column:min_amount_cents;not null;default:0" json:"minAmountCents"`
+	PerUserLimit   int    `gorm:"column:per_user_limit;not null;default:0" json:"perUserLimit"`
+	MaxUses        int    `gorm:"column:max_uses;not null;default:0" json:"maxUses"`
+	UsedCount      int    `gorm:"column:used_count;not null;default:0" json:"usedCount"`
+	ExpTime        int64  `gorm:"column:exp_time;not null;default:0" json:"expTime"`
+	Status         int    `gorm:"not null;default:1" json:"status"`
+	CreatedTime    int64  `gorm:"column:created_time;not null" json:"createdTime"`
+	UpdatedTime    int64  `gorm:"column:updated_time;not null" json:"updatedTime"`
+}
+
+func (Coupon) TableName() string { return "coupon" }
+
+type CouponUsage struct {
+	ID            int64  `gorm:"primaryKey;autoIncrement" json:"id"`
+	CouponID      int64  `gorm:"column:coupon_id;not null;index;uniqueIndex:idx_coupon_usage_order" json:"couponId"`
+	OrderID       int64  `gorm:"column:order_id;not null;index;uniqueIndex:idx_coupon_usage_order" json:"orderId"`
+	OrderNo       string `gorm:"column:order_no;type:varchar(64);not null;index" json:"orderNo"`
+	UserID        int64  `gorm:"column:user_id;not null;index" json:"userId"`
+	DiscountCents int64  `gorm:"column:discount_cents;not null;default:0" json:"discountCents"`
+	CreatedTime   int64  `gorm:"column:created_time;not null" json:"createdTime"`
+}
+
+func (CouponUsage) TableName() string { return "coupon_usage" }
+
+type CommerceResourceJob struct {
+	ID           int64  `gorm:"primaryKey;autoIncrement" json:"id"`
+	JobType      string `gorm:"column:job_type;type:varchar(50);not null;index" json:"jobType"`
+	UserID       int64  `gorm:"column:user_id;not null;default:0;index" json:"userId"`
+	OrderID      int64  `gorm:"column:order_id;not null;default:0;index" json:"orderId"`
+	Status       string `gorm:"type:varchar(30);not null;default:'pending';index" json:"status"`
+	Attempts     int    `gorm:"not null;default:0" json:"attempts"`
+	MaxAttempts  int    `gorm:"column:max_attempts;not null;default:5" json:"maxAttempts"`
+	NextRunAt    int64  `gorm:"column:next_run_at;not null;default:0;index" json:"nextRunAt"`
+	LastError    string `gorm:"column:last_error;type:text;not null;default:''" json:"lastError"`
+	Payload      string `gorm:"type:text;not null;default:''" json:"payload"`
+	CreatedTime  int64  `gorm:"column:created_time;not null" json:"createdTime"`
+	UpdatedTime  int64  `gorm:"column:updated_time;not null" json:"updatedTime"`
+	FinishedTime int64  `gorm:"column:finished_time;not null;default:0" json:"finishedTime"`
+}
+
+func (CommerceResourceJob) TableName() string { return "commerce_resource_job" }
 
 // MonitorPermission grants a non-admin user access to monitoring endpoints.
 // One row per user_id.

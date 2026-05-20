@@ -116,6 +116,18 @@ func shouldSkip(path string) bool {
 		return false
 	case path == "/api/v1/user/login":
 		return true
+	case path == "/api/v1/user/register":
+		return true
+	case path == "/api/v1/commerce/public/settings":
+		return true
+	case path == "/api/v1/commerce/plans/public":
+		return true
+	case path == "/api/v1/commerce/legal":
+		return true
+	case path == "/api/v1/payment/epay/notify":
+		return true
+	case path == "/api/v1/license/local/bootstrap":
+		return true
 	case path == "/api/v1/public/config/get":
 		return true
 	case path == "/api/v1/federation/connect":
@@ -143,6 +155,14 @@ func requiresAdmin(path string) bool {
 	}
 
 	if strings.HasPrefix(path, "/api/v1/system/") {
+		return true
+	}
+
+	if strings.HasPrefix(path, "/api/v1/license/local/") {
+		return true
+	}
+
+	if strings.HasPrefix(path, "/api/v1/admin/commerce/") {
 		return true
 	}
 
@@ -178,7 +198,7 @@ func requiresAdmin(path string) bool {
 	}
 
 	switch path {
-	case "/api/v1/user/create", "/api/v1/user/list", "/api/v1/user/update", "/api/v1/user/delete", "/api/v1/user/reset":
+	case "/api/v1/user/create", "/api/v1/user/list", "/api/v1/user/update", "/api/v1/user/delete", "/api/v1/user/reset", "/api/v1/user/quota/reset":
 		return true
 	case "/api/v1/config/update", "/api/v1/config/update-single":
 		return true

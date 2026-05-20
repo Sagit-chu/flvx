@@ -18,7 +18,14 @@ const PUBLIC_BRAND_CONFIG_KEYS = [
 const SENSITIVE_CONFIG_KEYS = new Set([
   "jwt_secret",
   "license_key",
+  "license_certificate",
+  "license_instance_id",
+  "license_public_key",
+  "license_center_url",
+  "license_last_error",
+  "license_updated_at",
   "cloudflare_secret_key",
+  "epay_key",
 ]);
 const GITHUB_REPO =
   import.meta.env.VITE_GITHUB_REPO || "https://github.com/Sagit-chu/flux-panel";
@@ -79,7 +86,7 @@ const fetchPublicBrandConfigs = async (): Promise<Record<string, string>> => {
 const getInitialConfig = () => {
   if (typeof window === "undefined") {
     return {
-      name: "FLVX",
+      name: "Fiux-Row定制版",
       version: VERSION,
       app_version: APP_VERSION,
       github_repo: GITHUB_REPO,
@@ -119,7 +126,7 @@ const getInitialConfig = () => {
   }
 
   return {
-    name: "FLVX",
+    name: "Fiux-Row定制版",
     version: VERSION,
     app_version: APP_VERSION,
     github_repo: GITHUB_REPO,

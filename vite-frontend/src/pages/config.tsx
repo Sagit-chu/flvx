@@ -1,10 +1,3 @@
-import type {
-  SystemUpgradeCheckApiData,
-  SystemUpgradeRunApiData,
-  SystemUpgradeReleaseApiItem,
-  SystemUpgradeVersionApiData,
-} from "@/api/types";
-
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
@@ -28,15 +21,11 @@ import {
 } from "@/shadcn-bridge/heroui/modal";
 import {
   updateConfigs,
-  activateLicense,
   exportBackup,
   importBackup,
   getAnnouncement,
   updateAnnouncement,
   getStorageSummary,
-  getSystemUpgradeVersion,
-  checkSystemUpgrade,
-  runSystemUpgrade,
   type AnnouncementData,
 } from "@/api";
 import { BackIcon, SettingsIcon } from "@/components/icons";
@@ -83,6 +72,12 @@ interface ConfigItem {
 }
 
 const BRAND_PREVIEW_KEYS = ["app_logo", "app_favicon"] as const;
+const BRAND_CONFIG_KEYS = [
+  "app_name",
+  "app_logo",
+  "app_favicon",
+  "hide_footer_brand",
+] as const;
 
 type BrandPreviewKey = (typeof BRAND_PREVIEW_KEYS)[number];
 
@@ -141,7 +136,7 @@ const CONFIG_ITEMS: ConfigItem[] = [
   {
     key: "hide_footer_brand",
     label: "隐藏页面底部 FLVX 版权信息",
-    description: "需商业版授权才能生效",
+    description: "开启后隐藏页面底部的 FLVX 版权信息",
     type: "switch",
   },
   {
@@ -244,6 +239,7 @@ const getInitialConfigs = (): Record<string, string> => {
     "panel_domain",
     "app_logo",
     "app_favicon",
+    "hide_footer_brand",
     "github_proxy_enabled",
     "github_proxy_url",
     "allow_local_remote_addr",
@@ -285,9 +281,6 @@ export default function ConfigPage() {
   const [importFileName, setImportFileName] = useState("");
   const backupFileInputRef = useRef<HTMLInputElement>(null);
 
-  const [activatingLicense, setActivatingLicense] = useState(false);
-  const [licenseKeyInput, setLicenseKeyInput] = useState("");
-
   const logoFileInputRef = useRef<HTMLInputElement>(null);
   const faviconFileInputRef = useRef<HTMLInputElement>(null);
   const bgImageFileInputRef = useRef<HTMLInputElement>(null);
@@ -302,19 +295,6 @@ export default function ConfigPage() {
   const [updateChannel, setUpdateChannel] = useState<UpdateReleaseChannel>(
     getUpdateReleaseChannel(),
   );
-  const [systemUpgradeInfo, setSystemUpgradeInfo] =
-    useState<SystemUpgradeVersionApiData | null>(null);
-  const [systemUpgradeChecking, setSystemUpgradeChecking] = useState(false);
-  const [systemUpgradeExecuting, setSystemUpgradeExecuting] = useState(false);
-  const [systemUpgradeLoading, setSystemUpgradeLoading] = useState(true);
-  const [systemUpgradeModalOpen, setSystemUpgradeModalOpen] = useState(false);
-  const [systemUpgradeReleases, setSystemUpgradeReleases] = useState<
-    SystemUpgradeReleaseApiItem[]
-  >([]);
-  const [systemUpgradeCheckedChannel, setSystemUpgradeCheckedChannel] =
-    useState<UpdateReleaseChannel | null>(null);
-  const [systemUpgradeSelectedVersion, setSystemUpgradeSelectedVersion] =
-    useState("");
   const [previewLoadFailed, setPreviewLoadFailed] = useState<
     Partial<Record<BrandPreviewKey, boolean>>
   >({});
@@ -322,26 +302,6 @@ export default function ConfigPage() {
     Partial<Record<BrandPreviewKey, boolean>>
   >({});
   const [storageSummary, setStorageSummary] = useState("加载中...");
-  const systemUpgradeReleasesMatchChannel =
-    systemUpgradeCheckedChannel === updateChannel;
-  const systemUpgradeHasConfirmedUpdate = Boolean(
-    systemUpgradeInfo?.hasUpdate &&
-      systemUpgradeReleasesMatchChannel &&
-      systemUpgradeReleases.length > 0,
-  );
-  const canTriggerSystemUpgrade = Boolean(
-    !systemUpgradeLoading &&
-      !systemUpgradeChecking &&
-      !systemUpgradeExecuting &&
-      systemUpgradeInfo?.capability.capable !== false,
-  );
-  const canOpenSystemUpgradeModal = Boolean(
-    systemUpgradeInfo?.capability.capable &&
-      systemUpgradeHasConfirmedUpdate &&
-      !systemUpgradeLoading &&
-      !systemUpgradeChecking &&
-      !systemUpgradeExecuting,
-  );
 
   const canGoBack =
     typeof window !== "undefined" &&
@@ -416,38 +376,11 @@ export default function ConfigPage() {
     }
   };
 
-  const loadSystemUpgradeInfo = async (channel = updateChannel) => {
-    setSystemUpgradeLoading(true);
-    try {
-      const response = await getSystemUpgradeVersion();
-
-      if (response.code === 0 && response.data) {
-        setSystemUpgradeInfo({
-          ...response.data,
-          channel,
-          hasUpdate:
-            response.data.channel === channel ? response.data.hasUpdate : false,
-          latestVersion:
-            response.data.channel === channel
-              ? response.data.latestVersion
-              : "",
-        });
-      } else {
-        setSystemUpgradeInfo(null);
-      }
-    } catch {
-      setSystemUpgradeInfo(null);
-    } finally {
-      setSystemUpgradeLoading(false);
-    }
-  };
-
   useEffect(() => {
     const timer = setTimeout(() => {
       loadConfigs(initialConfigs);
       loadAnnouncement();
       loadStorageSummary();
-      void loadSystemUpgradeInfo();
     }, 100);
 
     return () => clearTimeout(timer);
@@ -487,117 +420,9 @@ export default function ConfigPage() {
   const handleUpdateChannelChange = (channel: UpdateReleaseChannel) => {
     setUpdateChannel(channel);
     setUpdateReleaseChannel(channel);
-    setSystemUpgradeSelectedVersion("");
-    setSystemUpgradeReleases([]);
-    setSystemUpgradeCheckedChannel(null);
-    void loadSystemUpgradeInfo(channel);
     toast.success(
       `更新通道已切换为${channel === "stable" ? "稳定版" : "开发版"}`,
     );
-  };
-
-  const handleCheckSystemUpgrade = async () => {
-    const channel = updateChannel;
-
-    setSystemUpgradeChecking(true);
-    try {
-      const response = await checkSystemUpgrade(channel);
-
-      if (response.code === 0 && response.data) {
-        const data = response.data as SystemUpgradeCheckApiData;
-
-        setSystemUpgradeInfo(data);
-        setSystemUpgradeReleases(data.releases || []);
-        setSystemUpgradeCheckedChannel(channel);
-        setSystemUpgradeSelectedVersion("");
-        if (data.latestVersion && !data.hasUpdate) {
-          toast.success("当前已是最新版本");
-
-          return false;
-        }
-        toast.success(
-          data.latestVersion
-            ? `已检查到最新版本 ${data.latestVersion}`
-            : "未获取到可用版本",
-        );
-
-        return Boolean(
-          data.capability.capable && data.hasUpdate && data.releases?.length,
-        );
-      } else {
-        setSystemUpgradeReleases([]);
-        setSystemUpgradeCheckedChannel(null);
-        toast.error(response.msg || "检查更新失败");
-      }
-    } catch {
-      setSystemUpgradeReleases([]);
-      setSystemUpgradeCheckedChannel(null);
-      toast.error("检查更新失败，请重试");
-    } finally {
-      setSystemUpgradeChecking(false);
-    }
-
-    return false;
-  };
-
-  const handleOpenSystemUpgradeModal = async () => {
-    if (!canOpenSystemUpgradeModal) {
-      const checked = await handleCheckSystemUpgrade();
-
-      if (!checked) {
-        return;
-      }
-    }
-    setSystemUpgradeModalOpen(true);
-  };
-
-  const handleConfirmSystemUpgrade = async () => {
-    setSystemUpgradeExecuting(true);
-    try {
-      const response = await runSystemUpgrade(
-        systemUpgradeSelectedVersion || undefined,
-        updateChannel,
-      );
-
-      if (response.code === 0 && response.data) {
-        const data = response.data as SystemUpgradeRunApiData;
-
-        setSystemUpgradeModalOpen(false);
-        setSystemUpgradeSelectedVersion("");
-        toast.success(data.message || "升级已触发，请稍后刷新页面");
-      } else {
-        toast.error(response.msg || "面板升级失败");
-      }
-    } catch {
-      toast.error("面板升级失败，请重试");
-    } finally {
-      setSystemUpgradeExecuting(false);
-    }
-  };
-
-  const handleActivateLicense = async () => {
-    if (!licenseKeyInput.trim()) {
-      toast.error("请输入有效的商业授权码");
-
-      return;
-    }
-    setActivatingLicense(true);
-    try {
-      const res = await activateLicense(licenseKeyInput.trim());
-
-      if (res.code === 0) {
-        toast.success("商业版授权激活成功！");
-        setLicenseKeyInput("");
-        await loadConfigs();
-        window.dispatchEvent(new CustomEvent("configUpdated"));
-      } else {
-        toast.error(res.msg || "授权激活失败");
-      }
-    } catch (e: any) {
-      toast.error(e.message || "授权激活出错");
-    } finally {
-      setActivatingLicense(false);
-    }
   };
 
   const handleConfigChange = (key: string, value: string) => {
@@ -689,11 +514,8 @@ export default function ConfigPage() {
 
   // 检查配置项是否应该显示（依赖检查）
   const shouldShowItem = (item: ConfigItem): boolean => {
-    // 隐藏商业版专属的设置项，它们会在专门的卡片中展示
     if (
-      ["app_name", "app_logo", "app_favicon", "hide_footer_brand"].includes(
-        item.key,
-      )
+      BRAND_CONFIG_KEYS.includes(item.key as (typeof BRAND_CONFIG_KEYS)[number])
     ) {
       return false;
     }
@@ -1000,7 +822,6 @@ export default function ConfigPage() {
     const value = (configs[key] || "").trim();
     const uploading = brandUploading[key] === true;
     const isLogo = key === "app_logo";
-    const isCommercialDisabled = configs.is_commercial !== "true";
 
     return (
       <div
@@ -1014,7 +835,7 @@ export default function ConfigPage() {
           ref={getBrandInputRef(key)}
           accept={BRAND_FILE_ACCEPT}
           className="hidden"
-          disabled={uploading || isCommercialDisabled}
+          disabled={uploading}
           type="file"
           onChange={(event) => {
             void handleBrandFileChange(key, event);
@@ -1024,7 +845,6 @@ export default function ConfigPage() {
         <div className="flex flex-wrap items-center gap-2">
           <Button
             color="primary"
-            isDisabled={isCommercialDisabled}
             isLoading={uploading}
             size="sm"
             variant="flat"
@@ -1066,10 +886,6 @@ export default function ConfigPage() {
   const renderConfigItem = (item: ConfigItem) => {
     const isChanged =
       hasChanges && configs[item.key] !== originalConfigs[item.key];
-    const isCommercialDisabled =
-      ["app_name", "app_logo", "app_favicon", "hide_footer_brand"].includes(
-        item.key,
-      ) && configs.is_commercial !== "true";
 
     switch (item.type) {
       case "bg_image":
@@ -1088,10 +904,6 @@ export default function ConfigPage() {
                 ? "border-warning-300 data-[hover=true]:border-warning-400"
                 : "",
             }}
-            description={
-              isCommercialDisabled ? "需商业版授权才能修改此项" : undefined
-            }
-            isDisabled={isCommercialDisabled}
             placeholder={item.placeholder}
             size="md"
             value={configs[item.key] || ""}
@@ -1106,7 +918,6 @@ export default function ConfigPage() {
             classNames={{
               wrapper: isChanged ? "border-warning-300" : "",
             }}
-            isDisabled={isCommercialDisabled}
             isSelected={configs[item.key] === "true"}
             size="sm"
             onValueChange={(checked) =>
@@ -1342,80 +1153,37 @@ export default function ConfigPage() {
         <CardHeader className="pb-6">
           <div className="flex items-center w-full">
             <div>
-              <h2 className="text-xl font-semibold">商业版授权</h2>
+              <h2 className="text-xl font-semibold">品牌设置</h2>
               <p className="text-sm text-gray-600 dark:text-gray-400">
-                激活商业版授权以解锁自定义品牌功能（替换
-                Logo、应用名称，移除底部版权信息等）
+                配置应用名称、Logo、浏览器图标和底部版权显示
               </p>
             </div>
           </div>
         </CardHeader>
         <Divider />
-        <CardBody className="pt-8">
-          <div className="flex items-end gap-3 max-w-lg mb-6">
-            <Input
-              description={
-                configs.is_commercial === "true"
-                  ? configs.license_expiry && configs.license_expiry !== "never"
-                    ? `已激活商业版授权 (有效期至: ${new Date(configs.license_expiry).toLocaleDateString()})`
-                    : "已激活商业版授权 (永久有效)"
-                  : "需商业授权才能修改站名、图标并隐藏页脚品牌"
-              }
-              isDisabled={configs.is_commercial === "true"}
-              label="授权激活码"
-              placeholder="请输入 FLVX- 开头的商业授权码"
-              value={licenseKeyInput}
-              variant="bordered"
-              onChange={(e) => setLicenseKeyInput(e.target.value)}
-            />
-            <Button
-              className="mb-6"
-              color="primary"
-              isDisabled={
-                configs.is_commercial === "true" || !licenseKeyInput.trim()
-              }
-              isLoading={activatingLicense}
-              onPress={handleActivateLicense}
-            >
-              {configs.is_commercial === "true" ? "已授权" : "激活授权"}
-            </Button>
-          </div>
-
-          {configs.is_commercial === "true" && (
-            <div className="space-y-6">
-              <Divider className="my-2" />
-              <h3 className="text-md font-medium text-default-700">
-                白标与品牌设置
-              </h3>
-              {CONFIG_ITEMS.filter((item) =>
-                [
-                  "app_name",
-                  "app_logo",
-                  "app_favicon",
-                  "hide_footer_brand",
-                ].includes(item.key),
-              ).map((item, index) => (
-                <div key={item.key}>
-                  <div className="grid grid-cols-1 gap-6 md:grid-cols-[1fr_2fr]">
-                    <div className="space-y-1">
-                      <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                        {item.label}
-                      </label>
-                      {item.description && (
-                        <p className="text-xs text-gray-500 dark:text-gray-400">
-                          {item.description}
-                        </p>
-                      )}
-                    </div>
-                    <div className="flex items-start">
-                      {renderConfigItem(item)}
-                    </div>
-                  </div>
-                  {index < 3 && <Divider className="mt-6" />}
+        <CardBody className="space-y-6 pt-8">
+          {CONFIG_ITEMS.filter((item) =>
+            BRAND_CONFIG_KEYS.includes(
+              item.key as (typeof BRAND_CONFIG_KEYS)[number],
+            ),
+          ).map((item, index, items) => (
+            <div key={item.key}>
+              <div className="grid grid-cols-1 gap-6 md:grid-cols-[1fr_2fr]">
+                <div className="space-y-1">
+                  <label className="text-sm font-medium leading-none">
+                    {item.label}
+                  </label>
+                  {item.description && (
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                      {item.description}
+                    </p>
+                  )}
                 </div>
-              ))}
+                <div className="flex items-start">{renderConfigItem(item)}</div>
+              </div>
+              {index < items.length - 1 && <Divider className="mt-6" />}
             </div>
-          )}
+          ))}
         </CardBody>
       </Card>
 
@@ -1476,8 +1244,7 @@ export default function ConfigPage() {
                 更新通道
               </p>
               <p className="text-xs text-gray-500 dark:text-gray-400">
-                稳定版仅匹配纯数字版本；开发版仅匹配包含 alpha / beta / rc
-                的版本。
+                稳定版仅匹配纯数字版本；开发版仅匹配包含测试标识的版本。
               </p>
             </div>
 
@@ -1496,10 +1263,7 @@ export default function ConfigPage() {
               <SelectItem key="stable" description="仅纯数字版本，如 2.1.4">
                 稳定版
               </SelectItem>
-              <SelectItem
-                key="dev"
-                description="仅 alpha / beta / rc 关键字版本"
-              >
+              <SelectItem key="dev" description="仅包含测试版关键字的版本">
                 开发版
               </SelectItem>
             </Select>
@@ -1518,164 +1282,6 @@ export default function ConfigPage() {
             </div>
             <div className="rounded-lg border border-divider bg-default-50/60 dark:bg-default-100/10 px-4 py-3 text-sm font-semibold text-default-800 dark:text-default-200">
               {storageSummary}
-            </div>
-          </div>
-
-          <Divider className="my-2" />
-
-          <div className="space-y-4 rounded-xl border border-divider bg-default-50/60 p-4 dark:bg-default-100/10">
-            <div className="space-y-1">
-              <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                面板自升级
-              </p>
-              <p className="text-xs text-gray-500 dark:text-gray-400">
-                检查当前版本、可用发布并在容器环境中触发面板升级。
-              </p>
-            </div>
-
-            {systemUpgradeLoading ? (
-              <div className="flex items-center gap-2 rounded-lg border border-divider bg-background px-4 py-3 text-sm text-default-500">
-                <Spinner size="sm" />
-                正在加载升级状态...
-              </div>
-            ) : (
-              <div className="space-y-4 rounded-lg border border-divider bg-background px-4 py-4 text-sm text-default-700 dark:text-default-300">
-                <div className="grid gap-3 md:grid-cols-2">
-                  <div>
-                    <p className="text-xs text-default-500">当前版本</p>
-                    <p className="mt-1 font-medium">
-                      {systemUpgradeInfo?.currentVersion || "未获取到版本信息"}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-default-500">最新版本</p>
-                    <p className="mt-1 font-medium">
-                      {systemUpgradeInfo?.latestVersion || "未获取到可用版本"}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-default-500">当前通道</p>
-                    <p className="mt-1 font-medium">
-                      {systemUpgradeInfo?.channel === "dev"
-                        ? "开发版"
-                        : systemUpgradeInfo?.channel === "stable"
-                          ? "稳定版"
-                          : updateChannel === "dev"
-                            ? "开发版"
-                            : "稳定版"}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-default-500">升级能力</p>
-                    <p className="mt-1 font-medium">
-                      {systemUpgradeInfo?.capability.capable
-                        ? "可升级"
-                        : "当前不可升级"}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="grid gap-3 md:grid-cols-2">
-                  <div>
-                    <p className="text-xs text-default-500">部署目录</p>
-                    <p className="mt-1 break-all font-medium">
-                      {systemUpgradeInfo?.capability.deployDir ||
-                        "未获取到部署目录"}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-default-500">后端容器</p>
-                    <p className="mt-1 break-all font-medium">
-                      {systemUpgradeInfo?.capability.backendContainer ||
-                        "未获取到容器信息"}
-                    </p>
-                  </div>
-                </div>
-
-                {!systemUpgradeInfo?.capability.capable && (
-                  <div className="rounded-lg border border-warning-200 bg-warning-50 px-4 py-3 text-warning-800 dark:border-warning-900/40 dark:bg-warning-950/30 dark:text-warning-200">
-                    <p className="text-xs font-medium">当前无法升级</p>
-                    <ul className="mt-2 list-disc space-y-1 pl-4 text-xs">
-                      {(systemUpgradeInfo?.capability.reasons?.length
-                        ? systemUpgradeInfo.capability.reasons
-                        : ["暂未获取到不可升级原因"]
-                      ).map((reason) => (
-                        <li key={reason}>{reason}</li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-
-                <div className="space-y-3">
-                  <div className="flex flex-col gap-1">
-                    <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                      可用发布版本
-                    </p>
-                    <p className="text-xs text-gray-500 dark:text-gray-400">
-                      选择指定版本后执行升级；留空则使用当前通道下最新可用版本。
-                    </p>
-                  </div>
-
-                  <Select
-                    aria-label="目标版本"
-                    isDisabled={
-                      !systemUpgradeReleasesMatchChannel ||
-                      systemUpgradeReleases.length === 0 ||
-                      systemUpgradeExecuting
-                    }
-                    placeholder={
-                      systemUpgradeReleasesMatchChannel &&
-                      systemUpgradeReleases.length > 0
-                        ? "留空时自动选择最新版本"
-                        : "请先检查当前通道更新"
-                    }
-                    selectedKeys={
-                      systemUpgradeSelectedVersion
-                        ? [systemUpgradeSelectedVersion]
-                        : []
-                    }
-                    size="md"
-                    variant="bordered"
-                    onSelectionChange={(keys) => {
-                      const selected = Array.from(keys)[0] as
-                        | string
-                        | undefined;
-
-                      setSystemUpgradeSelectedVersion(selected || "");
-                    }}
-                  >
-                    {(systemUpgradeReleasesMatchChannel
-                      ? systemUpgradeReleases
-                      : []
-                    ).map((release) => (
-                      <SelectItem
-                        key={release.version}
-                        description={release.publishedAt || "暂无发布时间"}
-                      >
-                        {release.name || release.version}
-                      </SelectItem>
-                    ))}
-                  </Select>
-                </div>
-              </div>
-            )}
-
-            <div className="flex flex-col gap-3 pt-1 sm:flex-row sm:justify-end">
-              <Button
-                isLoading={systemUpgradeChecking}
-                variant="flat"
-                onPress={handleCheckSystemUpgrade}
-              >
-                检查更新
-              </Button>
-              <Button
-                color="primary"
-                isDisabled={!canTriggerSystemUpgrade}
-                isLoading={systemUpgradeExecuting}
-                onPress={handleOpenSystemUpgradeModal}
-              >
-                立即升级
-              </Button>
             </div>
           </div>
 
@@ -1911,64 +1517,6 @@ export default function ConfigPage() {
                   onPress={triggerImportFilePicker}
                 >
                   下一步选择文件
-                </Button>
-              </ModalFooter>
-            </>
-          )}
-        </ModalContent>
-      </Modal>
-
-      <Modal
-        backdrop="blur"
-        classNames={{
-          base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-2xl overflow-hidden",
-        }}
-        isOpen={systemUpgradeModalOpen}
-        onOpenChange={(open) => {
-          if (!systemUpgradeExecuting) {
-            setSystemUpgradeModalOpen(open);
-          }
-        }}
-      >
-        <ModalContent>
-          {(onClose) => (
-            <>
-              <ModalHeader>确认面板升级</ModalHeader>
-              <ModalBody>
-                <div className="space-y-3 text-sm text-default-700 dark:text-default-300">
-                  <p>
-                    升级过程需要访问 Docker
-                    Socket，并会在短时间内中断当前面板服务。
-                  </p>
-                  <p>
-                    请确认已经允许面板管理容器与宿主机 Docker
-                    交互，并且可以接受升级期间的临时不可用。
-                  </p>
-                  <div className="space-y-2 rounded-lg border border-warning-200 bg-warning-50 px-4 py-3 text-warning-800 dark:border-warning-900/40 dark:bg-warning-950/30 dark:text-warning-200">
-                    <p className="text-xs font-medium">升级前请确认</p>
-                    <ul className="list-disc space-y-1 pl-4 text-xs">
-                      <li>Docker Socket 可用且挂载权限正常。</li>
-                      <li>当前面板允许短暂停止和重启。</li>
-                      <li>已选择正确的更新通道与目标版本。</li>
-                    </ul>
-                  </div>
-                </div>
-              </ModalBody>
-              <ModalFooter>
-                <Button
-                  isDisabled={systemUpgradeExecuting}
-                  variant="light"
-                  onPress={onClose}
-                >
-                  取消
-                </Button>
-                <Button
-                  color="primary"
-                  isDisabled={systemUpgradeExecuting}
-                  isLoading={systemUpgradeExecuting}
-                  onPress={handleConfirmSystemUpgrade}
-                >
-                  确认升级
                 </Button>
               </ModalFooter>
             </>

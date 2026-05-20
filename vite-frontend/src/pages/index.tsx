@@ -134,7 +134,7 @@ export default function IndexPage() {
           setSiteKey(configResp.data.value);
           setShowCaptcha(true);
         } else {
-          toast.error("未配置Cloudflare Site Key，请联系管理员");
+          toast.error("未配置 Cloudflare 站点密钥，请联系管理员");
           setLoading(false);
         }
       }
@@ -166,7 +166,7 @@ export default function IndexPage() {
                 {siteConfig.name}
               </h1>
               <p className="text-sm text-default-500 mt-2 font-medium">
-                Sign in to manage your networks
+                登录后管理你的网络
               </p>
             </CardHeader>
             <CardBody className="px-6 py-6 mt-2">
@@ -180,8 +180,8 @@ export default function IndexPage() {
                   errorMessage={errors.username}
                   isDisabled={loading}
                   isInvalid={!!errors.username}
-                  label="Username"
-                  placeholder="admin"
+                  label="用户名"
+                  placeholder="请输入用户名"
                   value={form.username}
                   variant="bordered"
                   onChange={(e) =>
@@ -198,7 +198,7 @@ export default function IndexPage() {
                   }}
                   isDisabled={loading}
                   isInvalid={!!errors.password}
-                  label="Password"
+                  label="密码"
                   placeholder="••••••••"
                   type="password"
                   value={form.password}
@@ -217,9 +217,12 @@ export default function IndexPage() {
                 >
                   {loading
                     ? showCaptcha
-                      ? "Verifying..."
-                      : "Signing in..."
-                    : "Sign In"}
+                      ? "正在验证..."
+                      : "正在登录..."
+                    : "登录"}
+                </Button>
+                <Button variant="light" onPress={() => navigate("/register")}>
+                  注册账号
                 </Button>
               </div>
             </CardBody>

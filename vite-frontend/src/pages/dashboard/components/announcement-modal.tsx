@@ -1,6 +1,7 @@
 import type { AnnouncementData } from "@/api";
 
 import ReactMarkdown from "react-markdown";
+import rehypeSanitize from "rehype-sanitize";
 import remarkGfm from "remark-gfm";
 
 import { Button } from "@/shadcn-bridge/heroui/button";
@@ -35,7 +36,10 @@ export const AnnouncementModal = ({
         <ModalHeader className="flex flex-col gap-1">平台公告</ModalHeader>
         <ModalBody>
           <div className="prose prose-sm dark:prose-invert max-w-none max-h-[60vh] overflow-y-auto">
-            <ReactMarkdown remarkPlugins={[remarkGfm]}>
+            <ReactMarkdown
+              rehypePlugins={[rehypeSanitize]}
+              remarkPlugins={[remarkGfm]}
+            >
               {announcement.content}
             </ReactMarkdown>
           </div>

@@ -359,7 +359,7 @@ export default function PanelSharingPage() {
 
   const copyToken = (token: string) => {
     navigator.clipboard.writeText(token);
-    toast.success("Token已复制");
+    toast.success("令牌已复制");
   };
 
   const formatFlowGB = (bytes: number) => {
@@ -391,12 +391,12 @@ export default function PanelSharingPage() {
   return (
     <div className="p-4 md:p-6 space-y-6">
       <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold">面板共享 (Panel Peering)</h1>
+        <h1 className="text-2xl font-bold">面板互联共享</h1>
       </div>
 
       <Tabs
         disableCursorAnimation
-        aria-label="Options"
+        aria-label="面板共享选项"
         selectedKey={selectedTab}
         onSelectionChange={(k) => setSelectedTab(k as string)}
       >
@@ -405,7 +405,7 @@ export default function PanelSharingPage() {
           title={
             <div className="flex items-center gap-2">
               <span className="text-sm font-semibold text-foreground">
-                Provider
+                供给端
               </span>
               <span className="text-xs text-default-500">我分享的</span>
             </div>
@@ -416,11 +416,11 @@ export default function PanelSharingPage() {
               <div className="mt-4 flex flex-col gap-4 rounded-lg border border-divider bg-default-50/60 dark:bg-default-100/20 p-4 md:flex-row md:items-center md:justify-between">
                 <div className="space-y-1">
                   <h2 className="text-lg font-semibold text-foreground">
-                    Provider 共享
+                    供给端共享
                   </h2>
                   <p className="text-sm text-default-500">
                     将本地节点分享给其他面板，统一管理
-                    Token、端口范围和到期策略。
+                    令牌、端口范围和到期策略。
                   </p>
                 </div>
                 <Button
@@ -520,7 +520,7 @@ export default function PanelSharingPage() {
                           <p>允许域名: {share.allowedDomains}</p>
                         )}
                         {share.allowedIps && (
-                          <p>允许API IP: {share.allowedIps}</p>
+                          <p>允许接口 IP: {share.allowedIps}</p>
                         )}
                         <p>
                           过期时间:{" "}
@@ -550,7 +550,7 @@ export default function PanelSharingPage() {
           title={
             <div className="flex items-center gap-2">
               <span className="text-sm font-semibold text-foreground">
-                Consumer
+                接入端
               </span>
               <span className="text-xs text-default-500">远程节点</span>
             </div>
@@ -561,7 +561,7 @@ export default function PanelSharingPage() {
               <div className="mt-4 flex flex-col gap-4 rounded-lg border border-divider bg-default-50/60 dark:bg-default-100/20 p-4 md:flex-row md:items-center md:justify-between">
                 <div className="space-y-1">
                   <h2 className="text-lg font-semibold text-foreground">
-                    Consumer 接入
+                    接入端管理
                   </h2>
                   <p className="text-sm text-default-500">
                     导入远程节点后，可在这里查看端口占用和同步状态。
@@ -621,7 +621,7 @@ export default function PanelSharingPage() {
                           </div>
                         )}
                         {node.remoteUrl && <p>远程地址: {node.remoteUrl}</p>}
-                        <p>共享ID: {node.shareId || "-"}</p>
+                        <p>共享 ID: {node.shareId || "-"}</p>
                         <p>
                           端口范围:{" "}
                           {node.portRangeStart > 0 && node.portRangeEnd > 0
@@ -754,7 +754,7 @@ export default function PanelSharingPage() {
               }
             />
             <Input
-              description="限制使用此Token的来源面板域名，多个域名用逗号分隔，留空不限制"
+              description="限制使用此令牌的来源面板域名，多个域名用逗号分隔，留空不限制"
               label="允许的域名 (可选)"
               placeholder="example.com, panel.test.com"
               value={shareForm.allowedDomains}
@@ -764,7 +764,7 @@ export default function PanelSharingPage() {
             />
             <Input
               description="仅白名单IP可导入此分享，支持IPv4/IPv6/CIDR，多个用逗号分隔"
-              label="允许的API IP (可选)"
+              label="允许的接口 IP (可选)"
               placeholder="203.0.113.10, 2001:db8::10, 198.51.100.0/24"
               value={shareForm.allowedIps}
               onChange={(e) =>
@@ -857,7 +857,7 @@ export default function PanelSharingPage() {
               }
             />
             <Input
-              description="限制使用此Token的来源面板域名，多个域名用逗号分隔，留空不限制"
+              description="限制使用此令牌的来源面板域名，多个域名用逗号分隔，留空不限制"
               label="允许的域名 (可选)"
               placeholder="example.com, panel.test.com"
               value={editForm.allowedDomains}
@@ -867,7 +867,7 @@ export default function PanelSharingPage() {
             />
             <Input
               description="仅白名单IP可导入此分享，支持IPv4/IPv6/CIDR，多个用逗号分隔"
-              label="允许的API IP (可选)"
+              label="允许的接口 IP (可选)"
               placeholder="203.0.113.10, 2001:db8::10, 198.51.100.0/24"
               value={editForm.allowedIps}
               onChange={(e) =>
@@ -905,8 +905,8 @@ export default function PanelSharingPage() {
               }
             />
             <Input
-              label="Token"
-              placeholder="Bearer Token"
+              label="令牌"
+              placeholder="请输入 Bearer 令牌"
               value={importForm.token}
               onChange={(e) =>
                 setImportForm({ ...importForm, token: e.target.value })

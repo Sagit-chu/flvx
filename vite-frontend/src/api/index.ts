@@ -42,8 +42,6 @@ import type {
   MonitorAccessApiData,
   TunnelQualityApiItem,
   StorageSummaryApiData,
-  SystemUpgradeCheckApiData,
-  SystemUpgradeRunApiData,
   SystemUpgradeVersionApiData,
 } from "./types";
 
@@ -67,8 +65,331 @@ export interface LoginResponse {
   requirePasswordChange?: boolean;
 }
 
+export interface RegisterData {
+  username: string;
+  password: string;
+  inviteCode?: string;
+  captchaId?: string;
+}
+
+export interface CommerceSettings {
+  registrationEnabled?: boolean;
+  inviteRequired?: boolean;
+  captchaEnabled?: boolean;
+  epayEnabled?: boolean;
+  usdtEnabled?: boolean;
+  [key: string]: unknown;
+}
+
+export interface LegalPagesApiData {
+  terms: string;
+  privacy: string;
+  refundPolicy: string;
+  acceptableUse: string;
+}
+
+export interface PlanApiItem {
+  id: number;
+  name: string;
+  description: string;
+  category?: string;
+  scopeKey?: string;
+  priceCents: number;
+  resetFlowPriceCents: number;
+  currency: string;
+  durationDays: number;
+  flow: number;
+  dailyQuotaGB: number;
+  monthlyQuotaGB: number;
+  num: number;
+  maxConn: number;
+  speedId?: number | null;
+  sort: number;
+  status: number;
+  tunnelIds: number[];
+  tunnelGroupIds: number[];
+  tunnelNames?: string[];
+  tunnelGroupNames?: string[];
+  tunnels?: Array<{ id: number; name: string; trafficRatio: number }>;
+}
+
+export interface UserSubscriptionApiItem {
+  id: number;
+  userId: number;
+  planId: number;
+  orderId: number;
+  status: string;
+  startsAt: number;
+  expiresAt: number;
+  planName?: string;
+  planCategory?: string;
+  planScopeKey?: string;
+  planPriceCents?: number;
+  planFlow?: number;
+  planNum?: number;
+  planMaxConn?: number;
+  planTunnels?: Array<{ id: number; name: string; trafficRatio: number }>;
+  resetFlowPriceCents?: number;
+  resetFlowName?: string;
+}
+
+export interface InviteCodeApiItem {
+  id: number;
+  code: string;
+  maxUses: number;
+  usedCount: number;
+  expTime: number;
+  status: number;
+  createdTime: number;
+}
+
+export interface CommerceOrderApiItem {
+  id: number;
+  orderNo: string;
+  userId: number;
+  planId: number;
+  amountCents: number;
+  currency: string;
+  status: string;
+  paymentStatus?: string;
+  fulfillmentStatus?: string;
+  refundStatus?: string;
+  refundAmountCents?: number;
+  refundReason?: string;
+  orderType?: string;
+  paymentProvider: string;
+  providerTradeNo: string;
+  planName?: string;
+  paidTime: number;
+  provisionedTime: number;
+  createdTime: number;
+  updatedTime?: number;
+  canPay?: boolean;
+  canCancel?: boolean;
+  canRefund?: boolean;
+}
+
+export interface CommercePaymentApiItem {
+  id: number;
+  orderId: number;
+  orderNo: string;
+  provider: string;
+  providerTradeNo: string;
+  amountCents: number;
+  status: string;
+  rawPayload?: string;
+  createdTime: number;
+}
+
+export interface CommerceAuditApiItem {
+  id: number;
+  actorId: number;
+  actorName: string;
+  action: string;
+  targetType: string;
+  targetId: number;
+  summary: string;
+  payload: string;
+  createdTime: number;
+}
+
+export interface RefundRequestApiItem {
+  id: number;
+  orderId: number;
+  orderNo: string;
+  userId: number;
+  amountCents: number;
+  reason: string;
+  adminNote: string;
+  status: string;
+  createdTime: number;
+}
+
+export interface SupportTicketApiItem {
+  id: number;
+  userId: number;
+  title: string;
+  category?: string;
+  status: string;
+  priority: string;
+  internalNote?: string;
+  createdTime: number;
+  updatedTime: number;
+}
+
+export interface SupportTicketMessageApiItem {
+  id: number;
+  ticketId: number;
+  userId: number;
+  isAdmin: number;
+  content: string;
+  attachmentUrl?: string;
+  createdTime: number;
+}
+
+export interface NotificationApiItem {
+  id: number;
+  userId: number;
+  title: string;
+  content: string;
+  level: string;
+  readTime: number;
+  createdTime: number;
+}
+
+export interface CouponApiItem {
+  id: number;
+  code: string;
+  name: string;
+  discountType: "fixed" | "percent";
+  discountValue: number;
+  planId: number;
+  category?: string;
+  minAmountCents?: number;
+  perUserLimit?: number;
+  maxUses: number;
+  usedCount: number;
+  expTime: number;
+  status: number;
+}
+
+export interface WalletLedgerApiItem {
+  id: number;
+  userId: number;
+  amountCents: number;
+  balanceAfterCents: number;
+  type: string;
+  refType: string;
+  refId: number;
+  note: string;
+  createdTime: number;
+}
+
+export interface CommerceReportSummaryApiData {
+  paidTotalCents: number;
+  paidMonthCents: number;
+  refundTotalCents: number;
+  walletBalanceCents: number;
+  ordersToday: number;
+  pendingOrders: number;
+  activeSubscriptions: number;
+  openTickets: number;
+  pendingRefunds: number;
+}
+
+export interface CommerceRiskApiItem {
+  userId: number;
+  type: string;
+  level: string;
+  summary: string;
+  count: number;
+}
+
+export interface CommerceResourceJobApiItem {
+  id: number;
+  jobType: string;
+  userId: number;
+  orderId: number;
+  status: string;
+  attempts: number;
+  maxAttempts: number;
+  nextRunAt: number;
+  lastError: string;
+  payload: string;
+  createdTime: number;
+  updatedTime: number;
+  finishedTime: number;
+}
+
+export interface LocalLicenseStatusApiData {
+  valid: boolean;
+  state: string;
+  reason: string;
+  keyPrefix: string;
+  product: string;
+  edition: string;
+  versionChannel: string;
+  features?: Record<string, unknown>;
+  expiresAt: number;
+  issuedAt: number;
+  nextHeartbeatAt: number;
+  graceUntil: number;
+  configured: boolean;
+  centerUrl: string;
+  instanceId: string;
+  lastError: string;
+  updatedAt: number;
+  publicKeySet: boolean;
+}
+
+export interface UpdateManifestAssetApiItem {
+  id: number;
+  type: string;
+  file: string;
+  sizeBytes: number;
+  sha256: string;
+  url: string;
+}
+
+export interface LocalLicenseUpdateApiData {
+  currentVersion: string;
+  latestVersion: string;
+  hasUpdate: boolean;
+  channel: string;
+  force: boolean;
+  allowRollback: boolean;
+  releaseNotes: string;
+  manifestUrl: string;
+  reason?: string;
+  capability?: {
+    capable: boolean;
+    reasons: string[];
+    deployDir: string;
+    backendContainer: string;
+  };
+  artifacts?: UpdateManifestAssetApiItem[];
+}
+
+export interface LocalLicenseUpdateRunApiData {
+  version: string;
+  channel: string;
+  composeAsset: string;
+  helperContainer: string;
+  backendImageId: string;
+  message: string;
+}
+
+export interface LocalLicenseUpdateLogApiData {
+  log: string;
+  deployDir: string;
+  logPath: string;
+}
+
+export interface CommerceListFilter {
+  keyword?: string;
+  orderNo?: string;
+  status?: string;
+  orderType?: string;
+  provider?: string;
+  action?: string;
+  userId?: number;
+  dateFrom?: number;
+  dateTo?: number;
+  page?: number;
+  pageSize?: number;
+}
+
+export interface PaginatedApiData<T> {
+  items: T[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
 export const login = (data: LoginData) =>
   Network.post<LoginResponse>("/user/login", data);
+export const registerUser = (data: RegisterData) =>
+  Network.post<LoginResponse>("/user/register", data);
 
 // 用户CRUD操作 - 全部使用POST请求
 export const createUser = (data: UserMutationPayload) =>
@@ -80,6 +401,231 @@ export const updateUser = (data: UserMutationPayload) =>
 export const deleteUser = (id: number) => Network.post("/user/delete", { id });
 export const getUserPackageInfo = () =>
   Network.post<UserPackageInfoApiData>("/user/package");
+
+export const getPublicCommerceSettings = () =>
+  Network.post<CommerceSettings>("/commerce/public/settings");
+export const getLegalPages = () =>
+  Network.post<LegalPagesApiData>("/commerce/legal");
+export const getPublicPlans = () =>
+  Network.post<PlanApiItem[]>("/commerce/plans/public");
+export const createCommerceOrder = (data: {
+  planId: number;
+  type?: string;
+  action?: "new" | "upgrade" | "renew";
+  couponCode?: string;
+}) =>
+  Network.post<{ order: CommerceOrderApiItem; payUrl: string }>(
+    "/commerce/order/create",
+    data,
+  );
+export const getMyCommerceOrders = (filter: CommerceListFilter = {}) =>
+  Network.post<PaginatedApiData<CommerceOrderApiItem>>(
+    "/commerce/order/list",
+    filter,
+  );
+export const payCommerceOrder = (id: number) =>
+  Network.post<{ order: CommerceOrderApiItem; payUrl: string }>(
+    "/commerce/order/pay",
+    { id },
+  );
+export const payCommerceOrderWithProvider = (id: number, type: string) =>
+  Network.post<{ order: CommerceOrderApiItem; payUrl: string }>(
+    "/commerce/order/pay",
+    { id, type },
+  );
+export const payCommerceOrderWithBalance = (id: number) =>
+  Network.post<{ order: CommerceOrderApiItem; payUrl: string }>(
+    "/commerce/order/pay-balance",
+    { id },
+  );
+export const cancelCommerceOrder = (id: number) =>
+  Network.post("/commerce/order/cancel", { id });
+export const requestOrderRefund = (id: number, reason: string) =>
+  Network.post<RefundRequestApiItem>("/commerce/order/refund", { id, reason });
+export const getMySubscription = () =>
+  Network.post<
+    | (UserSubscriptionApiItem & {
+        subscriptions?: UserSubscriptionApiItem[];
+        resetFlowEnabled?: boolean;
+      })
+    | null
+  >("/commerce/subscription/me");
+export const resetMySubscriptionFlow = (data?: {
+  type?: string;
+  subscriptionId?: number;
+}) =>
+  Network.post<{ order: CommerceOrderApiItem; payUrl: string }>(
+    "/commerce/subscription/reset-flow",
+    data || {},
+  );
+export const getLocalLicenseStatus = () =>
+  Network.post<LocalLicenseStatusApiData>("/license/local/status");
+export const activateLocalLicense = (data: {
+  centerUrl: string;
+  publicKey: string;
+  licenseKey: string;
+}) => Network.post<LocalLicenseStatusApiData>("/license/local/activate", data);
+export const heartbeatLocalLicense = () =>
+  Network.post<LocalLicenseStatusApiData>("/license/local/heartbeat");
+export const checkLocalLicenseUpdate = () =>
+  Network.post<LocalLicenseUpdateApiData>("/license/local/update/check");
+export const runLocalLicenseUpdate = (data?: {
+  version?: string;
+  channel?: string;
+}) =>
+  Network.post<LocalLicenseUpdateRunApiData>(
+    "/license/local/update/run",
+    data || {},
+  );
+export const getLocalLicenseUpdateLog = () =>
+  Network.post<LocalLicenseUpdateLogApiData>("/license/local/update/log");
+export const getAdminCommerceSettings = () =>
+  Network.post<Record<string, string>>("/admin/commerce/settings");
+export const updateAdminCommerceSettings = (data: Record<string, string>) =>
+  Network.post("/admin/commerce/settings/update", data);
+export const getAdminPlans = () =>
+  Network.post<PlanApiItem[]>("/admin/commerce/plan/list");
+export const saveAdminPlan = (data: Partial<PlanApiItem>) =>
+  Network.post("/admin/commerce/plan/save", data);
+export const deleteAdminPlan = (id: number) =>
+  Network.post("/admin/commerce/plan/delete", { id });
+export const getAdminCommerceOrders = (filter: CommerceListFilter = {}) =>
+  Network.post<PaginatedApiData<CommerceOrderApiItem>>(
+    "/admin/commerce/order/list",
+    filter,
+  );
+export const confirmAdminCommerceOrder = (id: number) =>
+  Network.post("/admin/commerce/order/confirm", { id });
+export const getAdminPayments = (filter: CommerceListFilter = {}) =>
+  Network.post<PaginatedApiData<CommercePaymentApiItem>>(
+    "/admin/commerce/payment/list",
+    filter,
+  );
+export const getAdminAuditLogs = (filter: CommerceListFilter = {}) =>
+  Network.post<PaginatedApiData<CommerceAuditApiItem>>(
+    "/admin/commerce/audit/list",
+    filter,
+  );
+export const getAdminRefunds = (filter: CommerceListFilter = {}) =>
+  Network.post<PaginatedApiData<RefundRequestApiItem>>(
+    "/admin/commerce/refund/list",
+    filter,
+  );
+export const handleAdminRefund = (
+  id: number,
+  decision: "approved" | "rejected",
+  adminNote = "",
+) => Network.post("/admin/commerce/refund/handle", { id, decision, adminNote });
+export const getMyNotifications = (filter: CommerceListFilter = {}) =>
+  Network.post<PaginatedApiData<NotificationApiItem>>(
+    "/commerce/notification/list",
+    filter,
+  );
+export const markNotificationRead = (id: number) =>
+  Network.post("/commerce/notification/read", { id });
+export const markAllNotificationsRead = () =>
+  Network.post("/commerce/notification/read-all");
+export const getMyWallet = (filter: CommerceListFilter = {}) =>
+  Network.post<
+    PaginatedApiData<WalletLedgerApiItem> & { balanceCents: number }
+  >("/commerce/wallet/me", filter);
+export const rechargeMyWallet = (data: {
+  amountCents: number;
+  type?: string;
+}) =>
+  Network.post<{ order: CommerceOrderApiItem; payUrl: string }>(
+    "/commerce/wallet/recharge",
+    data,
+  );
+export const getMyTickets = (filter: CommerceListFilter = {}) =>
+  Network.post<PaginatedApiData<SupportTicketApiItem>>(
+    "/commerce/ticket/list",
+    filter,
+  );
+export const getMyTicketMessages = (id: number) =>
+  Network.post<{
+    ticket: SupportTicketApiItem;
+    messages: SupportTicketMessageApiItem[];
+  }>("/commerce/ticket/messages", { id });
+export const createMyTicket = (data: {
+  title: string;
+  category?: string;
+  content: string;
+  attachmentUrl?: string;
+}) => Network.post<SupportTicketApiItem>("/commerce/ticket/create", data);
+export const replyMyTicket = (
+  id: number,
+  content: string,
+  attachmentUrl = "",
+) => Network.post("/commerce/ticket/reply", { id, content, attachmentUrl });
+export const getAdminTickets = (filter: CommerceListFilter = {}) =>
+  Network.post<PaginatedApiData<SupportTicketApiItem>>(
+    "/admin/commerce/ticket/list",
+    filter,
+  );
+export const getAdminTicketMessages = (id: number) =>
+  Network.post<{
+    ticket: SupportTicketApiItem;
+    messages: SupportTicketMessageApiItem[];
+  }>("/admin/commerce/ticket/messages", { id });
+export const updateAdminTicket = (data: {
+  id: number;
+  category?: string;
+  priority?: string;
+  internalNote?: string;
+}) => Network.post("/admin/commerce/ticket/update", data);
+export const replyAdminTicket = (
+  id: number,
+  content: string,
+  attachmentUrl = "",
+) =>
+  Network.post("/admin/commerce/ticket/reply", { id, content, attachmentUrl });
+export const closeAdminTicket = (id: number) =>
+  Network.post("/admin/commerce/ticket/close", { id });
+export const getAdminCoupons = (filter: CommerceListFilter = {}) =>
+  Network.post<PaginatedApiData<CouponApiItem>>(
+    "/admin/commerce/coupon/list",
+    filter,
+  );
+export const saveAdminCoupon = (data: Partial<CouponApiItem>) =>
+  Network.post<CouponApiItem>("/admin/commerce/coupon/save", data);
+export const deleteAdminCoupon = (id: number) =>
+  Network.post("/admin/commerce/coupon/delete", { id });
+export const getAdminWalletLedger = (filter: CommerceListFilter = {}) =>
+  Network.post<PaginatedApiData<WalletLedgerApiItem>>(
+    "/admin/commerce/wallet/list",
+    filter,
+  );
+export const adjustAdminWallet = (data: {
+  userId: number;
+  amountCents: number;
+  note?: string;
+}) => Network.post<WalletLedgerApiItem>("/admin/commerce/wallet/adjust", data);
+export const syncAdminUserResources = (userId: number) =>
+  Network.post("/admin/commerce/user/resources/sync", { userId });
+export const getAdminCommerceReportSummary = () =>
+  Network.post<CommerceReportSummaryApiData>("/admin/commerce/report/summary");
+export const getAdminCommerceRisks = (filter: CommerceListFilter = {}) =>
+  Network.post<PaginatedApiData<CommerceRiskApiItem>>(
+    "/admin/commerce/risk/list",
+    filter,
+  );
+export const getAdminResourceJobs = (filter: CommerceListFilter = {}) =>
+  Network.post<PaginatedApiData<CommerceResourceJobApiItem>>(
+    "/admin/commerce/resource-job/list",
+    filter,
+  );
+export const retryAdminResourceJob = (id: number) =>
+  Network.post("/admin/commerce/resource-job/retry", { id });
+export const getInviteCodes = (filter: CommerceListFilter = {}) =>
+  Network.post<PaginatedApiData<InviteCodeApiItem>>(
+    "/admin/commerce/invite/list",
+    filter,
+  );
+export const saveInviteCode = (data: Partial<InviteCodeApiItem>) =>
+  Network.post<InviteCodeApiItem>("/admin/commerce/invite/save", data);
+export const deleteInviteCode = (id: number) =>
+  Network.post("/admin/commerce/invite/delete", { id });
 
 // 节点CRUD操作 - 全部使用POST请求
 export const createNode = (data: NodeMutationPayload) =>
@@ -265,24 +811,6 @@ export const getStorageSummary = () =>
 
 export const getSystemUpgradeVersion = () =>
   Network.post<SystemUpgradeVersionApiData>("/system/version");
-
-export const checkSystemUpgrade = (channel: ReleaseChannel = "stable") =>
-  Network.post<SystemUpgradeCheckApiData>("/system/check-updates", {
-    channel,
-  });
-
-export const runSystemUpgrade = (
-  version?: string,
-  channel: ReleaseChannel = "stable",
-) =>
-  Network.post<SystemUpgradeRunApiData>(
-    "/system/upgrade",
-    { version: version || "", channel },
-    { timeout: 60 * 1000 },
-  );
-
-export const activateLicense = (licenseKey: string) =>
-  Network.post("/license/activate", { license_key: licenseKey });
 
 export const exportBackupData = () => Network.post("/backup/export");
 export const importBackupData = (data: BackupImportPayload) =>

@@ -81,6 +81,7 @@ func (h *Handler) buildFlowUploadBatch(items []flowItem, metas map[int64]repo.Fl
 			batch.flowDeltas = append(batch.flowDeltas, repo.FlowUploadCounterDelta{
 				ForwardID:    forwardID,
 				UserID:       userID,
+				TunnelID:     meta.TunnelID,
 				UserTunnelID: userTunnelID,
 				InFlow:       scaledIn,
 				OutFlow:      scaledOut,

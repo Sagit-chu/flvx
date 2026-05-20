@@ -3,8 +3,6 @@ package handler
 import (
 	"context"
 	"time"
-
-	"go-backend/internal/license"
 )
 
 func (h *Handler) StartBackgroundJobs() {
@@ -20,7 +18,7 @@ func (h *Handler) StartBackgroundJobs() {
 	ctx, cancel := context.WithCancel(context.Background())
 	h.jobsCancel = cancel
 	h.jobsStarted = true
-	h.jobsWG.Add(7)
+	h.jobsWG.Add(8)
 	h.jobsMu.Unlock()
 
 	go h.runHourlyStatsLoop(ctx)
@@ -29,58 +27,41 @@ func (h *Handler) StartBackgroundJobs() {
 	go h.runMetricsIngestion(ctx)
 	go h.runHealthChecks(ctx)
 	go h.runTunnelQualityProber(ctx)
-	go h.runValidateLicenseJob(ctx)
+	go h.runCommerceMaintenanceLoop(ctx)
+	go h.runLicenseHeartbeatLoop(ctx)
 }
 
-func (h *Handler) runValidateLicenseJob(ctx context.Context) {
+func (h *Handler) runLicenseHeartbeatLoop(ctx context.Context) {
 	defer h.jobsWG.Done()
-	ticker := time.NewTicker(12 * time.Hour)
-	defer ticker.Stop()
 
+	ticker := time.NewTicker(6 * time.Hour)
+	defer ticker.Stop()
+	_, _ = h.syncLocalLicenseHeartbeat(time.Now())
 	for {
 		select {
 		case <-ctx.Done():
 			return
-		case <-ticker.C:
-			h.validateLicenseJob()
+		case now := <-ticker.C:
+			_, _ = h.syncLocalLicenseHeartbeat(now)
 		}
 	}
 }
 
-func (h *Handler) validateLicenseJob() {
-	if h == nil || h.repo == nil {
-		return
-	}
+func (h *Handler) runCommerceMaintenanceLoop(ctx context.Context) {
+	defer h.jobsWG.Done()
 
-	accountID := "1bc96cac-09de-4cf4-af34-26afdad63a90"
-
-	key, _ := h.repo.GetViteConfigValue("license_key")
-	isCommercial, _ := h.repo.GetViteConfigValue("is_commercial")
-
-	if key == "" || isCommercial != "true" {
-		return // Nothing to validate
-	}
-
-	fingerprint, _ := h.repo.GetViteConfigValue("machine_fingerprint")
-	client := license.NewKeygenClient(accountID, "")
-	valResp, err := client.ValidateKeyWithFingerprint(key, fingerprint)
-	
-	if err != nil {
-		// Network error or timeout. Grace period by not revoking immediately here.
-		return
-	}
-
-	if !valResp.Meta.Valid {
-		// License is invalid (e.g., revoked, suspended, expired). Downgrade the system.
-		now := time.Now().UnixMilli()
-		_ = h.repo.UpsertConfig("is_commercial", "false", now)
-	} else {
-		now := time.Now().UnixMilli()
-		expiry := valResp.Data.Attributes.Expiry
-		if expiry == "" {
-			expiry = "never"
+	ticker := time.NewTicker(5 * time.Minute)
+	defer ticker.Stop()
+	h.cancelExpiredPendingCommerceOrders(time.Now())
+	h.runCommerceResourceJobs(time.Now())
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case now := <-ticker.C:
+			h.cancelExpiredPendingCommerceOrders(now)
+			h.runCommerceResourceJobs(now)
 		}
-		_ = h.repo.UpsertConfig("license_expiry", expiry, now)
 	}
 }
 
@@ -218,6 +199,7 @@ func (h *Handler) runResetAndExpiryJob(now time.Time) {
 
 	h.resetMonthlyFlow(now)
 	h.resetUserQuotaWindows(now)
+	h.expireCommerceSubscriptions(now.UnixMilli())
 	h.disableExpiredUsers(now.UnixMilli())
 	h.disableExpiredUserTunnels(now.UnixMilli())
 }

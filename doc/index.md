@@ -16,6 +16,7 @@
 ## 快速开始
 
 - [安装部署](./install.md)
+- [商业版客户升级手册](./commercial-upgrade.md)
 - [使用指南](./usage.md)
 - [PostgreSQL 数据库指南](./postgresql.md)
 - [AI Skill 接入](./ai-skill.md) - 让大模型直接操作面板

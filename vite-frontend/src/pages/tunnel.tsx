@@ -3180,15 +3180,15 @@ export default function TunnelPage() {
                             质量检测目标
                           </div>
                           <p className="text-xs text-default-500 mt-0.5">
-                            用于实时隧道质量检测、诊断目标和 best
-                            最优出口评分，留空使用 www.bing.com:443
+                            用于实时隧道质量检测、诊断目标和最优出口评分，留空使用
+                            www.bing.com:443
                           </p>
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-[1fr_140px] gap-3">
                           <Input
                             errorMessage={errors.probeTargetHost}
                             isInvalid={!!errors.probeTargetHost}
-                            label="Host"
+                            label="主机"
                             placeholder="www.bing.com"
                             value={form.probeTargetHost || ""}
                             variant="bordered"
@@ -3202,7 +3202,7 @@ export default function TunnelPage() {
                           <Input
                             errorMessage={errors.probeTargetPort}
                             isInvalid={!!errors.probeTargetPort}
-                            label="Port"
+                            label="端口"
                             max={65535}
                             min={1}
                             placeholder="443"

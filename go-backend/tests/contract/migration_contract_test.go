@@ -845,7 +845,7 @@ func setupContractRouter(t *testing.T, jwtSecret string) (http.Handler, *repo.Re
 	})
 
 	h := handler.New(r, jwtSecret)
-	return httpserver.NewRouter(h, jwtSecret), r
+	return httpserver.NewRouter(h, jwtSecret, ""), r
 }
 
 func assertConfigValue(t *testing.T, r *repo.Repository, name, want string) {

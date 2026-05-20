@@ -20,7 +20,15 @@ var publicConfigKeys = map[string]struct{}{
 var sensitiveConfigKeys = map[string]struct{}{
 	"jwt_secret":            {},
 	"license_key":           {},
+	"license_certificate":   {},
+	"license_instance_id":   {},
+	"license_public_key":    {},
+	"license_center_url":    {},
+	"license_last_error":    {},
+	"license_updated_at":    {},
 	"cloudflare_secret_key": {},
+	"epay_key":              {},
+	"usdt_secret_key":       {},
 }
 
 func PolicyForConfig(name string) ConfigAccessPolicy {

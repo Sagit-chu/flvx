@@ -1,6 +1,6 @@
 services:
   backend:
-    image: ghcr.io/sagit-chu/flux-panel-backend:${FLUX_VERSION:-latest}
+    image: ${FLVX_BACKEND_IMAGE:-ghcr.io/sagit-chu/flux-panel-backend:latest}
     container_name: flux-panel-backend
     restart: unless-stopped
     logging:
@@ -16,6 +16,7 @@ services:
       SERVER_ADDR: :6365
       TZ: Asia/Shanghai
       FLUX_VERSION: ${FLUX_VERSION:-dev}
+      FLVX_INSTALL_TOKEN: ${FLVX_INSTALL_TOKEN:-}
       PANEL_DEPLOY_DIR: /opt/flvx-panel
       PANEL_BACKEND_CONTAINER: flux-panel-backend
     ports:
@@ -60,7 +61,7 @@ services:
       start_period: 20s
 
   frontend:
-    image: ghcr.io/sagit-chu/vite-frontend:${FLUX_VERSION:-latest}
+    image: ${FLVX_FRONTEND_IMAGE:-ghcr.io/sagit-chu/vite-frontend:latest}
     container_name: vite-frontend
     restart: unless-stopped
     logging:

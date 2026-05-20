@@ -2,6 +2,33 @@ import React, { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { toast } from "react-hot-toast";
 import { AnimatePresence, motion } from "framer-motion";
+import {
+  BarChart3,
+  Bell,
+  BookOpenCheck,
+  ChevronDown,
+  CreditCard,
+  FileClock,
+  Gauge,
+  Gift,
+  History,
+  KeyRound,
+  LayoutDashboard,
+  LifeBuoy,
+  Link2,
+  Network,
+  ReceiptText,
+  Server,
+  Settings,
+  Share2,
+  ShieldAlert,
+  ShoppingBag,
+  Ticket,
+  UserPlus,
+  Users,
+  WalletCards,
+  Zap,
+} from "lucide-react";
 
 import { Button } from "@/shadcn-bridge/heroui/button";
 import {
@@ -25,8 +52,16 @@ interface MenuItem {
   path: string;
   label: string;
   icon: React.ReactNode;
-  adminOnly?: boolean;
+  scope: LayoutScope;
 }
+
+interface MenuGroup {
+  key: string;
+  label: string;
+  items: MenuItem[];
+}
+
+type LayoutScope = "user" | "admin";
 
 interface PasswordForm {
   newUsername: string;
@@ -37,8 +72,10 @@ interface PasswordForm {
 
 export default function AdminLayout({
   children,
+  scope = "user",
 }: {
   children: React.ReactNode;
+  scope?: LayoutScope;
 }) {
   const navigate = useNavigate();
   const location = useLocation();
@@ -47,7 +84,15 @@ export default function AdminLayout({
   const [isCollapsed, setIsCollapsed] = useState(
     () => localStorage.getItem("sidebar_collapsed") === "true",
   );
-  const [isAdmin, setIsAdmin] = useState(() => getAdminFlag());
+  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(() => {
+    try {
+      const stored = localStorage.getItem("sidebar_collapsed_groups");
+
+      return new Set(stored ? (JSON.parse(stored) as string[]) : []);
+    } catch {
+      return new Set();
+    }
+  });
   const [monitorAllowed, setMonitorAllowed] = useState<boolean | null>(null);
   const [monitorAccessReason, setMonitorAccessReason] = useState<string | null>(
     null,
@@ -61,136 +106,271 @@ export default function AdminLayout({
   });
   const isMobile = useMobileBreakpoint();
 
-  // 菜单项配置
-  const menuItems: MenuItem[] = [
+  const iconClass = "h-5 w-5";
+  const menuGroups: MenuGroup[] = [
     {
-      path: "/dashboard",
-      label: "仪表",
-      icon: (
-        <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-          <path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z" />
-        </svg>
-      ),
+      key: "user-panel",
+      label: "用户面板",
+      items: [
+        {
+          path: "/dashboard",
+          label: "仪表盘",
+          scope: "user",
+          icon: <LayoutDashboard className={iconClass} />,
+        },
+        {
+          path: "/forward",
+          label: "规则",
+          scope: "user",
+          icon: <Gauge className={iconClass} />,
+        },
+        {
+          path: "/plans/subscription",
+          label: "我的套餐",
+          scope: "user",
+          icon: <ReceiptText className={iconClass} />,
+        },
+        {
+          path: "/plans/store",
+          label: "套餐商城",
+          scope: "user",
+          icon: <ShoppingBag className={iconClass} />,
+        },
+        {
+          path: "/plans/coupon",
+          label: "优惠码",
+          scope: "user",
+          icon: <Gift className={iconClass} />,
+        },
+        {
+          path: "/plans/orders",
+          label: "我的订单",
+          scope: "user",
+          icon: <ReceiptText className={iconClass} />,
+        },
+        {
+          path: "/plans/wallet",
+          label: "账户余额",
+          scope: "user",
+          icon: <WalletCards className={iconClass} />,
+        },
+        {
+          path: "/plans/notifications",
+          label: "站内通知",
+          scope: "user",
+          icon: <Bell className={iconClass} />,
+        },
+        {
+          path: "/plans/tickets",
+          label: "售后工单",
+          scope: "user",
+          icon: <LifeBuoy className={iconClass} />,
+        },
+        {
+          path: "/monitor",
+          label: "监控",
+          scope: "user",
+          icon: <BarChart3 className={iconClass} />,
+        },
+      ],
     },
     {
-      path: "/forward",
-      label: "规则",
-      icon: (
-        <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-          <path
-            clipRule="evenodd"
-            d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z"
-            fillRule="evenodd"
-          />
-        </svg>
-      ),
+      key: "overview",
+      label: "运营总览",
+      items: [
+        {
+          path: "/dashboard",
+          label: "用户面板",
+          scope: "admin",
+          icon: <LayoutDashboard className={iconClass} />,
+        },
+        {
+          path: "/monitor",
+          label: "监控",
+          scope: "admin",
+          icon: <BarChart3 className={iconClass} />,
+        },
+        {
+          path: "/admin/reports",
+          label: "财务报表",
+          scope: "admin",
+          icon: <FileClock className={iconClass} />,
+        },
+        {
+          path: "/admin/risk",
+          label: "风控列表",
+          scope: "admin",
+          icon: <ShieldAlert className={iconClass} />,
+        },
+        {
+          path: "/admin/resource-jobs",
+          label: "资源任务",
+          scope: "admin",
+          icon: <BookOpenCheck className={iconClass} />,
+        },
+      ],
     },
     {
-      path: "/tunnel",
-      label: "隧道",
-      icon: (
-        <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-          <path
-            clipRule="evenodd"
-            d="M12.586 4.586a2 2 0 112.828 2.828l-3 3a2 2 0 01-2.828 0 1 1 0 00-1.414 1.414 4 4 0 005.656 0l3-3a4 4 0 00-5.656-5.656l-1.5 1.5a1 1 0 101.414 1.414l1.5-1.5zm-5 5a2 2 0 012.828 0 1 1 0 101.414-1.414 4 4 0 00-5.656 0l-3 3a4 4 0 105.656 5.656l1.5-1.5a1 1 0 10-1.414-1.414l-1.5 1.5a2 2 0 11-2.828-2.828l3-3z"
-            fillRule="evenodd"
-          />
-        </svg>
-      ),
-      adminOnly: true,
+      key: "resources",
+      label: "资源管理",
+      items: [
+        {
+          path: "/forward",
+          label: "规则",
+          scope: "admin",
+          icon: <Gauge className={iconClass} />,
+        },
+        {
+          path: "/admin/tunnels",
+          label: "隧道",
+          scope: "admin",
+          icon: <Link2 className={iconClass} />,
+        },
+        {
+          path: "/admin/nodes",
+          label: "节点",
+          scope: "admin",
+          icon: <Server className={iconClass} />,
+        },
+        {
+          path: "/admin/limits",
+          label: "限速",
+          scope: "admin",
+          icon: <Zap className={iconClass} />,
+        },
+        {
+          path: "/admin/groups",
+          label: "分组",
+          scope: "admin",
+          icon: <Network className={iconClass} />,
+        },
+        {
+          path: "/admin/panel-sharing",
+          label: "共享",
+          scope: "admin",
+          icon: <Share2 className={iconClass} />,
+        },
+      ],
     },
     {
-      path: "/node",
-      label: "节点",
-      icon: (
-        <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-          <path
-            clipRule="evenodd"
-            d="M3 3a1 1 0 000 2v8a2 2 0 002 2h2.586l-1.293 1.293a1 1 0 101.414 1.414L10 15.414l2.293 2.293a1 1 0 001.414-1.414L12.414 15H15a2 2 0 002-2V5a1 1 0 100-2H3zm11.707 4.707a1 1 0 00-1.414-1.414L10 9.586 8.707 8.293a1 1 0 00-1.414 0l-2 2a1 1 0 101.414 1.414L8 10.414l1.293 1.293a1 1 0 001.414 0l4-4z"
-            fillRule="evenodd"
-          />
-        </svg>
-      ),
-      adminOnly: true,
+      key: "users",
+      label: "用户与注册",
+      items: [
+        {
+          path: "/admin/users",
+          label: "用户",
+          scope: "admin",
+          icon: <Users className={iconClass} />,
+        },
+        {
+          path: "/admin/register-settings",
+          label: "注册设置",
+          scope: "admin",
+          icon: <UserPlus className={iconClass} />,
+        },
+        {
+          path: "/admin/invites",
+          label: "邀请码",
+          scope: "admin",
+          icon: <Ticket className={iconClass} />,
+        },
+      ],
     },
     {
-      path: "/monitor",
-      label: "监控",
-      icon: (
-        <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-          <path
-            clipRule="evenodd"
-            d="M3 3a1 1 0 000 2v11a1 1 0 001 1h13a1 1 0 100-2H5V5a1 1 0 00-1-1H3zm13.707 4.293a1 1 0 00-1.414 0L12 10.586 10.707 9.293a1 1 0 00-1.414 0L7 11.586l-1.293-1.293a1 1 0 10-1.414 1.414l2 2a1 1 0 001.414 0L10 11.414l1.293 1.293a1 1 0 001.414 0l3-3a1 1 0 000-1.414z"
-            fillRule="evenodd"
-          />
-        </svg>
-      ),
+      key: "transactions",
+      label: "套餐交易",
+      items: [
+        {
+          path: "/admin/plans",
+          label: "套餐管理",
+          scope: "admin",
+          icon: <ReceiptText className={iconClass} />,
+        },
+        {
+          path: "/admin/orders",
+          label: "订单管理",
+          scope: "admin",
+          icon: <ReceiptText className={iconClass} />,
+        },
+        {
+          path: "/admin/payments",
+          label: "支付流水",
+          scope: "admin",
+          icon: <CreditCard className={iconClass} />,
+        },
+        {
+          path: "/admin/refunds",
+          label: "退款审核",
+          scope: "admin",
+          icon: <FileClock className={iconClass} />,
+        },
+        {
+          path: "/admin/wallet",
+          label: "余额管理",
+          scope: "admin",
+          icon: <WalletCards className={iconClass} />,
+        },
+        {
+          path: "/admin/coupons",
+          label: "优惠码",
+          scope: "admin",
+          icon: <Gift className={iconClass} />,
+        },
+      ],
     },
     {
-      path: "/limit",
-      label: "限速",
-      icon: (
-        <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-          <path
-            clipRule="evenodd"
-            d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z"
-            fillRule="evenodd"
-          />
-        </svg>
-      ),
-      adminOnly: true,
+      key: "support",
+      label: "客服与审计",
+      items: [
+        {
+          path: "/admin/tickets",
+          label: "工单管理",
+          scope: "admin",
+          icon: <LifeBuoy className={iconClass} />,
+        },
+        {
+          path: "/admin/audit",
+          label: "审计日志",
+          scope: "admin",
+          icon: <History className={iconClass} />,
+        },
+      ],
     },
     {
-      path: "/user",
-      label: "用户",
-      icon: (
-        <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-          <path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z" />
-        </svg>
-      ),
-      adminOnly: true,
-    },
-    {
-      path: "/group",
-      label: "分组",
-      icon: (
-        <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-          <path d="M10 2a3 3 0 100 6 3 3 0 000-6zM4 9a3 3 0 100 6 3 3 0 000-6zm12 0a3 3 0 100 6 3 3 0 000-6M4 16a2 2 0 00-2 2h4a2 2 0 00-2-2zm12 0a2 2 0 00-2 2h4a2 2 0 00-2-2zm-6 0a2 2 0 00-2 2h4a2 2 0 00-2-2z" />
-        </svg>
-      ),
-      adminOnly: true,
-    },
-    {
-      path: "/panel-sharing",
-      label: "共享",
-      icon: (
-        <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-          <path d="M15 8a3 3 0 10-2.977-2.63l-4.94 2.47a3 3 0 100 4.319l4.94 2.47a3 3 0 10.895-1.789l-4.94-2.47a3.027 3.027 0 000-.74l4.94-2.47C13.456 7.68 14.19 8 15 8z" />
-        </svg>
-      ),
-      adminOnly: true,
-    },
-    {
-      path: "/config",
-      label: "设置",
-      icon: (
-        <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-          <path
-            clipRule="evenodd"
-            d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z"
-            fillRule="evenodd"
-          />
-        </svg>
-      ),
-      adminOnly: true,
+      key: "settings",
+      label: "系统设置",
+      items: [
+        {
+          path: "/admin/config",
+          label: "网站配置",
+          scope: "admin",
+          icon: <Settings className={iconClass} />,
+        },
+        {
+          path: "/admin/payment-settings",
+          label: "支付配置",
+          scope: "admin",
+          icon: <CreditCard className={iconClass} />,
+        },
+        {
+          path: "/admin/legal-settings",
+          label: "合规条款",
+          scope: "admin",
+          icon: <BookOpenCheck className={iconClass} />,
+        },
+        {
+          path: "/admin/license",
+          label: "商业授权",
+          scope: "admin",
+          icon: <KeyRound className={iconClass} />,
+        },
+      ],
     },
   ];
 
   useEffect(() => {
     // 获取用户信息
     const adminFlag = getAdminFlag();
-
-    setIsAdmin(adminFlag);
 
     // Monitor permission is not strictly role-based; non-admin users may be
     // granted access explicitly. Fetch a lightweight capability flag so we can
@@ -261,6 +441,24 @@ export default function AdminLayout({
     localStorage.setItem("sidebar_collapsed", newCollapsed.toString());
   };
 
+  const toggleGroup = (key: string) => {
+    setCollapsedGroups((prev) => {
+      const next = new Set(prev);
+
+      if (next.has(key)) {
+        next.delete(key);
+      } else {
+        next.add(key);
+      }
+      localStorage.setItem(
+        "sidebar_collapsed_groups",
+        JSON.stringify(Array.from(next)),
+      );
+
+      return next;
+    });
+  };
+
   // 菜单点击处理
   const handleMenuClick = (path: string) => {
     if (path === "/monitor" && monitorAllowed !== true) {
@@ -271,9 +469,9 @@ export default function AdminLayout({
       }
 
       const hint =
-        monitorAccessReason === "need_admin_grant"
-          ? "暂无监控权限，请联系管理员在用户页面授予监控权限"
-          : "暂无监控权限，请联系管理员授权";
+        monitorAccessReason === "need_active_plan"
+          ? "当前没有可查看监控的有效套餐"
+          : "暂无可查看监控的有效套餐";
 
       toast.error(hint);
 
@@ -354,10 +552,16 @@ export default function AdminLayout({
     });
   };
 
+  const isMenuItemActive = (path: string) =>
+    location.pathname === path || location.pathname.startsWith(`${path}/`);
+
   // 过滤菜单项（根据权限）
-  const filteredMenuItems = menuItems.filter(
-    (item) => !item.adminOnly || isAdmin,
-  );
+  const filteredMenuGroups = menuGroups
+    .map((group) => ({
+      ...group,
+      items: group.items.filter((item) => item.scope === scope),
+    }))
+    .filter((group) => group.items.length > 0);
 
   return (
     <div
@@ -402,67 +606,94 @@ export default function AdminLayout({
 
         {/* 菜单导航 */}
         <nav className="flex-1 px-4 overflow-y-auto overflow-x-hidden scrollbar-hide">
-          <ul className="space-y-2">
-            {filteredMenuItems.map((item) => {
-              const isActive = location.pathname === item.path;
-              const isMonitor = item.path === "/monitor";
-              const isMonitorBlocked = isMonitor && monitorAllowed !== true;
+          <ul className="space-y-3">
+            {filteredMenuGroups.map((group) => {
+              const groupCollapsed = collapsedGroups.has(group.key);
 
               return (
-                <li key={item.path}>
-                  <motion.button
-                    aria-disabled={isMonitorBlocked}
-                    className={`
-                       w-full flex items-center p-3 rounded-2xl text-left
-                       relative min-h-[48px] overflow-hidden transition-colors
-                       ${isMonitorBlocked ? "opacity-60" : ""}
-                       ${
-                         isActive
-                           ? "text-primary dark:text-primary-400 font-semibold"
-                           : isMonitorBlocked
-                             ? "text-gray-500 dark:text-gray-400 font-medium"
-                             : "text-gray-600 dark:text-gray-300 font-medium"
-                       }
-                     `}
-                    title={
-                      isCollapsed
-                        ? isMonitorBlocked
-                          ? `${item.label} (无权限)`
-                          : item.label
-                        : undefined
-                    }
-                    transition={{ duration: 0.15 }}
-                    onClick={() => handleMenuClick(item.path)}
-                  >
-                    {isActive && (
-                      <motion.div
-                        className="absolute inset-0 rounded-2xl bg-white/60 dark:bg-white/10 backdrop-blur-xl shadow-[0_12px_36px_rgba(0,0,0,0.18)] border border-white dark:border-white/20"
-                        layoutId="sidebar-active"
-                        transition={{
-                          type: "spring",
-                          stiffness: 380,
-                          damping: 30,
-                        }}
-                      />
-                    )}
-                    {!isActive && (
-                      <motion.div
-                        className="absolute inset-0 rounded-2xl bg-white/40 dark:bg-white/5 opacity-0"
-                        transition={{ duration: 0.15 }}
-                        whileHover={{ opacity: 1 }}
-                      />
-                    )}
-                    <div className="flex-shrink-0 w-6 h-6 flex items-center justify-center relative z-10">
-                      {item.icon}
-                    </div>
-                    <div
-                      className={`transition-all duration-300 overflow-hidden flex items-center ${isCollapsed ? "max-w-0 opacity-0 ml-0" : "max-w-[200px] opacity-100 ml-3"}`}
+                <li key={group.key}>
+                  {!isCollapsed && (
+                    <button
+                      className="mb-1 flex w-full items-center justify-between rounded-xl px-3 py-2 text-xs font-semibold text-default-500 transition-colors hover:bg-white/40 dark:hover:bg-white/5"
+                      type="button"
+                      onClick={() => toggleGroup(group.key)}
                     >
-                      <span className="relative z-10 whitespace-nowrap">
-                        {item.label}
-                      </span>
-                    </div>
-                  </motion.button>
+                      <span>{group.label}</span>
+                      <ChevronDown
+                        className={`h-4 w-4 transition-transform ${
+                          groupCollapsed ? "-rotate-90" : ""
+                        }`}
+                      />
+                    </button>
+                  )}
+                  {(!groupCollapsed || isCollapsed) && (
+                    <ul className="space-y-1">
+                      {group.items.map((item) => {
+                        const isActive = isMenuItemActive(item.path);
+                        const isMonitor = item.path === "/monitor";
+                        const isMonitorBlocked =
+                          isMonitor && monitorAllowed !== true;
+
+                        return (
+                          <li key={`${group.key}-${item.path}`}>
+                            <motion.button
+                              aria-disabled={isMonitorBlocked}
+                              className={`
+                                w-full flex items-center p-3 rounded-2xl text-left
+                                relative min-h-[48px] overflow-hidden transition-colors
+                                ${isMonitorBlocked ? "opacity-60" : ""}
+                                ${
+                                  isActive
+                                    ? "text-primary dark:text-primary-400 font-semibold"
+                                    : isMonitorBlocked
+                                      ? "text-gray-500 dark:text-gray-400 font-medium"
+                                      : "text-gray-600 dark:text-gray-300 font-medium"
+                                }
+                              `}
+                              title={
+                                isCollapsed
+                                  ? isMonitorBlocked
+                                    ? `${item.label} (无权限)`
+                                    : item.label
+                                  : undefined
+                              }
+                              transition={{ duration: 0.15 }}
+                              onClick={() => handleMenuClick(item.path)}
+                            >
+                              {isActive && (
+                                <motion.div
+                                  className="absolute inset-0 rounded-2xl bg-white/60 dark:bg-white/10 backdrop-blur-xl shadow-[0_12px_36px_rgba(0,0,0,0.18)] border border-white dark:border-white/20"
+                                  layoutId="sidebar-active"
+                                  transition={{
+                                    type: "spring",
+                                    stiffness: 380,
+                                    damping: 30,
+                                  }}
+                                />
+                              )}
+                              {!isActive && (
+                                <motion.div
+                                  className="absolute inset-0 rounded-2xl bg-white/40 dark:bg-white/5 opacity-0"
+                                  transition={{ duration: 0.15 }}
+                                  whileHover={{ opacity: 1 }}
+                                />
+                              )}
+                              <div className="flex-shrink-0 w-6 h-6 flex items-center justify-center relative z-10">
+                                {item.icon}
+                              </div>
+                              <div
+                                className={`transition-all duration-300 overflow-hidden flex items-center ${isCollapsed ? "max-w-0 opacity-0 ml-0" : "max-w-[200px] opacity-100 ml-3"}`}
+                              >
+                                <span className="relative z-10 whitespace-nowrap">
+                                  {item.label}
+                                </span>
+                              </div>
+                            </motion.button>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  )}
                 </li>
               );
             })}

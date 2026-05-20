@@ -1342,8 +1342,8 @@ func TestMonitorAccessEndpoint(t *testing.T) {
 		assertAllowed(t, adminToken, true)
 	})
 
-	t.Run("non-admin without grant is denied", func(t *testing.T) {
-		assertAllowed(t, userToken, false)
+	t.Run("non-admin without grant can open empty monitor", func(t *testing.T) {
+		assertAllowed(t, userToken, true)
 	})
 
 	now := time.Now().UnixMilli()
@@ -1376,19 +1376,20 @@ func TestMonitoringPermissionRequired(t *testing.T) {
 		"enabled":     1,
 	})
 
-	forbidden := []struct {
+	checks := []struct {
 		name   string
 		method string
 		path   string
 		body   []byte
+		want   int
 	}{
-		{"service list", http.MethodGet, "/api/v1/monitor/services", nil},
-		{"service create", http.MethodPost, "/api/v1/monitor/services/create", createBody},
-		{"node metrics", http.MethodGet, "/api/v1/monitor/nodes/1/metrics", nil},
+		{"service list", http.MethodGet, "/api/v1/monitor/services", nil, 0},
+		{"service create", http.MethodPost, "/api/v1/monitor/services/create", createBody, 403},
+		{"node metrics", http.MethodGet, "/api/v1/monitor/nodes/1/metrics", nil, 0},
 	}
 
-	for _, tc := range forbidden {
-		t.Run(tc.name+" forbidden without grant", func(t *testing.T) {
+	for _, tc := range checks {
+		t.Run(tc.name+" without grant", func(t *testing.T) {
 			var req *http.Request
 			if tc.body != nil {
 				req = httptest.NewRequest(tc.method, tc.path, bytes.NewReader(tc.body))
@@ -1404,8 +1405,8 @@ func TestMonitoringPermissionRequired(t *testing.T) {
 			if err := json.NewDecoder(res.Body).Decode(&out); err != nil {
 				t.Fatalf("decode response: %v", err)
 			}
-			if out.Code != 403 {
-				t.Fatalf("expected 403 without grant, got %d msg=%q", out.Code, out.Msg)
+			if out.Code != tc.want {
+				t.Fatalf("expected code %d without grant, got %d msg=%q", tc.want, out.Code, out.Msg)
 			}
 		})
 	}
@@ -1423,7 +1424,6 @@ func TestMonitoringPermissionRequired(t *testing.T) {
 		body   []byte
 	}{
 		{"service list", http.MethodGet, "/api/v1/monitor/services", nil},
-		{"service create", http.MethodPost, "/api/v1/monitor/services/create", createBody},
 	}
 
 	for _, tc := range allowed {
@@ -1448,4 +1448,20 @@ func TestMonitoringPermissionRequired(t *testing.T) {
 			}
 		})
 	}
+
+	t.Run("service create still admin only with grant", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/monitor/services/create", bytes.NewReader(createBody))
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Authorization", userToken)
+		res := httptest.NewRecorder()
+		router.ServeHTTP(res, req)
+
+		var out response.R
+		if err := json.NewDecoder(res.Body).Decode(&out); err != nil {
+			t.Fatalf("decode response: %v", err)
+		}
+		if out.Code != 403 {
+			t.Fatalf("expected code 403 for service create with user grant, got %d msg=%q", out.Code, out.Msg)
+		}
+	})
 }

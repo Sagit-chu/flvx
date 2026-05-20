@@ -18,7 +18,6 @@ interface TabItem {
 export default function H5Layout({ children }: { children: React.ReactNode }) {
   const navigate = useNavigate();
   const location = useLocation();
-  const [isAdmin, setIsAdmin] = useState(() => getAdminFlag());
   const [monitorAllowed, setMonitorAllowed] = useState<boolean | null>(null);
   const [monitorAccessReason, setMonitorAccessReason] = useState<string | null>(
     null,
@@ -51,7 +50,52 @@ export default function H5Layout({ children }: { children: React.ReactNode }) {
       ),
     },
     {
-      path: "/tunnel",
+      path: "/plans/subscription",
+      label: "我的套餐",
+      icon: (
+        <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
+          <path d="M4 3a2 2 0 00-2 2v2h16V5a2 2 0 00-2-2H4zM18 9H2v6a2 2 0 002 2h12a2 2 0 002-2V9zm-7 4a1 1 0 100 2h4a1 1 0 100-2h-4z" />
+        </svg>
+      ),
+    },
+    {
+      path: "/plans/store",
+      label: "商城",
+      icon: (
+        <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
+          <path d="M10 2a2 2 0 00-2 2v1H5.5A1.5 1.5 0 004 6.5v9A1.5 1.5 0 005.5 17h9a1.5 1.5 0 001.5-1.5v-9A1.5 1.5 0 0014.5 5H12V4a2 2 0 00-2-2zm1 3H9V4a1 1 0 112 0v1z" />
+        </svg>
+      ),
+    },
+    {
+      path: "/plans/orders",
+      label: "订单",
+      icon: (
+        <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
+          <path d="M4 3a2 2 0 00-2 2v12l3-1.5L8 17l3-1.5 3 1.5 3-1.5V5a2 2 0 00-2-2H4zm2 4h8a1 1 0 110 2H6a1 1 0 010-2zm0 4h8a1 1 0 110 2H6a1 1 0 110-2z" />
+        </svg>
+      ),
+    },
+    {
+      path: "/plans/wallet",
+      label: "余额",
+      icon: (
+        <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
+          <path d="M4 4a2 2 0 00-2 2v8a2 2 0 002 2h12a2 2 0 002-2V8a2 2 0 00-2-2H5a1 1 0 010-2h11a1 1 0 100-2H4zm10 7a1.5 1.5 0 113 0 1.5 1.5 0 01-3 0z" />
+        </svg>
+      ),
+    },
+    {
+      path: "/plans/tickets",
+      label: "工单",
+      icon: (
+        <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
+          <path d="M5 4a3 3 0 00-3 3v1a2 2 0 010 4v1a3 3 0 003 3h10a3 3 0 003-3v-1a2 2 0 010-4V7a3 3 0 00-3-3H5zm5 3a1 1 0 011 1v1h1a1 1 0 110 2h-1v1a1 1 0 11-2 0v-1H8a1 1 0 110-2h1V8a1 1 0 011-1z" />
+        </svg>
+      ),
+    },
+    {
+      path: "/admin/tunnels",
       label: "隧道",
       icon: (
         <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
@@ -65,7 +109,7 @@ export default function H5Layout({ children }: { children: React.ReactNode }) {
       adminOnly: true,
     },
     {
-      path: "/node",
+      path: "/admin/nodes",
       label: "节点",
       icon: (
         <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
@@ -105,7 +149,6 @@ export default function H5Layout({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const adminFlag = getAdminFlag();
 
-    setIsAdmin(adminFlag);
     if (adminFlag) {
       setMonitorAllowed(true);
       setMonitorAccessReason(null);
@@ -152,9 +195,9 @@ export default function H5Layout({ children }: { children: React.ReactNode }) {
       }
 
       const hint =
-        monitorAccessReason === "need_admin_grant"
-          ? "暂无监控权限，请联系管理员授权"
-          : "暂无监控权限";
+        monitorAccessReason === "need_active_plan"
+          ? "当前没有可查看监控的有效套餐"
+          : "暂无可查看监控的有效套餐";
 
       toast.error(hint);
 
@@ -164,9 +207,7 @@ export default function H5Layout({ children }: { children: React.ReactNode }) {
   };
 
   // 过滤tab项（根据权限）
-  const filteredTabItems = tabItems.filter(
-    (item) => !item.adminOnly || isAdmin,
-  );
+  const filteredTabItems = tabItems.filter((item) => !item.adminOnly);
 
   return (
     <div className="flex flex-col min-h-screen bg-mesh-gradient">
@@ -189,7 +230,7 @@ export default function H5Layout({ children }: { children: React.ReactNode }) {
       <div aria-hidden className="h-[calc(4rem+var(--safe-area-bottom))]" />
 
       {/* 底部Tabbar */}
-      <nav className="bg-white/20 dark:bg-zinc-900/20 backdrop-blur-2xl border-t border-white/80 dark:border-white/10 h-[calc(4rem+var(--safe-area-bottom))] flex-shrink-0 flex items-center justify-around px-2 fixed bottom-0 left-0 right-0 z-30">
+      <nav className="bg-white/20 dark:bg-zinc-900/20 backdrop-blur-2xl border-t border-white/80 dark:border-white/10 h-[calc(4rem+var(--safe-area-bottom))] flex-shrink-0 flex items-center gap-1 overflow-x-auto px-2 fixed bottom-0 left-0 right-0 z-30">
         {filteredTabItems.map((item) => {
           const isActive = location.pathname === item.path;
           const isMonitor = item.path === "/monitor";
@@ -199,7 +240,7 @@ export default function H5Layout({ children }: { children: React.ReactNode }) {
             <button
               key={item.path}
               className={`
-                flex flex-col items-center justify-center flex-1 h-full pb-[var(--safe-area-bottom)]
+                flex flex-col items-center justify-center min-w-[72px] h-full pb-[var(--safe-area-bottom)]
                 transition-colors duration-200 min-h-[44px]
                 ${isMonitorBlocked ? "opacity-60" : ""}
                 ${

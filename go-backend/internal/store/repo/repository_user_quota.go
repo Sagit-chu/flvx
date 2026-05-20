@@ -375,6 +375,62 @@ func (r *Repository) ResetUserQuotaUsage(userID int64, scope string, now time.Ti
 	return release, nil
 }
 
+func (r *Repository) RebuildUserQuotaUsageFromActiveSubscriptions(userID int64, now time.Time) (*UserQuotaRelease, error) {
+	if r == nil || r.db == nil {
+		return nil, errors.New("repository not initialized")
+	}
+	if userID <= 0 {
+		return nil, errors.New("user id is required")
+	}
+	nowMs := now.UnixMilli()
+	dayKey, monthKey := userQuotaWindowKeys(now)
+	var release *UserQuotaRelease
+	err := r.db.Transaction(func(tx *gorm.DB) error {
+		q, err := r.loadOrCreateUserQuotaTx(tx, userID, now)
+		if err != nil {
+			return err
+		}
+		applyUserQuotaWindowRoll(q, now)
+		var sums struct {
+			DailyUsedBytes   int64
+			MonthlyUsedBytes int64
+		}
+		if err := tx.Table("user_subscription_quota").
+			Select(`COALESCE(SUM(CASE WHEN user_subscription_quota.day_key = ? THEN user_subscription_quota.daily_used_bytes ELSE 0 END), 0) AS daily_used_bytes,
+				COALESCE(SUM(CASE WHEN user_subscription_quota.month_key = ? THEN user_subscription_quota.monthly_used_bytes ELSE 0 END), 0) AS monthly_used_bytes`, dayKey, monthKey).
+			Joins("JOIN user_subscription ON user_subscription.id = user_subscription_quota.subscription_id").
+			Where("user_subscription_quota.user_id = ? AND user_subscription.status = ? AND user_subscription.expires_at > ?", userID, "active", nowMs).
+			Scan(&sums).Error; err != nil {
+			return err
+		}
+		q.DailyUsedBytes = sums.DailyUsedBytes
+		q.MonthlyUsedBytes = sums.MonthlyUsedBytes
+		q.UpdatedTime = nowMs
+		release = &UserQuotaRelease{UserID: userID}
+		if q.DisabledByQuota == 1 && !userQuotaExceeded(cloneUserQuotaView(*q)) {
+			release.UnblockUser = true
+			release.ForwardIDs = parsePausedForwardIDs(q.PausedForwardIDs)
+			q.DisabledByQuota = 0
+			q.DisabledAt = 0
+			q.PausedForwardIDs = ""
+		}
+		return tx.Model(&model.UserQuota{}).Where("user_id = ?", userID).Updates(map[string]interface{}{
+			"daily_used_bytes":   q.DailyUsedBytes,
+			"monthly_used_bytes": q.MonthlyUsedBytes,
+			"day_key":            q.DayKey,
+			"month_key":          q.MonthKey,
+			"disabled_by_quota":  q.DisabledByQuota,
+			"disabled_at":        q.DisabledAt,
+			"paused_forward_ids": q.PausedForwardIDs,
+			"updated_time":       q.UpdatedTime,
+		}).Error
+	})
+	if err != nil {
+		return nil, err
+	}
+	return release, nil
+}
+
 func (r *Repository) RollUserQuotaWindows(now time.Time) ([]UserQuotaRelease, error) {
 	if r == nil || r.db == nil {
 		return nil, errors.New("repository not initialized")

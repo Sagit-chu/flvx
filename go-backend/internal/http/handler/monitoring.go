@@ -89,9 +89,17 @@ func (h *Handler) monitorNodeListHandler(w http.ResponseWriter, r *http.Request)
 		response.WriteJSON(w, response.Err(-2, err.Error()))
 		return
 	}
+	scope, err := h.monitorResourceScope(r)
+	if err != nil {
+		h.writeMonitorResourceScopeError(w, err)
+		return
+	}
 
 	items := make([]monitorNodeListItem, 0, len(nodes))
 	for _, n := range nodes {
+		if !scope.canViewNode(n.ID) {
+			continue
+		}
 		updated := int64(0)
 		if n.UpdatedTime.Valid {
 			updated = n.UpdatedTime.Int64
@@ -131,9 +139,17 @@ func (h *Handler) monitorTunnelListHandler(w http.ResponseWriter, r *http.Reques
 		response.WriteJSON(w, response.Err(-2, err.Error()))
 		return
 	}
+	scope, err := h.monitorResourceScope(r)
+	if err != nil {
+		h.writeMonitorResourceScopeError(w, err)
+		return
+	}
 
 	items := make([]monitorTunnelListItem, 0, len(tunnels))
 	for _, t := range tunnels {
+		if !scope.canViewTunnel(t.ID) {
+			continue
+		}
 		items = append(items, monitorTunnelListItem{
 			ID:          t.ID,
 			Inx:         t.Inx,
@@ -150,6 +166,15 @@ func (h *Handler) handleNodeMetrics(w http.ResponseWriter, r *http.Request, node
 	nodeID, err := strconv.ParseInt(nodeIDStr, 10, 64)
 	if err != nil || nodeID <= 0 {
 		response.WriteJSON(w, response.ErrDefault("无效的节点ID"))
+		return
+	}
+	scope, err := h.monitorResourceScope(r)
+	if err != nil {
+		h.writeMonitorResourceScopeError(w, err)
+		return
+	}
+	if !scope.canViewNode(nodeID) {
+		response.WriteJSON(w, response.OK([]model.NodeMetric{}))
 		return
 	}
 
@@ -189,10 +214,19 @@ func (h *Handler) handleNodeMetrics(w http.ResponseWriter, r *http.Request, node
 	response.WriteJSON(w, response.OK(metrics))
 }
 
-func (h *Handler) handleNodeMetricsLatest(w http.ResponseWriter, _ *http.Request, nodeIDStr string) {
+func (h *Handler) handleNodeMetricsLatest(w http.ResponseWriter, r *http.Request, nodeIDStr string) {
 	nodeID, err := strconv.ParseInt(nodeIDStr, 10, 64)
 	if err != nil || nodeID <= 0 {
 		response.WriteJSON(w, response.ErrDefault("无效的节点ID"))
+		return
+	}
+	scope, err := h.monitorResourceScope(r)
+	if err != nil {
+		h.writeMonitorResourceScopeError(w, err)
+		return
+	}
+	if !scope.canViewNode(nodeID) {
+		response.WriteJSON(w, response.OK(nil))
 		return
 	}
 
@@ -217,12 +251,27 @@ func (h *Handler) monitorTunnelQualityHandler(w http.ResponseWriter, r *http.Req
 	if !h.ensureMonitoringAccess(w, r) {
 		return
 	}
+	scope, err := h.monitorResourceScope(r)
+	if err != nil {
+		h.writeMonitorResourceScopeError(w, err)
+		return
+	}
 
 	// Try in-memory cache first
 	if h.qualityProber != nil {
 		items := h.qualityProber.GetAll()
 		if len(items) > 0 {
-			response.WriteJSON(w, response.OK(items))
+			if scope.isAdmin {
+				response.WriteJSON(w, response.OK(items))
+				return
+			}
+			filtered := make([]tunnelQualitySnapshot, 0, len(items))
+			for _, item := range items {
+				if scope.canViewTunnel(item.TunnelID) {
+					filtered = append(filtered, item)
+				}
+			}
+			response.WriteJSON(w, response.OK(filtered))
 			return
 		}
 	}
@@ -246,6 +295,9 @@ func (h *Handler) monitorTunnelQualityHandler(w http.ResponseWriter, r *http.Req
 
 	snapshots := make([]tunnelQualitySnapshot, 0, len(qualities))
 	for _, q := range qualities {
+		if !scope.canViewTunnel(q.TunnelID) {
+			continue
+		}
 		target := targetsByTunnelID[q.TunnelID]
 		if target.Host == "" {
 			target = defaultTunnelProbeTarget()
@@ -283,6 +335,15 @@ func (h *Handler) monitorTunnelQualityHistory(w http.ResponseWriter, r *http.Req
 	tunnelID, err := strconv.ParseInt(tunnelIDStr, 10, 64)
 	if err != nil || tunnelID <= 0 {
 		response.WriteJSON(w, response.ErrDefault("无效的隧道ID"))
+		return
+	}
+	scope, err := h.monitorResourceScope(r)
+	if err != nil {
+		h.writeMonitorResourceScopeError(w, err)
+		return
+	}
+	if !scope.canViewTunnel(tunnelID) {
+		response.WriteJSON(w, response.OK([]model.TunnelQuality{}))
 		return
 	}
 
@@ -349,6 +410,15 @@ func (h *Handler) monitorTunnelMetrics(w http.ResponseWriter, r *http.Request) {
 		response.WriteJSON(w, response.ErrDefault("无效的隧道ID"))
 		return
 	}
+	scope, err := h.monitorResourceScope(r)
+	if err != nil {
+		h.writeMonitorResourceScopeError(w, err)
+		return
+	}
+	if !scope.canViewTunnel(tunnelID) {
+		response.WriteJSON(w, response.OK([]model.TunnelMetric{}))
+		return
+	}
 
 	now := time.Now().UnixMilli()
 	startMs := now - defaultMetricsRangeMs
@@ -394,6 +464,15 @@ func (h *Handler) monitorServiceListHandler(w http.ResponseWriter, r *http.Reque
 	if !h.ensureMonitoringAccess(w, r) {
 		return
 	}
+	scope, err := h.monitorResourceScope(r)
+	if err != nil {
+		h.writeMonitorResourceScopeError(w, err)
+		return
+	}
+	if !scope.isAdmin {
+		response.WriteJSON(w, response.OK([]model.ServiceMonitor{}))
+		return
+	}
 
 	monitors, err := h.repo.ListServiceMonitors()
 	if err != nil {
@@ -419,7 +498,7 @@ func (h *Handler) monitorServiceCreate(w http.ResponseWriter, r *http.Request) {
 		response.WriteJSON(w, response.ErrDefault("请求失败"))
 		return
 	}
-	if !h.ensureMonitoringAccess(w, r) {
+	if !h.ensureAdminAccess(w, r) {
 		return
 	}
 
@@ -528,7 +607,7 @@ func (h *Handler) monitorServiceUpdate(w http.ResponseWriter, r *http.Request) {
 		response.WriteJSON(w, response.ErrDefault("请求失败"))
 		return
 	}
-	if !h.ensureMonitoringAccess(w, r) {
+	if !h.ensureAdminAccess(w, r) {
 		return
 	}
 
@@ -631,7 +710,7 @@ func (h *Handler) monitorServiceDelete(w http.ResponseWriter, r *http.Request) {
 		response.WriteJSON(w, response.ErrDefault("请求失败"))
 		return
 	}
-	if !h.ensureMonitoringAccess(w, r) {
+	if !h.ensureAdminAccess(w, r) {
 		return
 	}
 
@@ -659,7 +738,7 @@ func (h *Handler) monitorServiceRun(w http.ResponseWriter, r *http.Request) {
 		response.WriteJSON(w, response.ErrDefault("请求失败"))
 		return
 	}
-	if !h.ensureMonitoringAccess(w, r) {
+	if !h.ensureAdminAccess(w, r) {
 		return
 	}
 	if h.healthCheck == nil {
@@ -704,6 +783,15 @@ func (h *Handler) monitorServiceResultsHandler(w http.ResponseWriter, r *http.Re
 		return
 	}
 	if !h.ensureMonitoringAccess(w, r) {
+		return
+	}
+	scope, err := h.monitorResourceScope(r)
+	if err != nil {
+		h.writeMonitorResourceScopeError(w, err)
+		return
+	}
+	if !scope.isAdmin {
+		response.WriteJSON(w, response.OK([]model.ServiceMonitorResult{}))
 		return
 	}
 
@@ -762,6 +850,15 @@ func (h *Handler) monitorServiceLatestResultsHandler(w http.ResponseWriter, r *h
 	if !h.ensureMonitoringAccess(w, r) {
 		return
 	}
+	scope, err := h.monitorResourceScope(r)
+	if err != nil {
+		h.writeMonitorResourceScopeError(w, err)
+		return
+	}
+	if !scope.isAdmin {
+		response.WriteJSON(w, response.OK([]model.ServiceMonitorResult{}))
+		return
+	}
 
 	// Try in-memory cache first (updated every 1s)
 	if h.healthCheck != nil {
@@ -803,6 +900,70 @@ func extractPathParam(path, prefix, suffix string) string {
 	return rest
 }
 
+type monitorResourceScope struct {
+	isAdmin   bool
+	tunnelIDs map[int64]struct{}
+	nodeIDs   map[int64]struct{}
+}
+
+func (s monitorResourceScope) canViewTunnel(id int64) bool {
+	if s.isAdmin {
+		return true
+	}
+	_, ok := s.tunnelIDs[id]
+	return ok
+}
+
+func (s monitorResourceScope) canViewNode(id int64) bool {
+	if s.isAdmin {
+		return true
+	}
+	_, ok := s.nodeIDs[id]
+	return ok
+}
+
+func (h *Handler) monitorResourceScope(r *http.Request) (monitorResourceScope, error) {
+	userID, roleID, err := userRoleFromRequest(r)
+	if err != nil {
+		return monitorResourceScope{}, err
+	}
+	if roleID == 0 {
+		return monitorResourceScope{isAdmin: true}, nil
+	}
+
+	now := time.Now().UnixMilli()
+	tunnelIDs, err := h.repo.ListVisibleMonitorTunnelIDs(userID, now)
+	if err != nil {
+		return monitorResourceScope{}, err
+	}
+	nodeIDs, err := h.repo.ListVisibleMonitorNodeIDs(userID, now)
+	if err != nil {
+		return monitorResourceScope{}, err
+	}
+
+	return monitorResourceScope{
+		tunnelIDs: int64Set(tunnelIDs),
+		nodeIDs:   int64Set(nodeIDs),
+	}, nil
+}
+
+func int64Set(ids []int64) map[int64]struct{} {
+	set := make(map[int64]struct{}, len(ids))
+	for _, id := range ids {
+		if id > 0 {
+			set[id] = struct{}{}
+		}
+	}
+	return set
+}
+
+func (h *Handler) writeMonitorResourceScopeError(w http.ResponseWriter, err error) {
+	if err == nil {
+		return
+	}
+	response.WriteJSON(w, response.Err(-2, err.Error()))
+}
+
 type monitorAccessData struct {
 	Allowed bool   `json:"allowed"`
 	Reason  string `json:"reason,omitempty"`
@@ -816,7 +977,7 @@ func (h *Handler) monitorAccessHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	userID, roleID, err := userRoleFromRequest(r)
+	_, roleID, err := userRoleFromRequest(r)
 	if err != nil {
 		response.WriteJSON(w, response.Err(401, "未登录或token已过期"))
 		return
@@ -826,16 +987,7 @@ func (h *Handler) monitorAccessHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	allowed, err := h.repo.HasMonitorPermission(userID)
-	if err != nil {
-		response.WriteJSON(w, response.Err(-2, err.Error()))
-		return
-	}
-	data := monitorAccessData{Allowed: allowed}
-	if !allowed {
-		data.Reason = "need_admin_grant"
-	}
-	response.WriteJSON(w, response.OK(data))
+	response.WriteJSON(w, response.OK(monitorAccessData{Allowed: true}))
 }
 
 func (h *Handler) ensureAdminAccess(w http.ResponseWriter, r *http.Request) bool {
@@ -852,22 +1004,13 @@ func (h *Handler) ensureAdminAccess(w http.ResponseWriter, r *http.Request) bool
 }
 
 func (h *Handler) ensureMonitoringAccess(w http.ResponseWriter, r *http.Request) bool {
-	userID, roleID, err := userRoleFromRequest(r)
+	_, roleID, err := userRoleFromRequest(r)
 	if err != nil {
 		response.WriteJSON(w, response.Err(401, "未登录或token已过期"))
 		return false
 	}
 	if roleID == 0 {
 		return true
-	}
-	allowed, err := h.repo.HasMonitorPermission(userID)
-	if err != nil {
-		response.WriteJSON(w, response.Err(-2, err.Error()))
-		return false
-	}
-	if !allowed {
-		response.WriteJSON(w, response.Err(403, "权限不足：当前账户非管理员，且未被授予监控权限。请联系管理员在用户管理中授权监控权限。"))
-		return false
 	}
 	return true
 }

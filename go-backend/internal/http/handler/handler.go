@@ -20,14 +20,11 @@ import (
 	"go-backend/internal/health"
 	"go-backend/internal/http/middleware"
 	"go-backend/internal/http/response"
-	"go-backend/internal/license"
 	"go-backend/internal/metrics"
 	"go-backend/internal/monitoring"
 	"go-backend/internal/security"
 	"go-backend/internal/store/repo"
 	"go-backend/internal/ws"
-
-	"github.com/google/uuid"
 )
 
 type Handler struct {
@@ -39,6 +36,8 @@ type Handler struct {
 
 	captchaMu     sync.Mutex
 	captchaTokens map[string]int64
+	rateLimitMu   sync.Mutex
+	rateLimits    map[string]rateLimitBucket
 
 	jobsMu      sync.Mutex
 	jobsCancel  context.CancelFunc
@@ -79,10 +78,6 @@ type configSingleRequest struct {
 	Value string `json:"value"`
 }
 
-type licenseActivateRequest struct {
-	LicenseKey string `json:"license_key"`
-}
-
 type changePasswordRequest struct {
 	NewUsername     string `json:"newUsername"`
 	CurrentPassword string `json:"currentPassword"`
@@ -109,6 +104,7 @@ func New(repo *repo.Repository, jwtSecret string) *Handler {
 		metrics:                  metrics.NewIngestionService(repo),
 		healthCheck:              nil,
 		captchaTokens:            make(map[string]int64),
+		rateLimits:               make(map[string]rateLimitBucket),
 		pendingUpgradeRedeploy:   make(map[int64]struct{}),
 		nodeOnlineRedeployAt:     make(map[int64]time.Time),
 		nodeOnlineRedeployQueued: make(map[int64]struct{}),
@@ -150,6 +146,7 @@ func (h *Handler) GetUserAuthState(userID int64) (*auth.UserAuthState, error) {
 
 func (h *Handler) Register(mux *http.ServeMux) {
 	mux.HandleFunc("/api/v1/user/login", h.login)
+	mux.HandleFunc("/api/v1/user/register", h.userRegister)
 	mux.HandleFunc("/api/v1/user/list", h.userList)
 	mux.HandleFunc("/api/v1/user/create", h.userCreate)
 	mux.HandleFunc("/api/v1/user/update", h.userUpdate)
@@ -164,9 +161,6 @@ func (h *Handler) Register(mux *http.ServeMux) {
 	mux.HandleFunc("/api/v1/config/update-single", h.updateSingleConfig)
 	mux.HandleFunc("/api/v1/system/storage", h.storageSummary)
 	mux.HandleFunc("/api/v1/system/version", h.systemVersion)
-	mux.HandleFunc("/api/v1/system/check-updates", h.systemCheckUpdates)
-	mux.HandleFunc("/api/v1/system/upgrade", h.systemUpgrade)
-	mux.HandleFunc("/api/v1/license/activate", h.licenseActivate)
 	mux.HandleFunc("/api/v1/backup/export", h.backupExport)
 	mux.HandleFunc("/api/v1/backup/import", h.backupImport)
 	mux.HandleFunc("/api/v1/backup/restore", h.backupImport)
@@ -177,6 +171,64 @@ func (h *Handler) Register(mux *http.ServeMux) {
 	mux.HandleFunc("/api/v1/captcha/verify", h.captchaVerify)
 	mux.HandleFunc("/api/v1/user/package", h.userPackage)
 	mux.HandleFunc("/api/v1/user/updatePassword", h.updatePassword)
+	mux.HandleFunc("/api/v1/commerce/public/settings", h.publicCommerceSettings)
+	mux.HandleFunc("/api/v1/commerce/plans/public", h.listPublicPlans)
+	mux.HandleFunc("/api/v1/commerce/order/create", h.createCommerceOrder)
+	mux.HandleFunc("/api/v1/commerce/order/list", h.listMyOrders)
+	mux.HandleFunc("/api/v1/commerce/order/pay", h.payCommerceOrder)
+	mux.HandleFunc("/api/v1/commerce/order/pay-balance", h.payCommerceOrderWithBalance)
+	mux.HandleFunc("/api/v1/commerce/order/cancel", h.cancelCommerceOrder)
+	mux.HandleFunc("/api/v1/commerce/order/refund", h.requestOrderRefund)
+	mux.HandleFunc("/api/v1/commerce/subscription/me", h.mySubscription)
+	mux.HandleFunc("/api/v1/commerce/subscription/reset-flow", h.resetMySubscriptionFlow)
+	mux.HandleFunc("/api/v1/commerce/notification/list", h.listMyNotifications)
+	mux.HandleFunc("/api/v1/commerce/notification/read", h.readMyNotification)
+	mux.HandleFunc("/api/v1/commerce/notification/read-all", h.readAllMyNotifications)
+	mux.HandleFunc("/api/v1/commerce/wallet/me", h.myWallet)
+	mux.HandleFunc("/api/v1/commerce/wallet/recharge", h.rechargeMyWallet)
+	mux.HandleFunc("/api/v1/commerce/ticket/list", h.listMyTickets)
+	mux.HandleFunc("/api/v1/commerce/ticket/messages", h.myTicketMessages)
+	mux.HandleFunc("/api/v1/commerce/ticket/create", h.createMyTicket)
+	mux.HandleFunc("/api/v1/commerce/ticket/reply", h.replyMyTicket)
+	mux.HandleFunc("/api/v1/commerce/legal", h.publicLegalPages)
+	mux.HandleFunc("/api/v1/payment/epay/notify", h.epayNotify)
+	mux.HandleFunc("/api/v1/payment/usdt/notify", h.epusdtNotify)
+	mux.HandleFunc("/api/v1/license/local/status", h.localLicenseStatus)
+	mux.HandleFunc("/api/v1/license/local/activate", h.localLicenseActivate)
+	mux.HandleFunc("/api/v1/license/local/bootstrap", h.localLicenseBootstrap)
+	mux.HandleFunc("/api/v1/license/local/heartbeat", h.localLicenseHeartbeat)
+	mux.HandleFunc("/api/v1/license/local/update/check", h.localLicenseUpdateCheck)
+	mux.HandleFunc("/api/v1/license/local/update/run", h.localLicenseUpdateRun)
+	mux.HandleFunc("/api/v1/license/local/update/log", h.localLicenseUpdateLog)
+	mux.HandleFunc("/api/v1/admin/commerce/settings", h.adminCommerceSettings)
+	mux.HandleFunc("/api/v1/admin/commerce/settings/update", h.adminUpdateCommerceSettings)
+	mux.HandleFunc("/api/v1/admin/commerce/plan/list", h.adminListPlans)
+	mux.HandleFunc("/api/v1/admin/commerce/plan/save", h.adminSavePlan)
+	mux.HandleFunc("/api/v1/admin/commerce/plan/delete", h.adminDeletePlan)
+	mux.HandleFunc("/api/v1/admin/commerce/order/list", h.adminListOrders)
+	mux.HandleFunc("/api/v1/admin/commerce/order/confirm", h.adminConfirmOrder)
+	mux.HandleFunc("/api/v1/admin/commerce/payment/list", h.adminListPayments)
+	mux.HandleFunc("/api/v1/admin/commerce/audit/list", h.adminListAuditLogs)
+	mux.HandleFunc("/api/v1/admin/commerce/refund/list", h.adminListRefunds)
+	mux.HandleFunc("/api/v1/admin/commerce/refund/handle", h.adminHandleRefund)
+	mux.HandleFunc("/api/v1/admin/commerce/ticket/list", h.adminListTickets)
+	mux.HandleFunc("/api/v1/admin/commerce/ticket/messages", h.adminTicketMessages)
+	mux.HandleFunc("/api/v1/admin/commerce/ticket/update", h.adminUpdateTicket)
+	mux.HandleFunc("/api/v1/admin/commerce/ticket/reply", h.adminReplyTicket)
+	mux.HandleFunc("/api/v1/admin/commerce/ticket/close", h.adminCloseTicket)
+	mux.HandleFunc("/api/v1/admin/commerce/coupon/list", h.adminListCoupons)
+	mux.HandleFunc("/api/v1/admin/commerce/coupon/save", h.adminSaveCoupon)
+	mux.HandleFunc("/api/v1/admin/commerce/coupon/delete", h.adminDeleteCoupon)
+	mux.HandleFunc("/api/v1/admin/commerce/wallet/list", h.adminListWalletLedger)
+	mux.HandleFunc("/api/v1/admin/commerce/wallet/adjust", h.adminAdjustWallet)
+	mux.HandleFunc("/api/v1/admin/commerce/user/resources/sync", h.adminSyncUserResources)
+	mux.HandleFunc("/api/v1/admin/commerce/resource-job/list", h.adminListResourceJobs)
+	mux.HandleFunc("/api/v1/admin/commerce/resource-job/retry", h.adminRetryResourceJob)
+	mux.HandleFunc("/api/v1/admin/commerce/report/summary", h.adminCommerceReportSummary)
+	mux.HandleFunc("/api/v1/admin/commerce/risk/list", h.adminCommerceRiskList)
+	mux.HandleFunc("/api/v1/admin/commerce/invite/list", h.adminListInvites)
+	mux.HandleFunc("/api/v1/admin/commerce/invite/save", h.adminSaveInvite)
+	mux.HandleFunc("/api/v1/admin/commerce/invite/delete", h.adminDeleteInvite)
 	mux.HandleFunc("/api/v1/node/list", h.nodeList)
 	mux.HandleFunc("/api/v1/node/create", h.nodeCreate)
 	mux.HandleFunc("/api/v1/node/update", h.nodeUpdate)
@@ -304,6 +356,10 @@ func (h *Handler) login(w http.ResponseWriter, r *http.Request) {
 		response.WriteJSON(w, response.Err(500, "密码不能为空"))
 		return
 	}
+	if !h.allowRateLimitedRequest("login:"+clientIPFromRequest(r)+":"+strings.ToLower(strings.TrimSpace(req.Username)), 20, 5*time.Minute) {
+		response.WriteJSON(w, response.ErrDefault("请求过于频繁，请稍后再试"))
+		return
+	}
 
 	captchaEnabled, err := h.captchaEnabled()
 	if err != nil {
@@ -429,9 +485,7 @@ func (h *Handler) getConfigs(w http.ResponseWriter, r *http.Request) {
 	}
 	ctxClaims := r.Context().Value(middleware.ClaimsContextKey)
 	if claims, ok := ctxClaims.(auth.Claims); !ok || claims.RoleID != 0 {
-		delete(cfgMap, "license_key")
-		delete(cfgMap, "cloudflare_secret_key")
-		delete(cfgMap, "jwt_secret")
+		cfgMap = repo.FilterSensitiveConfigs(cfgMap)
 	}
 	response.WriteJSON(w, response.OK(cfgMap))
 }
@@ -870,94 +924,6 @@ func (h *Handler) flowUpload(w http.ResponseWriter, r *http.Request) {
 	_, _ = w.Write([]byte("ok"))
 }
 
-func (h *Handler) getOrCreateMachineFingerprint() (string, error) {
-	fp, _ := h.repo.GetViteConfigValue("machine_fingerprint")
-	if fp != "" {
-		return fp, nil
-	}
-
-	newFp := uuid.New().String()
-	now := time.Now().UnixMilli()
-	if err := h.repo.UpsertConfig("machine_fingerprint", newFp, now); err != nil {
-		return "", err
-	}
-	return newFp, nil
-}
-
-func (h *Handler) licenseActivate(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		response.WriteJSON(w, response.ErrDefault("请求失败"))
-		return
-	}
-
-	var req licenseActivateRequest
-	if err := decodeJSON(r.Body, &req); err != nil {
-		response.WriteJSON(w, response.ErrDefault("授权码不能为空"))
-		return
-	}
-
-	key := strings.TrimSpace(req.LicenseKey)
-	if key == "" {
-		response.WriteJSON(w, response.ErrDefault("授权码不能为空"))
-		return
-	}
-
-	accountID := "1bc96cac-09de-4cf4-af34-26afdad63a90"
-
-	fingerprint, err := h.getOrCreateMachineFingerprint()
-	if err != nil {
-		response.WriteJSON(w, response.ErrDefault("生成设备指纹失败"))
-		return
-	}
-
-	client := license.NewKeygenClient(accountID, "")
-	valResp, err := client.ValidateKeyWithFingerprint(key, fingerprint)
-	if err != nil {
-		response.WriteJSON(w, response.ErrDefault("连接授权服务器失败: "+err.Error()))
-		return
-	}
-
-	if !valResp.Meta.Valid {
-		if valResp.Meta.Code == "NO_MACHINES" || valResp.Meta.Code == "NO_MACHINE" || valResp.Meta.Code == "MACHINE_SCOPE_REQUIRED" || valResp.Meta.Code == "FINGERPRINT_SCOPE_MISMATCH" {
-			// Needs machine activation
-			client.Token = key
-			err = client.ActivateMachine(valResp.Data.ID, fingerprint)
-			if err != nil {
-				// Translate specific error messages or log them
-				response.WriteJSON(w, response.ErrDefault("设备绑定失败: "+err.Error()))
-				return
-			}
-
-			// Validation might still fail with scope if we don't query via machine id, but since activate machine succeeded
-			// we can consider the license valid for our simple usecase
-		} else {
-			response.WriteJSON(w, response.ErrDefault("授权码无效或已过期 (Code: "+valResp.Meta.Code+")"))
-			return
-		}
-	}
-
-	now := time.Now().UnixMilli()
-	if err := h.repo.UpsertConfig("license_key", key, now); err != nil {
-		response.WriteJSON(w, response.Err(-2, err.Error()))
-		return
-	}
-	if err := h.repo.UpsertConfig("is_commercial", "true", now); err != nil {
-		response.WriteJSON(w, response.Err(-2, err.Error()))
-		return
-	}
-
-	expiry := valResp.Data.Attributes.Expiry
-	if expiry == "" {
-		expiry = "never"
-	}
-	if err := h.repo.UpsertConfig("license_expiry", expiry, now); err != nil {
-		response.WriteJSON(w, response.Err(-2, err.Error()))
-		return
-	}
-
-	response.WriteJSON(w, response.OKEmpty())
-}
-
 func (h *Handler) updateConfigs(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		response.WriteJSON(w, response.ErrDefault("请求失败"))
@@ -974,14 +940,6 @@ func (h *Handler) updateConfigs(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	isCommercial, _ := h.repo.GetViteConfigValue("is_commercial")
-	protectedKeys := map[string]bool{
-		"app_name":          true,
-		"app_logo":          true,
-		"app_favicon":       true,
-		"hide_footer_brand": true,
-	}
-
 	now := time.Now().UnixMilli()
 	for k, v := range payload {
 		key := strings.TrimSpace(k)
@@ -990,11 +948,6 @@ func (h *Handler) updateConfigs(w http.ResponseWriter, r *http.Request) {
 		}
 		if repo.IsSensitiveConfigKey(key) && !isAdminRequest(r) {
 			response.WriteJSON(w, response.Err(403, "禁止访问敏感配置"))
-			return
-		}
-
-		if protectedKeys[key] && isCommercial != "true" {
-			response.WriteJSON(w, response.ErrDefault("需要商业版授权"))
 			return
 		}
 
@@ -1031,12 +984,6 @@ func (h *Handler) updateSingleConfig(w http.ResponseWriter, r *http.Request) {
 	}
 	if repo.IsSensitiveConfigKey(name) && !isAdminRequest(r) {
 		response.WriteJSON(w, response.Err(403, "禁止访问敏感配置"))
-		return
-	}
-
-	isCommercial, _ := h.repo.GetViteConfigValue("is_commercial")
-	if (name == "app_name" || name == "app_logo" || name == "app_favicon" || name == "hide_footer_brand") && isCommercial != "true" {
-		response.WriteJSON(w, response.ErrDefault("需要商业版授权"))
 		return
 	}
 

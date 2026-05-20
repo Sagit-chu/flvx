@@ -75,6 +75,7 @@ type Repository struct {
 type FlowUploadCounterDelta struct {
 	ForwardID    int64
 	UserID       int64
+	TunnelID     int64
 	UserTunnelID int64
 	InFlow       int64
 	OutFlow      int64
@@ -128,7 +129,7 @@ func (r *Repository) ApplyFlowUploadDeltasBatch(deltas []FlowUploadCounterDelta)
 		}
 	}
 
-	return r.db.Transaction(func(tx *gorm.DB) error {
+	if err := r.db.Transaction(func(tx *gorm.DB) error {
 		for _, forwardID := range sortedFlowUploadTargetIDs(forwardTotals) {
 			total := forwardTotals[forwardID]
 			if err := tx.Model(&model.Forward{}).Where("id = ?", forwardID).UpdateColumns(map[string]interface{}{
@@ -157,7 +158,10 @@ func (r *Repository) ApplyFlowUploadDeltasBatch(deltas []FlowUploadCounterDelta)
 			}
 		}
 		return nil
-	})
+	}); err != nil {
+		return err
+	}
+	return r.AddSubscriptionQuotaUsageBatch(deltas, time.Now())
 }
 
 // ─── Open / Close ────────────────────────────────────────────────────
@@ -272,6 +276,7 @@ func autoMigrateAll(db *gorm.DB) error {
 	models := []interface{}{
 		&model.User{},
 		&model.UserQuota{},
+		&model.UserSubscriptionQuota{},
 		&model.Forward{},
 		&model.ForwardPort{},
 		&model.Node{},
@@ -286,6 +291,23 @@ func autoMigrateAll(db *gorm.DB) error {
 		&model.UserGroupUser{},
 		&model.GroupPermission{},
 		&model.GroupPermissionGrant{},
+		&model.Plan{},
+		&model.PlanEntitlement{},
+		&model.InviteCode{},
+		&model.InviteCodeUsage{},
+		&model.CommerceOrder{},
+		&model.PaymentRecord{},
+		&model.UserSubscription{},
+		&model.AuditLog{},
+		&model.Notification{},
+		&model.RefundRequest{},
+		&model.SupportTicket{},
+		&model.SupportTicketMessage{},
+		&model.WalletLedger{},
+		&model.UserWallet{},
+		&model.Coupon{},
+		&model.CouponUsage{},
+		&model.CommerceResourceJob{},
 		&model.MonitorPermission{},
 		&model.ViteConfig{},
 		&model.PeerShare{},
@@ -2928,13 +2950,15 @@ func (r *Repository) GetUserTunnelByID(id int64) (*model.UserTunnel, error) {
 
 // ─── Migration ───────────────────────────────────────────────────────
 
-const currentSchemaVersion = 6
+const currentSchemaVersion = 7
 
 var ensurePostgresIDDefaultsFn = ensurePostgresIDDefaults
 var migrateViteConfigValueColumnTypeFn = migrateViteConfigValueColumnType
 var migrateSpeedLimitTunnelBindingFn = migrateSpeedLimitTunnelBinding
 var migratePostgresTrafficInt64ColumnsFn = migratePostgresTrafficInt64Columns
 var migrateTunnelMetricBucketUniqueIndexFn = migrateTunnelMetricBucketUniqueIndex
+var migrateCommercePaymentRecordUniqueIndexFn = migrateCommercePaymentRecordUniqueIndex
+var migrateCommerceOrderStatusConsistencyFn = migrateCommerceOrderStatusConsistency
 
 func getSchemaVersion(db *gorm.DB) int {
 	var v model.SchemaVersion
@@ -3006,6 +3030,15 @@ func migrateSchema(db *gorm.DB) error {
 
 	if ver < 6 {
 		if err := migrateTunnelMetricBucketUniqueIndexFn(db); err != nil {
+			return err
+		}
+	}
+
+	if ver < 7 {
+		if err := migrateCommercePaymentRecordUniqueIndexFn(db); err != nil {
+			return err
+		}
+		if err := migrateCommerceOrderStatusConsistencyFn(db); err != nil {
 			return err
 		}
 	}
@@ -3235,6 +3268,67 @@ func migrateTunnelMetricBucketUniqueIndex(db *gorm.DB) error {
 		}
 		return nil
 	})
+}
+
+func migrateCommercePaymentRecordUniqueIndex(db *gorm.DB) error {
+	if db == nil {
+		return errors.New("nil db")
+	}
+	if !db.Migrator().HasTable(&model.PaymentRecord{}) {
+		return nil
+	}
+
+	return db.Transaction(func(tx *gorm.DB) error {
+		switch tx.Dialector.Name() {
+		case "postgres":
+			if err := tx.Exec(`DROP INDEX IF EXISTS idx_payment_provider_trade`).Error; err != nil {
+				return fmt.Errorf("drop legacy payment record index: %w", err)
+			}
+			if err := tx.Exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_payment_provider_trade ON payment_record(provider, provider_trade_no)`).Error; err != nil {
+				return fmt.Errorf("create payment record provider trade unique index: %w", err)
+			}
+		default:
+			if err := tx.Exec(`DROP INDEX IF EXISTS idx_payment_provider_trade`).Error; err != nil {
+				return fmt.Errorf("drop legacy payment record index: %w", err)
+			}
+			if err := tx.Exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_payment_provider_trade ON payment_record(provider, provider_trade_no)`).Error; err != nil {
+				return fmt.Errorf("create payment record provider trade unique index: %w", err)
+			}
+		}
+		return nil
+	})
+}
+
+func migrateCommerceOrderStatusConsistency(db *gorm.DB) error {
+	if db == nil {
+		return errors.New("nil db")
+	}
+	if !db.Migrator().HasTable(&model.CommerceOrder{}) {
+		return nil
+	}
+
+	now := time.Now().UnixMilli()
+	if err := db.Model(&model.CommerceOrder{}).
+		Where("status IN ? AND (payment_status <> ? OR fulfillment_status <> ?)", []string{"active", "paid"}, "paid", "done").
+		Updates(map[string]interface{}{
+			"payment_status":     "paid",
+			"fulfillment_status": "done",
+			"paid_time":          gorm.Expr("CASE WHEN paid_time = 0 THEN CASE WHEN updated_time = 0 THEN ? ELSE updated_time END ELSE paid_time END", now),
+			"provisioned_time":   gorm.Expr("CASE WHEN provisioned_time = 0 THEN CASE WHEN updated_time = 0 THEN ? ELSE updated_time END ELSE provisioned_time END", now),
+			"updated_time":       gorm.Expr("CASE WHEN updated_time = 0 THEN ? ELSE updated_time END", now),
+		}).Error; err != nil {
+		return fmt.Errorf("reconcile active commerce orders: %w", err)
+	}
+	if err := db.Model(&model.CommerceOrder{}).
+		Where("status = ? AND (fulfillment_status <> ? OR cancelled_time = 0)", "cancelled", "cancelled").
+		Updates(map[string]interface{}{
+			"fulfillment_status": "cancelled",
+			"cancelled_time":     gorm.Expr("CASE WHEN cancelled_time = 0 THEN CASE WHEN updated_time = 0 THEN ? ELSE updated_time END ELSE cancelled_time END", now),
+			"updated_time":       gorm.Expr("CASE WHEN updated_time = 0 THEN ? ELSE updated_time END", now),
+		}).Error; err != nil {
+		return fmt.Errorf("reconcile cancelled commerce orders: %w", err)
+	}
+	return nil
 }
 
 func alterPostgresColumnToBigIntIfNeeded(db *gorm.DB, tableName, columnName string) error {

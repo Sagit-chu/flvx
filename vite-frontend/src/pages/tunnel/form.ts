@@ -166,15 +166,15 @@ export const validateTunnelForm = (
 
   if (hasProbeHostInput || hasProbePort) {
     if (!probeHost) {
-      errors.probeTargetHost = "请输入测试目标 Host";
+      errors.probeTargetHost = "请输入测试目标主机";
     } else if (
       probeHost.includes("://") ||
       /[\s/?#]/.test(rawProbeHost) ||
       isSchemeLikeProbeHost(probeHost)
     ) {
-      errors.probeTargetHost = "Host 不能包含协议、端口、空格或路径";
+      errors.probeTargetHost = "主机不能包含协议、端口、空格或路径";
     } else if (!isValidProbeTargetHost(probeHost)) {
-      errors.probeTargetHost = "测试目标 Host 格式无效";
+      errors.probeTargetHost = "测试目标主机格式无效";
     }
 
     if (!Number.isInteger(probePort) || probePort < 1 || probePort > 65535) {

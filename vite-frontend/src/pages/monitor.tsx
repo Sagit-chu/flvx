@@ -1,6 +1,6 @@
 import type { MonitorNodeApiItem } from "@/api/types";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import toast from "react-hot-toast";
 import {
   RefreshCw,
@@ -50,11 +50,13 @@ export default function MonitorPage() {
   const [realtimeNodeMetrics, setRealtimeNodeMetrics] = useState<
     Record<number, any>
   >({});
+  const visibleNodeIdsRef = useRef<Set<number>>(new Set());
 
   const handleRealtimeMessage = useCallback((message: any) => {
     const nodeId = Number(message?.id ?? 0);
 
     if (!nodeId || Number.isNaN(nodeId)) return;
+    if (!visibleNodeIdsRef.current.has(nodeId)) return;
 
     const type = String(message?.type ?? "");
     const payload = message?.data;
@@ -157,6 +159,27 @@ export default function MonitorPage() {
     return new Map<number, MonitorNode>(list.map((n) => [n.id, n]));
   }, [nodes, realtimeNodeStatus]);
 
+  useEffect(() => {
+    const visible = new Set(
+      nodes
+        .map((n) => Number(n.id))
+        .filter((id) => Number.isFinite(id) && id > 0),
+    );
+
+    visibleNodeIdsRef.current = visible;
+    setRealtimeNodeStatus(
+      (prev) =>
+        Object.fromEntries(
+          Object.entries(prev).filter(([id]) => visible.has(Number(id))),
+        ) as Record<number, "online" | "offline">,
+    );
+    setRealtimeNodeMetrics((prev) =>
+      Object.fromEntries(
+        Object.entries(prev).filter(([id]) => visible.has(Number(id))),
+      ),
+    );
+  }, [nodes]);
+
   const aggregateMetrics = useMemo(() => {
     let totalCpu = 0;
     let totalConns = 0;
@@ -194,7 +217,7 @@ export default function MonitorPage() {
         <div className="rounded-3xl border border-white/80 dark:border-white/10 bg-white/20 dark:bg-zinc-900/20 backdrop-blur-3xl shadow-[0_10px_30px_rgba(0,0,0,0.1)] p-6 relative overflow-hidden flex flex-col justify-between h-40">
           <div className="flex justify-between items-center z-10 relative">
             <span className="text-default-600 font-medium text-sm">
-              System Load
+              系统负载
             </span>
           </div>
           <div className="z-10 relative">
@@ -215,7 +238,7 @@ export default function MonitorPage() {
         <div className="rounded-3xl border border-white/80 dark:border-white/10 bg-white/20 dark:bg-zinc-900/20 backdrop-blur-3xl shadow-[0_10px_30px_rgba(0,0,0,0.1)] p-6 relative overflow-hidden flex flex-col justify-between h-40">
           <div className="flex justify-between items-center z-10 relative">
             <span className="text-default-600 font-medium text-sm">
-              Active Connections
+              活跃连接
             </span>
           </div>
           <div className="z-10 relative">
@@ -235,9 +258,7 @@ export default function MonitorPage() {
 
         <div className="rounded-3xl border border-white/80 dark:border-white/10 bg-white/20 dark:bg-zinc-900/20 backdrop-blur-3xl shadow-[0_10px_30px_rgba(0,0,0,0.1)] p-6 relative overflow-hidden flex flex-col justify-between h-40">
           <div className="flex justify-between items-center z-10 relative">
-            <span className="text-default-600 font-medium text-sm">
-              Bandwidth
-            </span>
+            <span className="text-default-600 font-medium text-sm">带宽</span>
           </div>
           <div className="z-10 relative">
             <span className="text-4xl font-bold text-foreground">

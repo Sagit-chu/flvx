@@ -2752,7 +2752,7 @@ export default function ForwardPage() {
         const parsedItems = parseNyFormatData(importData);
 
         if (parsedItems.length === 0) {
-          toast.error("未解析到有效的ny格式数据");
+          toast.error("未解析到有效的 NY 格式数据");
 
           setImportLoading(false);
 
@@ -4967,8 +4967,8 @@ export default function ForwardPage() {
                           }}
                         />
                         <Select
-                          description="启用 PROXY protocol，用于透传客户端真实 IP"
-                          label="Proxy Protocol"
+                          description="启用 PROXY 协议，用于透传客户端真实 IP"
+                          label="PROXY 协议"
                           placeholder="禁用"
                           selectedKeys={[String(form.proxyProtocol || 0)]}
                           variant="bordered"
@@ -4982,8 +4982,8 @@ export default function ForwardPage() {
                           }}
                         >
                           <SelectItem key="0">禁用</SelectItem>
-                          <SelectItem key="1">Version 1</SelectItem>
-                          <SelectItem key="2">Version 2</SelectItem>
+                          <SelectItem key="1">版本 1</SelectItem>
+                          <SelectItem key="2">版本 2</SelectItem>
                         </Select>
                         {isAdmin && (
                           <Select
@@ -5378,11 +5378,11 @@ export default function ForwardPage() {
                   }
                 }}
               >
-                <SelectItem key="flvx" textValue="flvx格式">
-                  flvx格式（管道分隔）
+                <SelectItem key="flvx" textValue="FLVX 格式">
+                  FLVX 格式（管道分隔）
                 </SelectItem>
-                <SelectItem key="ny" textValue="ny格式">
-                  ny格式（JSON）
+                <SelectItem key="ny" textValue="NY 格式">
+                  NY 格式（JSON）
                 </SelectItem>
               </Select>
 

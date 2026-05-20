@@ -81,14 +81,14 @@ type CommandResult struct {
 }
 
 type Server struct {
-	repo         *repo.Repository
-	jwtSecret    string
-	upgrader     websocket.Upgrader
-	onNodeOnline func(nodeID int64)
-	onNodeMetric func(nodeID int64, info SystemInfo)
+	repo             *repo.Repository
+	jwtSecret        string
+	upgrader         websocket.Upgrader
+	onNodeOnline     func(nodeID int64)
+	onNodeMetric     func(nodeID int64, info SystemInfo)
 	getUserAuthState func(userID int64) (*auth.UserAuthState, error)
 
-	mu      sync.RWMutex
+	mu       sync.RWMutex
 	admins   map[*adminSession]struct{}
 	monitors map[*monitorSession]struct{}
 	nodes    map[int64]*nodeSession
@@ -721,10 +721,6 @@ func (s *Server) validateMonitorSession(userID int64, claims auth.Claims) bool {
 		}
 	}
 	if s.repo == nil {
-		return false
-	}
-	allowed, err := s.repo.HasMonitorPermission(userID)
-	if err != nil || !allowed {
 		return false
 	}
 	return true

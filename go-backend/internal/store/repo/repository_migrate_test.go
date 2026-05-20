@@ -476,6 +476,139 @@ func TestMigrateSchemaRunsTrafficInt64MigrationForLegacySchema(t *testing.T) {
 	}
 }
 
+func TestMigrateSchemaRebuildsPaymentRecordProviderTradeUniqueIndex(t *testing.T) {
+	db, err := gorm.Open(gsqlite.Open(":memory:"), &gorm.Config{
+		Logger: logger.Default.LogMode(logger.Silent),
+	})
+	if err != nil {
+		t.Fatalf("open sqlite: %v", err)
+	}
+	t.Cleanup(func() {
+		sqlDB, _ := db.DB()
+		if sqlDB != nil {
+			_ = sqlDB.Close()
+		}
+	})
+
+	if err := db.Exec(`CREATE TABLE schema_version (version INTEGER NOT NULL DEFAULT 0)`).Error; err != nil {
+		t.Fatalf("create schema_version: %v", err)
+	}
+	if err := db.Exec(`INSERT INTO schema_version(version) VALUES(?)`, 6).Error; err != nil {
+		t.Fatalf("seed schema_version: %v", err)
+	}
+	if err := db.Exec(`
+		CREATE TABLE payment_record (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			order_id INTEGER NOT NULL,
+			order_no TEXT NOT NULL,
+			provider TEXT NOT NULL,
+			provider_trade_no TEXT NOT NULL,
+			amount_cents INTEGER NOT NULL,
+			status TEXT NOT NULL,
+			raw_payload TEXT NOT NULL DEFAULT '',
+			created_time INTEGER NOT NULL,
+			updated_time INTEGER NOT NULL
+		)
+	`).Error; err != nil {
+		t.Fatalf("create payment_record: %v", err)
+	}
+	if err := db.Exec(`CREATE UNIQUE INDEX idx_payment_provider_trade ON payment_record(provider_trade_no)`).Error; err != nil {
+		t.Fatalf("create legacy payment index: %v", err)
+	}
+	if err := db.Exec(`
+		INSERT INTO payment_record(order_id, order_no, provider, provider_trade_no, amount_cents, status, created_time, updated_time)
+		VALUES(1, 'FLVX-1', 'epay', 'trade-a', 300, 'success', 1, 1)
+	`).Error; err != nil {
+		t.Fatalf("seed payment_record: %v", err)
+	}
+
+	originalIDRepair := ensurePostgresIDDefaultsFn
+	ensurePostgresIDDefaultsFn = func(db *gorm.DB) error {
+		return nil
+	}
+	t.Cleanup(func() {
+		ensurePostgresIDDefaultsFn = originalIDRepair
+	})
+
+	if err := migrateSchema(db); err != nil {
+		t.Fatalf("migrateSchema: %v", err)
+	}
+	if err := db.Exec(`
+		INSERT INTO payment_record(order_id, order_no, provider, provider_trade_no, amount_cents, status, created_time, updated_time)
+		VALUES(2, 'FLVX-2', 'balance', 'trade-a', 300, 'success', 1, 1)
+	`).Error; err != nil {
+		t.Fatalf("expected same trade no from different provider to be allowed: %v", err)
+	}
+	if err := db.Exec(`
+		INSERT INTO payment_record(order_id, order_no, provider, provider_trade_no, amount_cents, status, created_time, updated_time)
+		VALUES(3, 'FLVX-3', 'epay', 'trade-a', 300, 'success', 1, 1)
+	`).Error; err == nil {
+		t.Fatalf("expected duplicate provider + trade no to be rejected")
+	}
+}
+
+func TestMigrateSchemaReconcilesCommerceOrderStatusFields(t *testing.T) {
+	db, err := gorm.Open(gsqlite.Open(":memory:"), &gorm.Config{
+		Logger: logger.Default.LogMode(logger.Silent),
+	})
+	if err != nil {
+		t.Fatalf("open sqlite: %v", err)
+	}
+	t.Cleanup(func() {
+		sqlDB, _ := db.DB()
+		if sqlDB != nil {
+			_ = sqlDB.Close()
+		}
+	})
+
+	if err := db.AutoMigrate(&model.SchemaVersion{}, &model.CommerceOrder{}, &model.PaymentRecord{}); err != nil {
+		t.Fatalf("auto migrate: %v", err)
+	}
+	if err := db.Exec(`INSERT INTO schema_version(version) VALUES(?)`, 6).Error; err != nil {
+		t.Fatalf("seed schema_version: %v", err)
+	}
+	if err := db.Create(&model.CommerceOrder{
+		ID: 1, OrderNo: "FLVX-ACTIVE-STALE", UserID: 9, PlanID: 101, AmountCents: 300, Currency: "CNY",
+		Status: "active", PaymentStatus: "unpaid", FulfillmentStatus: "pending", RefundStatus: "none",
+		OrderType: "new", PaymentProvider: "admin-manual", CreatedTime: 1, UpdatedTime: 10,
+	}).Error; err != nil {
+		t.Fatalf("seed active order: %v", err)
+	}
+	if err := db.Create(&model.CommerceOrder{
+		ID: 2, OrderNo: "FLVX-CANCELLED-STALE", UserID: 9, PlanID: 101, AmountCents: 300, Currency: "CNY",
+		Status: "cancelled", PaymentStatus: "unpaid", FulfillmentStatus: "pending", RefundStatus: "none",
+		OrderType: "new", PaymentProvider: "epay", CreatedTime: 1, UpdatedTime: 20,
+	}).Error; err != nil {
+		t.Fatalf("seed cancelled order: %v", err)
+	}
+
+	originalIDRepair := ensurePostgresIDDefaultsFn
+	ensurePostgresIDDefaultsFn = func(db *gorm.DB) error {
+		return nil
+	}
+	t.Cleanup(func() {
+		ensurePostgresIDDefaultsFn = originalIDRepair
+	})
+
+	if err := migrateSchema(db); err != nil {
+		t.Fatalf("migrateSchema: %v", err)
+	}
+	var active model.CommerceOrder
+	if err := db.Where("id = ?", 1).First(&active).Error; err != nil {
+		t.Fatalf("load active order: %v", err)
+	}
+	if active.PaymentStatus != "paid" || active.FulfillmentStatus != "done" || active.PaidTime != 10 || active.ProvisionedTime != 10 {
+		t.Fatalf("expected active order reconciled, got %#v", active)
+	}
+	var cancelled model.CommerceOrder
+	if err := db.Where("id = ?", 2).First(&cancelled).Error; err != nil {
+		t.Fatalf("load cancelled order: %v", err)
+	}
+	if cancelled.FulfillmentStatus != "cancelled" || cancelled.CancelledTime != 20 {
+		t.Fatalf("expected cancelled order reconciled, got %#v", cancelled)
+	}
+}
+
 func TestMigrateSchemaReturnsTrafficInt64MigrationError(t *testing.T) {
 	db, err := gorm.Open(gsqlite.Open(":memory:"), &gorm.Config{
 		Logger: logger.Default.LogMode(logger.Silent),

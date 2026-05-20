@@ -197,6 +197,12 @@ func TestShouldSkipBypassesPublicConfigGet(t *testing.T) {
 	}
 }
 
+func TestUserQuotaResetRequiresAdmin(t *testing.T) {
+	if !requiresAdmin("/api/v1/user/quota/reset") {
+		t.Fatal("expected /api/v1/user/quota/reset to require admin")
+	}
+}
+
 func TestJWTExpiresAfterSevenDays(t *testing.T) {
 	secret := "unit-test-secret"
 	token, err := auth.GenerateToken(1, "admin_user", 0, secret)

@@ -9,6 +9,7 @@ type Config struct {
 	DatabaseURL string
 	JWTSecret   string
 	LogDir      string
+	CORSOrigins string
 }
 
 func FromEnv() Config {
@@ -19,6 +20,7 @@ func FromEnv() Config {
 		DatabaseURL: getEnv("DATABASE_URL", ""),
 		JWTSecret:   getEnv("JWT_SECRET", ""),
 		LogDir:      getEnv("LOG_DIR", "/app/logs"),
+		CORSOrigins: getEnv("CORS_ORIGINS", ""),
 	}
 
 	return cfg
