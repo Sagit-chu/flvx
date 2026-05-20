@@ -165,6 +165,56 @@ func normalizeSupportAttachmentURL(raw string) (string, error) {
 	return trimmed, nil
 }
 
+func isCommerceURLSetting(key string) bool {
+	switch key {
+	case "epay_gateway", "epay_submit_url", "epay_return_url", "epay_notify_url",
+		"usdt_api_base", "usdt_notify_url", "usdt_return_url":
+		return true
+	default:
+		return false
+	}
+}
+
+func normalizeCommerceURLSetting(key, raw string) (string, error) {
+	trimmed := strings.TrimSpace(raw)
+	if trimmed == "" {
+		return "", nil
+	}
+	if len(trimmed) > 2048 {
+		return "", fmt.Errorf("%s 过长", commerceSettingLabel(key))
+	}
+	parsed, err := url.ParseRequestURI(trimmed)
+	if err != nil || parsed == nil || parsed.Scheme == "" || parsed.Host == "" {
+		return "", fmt.Errorf("%s 格式无效", commerceSettingLabel(key))
+	}
+	scheme := strings.ToLower(parsed.Scheme)
+	if scheme != "http" && scheme != "https" {
+		return "", fmt.Errorf("%s 仅支持 http 或 https", commerceSettingLabel(key))
+	}
+	return trimmed, nil
+}
+
+func commerceSettingLabel(key string) string {
+	switch key {
+	case "epay_gateway":
+		return "e支付网关地址"
+	case "epay_submit_url":
+		return "e支付提交地址"
+	case "epay_return_url":
+		return "e支付返回地址"
+	case "epay_notify_url":
+		return "e支付通知地址"
+	case "usdt_api_base":
+		return "USDT API 地址"
+	case "usdt_notify_url":
+		return "USDT 通知地址"
+	case "usdt_return_url":
+		return "USDT 返回地址"
+	default:
+		return "支付地址"
+	}
+}
+
 type commerceListFilter struct {
 	Keyword   string `json:"keyword"`
 	OrderNo   string `json:"orderNo"`
@@ -306,7 +356,7 @@ func (h *Handler) userRegister(w http.ResponseWriter, r *http.Request) {
 			User:              username,
 			Pwd:               hashedPassword,
 			RoleID:            1,
-			ExpTime:           now,
+			ExpTime:           0,
 			Flow:              0,
 			InFlow:            0,
 			OutFlow:           0,
@@ -422,8 +472,8 @@ func (h *Handler) adminSavePlan(w http.ResponseWriter, r *http.Request) {
 	if req.Category == "" {
 		req.Category = "默认"
 	}
-	if req.Status == 0 {
-		req.Status = 1
+	if req.Status != 1 {
+		req.Status = 0
 	}
 	creatingPlan := req.ID <= 0
 
@@ -438,8 +488,16 @@ func (h *Handler) adminSavePlan(w http.ResponseWriter, r *http.Request) {
 			plan.SpeedID = sql.NullInt64{Int64: *req.SpeedID, Valid: true}
 		}
 		if plan.ID > 0 {
-			if err := tx.Model(&model.Plan{}).Where("id = ?", plan.ID).Updates(plan).Error; err != nil {
-				return err
+			update := tx.Model(&model.Plan{}).Where("id = ?", plan.ID).Select(
+				"name", "description", "category", "price_cents", "reset_flow_price_cents",
+				"currency", "duration_days", "flow", "daily_quota_gb", "monthly_quota_gb",
+				"num", "max_conn", "speed_id", "sort", "status", "updated_time",
+			).Updates(plan)
+			if update.Error != nil {
+				return update.Error
+			}
+			if update.RowsAffected == 0 {
+				return fmt.Errorf("套餐不存在")
 			}
 		} else {
 			plan.CreatedTime = now
@@ -489,8 +547,13 @@ func (h *Handler) adminDeletePlan(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	now := time.Now().UnixMilli()
-	if err := h.repo.DB().Model(&model.Plan{}).Where("id = ?", id).Updates(map[string]interface{}{"status": 0, "updated_time": now}).Error; err != nil {
-		response.WriteJSON(w, response.Err(-2, err.Error()))
+	result := h.repo.DB().Model(&model.Plan{}).Where("id = ?", id).Updates(map[string]interface{}{"status": 0, "updated_time": now})
+	if result.Error != nil {
+		response.WriteJSON(w, response.Err(-2, result.Error.Error()))
+		return
+	}
+	if result.RowsAffected == 0 {
+		response.WriteJSON(w, response.ErrDefault("套餐不存在"))
 		return
 	}
 	h.writeAuditLog(actorID, "", "plan.disable", "plan", id, fmt.Sprintf("下架套餐 #%d", id), nil)
@@ -658,6 +721,7 @@ func (h *Handler) createCommerceOrder(w http.ResponseWriter, r *http.Request) {
 	}
 	payURL, err := h.buildPaymentURL(order, plan, order.PaymentProvider, req.Type)
 	if err != nil {
+		h.markPaymentBuildFailed(order, err.Error(), now)
 		response.WriteJSON(w, response.Err(-2, err.Error()))
 		return
 	}
@@ -855,6 +919,7 @@ func (h *Handler) resetMySubscriptionFlow(w http.ResponseWriter, r *http.Request
 	})
 
 	var order model.CommerceOrder
+	createdOrder := false
 	err = h.repo.DB().
 		Where("user_id = ? AND plan_id = ? AND order_type = ? AND status IN ?", userID, sub.PlanID, orderTypeResetFlow, []string{orderStatusPending, orderStatusFailed}).
 		Order("id DESC").
@@ -882,6 +947,7 @@ func (h *Handler) resetMySubscriptionFlow(w http.ResponseWriter, r *http.Request
 			response.WriteJSON(w, response.Err(-2, err.Error()))
 			return
 		}
+		createdOrder = true
 		h.writeAuditLog(userID, "", "order.create_reset_flow", "commerce_order", order.ID, "创建重置流量订单 "+order.OrderNo, order)
 	}
 
@@ -901,6 +967,9 @@ func (h *Handler) resetMySubscriptionFlow(w http.ResponseWriter, r *http.Request
 	}
 	payURL, err := h.buildPaymentURL(order, product, provider, req.Type)
 	if err != nil {
+		if createdOrder {
+			h.markPaymentBuildFailed(order, err.Error(), now)
+		}
 		response.WriteJSON(w, response.Err(-2, err.Error()))
 		return
 	}
@@ -1391,6 +1460,7 @@ func (h *Handler) rechargeMyWallet(w http.ResponseWriter, r *http.Request) {
 	product := model.Plan{Name: "账户余额充值", Currency: "CNY"}
 	payURL, err := h.buildPaymentURL(order, product, order.PaymentProvider, req.Type)
 	if err != nil {
+		h.markPaymentBuildFailed(order, err.Error(), now)
 		response.WriteJSON(w, response.Err(-2, err.Error()))
 		return
 	}
@@ -2249,7 +2319,16 @@ func (h *Handler) adminUpdateCommerceSettings(w http.ResponseWriter, r *http.Req
 		if _, ok := allowed[key]; !ok {
 			continue
 		}
-		if err := h.repo.UpsertConfig(key, strings.TrimSpace(value), now); err != nil {
+		normalizedValue := strings.TrimSpace(value)
+		if isCommerceURLSetting(key) {
+			var err error
+			normalizedValue, err = normalizeCommerceURLSetting(key, normalizedValue)
+			if err != nil {
+				response.WriteJSON(w, response.ErrDefault(err.Error()))
+				return
+			}
+		}
+		if err := h.repo.UpsertConfig(key, normalizedValue, now); err != nil {
 			response.WriteJSON(w, response.Err(-2, err.Error()))
 			return
 		}
@@ -3528,6 +3607,25 @@ func (h *Handler) releaseCouponForOrder(order model.CommerceOrder) {
 			Where("id = ? AND used_count > 0", coupon.CouponID).
 			UpdateColumn("used_count", gorm.Expr("used_count - 1")).Error
 	})
+}
+
+func (h *Handler) markPaymentBuildFailed(order model.CommerceOrder, reason string, now int64) {
+	if order.ID <= 0 || normalizedPaymentStatus(order) == paymentStatusPaid {
+		return
+	}
+	reason = strings.TrimSpace(reason)
+	if reason == "" {
+		reason = "支付链接生成失败"
+	}
+	_ = h.repo.DB().Model(&model.CommerceOrder{}).
+		Where("id = ? AND payment_status = ?", order.ID, paymentStatusUnpaid).
+		Updates(map[string]interface{}{
+			"status":             orderStatusFailed,
+			"fulfillment_status": fulfillmentStatusFailed,
+			"failure_reason":     reason,
+			"updated_time":       now,
+		}).Error
+	h.releaseCouponForOrder(order)
 }
 
 func (h *Handler) consumeCouponForOrder(order model.CommerceOrder) {

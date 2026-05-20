@@ -489,6 +489,119 @@ func TestCancelExpiredPendingCommerceOrdersReleasesCoupon(t *testing.T) {
 	}
 }
 
+func TestPaymentURLFailureMarksNewOrderFailedAndReleasesCoupon(t *testing.T) {
+	r, h := setupCommerceResetFlowTestHandler(t)
+	now := time.Now().UnixMilli()
+	seedEpayConfig(t, r, map[string]string{
+		"epay_enabled": "true",
+		"epay_pid":     "1007",
+		"epay_key":     "secret",
+	})
+	if err := r.DB().Create(&model.User{
+		ID: 9, User: "u9", Pwd: "x", RoleID: 1, ExpTime: now + int64(30*24*time.Hour/time.Millisecond),
+		Flow: 0, Num: 0, CreatedTime: now, Status: 1,
+	}).Error; err != nil {
+		t.Fatalf("seed user: %v", err)
+	}
+	if err := r.DB().Create(&model.Tunnel{
+		ID: 1, Name: "广港", Type: 1, Protocol: "tls", Flow: 100, CreatedTime: now, UpdatedTime: now, Status: 1, TrafficRatio: 10,
+	}).Error; err != nil {
+		t.Fatalf("seed tunnel: %v", err)
+	}
+	if err := r.DB().Create(&model.Plan{
+		ID: 101, Name: "广港套餐", Category: "精品线路", PriceCents: 300, Currency: "CNY",
+		DurationDays: 30, Flow: 5, Num: 5, CreatedTime: now, UpdatedTime: now, Status: 1,
+	}).Error; err != nil {
+		t.Fatalf("seed plan: %v", err)
+	}
+	if err := r.DB().Create(&model.PlanEntitlement{
+		PlanID: 101, ScopeType: "tunnel", ScopeID: 1, CreatedTime: now,
+	}).Error; err != nil {
+		t.Fatalf("seed entitlement: %v", err)
+	}
+	if err := r.DB().Create(&model.Coupon{
+		ID: 51, Code: "PAYFAIL", Name: "失败释放", DiscountType: "fixed", DiscountValue: 100,
+		MaxUses: 1, Status: 1, CreatedTime: now, UpdatedTime: now,
+	}).Error; err != nil {
+		t.Fatalf("seed coupon: %v", err)
+	}
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/commerce/order/create", strings.NewReader(`{"planId":101,"type":"alipay","couponCode":"PAYFAIL"}`))
+	req = req.WithContext(context.WithValue(req.Context(), middleware.ClaimsContextKey, auth.Claims{
+		Sub: "9", RoleID: 1, User: "u9", Name: "u9",
+	}))
+	rec := httptest.NewRecorder()
+
+	h.createCommerceOrder(rec, req)
+
+	var out response.R
+	if err := json.NewDecoder(rec.Body).Decode(&out); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if out.Code == 0 {
+		t.Fatalf("expected payment url build failure")
+	}
+	var order model.CommerceOrder
+	if err := r.DB().Where("user_id = ? AND plan_id = ?", 9, 101).First(&order).Error; err != nil {
+		t.Fatalf("find order: %v", err)
+	}
+	if order.Status != orderStatusFailed || order.FulfillmentStatus != fulfillmentStatusFailed || order.FailureReason == "" {
+		t.Fatalf("expected failed order with reason, got %#v", order)
+	}
+	var coupon model.Coupon
+	if err := r.DB().Where("id = ?", 51).First(&coupon).Error; err != nil {
+		t.Fatalf("find coupon: %v", err)
+	}
+	if coupon.UsedCount != 0 {
+		t.Fatalf("expected coupon usage released, got used_count=%d", coupon.UsedCount)
+	}
+	var usages int64
+	if err := r.DB().Model(&model.CouponUsage{}).Where("coupon_id = ?", 51).Count(&usages).Error; err != nil {
+		t.Fatalf("count coupon usage: %v", err)
+	}
+	if usages != 0 {
+		t.Fatalf("expected no coupon usage rows, got %d", usages)
+	}
+}
+
+func TestUserRegisterCreatesActiveAccountWithoutExpiry(t *testing.T) {
+	r, h := setupCommerceResetFlowTestHandler(t)
+	seedEpayConfig(t, r, map[string]string{
+		"registration_enabled":         "true",
+		"invite_registration_required": "false",
+		"captcha_enabled":              "false",
+	})
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/public/register", strings.NewReader(`{"username":"new_user","password":"secret123"}`))
+	rec := httptest.NewRecorder()
+
+	h.userRegister(rec, req)
+
+	var out response.R
+	if err := json.NewDecoder(rec.Body).Decode(&out); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if out.Code != 0 {
+		t.Fatalf("expected registration success, got code=%d msg=%s", out.Code, out.Msg)
+	}
+	var user model.User
+	if err := r.DB().Where(`"user" = ?`, "new_user").First(&user).Error; err != nil {
+		t.Fatalf("find registered user: %v", err)
+	}
+	if user.Status != 1 || user.ExpTime != 0 {
+		t.Fatalf("expected active registered account without expiry, got status=%d exp=%d", user.Status, user.ExpTime)
+	}
+	expiredIDs, err := r.ListExpiredActiveUserIDs(time.Now().Add(24 * time.Hour).UnixMilli())
+	if err != nil {
+		t.Fatalf("list expired active users: %v", err)
+	}
+	for _, id := range expiredIDs {
+		if id == user.ID {
+			t.Fatalf("registered account without package should not be expired")
+		}
+	}
+}
+
 func TestUserRegisterRollsBackWhenInviteUsageFails(t *testing.T) {
 	r, h := setupCommerceResetFlowTestHandler(t)
 	now := time.Now().UnixMilli()
@@ -541,9 +654,25 @@ func TestUserRegisterRollsBackWhenInviteUsageFails(t *testing.T) {
 	}
 }
 
-func TestAdminSaveCouponAndInvitePreserveDisabledStatus(t *testing.T) {
+func TestAdminSavePlanCouponAndInvitePreserveDisabledStatus(t *testing.T) {
 	r, h := setupCommerceResetFlowTestHandler(t)
 	now := time.Now().UnixMilli()
+	if err := r.DB().Create(&model.Tunnel{
+		ID: 1, Name: "广港", Type: 1, Protocol: "tls", Flow: 100, CreatedTime: now, UpdatedTime: now, Status: 1, TrafficRatio: 10,
+	}).Error; err != nil {
+		t.Fatalf("seed tunnel: %v", err)
+	}
+	if err := r.DB().Create(&model.Plan{
+		ID: 83, Name: "旧套餐", Category: "默认", PriceCents: 300, Currency: "CNY",
+		DurationDays: 30, Flow: 100, Num: 5, Status: 1, CreatedTime: now, UpdatedTime: now,
+	}).Error; err != nil {
+		t.Fatalf("seed plan: %v", err)
+	}
+	if err := r.DB().Create(&model.PlanEntitlement{
+		PlanID: 83, ScopeType: "tunnel", ScopeID: 1, CreatedTime: now,
+	}).Error; err != nil {
+		t.Fatalf("seed plan entitlement: %v", err)
+	}
 	if err := r.DB().Create(&model.Coupon{
 		ID: 81, Code: "OLDOFF", Name: "旧优惠", DiscountType: "fixed", DiscountValue: 100,
 		Status: 1, CreatedTime: now, UpdatedTime: now,
@@ -554,6 +683,28 @@ func TestAdminSaveCouponAndInvitePreserveDisabledStatus(t *testing.T) {
 		ID: 82, Code: "OLDINV", MaxUses: 3, UsedCount: 1, Status: 1, CreatedTime: now, UpdatedTime: now,
 	}).Error; err != nil {
 		t.Fatalf("seed invite: %v", err)
+	}
+
+	planReq := httptest.NewRequest(http.MethodPost, "/api/v1/admin/commerce/plan/save", strings.NewReader(`{
+		"id":83,"name":"旧套餐","description":"","category":"默认","priceCents":300,"resetFlowPriceCents":0,
+		"currency":"CNY","durationDays":30,"flow":100,"dailyQuotaGB":0,"monthlyQuotaGB":0,
+		"num":5,"maxConn":0,"sort":0,"status":0,"tunnelIds":[1],"tunnelGroupIds":[]
+	}`))
+	planRec := httptest.NewRecorder()
+	h.adminSavePlan(planRec, planReq)
+	var planResp response.R
+	if err := json.NewDecoder(planRec.Body).Decode(&planResp); err != nil {
+		t.Fatalf("decode plan response: %v", err)
+	}
+	if planResp.Code != 0 {
+		t.Fatalf("expected plan save success, got code=%d msg=%s", planResp.Code, planResp.Msg)
+	}
+	var plan model.Plan
+	if err := r.DB().Where("id = ?", 83).First(&plan).Error; err != nil {
+		t.Fatalf("find plan: %v", err)
+	}
+	if plan.Status != 0 {
+		t.Fatalf("disabled plan should stay disabled, got %d", plan.Status)
 	}
 
 	couponReq := httptest.NewRequest(http.MethodPost, "/api/v1/admin/commerce/coupon/save", strings.NewReader(`{

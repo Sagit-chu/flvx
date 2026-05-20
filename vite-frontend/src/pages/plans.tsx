@@ -432,8 +432,7 @@ export default function PlansPage({ section }: { section?: PlansSection }) {
 
     if (res.code !== 0 || !res.data?.payUrl) {
       toast.error(
-        res.msg ||
-          (payType === "usdt" ? "U支付充值失败" : "创建充值订单失败"),
+        res.msg || (payType === "usdt" ? "U支付充值失败" : "创建充值订单失败"),
       );
 
       return;
@@ -802,7 +801,7 @@ export default function PlansPage({ section }: { section?: PlansSection }) {
                         variant="flat"
                         onPress={() => void buyPlan(plan, "balance")}
                       >
-                      余额支付
+                        余额支付
                       </Button>
                     )}
                     {!planAction.disabled && usdtEnabled && (

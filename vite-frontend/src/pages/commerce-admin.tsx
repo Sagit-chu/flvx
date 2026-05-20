@@ -635,10 +635,68 @@ export default function CommerceAdminPage({
 
       return;
     }
-    await handleAdminRefund(refundReview.item.id, refundReview.decision, note);
-    setRefundReview(null);
-    setRefundNote("");
-    await load();
+    const res = await handleAdminRefund(
+      refundReview.item.id,
+      refundReview.decision,
+      note,
+    );
+
+    if (res.code === 0) {
+      toast.success("退款审核已提交");
+      setRefundReview(null);
+      setRefundNote("");
+      await load();
+    } else {
+      toast.error(res.msg || "审核提交失败");
+    }
+  };
+
+  const handlePlanStatusChange = async (plan: PlanApiItem, status: number) => {
+    const res =
+      status === 0
+        ? await deleteAdminPlan(plan.id)
+        : await saveAdminPlan({ ...plan, status: 1 });
+
+    if (res.code === 0) {
+      toast.success(status === 0 ? "套餐已下架" : "套餐已上架");
+      await load();
+    } else {
+      toast.error(res.msg || "操作失败");
+    }
+  };
+
+  const handleInviteStatusChange = async (
+    invite: InviteCodeApiItem,
+    status: number,
+  ) => {
+    const res =
+      status === 0
+        ? await deleteInviteCode(invite.id)
+        : await saveInviteCode({ ...invite, status: 1 });
+
+    if (res.code === 0) {
+      toast.success(status === 0 ? "邀请码已停用" : "邀请码已启用");
+      await load();
+    } else {
+      toast.error(res.msg || "操作失败");
+    }
+  };
+
+  const handleCouponStatusChange = async (
+    coupon: CouponApiItem,
+    status: number,
+  ) => {
+    const res =
+      status === 0
+        ? await deleteAdminCoupon(coupon.id)
+        : await saveAdminCoupon({ ...coupon, status: 1 });
+
+    if (res.code === 0) {
+      toast.success(status === 0 ? "优惠码已停用" : "优惠码已启用");
+      await load();
+    } else {
+      toast.error(res.msg || "操作失败");
+    }
   };
 
   return (
@@ -1061,6 +1119,21 @@ export default function CommerceAdminPage({
                   }))
                 }
               />
+              <Field label="状态">
+                <select
+                  className="h-10 rounded-xl border border-default-200 bg-white/70 px-3 dark:bg-zinc-900"
+                  value={planForm.status ?? 1}
+                  onChange={(e) =>
+                    setPlanForm((prev) => ({
+                      ...prev,
+                      status: Number(e.target.value),
+                    }))
+                  }
+                >
+                  <option value={1}>上架</option>
+                  <option value={0}>下架</option>
+                </select>
+              </Field>
               <MoneyInput
                 label="售价(元)"
                 name="priceCents"
@@ -1193,6 +1266,7 @@ export default function CommerceAdminPage({
                     <th className="py-2">售价</th>
                     <th className="py-2">重置流量</th>
                     <th className="py-2">周期</th>
+                    <th className="py-2">状态</th>
                     <th className="py-2">资源</th>
                     <th className="py-2">操作</th>
                   </tr>
@@ -1210,6 +1284,9 @@ export default function CommerceAdminPage({
                       </td>
                       <td className="py-3">{plan.durationDays} 天</td>
                       <td className="py-3">
+                        {plan.status === 1 ? "上架" : "下架"}
+                      </td>
+                      <td className="py-3">
                         {plan.tunnelGroupIds.length} 组 /{" "}
                         {plan.tunnelIds.length} 条
                       </td>
@@ -1223,15 +1300,17 @@ export default function CommerceAdminPage({
                             编辑
                           </Button>
                           <Button
-                            color="danger"
+                            color={plan.status === 1 ? "danger" : "primary"}
                             size="sm"
                             variant="flat"
-                            onPress={async () => {
-                              await deleteAdminPlan(plan.id);
-                              await load();
-                            }}
+                            onPress={() =>
+                              handlePlanStatusChange(
+                                plan,
+                                plan.status === 1 ? 0 : 1,
+                              )
+                            }
                           >
-                            下架
+                            {plan.status === 1 ? "下架" : "上架"}
                           </Button>
                         </div>
                       </td>
@@ -1339,14 +1418,12 @@ export default function CommerceAdminPage({
                         color={invite.status === 1 ? "danger" : "primary"}
                         size="sm"
                         variant="flat"
-                        onPress={async () => {
-                          if (invite.status === 1) {
-                            await deleteInviteCode(invite.id);
-                          } else {
-                            await saveInviteCode({ ...invite, status: 1 });
-                          }
-                          await load();
-                        }}
+                        onPress={() =>
+                          handleInviteStatusChange(
+                            invite,
+                            invite.status === 1 ? 0 : 1,
+                          )
+                        }
                       >
                         {invite.status === 1 ? "停用" : "启用"}
                       </Button>
@@ -1814,14 +1891,12 @@ export default function CommerceAdminPage({
                   color={coupon.status === 1 ? "danger" : "primary"}
                   size="sm"
                   variant="flat"
-                  onPress={async () => {
-                    if (coupon.status === 1) {
-                      await deleteAdminCoupon(coupon.id);
-                    } else {
-                      await saveAdminCoupon({ ...coupon, status: 1 });
-                    }
-                    await load();
-                  }}
+                  onPress={() =>
+                    handleCouponStatusChange(
+                      coupon,
+                      coupon.status === 1 ? 0 : 1,
+                    )
+                  }
                 >
                   {coupon.status === 1 ? "停用" : "启用"}
                 </Button>
