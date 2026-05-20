@@ -190,6 +190,7 @@ func (h *Handler) Register(mux *http.ServeMux) {
 	mux.HandleFunc("/api/v1/commerce/ticket/messages", h.myTicketMessages)
 	mux.HandleFunc("/api/v1/commerce/ticket/create", h.createMyTicket)
 	mux.HandleFunc("/api/v1/commerce/ticket/reply", h.replyMyTicket)
+	mux.HandleFunc("/api/v1/commerce/ticket/close", h.closeMyTicket)
 	mux.HandleFunc("/api/v1/commerce/legal", h.publicLegalPages)
 	mux.HandleFunc("/api/v1/payment/epay/notify", h.epayNotify)
 	mux.HandleFunc("/api/v1/payment/usdt/notify", h.epusdtNotify)

@@ -547,17 +547,44 @@ func (h *Handler) adminDeletePlan(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	now := time.Now().UnixMilli()
-	result := h.repo.DB().Model(&model.Plan{}).Where("id = ?", id).Updates(map[string]interface{}{"status": 0, "updated_time": now})
-	if result.Error != nil {
-		response.WriteJSON(w, response.Err(-2, result.Error.Error()))
-		return
-	}
-	if result.RowsAffected == 0 {
+	var plan model.Plan
+	if err := h.repo.DB().Where("id = ?", id).First(&plan).Error; err != nil {
 		response.WriteJSON(w, response.ErrDefault("套餐不存在"))
 		return
 	}
-	h.writeAuditLog(actorID, "", "plan.disable", "plan", id, fmt.Sprintf("下架套餐 #%d", id), nil)
-	response.WriteJSON(w, response.OKEmpty())
+
+	var refs int64
+	if err := h.repo.DB().Model(&model.CommerceOrder{}).Where("plan_id = ?", id).Count(&refs).Error; err != nil {
+		response.WriteJSON(w, response.Err(-2, err.Error()))
+		return
+	}
+	if refs == 0 {
+		if err := h.repo.DB().Model(&model.UserSubscription{}).Where("plan_id = ?", id).Count(&refs).Error; err != nil {
+			response.WriteJSON(w, response.Err(-2, err.Error()))
+			return
+		}
+	}
+	if refs == 0 {
+		if err := h.repo.DB().Transaction(func(tx *gorm.DB) error {
+			if err := tx.Where("plan_id = ?", id).Delete(&model.PlanEntitlement{}).Error; err != nil {
+				return err
+			}
+			return tx.Delete(&model.Plan{}, id).Error
+		}); err != nil {
+			response.WriteJSON(w, response.Err(-2, err.Error()))
+			return
+		}
+		h.writeAuditLog(actorID, "", "plan.delete", "plan", id, fmt.Sprintf("删除套餐 %s", plan.Name), nil)
+		response.WriteJSON(w, response.OK(map[string]interface{}{"deleted": true, "archived": false}))
+		return
+	}
+
+	if err := h.repo.DB().Model(&model.Plan{}).Where("id = ?", id).Updates(map[string]interface{}{"status": -1, "updated_time": now}).Error; err != nil {
+		response.WriteJSON(w, response.Err(-2, err.Error()))
+		return
+	}
+	h.writeAuditLog(actorID, "", "plan.archive", "plan", id, fmt.Sprintf("归档套餐 %s", plan.Name), map[string]interface{}{"refs": refs})
+	response.WriteJSON(w, response.OK(map[string]interface{}{"deleted": false, "archived": true}))
 }
 
 func (h *Handler) createCommerceOrder(w http.ResponseWriter, r *http.Request) {
@@ -1085,10 +1112,15 @@ func (h *Handler) requestOrderRefund(w http.ResponseWriter, r *http.Request) {
 		response.WriteJSON(w, response.ErrDefault("当前订单不能申请退款"))
 		return
 	}
+	reason := strings.TrimSpace(req.Reason)
+	if reason == "" {
+		response.WriteJSON(w, response.ErrDefault("请输入退款原因"))
+		return
+	}
 	now := time.Now().UnixMilli()
 	refund := model.RefundRequest{
 		OrderID: order.ID, OrderNo: order.OrderNo, UserID: userID, AmountCents: order.AmountCents,
-		Reason: strings.TrimSpace(req.Reason), Status: refundStatusPending, CreatedTime: now, UpdatedTime: now,
+		Reason: reason, Status: refundStatusPending, CreatedTime: now, UpdatedTime: now,
 	}
 	if err := h.repo.DB().Create(&refund).Error; err != nil {
 		response.WriteJSON(w, response.Err(-2, err.Error()))
@@ -1647,6 +1679,32 @@ func (h *Handler) replyMyTicket(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	_ = h.repo.DB().Model(&model.SupportTicket{}).Where("id = ?", ticket.ID).Update("updated_time", now).Error
+	response.WriteJSON(w, response.OKEmpty())
+}
+
+func (h *Handler) closeMyTicket(w http.ResponseWriter, r *http.Request) {
+	userID, _, err := userRoleFromRequest(r)
+	if err != nil {
+		response.WriteJSON(w, response.Err(401, "无效的token或token已过期"))
+		return
+	}
+	id := idFromBody(r, w)
+	if id <= 0 {
+		return
+	}
+	now := time.Now().UnixMilli()
+	result := h.repo.DB().Model(&model.SupportTicket{}).
+		Where("id = ? AND user_id = ? AND status <> ?", id, userID, ticketStatusClosed).
+		Updates(map[string]interface{}{"status": ticketStatusClosed, "closed_time": now, "updated_time": now})
+	if result.Error != nil {
+		response.WriteJSON(w, response.Err(-2, result.Error.Error()))
+		return
+	}
+	if result.RowsAffected == 0 {
+		response.WriteJSON(w, response.ErrDefault("工单不存在或已关闭"))
+		return
+	}
+	h.writeAuditLog(userID, "", "ticket.close_by_user", "support_ticket", id, fmt.Sprintf("用户关闭工单 #%d", id), nil)
 	response.WriteJSON(w, response.OKEmpty())
 }
 
@@ -2422,6 +2480,8 @@ func (h *Handler) listPlans(publicOnly bool) ([]map[string]interface{}, error) {
 	query := h.repo.DB().Order("sort ASC, id DESC")
 	if publicOnly {
 		query = query.Where("status = 1")
+	} else {
+		query = query.Where("status >= 0")
 	}
 	if err := query.Find(&plans).Error; err != nil {
 		return nil, err

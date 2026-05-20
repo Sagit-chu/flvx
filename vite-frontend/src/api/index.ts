@@ -558,6 +558,8 @@ export const replyMyTicket = (
   content: string,
   attachmentUrl = "",
 ) => Network.post("/commerce/ticket/reply", { id, content, attachmentUrl });
+export const closeMyTicket = (id: number) =>
+  Network.post("/commerce/ticket/close", { id });
 export const getAdminTickets = (filter: CommerceListFilter = {}) =>
   Network.post<PaginatedApiData<SupportTicketApiItem>>(
     "/admin/commerce/ticket/list",

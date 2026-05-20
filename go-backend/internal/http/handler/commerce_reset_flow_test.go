@@ -990,6 +990,139 @@ func TestRunCommerceResourceJobsCompletesSyncJob(t *testing.T) {
 	}
 }
 
+func TestAdminDeletePlanDeletesUnusedAndArchivesReferencedPlan(t *testing.T) {
+	r, h := setupCommerceResetFlowTestHandler(t)
+	now := time.Now().UnixMilli()
+	for _, plan := range []model.Plan{
+		{ID: 301, Name: "未使用套餐", Category: "默认", PriceCents: 100, Currency: "CNY", DurationDays: 30, Status: 1, CreatedTime: now, UpdatedTime: now},
+		{ID: 302, Name: "有订单套餐", Category: "默认", PriceCents: 200, Currency: "CNY", DurationDays: 30, Status: 1, CreatedTime: now, UpdatedTime: now},
+	} {
+		if err := r.DB().Create(&plan).Error; err != nil {
+			t.Fatalf("seed plan %d: %v", plan.ID, err)
+		}
+		if err := r.DB().Create(&model.PlanEntitlement{PlanID: plan.ID, ScopeType: "tunnel", ScopeID: 1, CreatedTime: now}).Error; err != nil {
+			t.Fatalf("seed entitlement %d: %v", plan.ID, err)
+		}
+	}
+	if err := r.DB().Create(&model.CommerceOrder{
+		OrderNo: "FLVX-PLAN-REF", UserID: 9, PlanID: 302, AmountCents: 200, Currency: "CNY",
+		Status: orderStatusPending, PaymentStatus: paymentStatusUnpaid, FulfillmentStatus: fulfillmentStatusPending,
+		RefundStatus: refundStatusNone, OrderType: orderTypeNew, CreatedTime: now, UpdatedTime: now,
+	}).Error; err != nil {
+		t.Fatalf("seed order: %v", err)
+	}
+
+	for _, id := range []int64{301, 302} {
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/admin/commerce/plan/delete", strings.NewReader(fmt.Sprintf(`{"id":%d}`, id)))
+		rec := httptest.NewRecorder()
+		h.adminDeletePlan(rec, req)
+		var out response.R
+		if err := json.NewDecoder(rec.Body).Decode(&out); err != nil {
+			t.Fatalf("decode delete response for %d: %v", id, err)
+		}
+		if out.Code != 0 {
+			t.Fatalf("expected delete success for %d, got code=%d msg=%s", id, out.Code, out.Msg)
+		}
+	}
+
+	var unusedCount int64
+	if err := r.DB().Model(&model.Plan{}).Where("id = ?", 301).Count(&unusedCount).Error; err != nil {
+		t.Fatalf("count unused plan: %v", err)
+	}
+	if unusedCount != 0 {
+		t.Fatalf("unused plan should be deleted, got count %d", unusedCount)
+	}
+	var archived model.Plan
+	if err := r.DB().Where("id = ?", 302).First(&archived).Error; err != nil {
+		t.Fatalf("find archived plan: %v", err)
+	}
+	if archived.Status != -1 {
+		t.Fatalf("referenced plan should be archived with status -1, got %d", archived.Status)
+	}
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/admin/commerce/plan/list", strings.NewReader(`{}`))
+	rec := httptest.NewRecorder()
+	h.adminListPlans(rec, req)
+	var out response.R
+	if err := json.NewDecoder(rec.Body).Decode(&out); err != nil {
+		t.Fatalf("decode plan list: %v", err)
+	}
+	if out.Code != 0 {
+		t.Fatalf("expected list success, got code=%d msg=%s", out.Code, out.Msg)
+	}
+	for _, item := range out.Data.([]interface{}) {
+		plan := item.(map[string]interface{})
+		if int64(plan["id"].(float64)) == 302 {
+			t.Fatalf("archived plan should be hidden from admin list")
+		}
+	}
+}
+
+func TestRequestRefundRequiresReason(t *testing.T) {
+	r, h := setupCommerceResetFlowTestHandler(t)
+	now := time.Now().UnixMilli()
+	if err := r.DB().Create(&model.CommerceOrder{
+		ID: 401, OrderNo: "FLVX-REFUND-EMPTY", UserID: 9, PlanID: 101, AmountCents: 300, Currency: "CNY",
+		Status: orderStatusActive, PaymentStatus: paymentStatusPaid, FulfillmentStatus: fulfillmentStatusDone,
+		RefundStatus: refundStatusNone, OrderType: orderTypeNew, CreatedTime: now, UpdatedTime: now,
+	}).Error; err != nil {
+		t.Fatalf("seed order: %v", err)
+	}
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/commerce/order/refund", strings.NewReader(`{"id":401,"reason":"   "}`))
+	req = req.WithContext(context.WithValue(req.Context(), middleware.ClaimsContextKey, auth.Claims{
+		Sub: "9", RoleID: 1, User: "u9", Name: "u9",
+	}))
+	rec := httptest.NewRecorder()
+	h.requestOrderRefund(rec, req)
+
+	var out response.R
+	if err := json.NewDecoder(rec.Body).Decode(&out); err != nil {
+		t.Fatalf("decode refund response: %v", err)
+	}
+	if out.Code == 0 {
+		t.Fatalf("empty refund reason should be rejected")
+	}
+	var refunds int64
+	if err := r.DB().Model(&model.RefundRequest{}).Where("order_id = ?", 401).Count(&refunds).Error; err != nil {
+		t.Fatalf("count refunds: %v", err)
+	}
+	if refunds != 0 {
+		t.Fatalf("expected no refund rows, got %d", refunds)
+	}
+}
+
+func TestUserCanCloseOwnTicket(t *testing.T) {
+	r, h := setupCommerceResetFlowTestHandler(t)
+	now := time.Now().UnixMilli()
+	if err := r.DB().Create(&model.SupportTicket{
+		ID: 501, UserID: 9, Title: "已解决问题", Category: "general", Status: ticketStatusOpen,
+		Priority: "normal", CreatedTime: now, UpdatedTime: now,
+	}).Error; err != nil {
+		t.Fatalf("seed ticket: %v", err)
+	}
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/commerce/ticket/close", strings.NewReader(`{"id":501}`))
+	req = req.WithContext(context.WithValue(req.Context(), middleware.ClaimsContextKey, auth.Claims{
+		Sub: "9", RoleID: 1, User: "u9", Name: "u9",
+	}))
+	rec := httptest.NewRecorder()
+	h.closeMyTicket(rec, req)
+
+	var out response.R
+	if err := json.NewDecoder(rec.Body).Decode(&out); err != nil {
+		t.Fatalf("decode close response: %v", err)
+	}
+	if out.Code != 0 {
+		t.Fatalf("expected close success, got code=%d msg=%s", out.Code, out.Msg)
+	}
+	var ticket model.SupportTicket
+	if err := r.DB().Where("id = ?", 501).First(&ticket).Error; err != nil {
+		t.Fatalf("find ticket: %v", err)
+	}
+	if ticket.Status != ticketStatusClosed || ticket.ClosedTime == 0 {
+		t.Fatalf("expected closed ticket with closed time, got status=%s closed=%d", ticket.Status, ticket.ClosedTime)
+	}
+}
+
 func setupCommerceResetFlowTestHandler(t *testing.T) (*repo.Repository, *Handler) {
 	t.Helper()
 	r, err := repo.Open(t.TempDir() + "/commerce-reset-flow.db")

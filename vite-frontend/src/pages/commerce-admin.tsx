@@ -653,16 +653,37 @@ export default function CommerceAdminPage({
   };
 
   const handlePlanStatusChange = async (plan: PlanApiItem, status: number) => {
-    const res =
-      status === 0
-        ? await deleteAdminPlan(plan.id)
-        : await saveAdminPlan({ ...plan, status: 1 });
+    const res = await saveAdminPlan({ ...plan, status });
 
     if (res.code === 0) {
       toast.success(status === 0 ? "套餐已下架" : "套餐已上架");
       await load();
     } else {
       toast.error(res.msg || "操作失败");
+    }
+  };
+
+  const handlePlanDelete = async (plan: PlanApiItem) => {
+    if (
+      !window.confirm(
+        `确认删除套餐「${plan.name}」？有历史订单时会自动归档并从列表隐藏。`,
+      )
+    ) {
+      return;
+    }
+    const res = await deleteAdminPlan(plan.id);
+
+    if (res.code === 0) {
+      const result = res.data as
+        | { archived?: boolean; deleted?: boolean }
+        | undefined;
+
+      toast.success(
+        result?.archived ? "套餐已有历史订单，已归档隐藏" : "套餐已删除",
+      );
+      await load();
+    } else {
+      toast.error(res.msg || "删除失败");
     }
   };
 
@@ -1306,6 +1327,14 @@ export default function CommerceAdminPage({
                             }
                           >
                             {plan.status === 1 ? "下架" : "上架"}
+                          </Button>
+                          <Button
+                            color="danger"
+                            size="sm"
+                            variant="flat"
+                            onPress={() => void handlePlanDelete(plan)}
+                          >
+                            删除
                           </Button>
                         </div>
                       </td>

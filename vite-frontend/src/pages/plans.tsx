@@ -4,6 +4,7 @@ import toast from "react-hot-toast";
 
 import {
   cancelCommerceOrder,
+  closeMyTicket,
   createCommerceOrder,
   getMyCommerceOrders,
   getMyNotifications,
@@ -472,6 +473,21 @@ export default function PlansPage({ section }: { section?: PlansSection }) {
     }
     setTicketReply("");
     await openTicket(selectedTicket);
+    await load();
+  };
+
+  const closeTicket = async () => {
+    if (!selectedTicket) return;
+    const res = await closeMyTicket(selectedTicket.id);
+
+    if (res.code !== 0) {
+      toast.error(res.msg || "关闭工单失败");
+
+      return;
+    }
+    toast.success("工单已关闭");
+    setSelectedTicket(null);
+    setTicketMessages([]);
     await load();
   };
 
@@ -1197,19 +1213,26 @@ export default function PlansPage({ section }: { section?: PlansSection }) {
               ))}
             </div>
             {selectedTicket.status !== "closed" && (
-              <div className="mt-4 flex gap-2">
-                <input
-                  className="h-10 flex-1 rounded-[var(--radius-control)] border border-input bg-surface px-3 text-sm outline-none focus:ring-2 focus:ring-ring"
-                  placeholder="回复内容"
-                  value={ticketReply}
-                  onChange={(event) => setTicketReply(event.target.value)}
-                />
-                <Button
-                  className="bg-primary text-white"
-                  onPress={submitTicketReply}
-                >
-                  回复
-                </Button>
+              <div className="mt-4 space-y-3">
+                <div className="flex gap-2">
+                  <input
+                    className="h-10 flex-1 rounded-[var(--radius-control)] border border-input bg-surface px-3 text-sm outline-none focus:ring-2 focus:ring-ring"
+                    placeholder="回复内容"
+                    value={ticketReply}
+                    onChange={(event) => setTicketReply(event.target.value)}
+                  />
+                  <Button
+                    className="bg-primary text-white"
+                    onPress={submitTicketReply}
+                  >
+                    回复
+                  </Button>
+                </div>
+                <div className="flex justify-end">
+                  <Button color="danger" variant="flat" onPress={closeTicket}>
+                    关闭工单
+                  </Button>
+                </div>
               </div>
             )}
           </div>
