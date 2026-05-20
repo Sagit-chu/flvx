@@ -33,6 +33,7 @@ import {
   type WalletLedgerApiItem,
 } from "@/api";
 import { Button } from "@/shadcn-bridge/heroui/button";
+import { PageHeader, PageShell } from "@/components/app-ui";
 
 const formatMoney = (cents: number) => `¥${(cents / 100).toFixed(2)}`;
 const formatNames = (names?: string[], fallbackCount?: number) => {
@@ -566,18 +567,14 @@ export default function PlansPage({ section }: { section?: PlansSection }) {
   };
 
   return (
-    <div className="h-full overflow-auto p-4 sm:p-6">
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold text-foreground">
-          {sectionMeta[activeSection].title}
-        </h1>
-        <p className="mt-2 text-sm text-default-500">
-          {sectionMeta[activeSection].description}
-        </p>
-      </div>
+    <PageShell className="h-full overflow-auto">
+      <PageHeader
+        description={sectionMeta[activeSection].description}
+        title={sectionMeta[activeSection].title}
+      />
 
       {activeSection === "subscription" && (
-        <section className="rounded-2xl border border-white/70 bg-white/55 p-5 shadow-sm backdrop-blur-xl dark:border-white/10 dark:bg-zinc-900/50">
+        <section className="native-panel p-5">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <h2 className="text-lg font-semibold">我的套餐</h2>
           </div>
@@ -586,7 +583,7 @@ export default function PlansPage({ section }: { section?: PlansSection }) {
               {subscriptions.map((item) => (
                 <div
                   key={item.id}
-                  className="rounded-xl border border-default-100 bg-white/55 p-4 text-sm text-default-600 dark:bg-zinc-900/40"
+                  className="native-muted-panel p-4 text-sm text-default-600"
                 >
                   <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
                     <div>
@@ -678,11 +675,11 @@ export default function PlansPage({ section }: { section?: PlansSection }) {
       )}
 
       {activeSection === "coupon" && (
-        <section className="flex flex-col gap-2 rounded-2xl border border-white/70 bg-white/55 p-4 shadow-sm backdrop-blur-xl dark:border-white/10 dark:bg-zinc-900/50 sm:flex-row sm:items-end">
+        <section className="flex flex-col gap-2 native-panel p-4 sm:flex-row sm:items-end">
           <label className="grid flex-1 gap-1 text-sm font-medium text-default-700">
             优惠码
             <input
-              className="h-10 rounded-xl border border-default-200 bg-white/70 px-3 text-sm outline-none dark:bg-zinc-900"
+              className="h-10 rounded-[var(--radius-control)] border border-input bg-surface px-3 text-sm outline-none focus:ring-2 focus:ring-ring"
               placeholder="有优惠码可在购买前填写"
               value={couponCode}
               onChange={(event) => setCouponCode(event.target.value)}
@@ -696,11 +693,11 @@ export default function PlansPage({ section }: { section?: PlansSection }) {
 
       {activeSection === "store" && (
         <>
-          <section className="mb-4 flex flex-col gap-2 rounded-2xl border border-white/70 bg-white/55 p-4 shadow-sm backdrop-blur-xl dark:border-white/10 dark:bg-zinc-900/50 sm:flex-row sm:items-end">
+          <section className="mb-4 flex flex-col gap-2 native-panel p-4 sm:flex-row sm:items-end">
             <label className="grid flex-1 gap-1 text-sm font-medium text-default-700">
               优惠码
               <input
-                className="h-10 rounded-xl border border-default-200 bg-white/70 px-3 text-sm outline-none dark:bg-zinc-900"
+                className="h-10 rounded-[var(--radius-control)] border border-input bg-surface px-3 text-sm outline-none focus:ring-2 focus:ring-ring"
                 placeholder="有优惠码可在购买前填写"
                 value={couponCode}
                 onChange={(event) => setCouponCode(event.target.value)}
@@ -729,7 +726,7 @@ export default function PlansPage({ section }: { section?: PlansSection }) {
               return (
                 <article
                   key={plan.id}
-                  className="flex min-h-[320px] flex-col rounded-2xl border border-white/70 bg-white/60 p-5 shadow-sm backdrop-blur-xl dark:border-white/10 dark:bg-zinc-900/50"
+                  className="flex min-h-[320px] flex-col native-panel p-5"
                 >
                   <div className="flex items-start justify-between gap-4">
                     <div>
@@ -823,7 +820,7 @@ export default function PlansPage({ section }: { section?: PlansSection }) {
       )}
 
       {activeSection === "orders" && (
-        <section className="rounded-2xl border border-white/70 bg-white/55 p-5 shadow-sm backdrop-blur-xl dark:border-white/10 dark:bg-zinc-900/50">
+        <section className="native-panel p-5">
           <h2 className="text-lg font-semibold">我的订单</h2>
           <div className="mt-4 overflow-x-auto">
             <table className="w-full min-w-[900px] text-sm">
@@ -932,14 +929,14 @@ export default function PlansPage({ section }: { section?: PlansSection }) {
       )}
 
       {activeSection === "wallet" && (
-        <section className="rounded-2xl border border-white/70 bg-white/55 p-5 shadow-sm backdrop-blur-xl dark:border-white/10 dark:bg-zinc-900/50">
+        <section className="native-panel p-5">
           <h2 className="text-lg font-semibold">账户余额</h2>
           <div className="mt-3 text-2xl font-bold text-primary">
             {formatMoney(walletBalance)}
           </div>
           <div className="mt-4 flex flex-col gap-2 sm:flex-row">
             <input
-              className="h-10 rounded-xl border border-default-200 bg-white/70 px-3 text-sm outline-none dark:bg-zinc-900"
+              className="h-10 rounded-[var(--radius-control)] border border-input bg-surface px-3 text-sm outline-none focus:ring-2 focus:ring-ring"
               min={1}
               type="number"
               value={rechargeAmount}
@@ -967,7 +964,7 @@ export default function PlansPage({ section }: { section?: PlansSection }) {
             {walletItems.map((item) => (
               <div
                 key={item.id}
-                className="flex items-center justify-between rounded-xl border border-default-100 bg-white/55 p-3 text-sm dark:bg-zinc-900/40"
+                className="native-muted-panel flex items-center justify-between p-3 text-sm"
               >
                 <span>{item.note || "余额变动"}</span>
                 <span
@@ -989,7 +986,7 @@ export default function PlansPage({ section }: { section?: PlansSection }) {
 
       {refundTarget && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-lg rounded-2xl border border-white/70 bg-white p-6 shadow-xl dark:border-white/10 dark:bg-zinc-900">
+          <div className="w-full max-w-lg native-panel p-6">
             <div className="mb-4">
               <h2 className="text-xl font-bold">申请退款</h2>
               <p className="mt-1 text-sm text-default-500">
@@ -1000,7 +997,7 @@ export default function PlansPage({ section }: { section?: PlansSection }) {
             <label className="grid gap-2 text-sm font-medium text-default-700">
               退款原因
               <textarea
-                className="min-h-24 rounded-xl border border-default-200 bg-white/70 px-3 py-2 text-sm outline-none dark:bg-zinc-900"
+                className="min-h-24 rounded-[var(--radius-control)] border border-input bg-surface px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
                 value={refundReason}
                 onChange={(event) => setRefundReason(event.target.value)}
               />
@@ -1028,7 +1025,7 @@ export default function PlansPage({ section }: { section?: PlansSection }) {
       )}
 
       {activeSection === "notifications" && (
-        <section className="rounded-2xl border border-white/70 bg-white/55 p-5 shadow-sm backdrop-blur-xl dark:border-white/10 dark:bg-zinc-900/50">
+        <section className="native-panel p-5">
           <div className="flex items-center justify-between gap-3">
             <h2 className="text-lg font-semibold">站内通知</h2>
             <Button size="sm" variant="flat" onPress={markNotificationsRead}>
@@ -1037,10 +1034,7 @@ export default function PlansPage({ section }: { section?: PlansSection }) {
           </div>
           <div className="mt-4 grid gap-3">
             {notifications.map((item) => (
-              <div
-                key={item.id}
-                className="rounded-xl border border-default-100 bg-white/55 p-3 text-sm dark:bg-zinc-900/40"
-              >
+              <div key={item.id} className="native-muted-panel p-3 text-sm">
                 <div className="font-medium">{item.title}</div>
                 <div className="mt-1 text-default-500">{item.content}</div>
                 <div className="mt-2 flex items-center justify-between text-xs text-default-400">
@@ -1057,17 +1051,17 @@ export default function PlansPage({ section }: { section?: PlansSection }) {
       )}
 
       {activeSection === "tickets" && (
-        <section className="rounded-2xl border border-white/70 bg-white/55 p-5 shadow-sm backdrop-blur-xl dark:border-white/10 dark:bg-zinc-900/50">
+        <section className="native-panel p-5">
           <h2 className="text-lg font-semibold">售后工单</h2>
           <div className="mt-4 grid gap-3">
             <input
-              className="h-10 rounded-xl border border-default-200 bg-white/70 px-3 text-sm outline-none dark:bg-zinc-900"
+              className="h-10 rounded-[var(--radius-control)] border border-input bg-surface px-3 text-sm outline-none focus:ring-2 focus:ring-ring"
               placeholder="工单标题"
               value={ticketTitle}
               onChange={(event) => setTicketTitle(event.target.value)}
             />
             <select
-              className="h-10 rounded-xl border border-default-200 bg-white/70 px-3 text-sm outline-none dark:bg-zinc-900"
+              className="h-10 rounded-[var(--radius-control)] border border-input bg-surface px-3 text-sm outline-none focus:ring-2 focus:ring-ring"
               value={ticketCategory}
               onChange={(event) => setTicketCategory(event.target.value)}
             >
@@ -1077,13 +1071,13 @@ export default function PlansPage({ section }: { section?: PlansSection }) {
               <option value="refund">退款售后</option>
             </select>
             <textarea
-              className="min-h-24 rounded-xl border border-default-200 bg-white/70 px-3 py-2 text-sm outline-none dark:bg-zinc-900"
+              className="min-h-24 rounded-[var(--radius-control)] border border-input bg-surface px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
               placeholder="描述你的问题或退款补充说明"
               value={ticketContent}
               onChange={(event) => setTicketContent(event.target.value)}
             />
             <input
-              className="h-10 rounded-xl border border-default-200 bg-white/70 px-3 text-sm outline-none dark:bg-zinc-900"
+              className="h-10 rounded-[var(--radius-control)] border border-input bg-surface px-3 text-sm outline-none focus:ring-2 focus:ring-ring"
               placeholder="附件链接，可选"
               value={ticketAttachment}
               onChange={(event) => setTicketAttachment(event.target.value)}
@@ -1095,7 +1089,7 @@ export default function PlansPage({ section }: { section?: PlansSection }) {
               {tickets.map((ticket) => (
                 <div
                   key={ticket.id}
-                  className="flex items-center justify-between rounded-xl border border-default-100 bg-white/55 p-3 text-sm dark:bg-zinc-900/40"
+                  className="native-muted-panel flex items-center justify-between p-3 text-sm"
                 >
                   <span>{ticket.title}</span>
                   <div className="flex items-center gap-2">
@@ -1120,7 +1114,7 @@ export default function PlansPage({ section }: { section?: PlansSection }) {
         </section>
       )}
       {userPaginatedSections.includes(activeSection) && (
-        <section className="flex flex-col gap-3 rounded-2xl border border-white/70 bg-white/55 p-4 text-sm text-default-600 shadow-sm backdrop-blur-xl dark:border-white/10 dark:bg-zinc-900/50 sm:flex-row sm:items-center sm:justify-between">
+        <section className="flex flex-col gap-3 native-panel p-4 text-sm text-default-600 sm:flex-row sm:items-center sm:justify-between">
           <span>
             第 {listPagination.page} 页 / 共 {listPagination.total} 条，每页{" "}
             {listPagination.pageSize} 条
@@ -1160,7 +1154,7 @@ export default function PlansPage({ section }: { section?: PlansSection }) {
       )}
       {selectedTicket && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4 backdrop-blur-sm">
-          <div className="max-h-[90vh] w-full max-w-2xl overflow-auto rounded-2xl border border-white/70 bg-white p-6 shadow-xl dark:border-white/10 dark:bg-zinc-900">
+          <div className="max-h-[90vh] w-full max-w-2xl overflow-auto native-panel p-6">
             <div className="mb-5 flex items-start justify-between gap-4">
               <div>
                 <h2 className="text-xl font-bold">{selectedTicket.title}</h2>
@@ -1182,7 +1176,7 @@ export default function PlansPage({ section }: { section?: PlansSection }) {
               {ticketMessages.map((message) => (
                 <div
                   key={message.id}
-                  className="rounded-xl border border-default-100 bg-white/55 p-3 text-sm dark:bg-zinc-900/40"
+                  className="native-muted-panel p-3 text-sm"
                 >
                   <div className="mb-1 text-xs text-default-400">
                     {message.isAdmin ? "客服" : "我"} /{" "}
@@ -1205,7 +1199,7 @@ export default function PlansPage({ section }: { section?: PlansSection }) {
             {selectedTicket.status !== "closed" && (
               <div className="mt-4 flex gap-2">
                 <input
-                  className="h-10 flex-1 rounded-xl border border-default-200 bg-white/70 px-3 text-sm outline-none dark:bg-zinc-900"
+                  className="h-10 flex-1 rounded-[var(--radius-control)] border border-input bg-surface px-3 text-sm outline-none focus:ring-2 focus:ring-ring"
                   placeholder="回复内容"
                   value={ticketReply}
                   onChange={(event) => setTicketReply(event.target.value)}
@@ -1223,7 +1217,7 @@ export default function PlansPage({ section }: { section?: PlansSection }) {
       )}
       {selectedOrder && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-lg rounded-2xl border border-white/70 bg-white p-6 shadow-xl dark:border-white/10 dark:bg-zinc-900">
+          <div className="w-full max-w-lg native-panel p-6">
             <div className="mb-5 flex items-start justify-between gap-4">
               <div>
                 <h2 className="text-xl font-bold">订单详情</h2>
@@ -1304,6 +1298,6 @@ export default function PlansPage({ section }: { section?: PlansSection }) {
           </div>
         </div>
       )}
-    </div>
+    </PageShell>
   );
 }

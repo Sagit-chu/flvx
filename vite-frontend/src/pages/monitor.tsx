@@ -211,10 +211,10 @@ export default function MonitorPage() {
   }, [nodeMap, realtimeNodeMetrics]);
 
   return (
-    <AnimatedPage className="px-3 lg:px-6 py-8">
+    <AnimatedPage className="native-page">
       {/* 顶部英雄数据指标 (Hero Metrics) */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-        <div className="rounded-3xl border border-white/80 dark:border-white/10 bg-white/20 dark:bg-zinc-900/20 backdrop-blur-3xl shadow-[0_10px_30px_rgba(0,0,0,0.1)] p-6 relative overflow-hidden flex flex-col justify-between h-40">
+        <div className="native-panel relative flex h-40 flex-col justify-between overflow-hidden p-6">
           <div className="flex justify-between items-center z-10 relative">
             <span className="text-default-600 font-medium text-sm">
               系统负载
@@ -235,7 +235,7 @@ export default function MonitorPage() {
           </div>
         </div>
 
-        <div className="rounded-3xl border border-white/80 dark:border-white/10 bg-white/20 dark:bg-zinc-900/20 backdrop-blur-3xl shadow-[0_10px_30px_rgba(0,0,0,0.1)] p-6 relative overflow-hidden flex flex-col justify-between h-40">
+        <div className="native-panel relative flex h-40 flex-col justify-between overflow-hidden p-6">
           <div className="flex justify-between items-center z-10 relative">
             <span className="text-default-600 font-medium text-sm">
               活跃连接
@@ -256,7 +256,7 @@ export default function MonitorPage() {
           </div>
         </div>
 
-        <div className="rounded-3xl border border-white/80 dark:border-white/10 bg-white/20 dark:bg-zinc-900/20 backdrop-blur-3xl shadow-[0_10px_30px_rgba(0,0,0,0.1)] p-6 relative overflow-hidden flex flex-col justify-between h-40">
+        <div className="native-panel relative flex h-40 flex-col justify-between overflow-hidden p-6">
           <div className="flex justify-between items-center z-10 relative">
             <span className="text-default-600 font-medium text-sm">带宽</span>
           </div>
@@ -309,11 +309,11 @@ export default function MonitorPage() {
         </div>
 
         {/* Tab Switcher */}
-        <div className="flex items-center gap-1 p-1 rounded-2xl bg-white/20 dark:bg-black/20 backdrop-blur-3xl border border-white/50 dark:border-white/10 w-fit shadow-sm">
+        <div className="native-muted-panel flex w-fit items-center gap-1 p-1">
           <button
             className={`flex items-center gap-1.5 px-5 py-2 rounded-xl text-sm font-semibold transition-all duration-200 ${
               activeTab === "nodes"
-                ? "bg-white dark:bg-zinc-800 shadow-[0_2px_8px_rgba(0,0,0,0.08)] text-foreground"
+                ? "bg-surface shadow-sm text-foreground"
                 : "text-default-500 hover:text-foreground"
             }`}
             onClick={() => setActiveTab("nodes")}
@@ -324,7 +324,7 @@ export default function MonitorPage() {
           <button
             className={`flex items-center gap-1.5 px-5 py-2 rounded-xl text-sm font-semibold transition-all duration-200 ${
               activeTab === "tunnels"
-                ? "bg-white dark:bg-zinc-800 shadow-[0_2px_8px_rgba(0,0,0,0.08)] text-foreground"
+                ? "bg-surface shadow-sm text-foreground"
                 : "text-default-500 hover:text-foreground"
             }`}
             onClick={() => setActiveTab("tunnels")}

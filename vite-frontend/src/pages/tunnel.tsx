@@ -1751,16 +1751,16 @@ export default function TunnelPage() {
       {/* 隧道卡片网格 */}
       {tunnels.length > 0 ? (
         viewMode === "list" ? (
-          <Card className="bg-white/20 dark:bg-zinc-900/20 backdrop-blur-3xl border border-white/80 dark:border-white/10 shadow-[0_15px_35px_rgba(0,0,0,0.1)]">
+          <Card className="native-panel">
             <Table
               aria-label="隧道列表"
               className="overflow-x-auto min-w-full"
               classNames={{
                 wrapper:
                   "bg-transparent p-0 shadow-none border-none overflow-auto rounded-[24px]",
-                th: "bg-transparent text-default-600 font-semibold text-sm border-b border-white/20 dark:border-white/10 py-3 uppercase tracking-wider first:rounded-tl-[24px] last:rounded-tr-[24px]",
+                th: "border-b border-divider bg-content2 py-3 text-sm font-semibold text-default-600",
                 td: "py-3 border-b border-divider/50 group-data-[last=true]:border-b-0",
-                tr: "hover:bg-white/10 dark:hover:bg-white/5 transition-colors",
+                tr: "hover:bg-default-100/60 transition-colors",
               }}
             >
               <TableHeader>
@@ -1929,7 +1929,7 @@ export default function TunnelPage() {
                       {(listeners) => (
                         <Card
                           key={tunnel.id}
-                          className="group overflow-hidden bg-white/20 dark:bg-zinc-900/20 backdrop-blur-3xl border border-white/80 dark:border-white/10 shadow-[0_15px_35px_rgba(0,0,0,0.1)]"
+                          className="group overflow-hidden native-panel"
                         >
                           <CardHeader className="pb-2 md:pb-2">
                             <div className="flex justify-between items-start w-full">
@@ -2084,7 +2084,7 @@ export default function TunnelPage() {
                               <div
                                 className={`grid gap-2 ${tunnel.type === 2 && tunnel.ipPreference ? "grid-cols-3" : "grid-cols-2"}`}
                               >
-                                <div className="text-center p-1.5 bg-white/5 dark:bg-black/5 backdrop-blur-3xl rounded-lg border border-divider">
+                                <div className="native-muted-panel p-1.5 text-center">
                                   <div className="text-xs text-default-500">
                                     流量计算
                                   </div>
@@ -2092,7 +2092,7 @@ export default function TunnelPage() {
                                     {getTunnelFlowDisplay(tunnel.flow)}
                                   </div>
                                 </div>
-                                <div className="text-center p-1.5 bg-white/5 dark:bg-black/5 backdrop-blur-3xl rounded-lg border border-divider">
+                                <div className="native-muted-panel p-1.5 text-center">
                                   <div className="text-xs text-default-500">
                                     流量倍率
                                   </div>
@@ -2101,7 +2101,7 @@ export default function TunnelPage() {
                                   </div>
                                 </div>
                                 {tunnel.type === 2 && tunnel.ipPreference && (
-                                  <div className="text-center p-1.5 bg-white/5 dark:bg-black/5 backdrop-blur-3xl rounded-lg border border-divider">
+                                  <div className="native-muted-panel p-1.5 text-center">
                                     <div className="text-xs text-default-500">
                                       连接偏好
                                     </div>
@@ -2199,7 +2199,7 @@ export default function TunnelPage() {
         )
       ) : (
         /* 空状态 */
-        <Card className="bg-white/20 dark:bg-zinc-900/20 backdrop-blur-3xl border border-white/80 dark:border-white/10 shadow-[0_15px_35px_rgba(0,0,0,0.1)]">
+        <Card className="native-panel">
           <CardBody className="text-center py-20 flex flex-col items-center justify-center min-h-[240px]">
             <h3 className="text-xl font-medium text-foreground tracking-tight mb-2">
               暂无隧道配置
@@ -2215,7 +2215,7 @@ export default function TunnelPage() {
       <Modal
         backdrop="blur"
         classNames={{
-          base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-2xl overflow-hidden",
+          base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-[var(--radius-panel)] overflow-hidden",
         }}
         isOpen={modalOpen}
         placement="center"
@@ -3255,7 +3255,7 @@ export default function TunnelPage() {
       <Modal
         backdrop="blur"
         classNames={{
-          base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-2xl overflow-hidden",
+          base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-[var(--radius-panel)] overflow-hidden",
         }}
         isOpen={deleteModalOpen}
         placement="center"
@@ -3441,7 +3441,7 @@ export default function TunnelPage() {
       <Modal
         backdrop="blur"
         classNames={{
-          base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-2xl overflow-hidden [&>div]:bg-content1 [&>div]:dark:bg-content1",
+          base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-[var(--radius-panel)] overflow-hidden [&>div]:bg-content1 [&>div]:dark:bg-content1",
         }}
         isOpen={diagnosisModalOpen}
         placement="center"
@@ -4026,7 +4026,7 @@ export default function TunnelPage() {
       <Modal
         backdrop="blur"
         classNames={{
-          base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-2xl overflow-hidden",
+          base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-[var(--radius-panel)] overflow-hidden",
         }}
         isOpen={batchDeleteModalOpen}
         onOpenChange={handleBatchDeleteModalOpenChange}

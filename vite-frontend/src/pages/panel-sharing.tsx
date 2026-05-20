@@ -674,7 +674,7 @@ export default function PanelSharingPage() {
       <Modal
         backdrop="blur"
         classNames={{
-          base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-2xl overflow-hidden",
+          base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-[var(--radius-panel)] overflow-hidden",
         }}
         isOpen={createShareOpen}
         scrollBehavior="inside"
@@ -785,7 +785,7 @@ export default function PanelSharingPage() {
       <Modal
         backdrop="blur"
         classNames={{
-          base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-2xl overflow-hidden",
+          base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-[var(--radius-panel)] overflow-hidden",
         }}
         isOpen={editShareOpen}
         scrollBehavior="inside"
@@ -888,7 +888,7 @@ export default function PanelSharingPage() {
       <Modal
         backdrop="blur"
         classNames={{
-          base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-2xl overflow-hidden",
+          base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-[var(--radius-panel)] overflow-hidden",
         }}
         isOpen={importNodeOpen}
         onClose={() => setImportNodeOpen(false)}

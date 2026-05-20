@@ -1767,11 +1767,10 @@ export default function NodePage() {
             aria-label="节点列表"
             className="overflow-x-auto min-w-full"
             classNames={{
-              wrapper:
-                "bg-transparent p-0 shadow-none border-none overflow-auto rounded-2xl",
-              th: "bg-transparent text-default-600 font-semibold text-sm border-b border-white/20 dark:border-white/10 py-3 uppercase tracking-wider first:rounded-tl-[24px] last:rounded-tr-[24px]",
+              wrapper: "native-panel overflow-auto",
+              th: "border-b border-divider bg-content2 py-3 text-sm font-semibold text-default-600",
               td: "py-3 border-b border-divider/50 group-data-[last=true]:border-b-0",
-              tr: "hover:bg-white/10 dark:hover:bg-white/5 transition-colors",
+              tr: "hover:bg-default-100/60 transition-colors",
             }}
           >
             <TableHeader>
@@ -2429,7 +2428,7 @@ export default function NodePage() {
       <Modal
         backdrop="blur"
         classNames={{
-          base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-2xl overflow-hidden",
+          base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-[var(--radius-panel)] overflow-hidden",
         }}
         isOpen={dialogVisible}
         placement="center"
@@ -2855,7 +2854,7 @@ export default function NodePage() {
       <Modal
         backdrop="blur"
         classNames={{
-          base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-2xl overflow-hidden",
+          base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-[var(--radius-panel)] overflow-hidden",
         }}
         isOpen={rollbackModalOpen}
         placement="center"
@@ -2896,7 +2895,7 @@ export default function NodePage() {
       <Modal
         backdrop="blur"
         classNames={{
-          base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-2xl overflow-hidden",
+          base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-[var(--radius-panel)] overflow-hidden",
         }}
         isOpen={deleteModalOpen}
         placement="center"
@@ -2939,7 +2938,7 @@ export default function NodePage() {
       <Modal
         backdrop="blur"
         classNames={{
-          base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-2xl overflow-hidden",
+          base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-[var(--radius-panel)] overflow-hidden",
         }}
         isOpen={installSelectorOpen}
         placement="center"
@@ -2992,7 +2991,7 @@ export default function NodePage() {
       <Modal
         backdrop="blur"
         classNames={{
-          base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-2xl overflow-hidden",
+          base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-[var(--radius-panel)] overflow-hidden",
         }}
         isOpen={installCommandModal}
         placement="center"
@@ -3049,7 +3048,7 @@ export default function NodePage() {
       <Modal
         backdrop="blur"
         classNames={{
-          base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-2xl overflow-hidden",
+          base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-[var(--radius-panel)] overflow-hidden",
         }}
         isOpen={upgradeModalOpen}
         placement="center"
@@ -3155,7 +3154,7 @@ export default function NodePage() {
       <Modal
         backdrop="blur"
         classNames={{
-          base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-2xl overflow-hidden",
+          base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-[var(--radius-panel)] overflow-hidden",
         }}
         isOpen={batchDeleteModalOpen}
         placement="center"
@@ -3197,7 +3196,7 @@ export default function NodePage() {
 
       <Modal
         classNames={{
-          base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-2xl overflow-hidden",
+          base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-[var(--radius-panel)] overflow-hidden",
         }}
         isOpen={isFilterModalOpen}
         placement="center"

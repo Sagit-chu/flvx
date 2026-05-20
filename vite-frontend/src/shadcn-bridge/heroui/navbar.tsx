@@ -45,7 +45,7 @@ export function Navbar({
   return (
     <nav
       className={cn(
-        "w-full border-b border-default-200 bg-white/90 backdrop-blur dark:bg-default-50/60",
+        "w-full border-b border-divider bg-surface/95 shadow-sm backdrop-blur",
         position === "sticky" ? "sticky top-0 z-40" : "",
         className,
       )}

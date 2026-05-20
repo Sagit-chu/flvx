@@ -11,7 +11,7 @@ export const PageLoadingState = ({
 }: BaseStateProps) => {
   return (
     <div className={`flex items-center justify-center ${className}`}>
-      <div className="flex items-center gap-3">
+      <div className="native-muted-panel flex items-center gap-3 px-4 py-3">
         <Spinner size="sm" />
         <span className="text-default-600">{message}</span>
       </div>
@@ -25,7 +25,9 @@ export const PageEmptyState = ({
 }: BaseStateProps) => {
   return (
     <div className={`flex items-center justify-center ${className}`}>
-      <span className="text-default-500">{message}</span>
+      <span className="native-muted-panel px-4 py-3 text-default-500">
+        {message}
+      </span>
     </div>
   );
 };
@@ -36,7 +38,9 @@ export const PageErrorState = ({
 }: BaseStateProps) => {
   return (
     <div className={`flex items-center justify-center ${className}`}>
-      <span className="text-danger">{message}</span>
+      <span className="native-muted-panel px-4 py-3 text-danger">
+        {message}
+      </span>
     </div>
   );
 };

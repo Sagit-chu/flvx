@@ -548,7 +548,7 @@ export default function AdminLayout({
 
   return (
     <div
-      className={`flex ${isMobile ? "min-h-screen p-0" : "h-screen p-6 gap-6"} bg-mesh-gradient overflow-hidden`}
+      className={`flex ${isMobile ? "min-h-screen p-0" : "h-screen gap-4 p-4"} bg-mesh-gradient overflow-hidden`}
     >
       {/* 移动端遮罩层 */}
       {isMobile && mobileMenuVisible && (
@@ -563,33 +563,31 @@ export default function AdminLayout({
       {/* 左侧菜单栏 */}
       <aside
         className={`
-        ${isMobile ? "fixed h-screen top-0 left-0 rounded-r-3xl" : "relative h-full rounded-3xl"}
+        ${isMobile ? "fixed h-screen top-0 left-0 rounded-r-[18px]" : "relative h-full rounded-[18px]"}
         ${isMobile && !mobileMenuVisible ? "-translate-x-full" : "translate-x-0"}
-        ${isMobile ? "w-64" : isCollapsed ? "w-20" : "w-[260px]"}
-        bg-white/70 dark:bg-zinc-900/70 backdrop-blur-3xl
-        shadow-[0_10px_30px_rgba(0,0,0,0.1)]
-        border border-white/80 dark:border-white/10
+        ${isMobile ? "w-64" : isCollapsed ? "w-20" : "w-[264px]"}
+        native-panel
         z-50
         transition-all duration-300 ease-in-out
         flex flex-col flex-shrink-0      `}
       >
         {/* Logo 区域 */}
-        <div className="px-6 py-8 flex items-center overflow-hidden whitespace-nowrap box-border">
-          <div className="flex-shrink-0 flex items-center justify-center w-10 h-10 rounded-xl bg-primary text-white">
+        <div className="box-border flex items-center overflow-hidden whitespace-nowrap px-5 py-5">
+          <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-[var(--radius-control)] bg-primary text-white">
             <BrandLogo size={24} />
           </div>
           <div
             className={`transition-all duration-300 overflow-hidden ${isCollapsed ? "max-w-0 opacity-0 ml-0" : "max-w-[180px] opacity-100 ml-3"}`}
           >
-            <h1 className="text-xl font-bold text-foreground overflow-hidden whitespace-nowrap text-ellipsis">
+            <h1 className="overflow-hidden text-ellipsis whitespace-nowrap text-lg font-bold text-foreground">
               {siteConfig.name}
             </h1>
           </div>
         </div>
 
         {/* 菜单导航 */}
-        <nav className="flex-1 px-4 overflow-y-auto overflow-x-hidden scrollbar-hide">
-          <ul className="space-y-3">
+        <nav className="flex-1 overflow-y-auto overflow-x-hidden px-3 scrollbar-hide">
+          <ul className="space-y-2.5">
             {filteredMenuGroups.map((group) => {
               const groupCollapsed = collapsedGroups.has(group.key);
 
@@ -597,7 +595,7 @@ export default function AdminLayout({
                 <li key={group.key}>
                   {!isCollapsed && (
                     <button
-                      className="mb-1 flex w-full items-center justify-between rounded-xl px-3 py-2 text-xs font-semibold text-default-500 transition-colors hover:bg-white/40 dark:hover:bg-white/5"
+                      className="mb-1 flex w-full items-center justify-between rounded-[var(--radius-control)] px-3 py-2 text-xs font-semibold text-default-500 transition-colors hover:bg-default-100/70 dark:hover:bg-default-100/30"
                       type="button"
                       onClick={() => toggleGroup(group.key)}
                     >
@@ -622,7 +620,7 @@ export default function AdminLayout({
                             <motion.button
                               aria-disabled={isMonitorBlocked}
                               className={`
-                                w-full flex items-center p-3 rounded-2xl text-left
+                                w-full flex items-center px-3 py-2.5 rounded-[var(--radius-control)] text-left
                                 relative min-h-[48px] overflow-hidden transition-colors
                                 ${isMonitorBlocked ? "opacity-60" : ""}
                                 ${
@@ -645,7 +643,7 @@ export default function AdminLayout({
                             >
                               {isActive && (
                                 <motion.div
-                                  className="absolute inset-0 rounded-2xl bg-white/60 dark:bg-white/10 backdrop-blur-xl shadow-[0_12px_36px_rgba(0,0,0,0.18)] border border-white dark:border-white/20"
+                                  className="absolute inset-0 rounded-[var(--radius-control)] border border-primary/15 bg-primary/10 shadow-sm dark:bg-primary/15"
                                   layoutId="sidebar-active"
                                   transition={{
                                     type: "spring",
@@ -656,7 +654,7 @@ export default function AdminLayout({
                               )}
                               {!isActive && (
                                 <motion.div
-                                  className="absolute inset-0 rounded-2xl bg-white/40 dark:bg-white/5 opacity-0"
+                                  className="absolute inset-0 rounded-[var(--radius-control)] bg-default-100/70 opacity-0 dark:bg-default-100/25"
                                   transition={{ duration: 0.15 }}
                                   whileHover={{ opacity: 1 }}
                                 />
@@ -684,10 +682,10 @@ export default function AdminLayout({
         </nav>
 
         {/* 底部版权信息和折叠按钮 */}
-        <div className="px-5 py-6 mt-auto flex-shrink-0 flex flex-col gap-4 overflow-hidden whitespace-nowrap box-border">
+        <div className="mt-auto box-border flex flex-shrink-0 flex-col gap-3 overflow-hidden whitespace-nowrap px-4 py-4">
           {scope === "admin" && (
             <Button
-              className={`min-h-10 rounded-2xl bg-white/50 text-default-700 hover:bg-white/70 dark:bg-white/10 dark:text-default-300 dark:hover:bg-white/15 ${
+              className={`min-h-10 rounded-[var(--radius-control)] bg-surface text-default-700 shadow-sm hover:bg-default-100 dark:text-default-300 ${
                 isCollapsed
                   ? "mx-auto w-10 min-w-10 justify-center px-0"
                   : "w-full justify-start"
@@ -762,7 +760,7 @@ export default function AdminLayout({
         {isMobile && (
           <Button
             isIconOnly
-            className="absolute top-4 left-4 z-40 bg-white/20 dark:bg-zinc-900/20 backdrop-blur-md shadow-sm border border-white/80 dark:border-white/10"
+            className="native-panel absolute left-4 top-4 z-40"
             variant="flat"
             onPress={toggleMobileMenu}
           >
@@ -803,7 +801,7 @@ export default function AdminLayout({
       <Modal
         backdrop="blur"
         classNames={{
-          base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-2xl overflow-hidden",
+          base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-[var(--radius-panel)] overflow-hidden",
         }}
         isOpen={isOpen}
         placement="center"

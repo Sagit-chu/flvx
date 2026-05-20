@@ -1400,11 +1400,10 @@ export function MonitorView({ nodeMap, viewMode = "grid" }: MonitorViewProps) {
                 aria-label="节点列表"
                 className="overflow-x-auto min-w-full"
                 classNames={{
-                  wrapper:
-                    "bg-transparent p-0 shadow-none border-none overflow-auto rounded-2xl",
-                  th: "bg-transparent text-default-600 font-semibold text-sm border-b border-white/20 dark:border-white/10 py-3 uppercase tracking-wider first:rounded-tl-[24px] last:rounded-tr-[24px]",
+                  wrapper: "native-panel overflow-auto",
+                  th: "border-b border-divider bg-content2 py-3 text-sm font-semibold text-default-600",
                   td: "py-3 border-b border-divider/50 group-data-[last=true]:border-b-0",
-                  tr: "hover:bg-white/40 dark:hover:bg-white/10 transition-colors",
+                  tr: "hover:bg-default-100/70 transition-colors",
                 }}
               >
                 <TableHeader>
@@ -1866,7 +1865,7 @@ export function MonitorView({ nodeMap, viewMode = "grid" }: MonitorViewProps) {
 
                         {/* Active monitor info bar */}
                         {resolvedActiveMonitor && (
-                          <div className="flex items-center justify-between gap-3 p-3 rounded-2xl bg-white/20 dark:bg-black/20 backdrop-blur-3xl border border-white/50 dark:border-white/10 shadow-[0_4px_12px_rgba(0,0,0,0.05)]">
+                          <div className="native-muted-panel flex items-center justify-between gap-3 p-3">
                             <div className="flex items-center gap-3 min-w-0 flex-wrap">
                               <Chip color="primary" size="sm" variant="flat">
                                 {resolvedActiveMonitor.type.toUpperCase()}
@@ -2085,11 +2084,10 @@ export function MonitorView({ nodeMap, viewMode = "grid" }: MonitorViewProps) {
                 aria-label="监控记录"
                 className="w-full overflow-x-auto"
                 classNames={{
-                  wrapper:
-                    "bg-transparent p-0 shadow-none border-none overflow-auto rounded-2xl",
-                  th: "bg-transparent text-default-600 font-semibold text-sm border-b border-white/20 dark:border-white/10 py-3 uppercase tracking-wider first:rounded-tl-[24px] last:rounded-tr-[24px]",
+                  wrapper: "native-panel overflow-auto",
+                  th: "border-b border-divider bg-content2 py-3 text-sm font-semibold text-default-600",
                   td: "py-3 border-b border-divider/50 group-data-[last=true]:border-b-0",
-                  tr: "hover:bg-white/40 dark:hover:bg-white/10 transition-colors",
+                  tr: "hover:bg-default-100/70 transition-colors",
                 }}
               >
                 <TableHeader>

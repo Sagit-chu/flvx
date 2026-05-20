@@ -276,25 +276,25 @@ export default function LicensePage() {
         </Alert>
 
         <section className="grid gap-4 lg:grid-cols-4">
-          <div className="rounded-2xl border border-white/70 bg-white/75 p-5 shadow-sm backdrop-blur dark:border-white/10 dark:bg-zinc-900/70">
+          <div className="native-panel p-5">
             <p className="text-sm text-default-500">授权前缀</p>
             <p className="mt-2 font-mono text-lg font-semibold">
               {status?.keyPrefix || "-"}
             </p>
           </div>
-          <div className="rounded-2xl border border-white/70 bg-white/75 p-5 shadow-sm backdrop-blur dark:border-white/10 dark:bg-zinc-900/70">
+          <div className="native-panel p-5">
             <p className="text-sm text-default-500">实例 ID</p>
             <p className="mt-2 break-all font-mono text-sm">
               {status?.instanceId || "-"}
             </p>
           </div>
-          <div className="rounded-2xl border border-white/70 bg-white/75 p-5 shadow-sm backdrop-blur dark:border-white/10 dark:bg-zinc-900/70">
+          <div className="native-panel p-5">
             <p className="text-sm text-default-500">下次心跳</p>
             <p className="mt-2 text-sm font-semibold">
               {formatTime(status?.nextHeartbeatAt)}
             </p>
           </div>
-          <div className="rounded-2xl border border-white/70 bg-white/75 p-5 shadow-sm backdrop-blur dark:border-white/10 dark:bg-zinc-900/70">
+          <div className="native-panel p-5">
             <p className="text-sm text-default-500">宽限期截止</p>
             <p className="mt-2 text-sm font-semibold">
               {formatTime(status?.graceUntil)}
@@ -302,7 +302,7 @@ export default function LicensePage() {
           </div>
         </section>
 
-        <section className="rounded-2xl border border-white/70 bg-white/75 p-5 shadow-sm backdrop-blur dark:border-white/10 dark:bg-zinc-900/70">
+        <section className="native-panel p-5">
           <div className="mb-4">
             <h2 className="text-lg font-semibold">激活授权</h2>
             <p className="mt-1 text-sm text-default-500">
@@ -373,7 +373,7 @@ export default function LicensePage() {
           </div>
         </section>
 
-        <section className="rounded-2xl border border-white/70 bg-white/75 p-5 shadow-sm backdrop-blur dark:border-white/10 dark:bg-zinc-900/70">
+        <section className="native-panel p-5">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <div>
               <h2 className="text-lg font-semibold">在线更新</h2>
@@ -485,7 +485,7 @@ export default function LicensePage() {
           )}
         </section>
 
-        <section className="rounded-2xl border border-white/70 bg-white/75 p-5 shadow-sm backdrop-blur dark:border-white/10 dark:bg-zinc-900/70">
+        <section className="native-panel p-5">
           <h2 className="text-lg font-semibold">授权能力</h2>
           {featureEntries.length > 0 ? (
             <div className="mt-3 grid gap-3 md:grid-cols-2 lg:grid-cols-3">

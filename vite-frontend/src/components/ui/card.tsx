@@ -6,20 +6,11 @@ function Card({ className, style, ...props }: React.ComponentProps<"div">) {
   return (
     <div
       className={cn(
-        "relative flex flex-col transition-all duration-300",
-        "rounded-[24px] text-card-foreground shadow-[0_12px_40px_rgba(0,0,0,0.12)] dark:shadow-[0_12px_40px_rgba(0,0,0,0.4)]",
+        "native-panel relative flex flex-col text-card-foreground transition-colors duration-150",
         className,
       )}
       data-slot="card"
-      style={{
-        ...style,
-        background:
-          "linear-gradient(135deg, rgba(255,255,255,0.4) 0%, rgba(255,255,255,0.1) 40%, rgba(255,255,255,0.05) 60%, rgba(255,255,255,0.2) 100%)",
-        boxShadow:
-          "inset 0 1px 1px rgba(255,255,255,0.8), inset 0 0 0 1px rgba(255,255,255,0.3), inset 0 -1px 1px rgba(0,0,0,0.1), 0 12px 40px rgba(0,0,0,0.12)",
-        backdropFilter: "blur(24px) saturate(180%)",
-        WebkitBackdropFilter: "blur(24px) saturate(180%)",
-      }}
+      style={style}
       {...props}
     />
   );
@@ -43,7 +34,7 @@ function CardTitle({
   return (
     <h3
       className={cn(
-        "text-lg font-semibold leading-none tracking-tight",
+        "text-base font-semibold leading-none tracking-normal",
         className,
       )}
       data-slot="card-title"

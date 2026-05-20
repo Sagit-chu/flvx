@@ -199,7 +199,7 @@ export default function ProfilePage() {
                 adminMenuItems.map((item) => (
                   <button
                     key={item.path}
-                    className="flex flex-col items-center p-3 rounded-2xl bg-gray-50 dark:bg-default-100 hover:bg-gray-100 dark:hover:bg-default-200 transition-colors duration-200"
+                    className="native-muted-panel flex flex-col items-center p-3 transition-colors duration-200 hover:bg-default-100"
                     onClick={() => navigate(item.path)}
                   >
                     <div
@@ -215,7 +215,7 @@ export default function ProfilePage() {
 
               {/* 修改密码 */}
               <button
-                className="flex flex-col items-center p-3 rounded-2xl bg-gray-50 dark:bg-default-100 hover:bg-gray-100 dark:hover:bg-default-200 transition-colors duration-200"
+                className="native-muted-panel flex flex-col items-center p-3 transition-colors duration-200 hover:bg-default-100"
                 onClick={onOpen}
               >
                 <div className="w-10 h-10 bg-blue-100 dark:bg-blue-500/20 text-blue-600 dark:text-blue-400 rounded-full flex items-center justify-center mb-2">
@@ -238,7 +238,7 @@ export default function ProfilePage() {
 
               {/* 退出登录 */}
               <button
-                className="flex flex-col items-center p-3 rounded-2xl bg-gray-50 dark:bg-default-100 hover:bg-gray-100 dark:hover:bg-default-200 transition-colors duration-200"
+                className="native-muted-panel flex flex-col items-center p-3 transition-colors duration-200 hover:bg-default-100"
                 onClick={handleLogout}
               >
                 <div className="w-10 h-10 bg-red-100 dark:bg-red-500/20 text-red-600 dark:text-red-400 rounded-full flex items-center justify-center mb-2">
@@ -277,7 +277,7 @@ export default function ProfilePage() {
       <Modal
         backdrop="blur"
         classNames={{
-          base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-2xl overflow-hidden",
+          base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-[var(--radius-panel)] overflow-hidden",
         }}
         isOpen={isOpen}
         placement="center"

@@ -180,7 +180,7 @@ export default function H5Layout({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex flex-col min-h-screen bg-mesh-gradient">
       {/* 顶部导航栏 */}
-      <header className="bg-white/20 dark:bg-zinc-900/20 backdrop-blur-xl shadow-sm border-b border-white/80 dark:border-white/10 h-14 safe-top flex-shrink-0 flex items-center justify-between px-4 relative z-10">
+      <header className="safe-top relative z-10 flex h-14 flex-shrink-0 items-center justify-between border-b border-divider bg-surface/95 px-4 shadow-sm">
         <div className="flex items-center gap-2">
           <BrandLogo size={20} />
           <h1 className="text-sm font-bold text-foreground">
@@ -198,7 +198,7 @@ export default function H5Layout({ children }: { children: React.ReactNode }) {
       <div aria-hidden className="h-[calc(4rem+var(--safe-area-bottom))]" />
 
       {/* 底部Tabbar */}
-      <nav className="bg-white/20 dark:bg-zinc-900/20 backdrop-blur-2xl border-t border-white/80 dark:border-white/10 h-[calc(4rem+var(--safe-area-bottom))] flex-shrink-0 flex items-center gap-1 overflow-x-auto px-2 fixed bottom-0 left-0 right-0 z-30">
+      <nav className="fixed bottom-0 left-0 right-0 z-30 flex h-[calc(4rem+var(--safe-area-bottom))] flex-shrink-0 items-center gap-1 overflow-x-auto border-t border-divider bg-surface/95 px-2 shadow-[0_-8px_22px_rgba(16,24,40,0.08)]">
         {tabItems.map((item) => {
           const isActive = location.pathname === item.path;
           const isMonitor = item.path === "/monitor";
@@ -209,7 +209,7 @@ export default function H5Layout({ children }: { children: React.ReactNode }) {
               key={item.path}
               className={`
                 flex flex-col items-center justify-center min-w-[72px] h-full pb-[var(--safe-area-bottom)]
-                transition-colors duration-200 min-h-[44px]
+                transition-colors duration-200 min-h-[44px] rounded-[var(--radius-control)]
                 ${isMonitorBlocked ? "opacity-60" : ""}
                 ${
                   isActive

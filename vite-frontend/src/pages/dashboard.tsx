@@ -18,6 +18,7 @@ import {
   ModalBody,
 } from "@/shadcn-bridge/heroui/modal";
 import { PageEmptyState, PageLoadingState } from "@/components/page-state";
+import { PageHeader } from "@/components/app-ui";
 import { AnnouncementBanner } from "@/pages/dashboard/components/announcement-banner";
 import { AnnouncementModal } from "@/pages/dashboard/components/announcement-modal";
 import { FlowChartCard } from "@/pages/dashboard/components/flow-chart-card";
@@ -639,24 +640,21 @@ export default function DashboardPage() {
 
   if (loading) {
     return (
-      <div className="px-3 lg:px-6 flex-grow pt-2 lg:pt-4">
+      <div className="native-page flex-grow">
         <PageLoadingState message="正在加载数据..." />
       </div>
     );
   }
 
   return (
-    <AnimatedPage className="px-3 lg:px-6 py-2 lg:py-4">
+    <AnimatedPage className="native-page">
       {/* 顶部个人状态和下拉菜单 */}
-      <div className="flex justify-between items-center mb-6">
-        <div>
-          <h1 className="text-2xl lg:text-3xl font-bold text-foreground">
-            早上好，{username}
-          </h1>
-          <p className="text-sm text-default-500 mt-1">
-            这里是今天的网络运行概况。
-          </p>
-        </div>
+      <div className="mb-5 flex items-start justify-between gap-4">
+        <PageHeader
+          className="mb-0"
+          description="这里是今天的网络运行概况。"
+          title={`早上好，${username}`}
+        />
         <div className="flex items-center gap-3">
           <Dropdown placement="bottom-end">
             <DropdownTrigger>
@@ -668,10 +666,7 @@ export default function DashboardPage() {
                 {username.slice(0, 2).toUpperCase()}
               </Button>
             </DropdownTrigger>
-            <DropdownMenu
-              aria-label="用户菜单"
-              className="bg-white/80 dark:bg-zinc-900/80 backdrop-blur-xl border border-white/50 dark:border-white/10 rounded-2xl shadow-[0_10px_30px_rgba(0,0,0,0.1)]"
-            >
+            <DropdownMenu aria-label="用户菜单" className="native-panel">
               <DropdownItem
                 key="profile"
                 startContent={
@@ -1127,7 +1122,7 @@ export default function DashboardPage() {
                             </h4>
                             <div className="space-y-1">
                               <button
-                                className={`block px-2 py-1 bg-white/20 dark:bg-black/20 backdrop-blur-md rounded-lg border border-white/20 dark:border-white/10 font-mono text-xs truncate text-foreground transition-all duration-300 ${hasMultipleIps(forward.inIp) ? "cursor-pointer hover:bg-white/30 dark:hover:bg-white/10" : ""}`}
+                                className={`block rounded-[var(--radius-control)] border border-divider bg-surface px-2 py-1 font-mono text-xs truncate text-foreground transition-colors duration-200 ${hasMultipleIps(forward.inIp) ? "cursor-pointer hover:bg-default-100" : ""}`}
                                 disabled={!hasMultipleIps(forward.inIp)}
                                 title={formatInAddress(
                                   forward.inIp,
@@ -1148,7 +1143,7 @@ export default function DashboardPage() {
                                 ↓
                               </div>
                               <button
-                                className={`block px-2 py-1 bg-white/20 dark:bg-black/20 backdrop-blur-md rounded-lg border border-white/20 dark:border-white/10 font-mono text-xs truncate text-foreground transition-all duration-300 ${hasMultipleRemoteAddresses(forward.remoteAddr) ? "cursor-pointer hover:bg-white/30 dark:hover:bg-white/10" : ""}`}
+                                className={`block rounded-[var(--radius-control)] border border-divider bg-surface px-2 py-1 font-mono text-xs truncate text-foreground transition-colors duration-200 ${hasMultipleRemoteAddresses(forward.remoteAddr) ? "cursor-pointer hover:bg-default-100" : ""}`}
                                 disabled={
                                   !hasMultipleRemoteAddresses(
                                     forward.remoteAddr,

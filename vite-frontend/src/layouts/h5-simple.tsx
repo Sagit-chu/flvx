@@ -23,7 +23,7 @@ export default function H5SimpleLayout({
   return (
     <div className="flex flex-col min-h-screen bg-mesh-gradient">
       {/* 顶部导航栏 */}
-      <header className="bg-white/20 dark:bg-zinc-900/20 backdrop-blur-xl shadow-sm border-b border-white/80 dark:border-white/10 h-14 safe-top flex-shrink-0 flex items-center justify-between px-4 relative z-10">
+      <header className="safe-top relative z-10 flex h-14 flex-shrink-0 items-center justify-between border-b border-divider bg-surface/95 px-4 shadow-sm">
         <div className="flex items-center gap-2">
           <Button isIconOnly size="sm" variant="light" onPress={handleBack}>
             <BackIcon className="w-5 h-5" />

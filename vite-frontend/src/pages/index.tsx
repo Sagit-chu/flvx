@@ -159,7 +159,7 @@ export default function IndexPage() {
           initial={{ opacity: 0, y: 24 }}
           transition={{ duration: 0.35, ease: [0.25, 0.46, 0.45, 0.94] }}
         >
-          <Card className="w-full bg-white/20 dark:bg-zinc-900/20 backdrop-blur-3xl shadow-[0_20px_40px_rgba(0,0,0,0.15)] border-white/80 dark:border-white/10 rounded-[32px] p-2 sm:p-4">
+          <Card className="w-full p-2 sm:p-4">
             <CardHeader className="pb-0 pt-6 px-6 flex-col items-center">
               <BrandLogo className="w-14 h-14 rounded-2xl mb-4" size={56} />
               <h1 className="text-2xl font-bold tracking-tight text-foreground">
@@ -173,8 +173,7 @@ export default function IndexPage() {
               <div className="flex flex-col gap-5">
                 <Input
                   classNames={{
-                    inputWrapper:
-                      "bg-white/10 dark:bg-white/5 backdrop-blur-md border border-white/30 dark:border-white/10 h-12 shadow-sm rounded-xl",
+                    inputWrapper: "h-12 bg-surface shadow-sm",
                     input: "text-base font-medium",
                   }}
                   errorMessage={errors.username}
@@ -192,8 +191,7 @@ export default function IndexPage() {
 
                 <Input
                   classNames={{
-                    inputWrapper:
-                      "bg-white/10 dark:bg-white/5 backdrop-blur-md border border-white/30 dark:border-white/10 h-12 shadow-sm rounded-xl",
+                    inputWrapper: "h-12 bg-surface shadow-sm",
                     input: "text-base font-medium tracking-wider",
                   }}
                   isDisabled={loading}

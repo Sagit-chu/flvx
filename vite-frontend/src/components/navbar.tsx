@@ -59,7 +59,7 @@ export const Navbar = () => {
   return (
     <>
       <HeroUINavbar
-        className="shrink-0"
+        className="shrink-0 border-b border-divider bg-surface/95 shadow-sm"
         height="60px"
         maxWidth="xl"
         position="sticky"

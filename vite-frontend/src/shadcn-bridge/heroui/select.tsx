@@ -298,7 +298,7 @@ export function Select<T>({
       <div
         ref={listboxRef}
         className={cn(
-          "absolute left-0 z-50 w-full space-y-1 overflow-y-auto rounded-md border border-divider bg-background p-2 shadow-md max-h-56 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]",
+          "native-panel absolute left-0 z-50 w-full space-y-1 overflow-y-auto p-2 max-h-56 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]",
           placementClasses,
         )}
         id={`${generatedId}-listbox`}
@@ -318,7 +318,7 @@ export function Select<T>({
               <div
                 key={option.key}
                 className={cn(
-                  "flex items-center gap-2 rounded-md px-2 py-1.5",
+                  "flex items-center gap-2 rounded-[var(--radius-control)] px-2 py-1.5",
                   optionDisabled
                     ? "cursor-not-allowed opacity-60"
                     : "hover:bg-default-100",
@@ -369,7 +369,7 @@ export function Select<T>({
             aria-haspopup="listbox"
             aria-label={label ? undefined : ariaLabel}
             className={cn(
-              "flex w-full min-w-0 items-center gap-2 overflow-hidden rounded-md border border-input bg-background px-3 py-2 text-left shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+              "flex w-full min-w-0 items-center gap-2 overflow-hidden rounded-[var(--radius-control)] border border-input bg-surface px-3 py-2 text-left shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-ring",
               isDisabled ? "cursor-not-allowed opacity-60" : "",
               classNames?.trigger,
             )}
@@ -403,7 +403,7 @@ export function Select<T>({
         <select
           aria-label={label ? undefined : ariaLabel}
           className={cn(
-            "w-full rounded-md border border-input bg-background px-3 py-2 text-foreground shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-ring dark:[color-scheme:dark]",
+            "w-full rounded-[var(--radius-control)] border border-input bg-surface px-3 py-2 text-foreground shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-ring dark:[color-scheme:dark]",
             sizeClass(size),
             classNames?.trigger,
             className,

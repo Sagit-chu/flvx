@@ -128,7 +128,7 @@ export default function RegisterPage() {
           initial={{ opacity: 0, y: 24 }}
           transition={{ duration: 0.35, ease: [0.25, 0.46, 0.45, 0.94] }}
         >
-          <Card className="w-full rounded-[32px] border-white/80 bg-white/20 p-2 shadow-[0_20px_40px_rgba(0,0,0,0.15)] backdrop-blur-3xl dark:border-white/10 dark:bg-zinc-900/20 sm:p-4">
+          <Card className="w-full p-2 sm:p-4">
             <CardHeader className="flex-col items-center px-6 pb-0 pt-6">
               <BrandLogo className="mb-4 h-14 w-14 rounded-2xl" size={56} />
               <h1 className="text-2xl font-bold tracking-tight text-foreground">
@@ -184,7 +184,7 @@ export default function RegisterPage() {
                   />
                 )}
                 {captchaEnabled && siteKey && registrationEnabled && (
-                  <div className="flex justify-center rounded-xl bg-white/40 p-3 dark:bg-zinc-900/40">
+                  <div className="native-muted-panel flex justify-center p-3">
                     <Turnstile
                       siteKey={siteKey}
                       onSuccess={(token) => updateForm("captchaId", token)}

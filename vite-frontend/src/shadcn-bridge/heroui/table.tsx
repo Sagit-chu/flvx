@@ -36,9 +36,12 @@ export function Table({
       }}
     >
       <div
-        className={cn("w-full overflow-auto rounded-md", classNames?.wrapper)}
+        className={cn("native-panel w-full overflow-auto", classNames?.wrapper)}
       >
-        <table className={cn("w-full text-sm", className)} {...props}>
+        <table
+          className={cn("native-table w-full text-sm", className)}
+          {...props}
+        >
           {children}
         </table>
       </div>
@@ -57,7 +60,7 @@ export function TableHeader({
   );
 
   return (
-    <thead className={cn("border-b", className)} {...props}>
+    <thead className={cn("border-b border-divider", className)} {...props}>
       {hasRow ? children : <TableRow>{children}</TableRow>}
     </thead>
   );
@@ -91,7 +94,7 @@ export const TableBody = React.forwardRef<
     return (
       <tbody ref={ref} className={className} {...props}>
         <tr>
-          <td className="p-4 text-center text-default-500" colSpan={999}>
+          <td className="p-8 text-center text-default-500" colSpan={999}>
             {loadingContent ?? "加载中..."}
           </td>
         </tr>
@@ -104,7 +107,7 @@ export const TableBody = React.forwardRef<
       return (
         <tbody ref={ref} className={className} {...props}>
           <tr>
-            <td className="p-4 text-center text-default-500" colSpan={999}>
+            <td className="p-8 text-center text-default-500" colSpan={999}>
               {emptyContent ?? "暂无数据"}
             </td>
           </tr>
@@ -133,7 +136,7 @@ export const TableBody = React.forwardRef<
     return (
       <tbody ref={ref} className={className} {...props}>
         <tr>
-          <td className="p-4 text-center text-default-500" colSpan={999}>
+          <td className="p-8 text-center text-default-500" colSpan={999}>
             {emptyContent ?? "暂无数据"}
           </td>
         </tr>
@@ -157,7 +160,7 @@ export function TableColumn({
   return (
     <th
       className={cn(
-        "px-3 py-2 text-left font-medium text-default-600",
+        "px-4 py-3 text-left font-medium text-default-600",
         thClassName,
         className,
       )}
@@ -175,7 +178,11 @@ export const TableRow = React.forwardRef<
   return (
     <tr
       ref={ref}
-      className={cn("border-b last:border-b-0", trClassName, className)}
+      className={cn(
+        "border-b border-divider/80 last:border-b-0",
+        trClassName,
+        className,
+      )}
       {...props}
     />
   );
@@ -187,7 +194,7 @@ export function TableCell({ className, ...props }: React.ComponentProps<"td">) {
 
   return (
     <td
-      className={cn("px-3 py-2 align-middle", tdClassName, className)}
+      className={cn("px-4 py-3 align-middle", tdClassName, className)}
       {...props}
     />
   );

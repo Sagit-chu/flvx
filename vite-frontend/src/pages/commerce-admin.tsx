@@ -59,6 +59,7 @@ import {
 } from "@/api";
 import { Button } from "@/shadcn-bridge/heroui/button";
 import { Input } from "@/shadcn-bridge/heroui/input";
+import { PageHeader, PageShell, Panel, PanelHeader } from "@/components/app-ui";
 
 export type CommerceAdminSection =
   | "settings"
@@ -700,20 +701,14 @@ export default function CommerceAdminPage({
   };
 
   return (
-    <div className="h-full overflow-auto p-4 sm:p-6">
-      <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-foreground">
-            {sectionMeta[activeTab].title}
-          </h1>
-          <p className="mt-2 text-sm text-default-500">
-            {sectionMeta[activeTab].description}
-          </p>
-        </div>
-      </div>
+    <PageShell className="h-full overflow-auto">
+      <PageHeader
+        description={sectionMeta[activeTab].description}
+        title={sectionMeta[activeTab].title}
+      />
 
       {paginatedSections.includes(activeTab) && (
-        <section className="mb-5 grid gap-3 rounded-2xl border border-white/70 bg-white/60 p-4 backdrop-blur-xl dark:border-white/10 dark:bg-zinc-900/50 md:grid-cols-5">
+        <Panel className="mb-5 grid gap-3 md:grid-cols-5">
           <Input
             label="关键词"
             value={filter.keyword || ""}
@@ -755,10 +750,10 @@ export default function CommerceAdminPage({
           >
             筛选
           </Button>
-        </section>
+        </Panel>
       )}
       {paginatedSections.includes(activeTab) && (
-        <section className="mb-5 flex flex-col gap-3 rounded-2xl border border-white/70 bg-white/60 p-4 text-sm text-default-600 backdrop-blur-xl dark:border-white/10 dark:bg-zinc-900/50 sm:flex-row sm:items-center sm:justify-between">
+        <Panel className="mb-5 flex flex-col gap-3 text-sm text-default-600 sm:flex-row sm:items-center sm:justify-between">
           <span>
             第 {pagination.page} 页 / 共 {pagination.total} 条，每页{" "}
             {pagination.pageSize} 条
@@ -793,7 +788,7 @@ export default function CommerceAdminPage({
               下一页
             </Button>
           </div>
-        </section>
+        </Panel>
       )}
 
       {[
@@ -811,7 +806,7 @@ export default function CommerceAdminPage({
               <div className="grid gap-4 lg:grid-cols-2">
                 <Field label="开放用户注册">
                   <select
-                    className="h-10 rounded-xl border border-default-200 bg-white/70 px-3 dark:bg-zinc-900"
+                    className="h-10 rounded-[var(--radius-control)] border border-input bg-surface px-3"
                     value={settings.registration_enabled || "false"}
                     onChange={(e) =>
                       setSettings((prev) => ({
@@ -826,7 +821,7 @@ export default function CommerceAdminPage({
                 </Field>
                 <Field label="注册必须邀请码">
                   <select
-                    className="h-10 rounded-xl border border-default-200 bg-white/70 px-3 dark:bg-zinc-900"
+                    className="h-10 rounded-[var(--radius-control)] border border-input bg-surface px-3"
                     value={settings.invite_registration_required || "false"}
                     onChange={(e) =>
                       setSettings((prev) => ({
@@ -851,7 +846,7 @@ export default function CommerceAdminPage({
                 <div className="grid gap-4 lg:grid-cols-2">
                   <Field label="启用 e支付">
                     <select
-                      className="h-10 rounded-xl border border-default-200 bg-white/70 px-3 dark:bg-zinc-900"
+                      className="h-10 rounded-[var(--radius-control)] border border-input bg-surface px-3"
                       value={settings.epay_enabled || "false"}
                       onChange={(e) =>
                         setSettings((prev) => ({
@@ -931,7 +926,7 @@ export default function CommerceAdminPage({
                 <div className="grid gap-4 lg:grid-cols-2">
                   <Field label="启用 U支付">
                     <select
-                      className="h-10 rounded-xl border border-default-200 bg-white/70 px-3 dark:bg-zinc-900"
+                      className="h-10 rounded-[var(--radius-control)] border border-input bg-surface px-3"
                       value={settings.usdt_enabled || "false"}
                       onChange={(e) =>
                         setSettings((prev) => ({
@@ -1019,7 +1014,7 @@ export default function CommerceAdminPage({
                 <div className="grid gap-4 lg:grid-cols-2">
                   <Field label="开放付费重置流量">
                     <select
-                      className="h-10 rounded-xl border border-default-200 bg-white/70 px-3 dark:bg-zinc-900"
+                      className="h-10 rounded-[var(--radius-control)] border border-input bg-surface px-3"
                       value={settings.reset_flow_enabled || "false"}
                       onChange={(e) =>
                         setSettings((prev) => ({
@@ -1076,7 +1071,7 @@ export default function CommerceAdminPage({
               </div>
             </SettingsGroup>
           )}
-          <div className="rounded-2xl border border-white/70 bg-white/60 p-5 backdrop-blur-xl dark:border-white/10 dark:bg-zinc-900/50">
+          <div className="native-panel p-5">
             <Button className="bg-primary text-white" onPress={saveSettings}>
               保存配置
             </Button>
@@ -1086,7 +1081,7 @@ export default function CommerceAdminPage({
 
       {activeTab === "plans" && (
         <div className="grid gap-5 xl:grid-cols-[420px_1fr]">
-          <section className="rounded-2xl border border-white/70 bg-white/60 p-5 backdrop-blur-xl dark:border-white/10 dark:bg-zinc-900/50">
+          <section className="native-panel p-5">
             <h2 className="mb-4 text-lg font-semibold">
               {planForm.id ? "编辑套餐" : "新建套餐"}
             </h2>
@@ -1121,7 +1116,7 @@ export default function CommerceAdminPage({
               />
               <Field label="状态">
                 <select
-                  className="h-10 rounded-xl border border-default-200 bg-white/70 px-3 dark:bg-zinc-900"
+                  className="h-10 rounded-[var(--radius-control)] border border-input bg-surface px-3"
                   value={planForm.status ?? 1}
                   onChange={(e) =>
                     setPlanForm((prev) => ({
@@ -1172,7 +1167,7 @@ export default function CommerceAdminPage({
               />
               <Field label="限速规则">
                 <select
-                  className="h-10 rounded-xl border border-default-200 bg-white/70 px-3 dark:bg-zinc-900"
+                  className="h-10 rounded-[var(--radius-control)] border border-input bg-surface px-3"
                   value={planForm.speedId || 0}
                   onChange={(e) =>
                     setPlanForm((prev) => ({
@@ -1191,7 +1186,7 @@ export default function CommerceAdminPage({
               </Field>
               <div>
                 <div className="mb-2 text-sm font-medium">隧道分组</div>
-                <div className="grid max-h-36 gap-2 overflow-auto rounded-xl border border-default-200 p-3">
+                <div className="grid max-h-36 gap-2 overflow-auto native-muted-panel p-3">
                   {groups.map((group) => (
                     <label
                       key={group.id}
@@ -1211,7 +1206,7 @@ export default function CommerceAdminPage({
               </div>
               <div>
                 <div className="mb-2 text-sm font-medium">指定隧道</div>
-                <div className="grid max-h-36 gap-2 overflow-auto rounded-xl border border-default-200 p-3">
+                <div className="grid max-h-36 gap-2 overflow-auto native-muted-panel p-3">
                   {tunnels.map((tunnel) => (
                     <label
                       key={tunnel.id}
@@ -1232,7 +1227,7 @@ export default function CommerceAdminPage({
                   ))}
                 </div>
               </div>
-              <div className="rounded-xl border border-primary/20 bg-primary/5 p-3 text-sm text-default-600">
+              <div className="native-muted-panel p-3 text-sm text-default-600">
                 <div className="font-medium text-foreground">最终开通隧道</div>
                 <div className="mt-2">
                   {resolvedPlanTunnels().length > 0
@@ -1255,12 +1250,12 @@ export default function CommerceAdminPage({
               </div>
             </div>
           </section>
-          <section className="rounded-2xl border border-white/70 bg-white/60 p-5 backdrop-blur-xl dark:border-white/10 dark:bg-zinc-900/50">
+          <section className="native-panel p-5">
             <h2 className="mb-4 text-lg font-semibold">套餐列表</h2>
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[760px] text-sm">
+            <div className="native-panel overflow-x-auto">
+              <table className="native-table w-full min-w-[760px] text-sm">
                 <thead>
-                  <tr className="border-b text-left text-default-500">
+                  <tr className="border-b border-divider text-left text-default-500">
                     <th className="py-2">名称</th>
                     <th className="py-2">分类</th>
                     <th className="py-2">售价</th>
@@ -1273,7 +1268,7 @@ export default function CommerceAdminPage({
                 </thead>
                 <tbody>
                   {plans.map((plan) => (
-                    <tr key={plan.id} className="border-b border-default-100">
+                    <tr key={plan.id} className="border-b border-divider/80">
                       <td className="py-3">{plan.name}</td>
                       <td className="py-3">{plan.category || "默认"}</td>
                       <td className="py-3">{money(plan.priceCents)}</td>
@@ -1324,7 +1319,7 @@ export default function CommerceAdminPage({
       )}
 
       {activeTab === "invites" && (
-        <section className="rounded-2xl border border-white/70 bg-white/60 p-5 backdrop-blur-xl dark:border-white/10 dark:bg-zinc-900/50">
+        <section className="native-panel p-5">
           <div className="mb-4 grid gap-3 md:grid-cols-2 xl:grid-cols-5">
             <Input
               label="邀请码"
@@ -1358,7 +1353,7 @@ export default function CommerceAdminPage({
             />
             <Field label="状态">
               <select
-                className="h-10 rounded-xl border border-default-200 bg-white/70 px-3 dark:bg-zinc-900"
+                className="h-10 rounded-[var(--radius-control)] border border-input bg-surface px-3"
                 value={inviteForm.status ?? 1}
                 onChange={(e) =>
                   setInviteForm((prev) => ({
@@ -1380,7 +1375,7 @@ export default function CommerceAdminPage({
           </div>
           <table className="w-full min-w-[720px] text-sm">
             <thead>
-              <tr className="border-b text-left text-default-500">
+              <tr className="border-b border-divider text-left text-default-500">
                 <th className="py-2">邀请码</th>
                 <th className="py-2">使用</th>
                 <th className="py-2">状态</th>
@@ -1389,7 +1384,7 @@ export default function CommerceAdminPage({
             </thead>
             <tbody>
               {invites.map((invite) => (
-                <tr key={invite.id} className="border-b border-default-100">
+                <tr key={invite.id} className="border-b border-divider/80">
                   <td className="py-3">{invite.code}</td>
                   <td className="py-3">
                     {invite.usedCount}/{invite.maxUses}
@@ -1437,10 +1432,10 @@ export default function CommerceAdminPage({
       )}
 
       {activeTab === "orders" && (
-        <section className="rounded-2xl border border-white/70 bg-white/60 p-5 backdrop-blur-xl dark:border-white/10 dark:bg-zinc-900/50">
+        <section className="native-panel p-5">
           <table className="w-full min-w-[900px] text-sm">
             <thead>
-              <tr className="border-b text-left text-default-500">
+              <tr className="border-b border-divider text-left text-default-500">
                 <th className="py-2">订单号</th>
                 <th className="py-2">用户</th>
                 <th className="py-2">套餐</th>
@@ -1452,7 +1447,7 @@ export default function CommerceAdminPage({
             </thead>
             <tbody>
               {orders.map((order) => (
-                <tr key={order.id} className="border-b border-default-100">
+                <tr key={order.id} className="border-b border-divider/80">
                   <td className="py-3">{order.orderNo}</td>
                   <td className="py-3">{order.userId}</td>
                   <td className="py-3">{order.planName || order.planId}</td>
@@ -1506,10 +1501,7 @@ export default function CommerceAdminPage({
             ["待处理工单", String(report?.openTickets || 0)],
             ["待审核退款", String(report?.pendingRefunds || 0)],
           ].map(([label, value]) => (
-            <div
-              key={label}
-              className="rounded-2xl border border-white/70 bg-white/60 p-5 backdrop-blur-xl dark:border-white/10 dark:bg-zinc-900/50"
-            >
+            <div key={label} className="native-panel p-5">
               <div className="text-sm text-default-500">{label}</div>
               <div className="mt-2 text-2xl font-bold text-foreground">
                 {value}
@@ -1521,7 +1513,7 @@ export default function CommerceAdminPage({
 
       {activeTab === "risk" && (
         <div className="grid gap-5">
-          <section className="grid gap-3 rounded-2xl border border-white/70 bg-white/60 p-5 backdrop-blur-xl dark:border-white/10 dark:bg-zinc-900/50 md:grid-cols-[1fr_auto]">
+          <section className="grid gap-3 native-panel p-5 md:grid-cols-[1fr_auto]">
             <Input
               label="用户资源重同步"
               placeholder="输入用户ID，用于退款失败、套餐异常后的人工补偿同步"
@@ -1538,7 +1530,7 @@ export default function CommerceAdminPage({
               同步资源
             </Button>
           </section>
-          <section className="rounded-2xl border border-white/70 bg-white/60 p-5 backdrop-blur-xl dark:border-white/10 dark:bg-zinc-900/50">
+          <section className="native-panel p-5">
             <DataTable
               disablePagination
               headers={["用户", "类型", "等级", "说明", "计数", "操作"]}
@@ -1563,7 +1555,7 @@ export default function CommerceAdminPage({
       )}
 
       {activeTab === "resource-jobs" && (
-        <section className="rounded-2xl border border-white/70 bg-white/60 p-5 backdrop-blur-xl dark:border-white/10 dark:bg-zinc-900/50">
+        <section className="native-panel p-5">
           <DataTable
             disablePagination
             headers={[
@@ -1611,7 +1603,7 @@ export default function CommerceAdminPage({
       )}
 
       {activeTab === "refunds" && (
-        <section className="rounded-2xl border border-white/70 bg-white/60 p-5 backdrop-blur-xl dark:border-white/10 dark:bg-zinc-900/50">
+        <section className="native-panel p-5">
           <DataTable
             disablePagination
             headers={["订单号", "用户", "金额", "状态", "原因", "操作"]}
@@ -1648,13 +1640,10 @@ export default function CommerceAdminPage({
       )}
 
       {activeTab === "tickets" && (
-        <section className="rounded-2xl border border-white/70 bg-white/60 p-5 backdrop-blur-xl dark:border-white/10 dark:bg-zinc-900/50">
+        <section className="native-panel p-5">
           <div className="grid gap-3">
             {tickets.map((ticket) => (
-              <div
-                key={ticket.id}
-                className="rounded-xl border border-default-100 bg-white/55 p-4 dark:bg-zinc-900/40"
-              >
+              <div key={ticket.id} className="native-muted-panel p-4">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div>
                     <div className="font-semibold">{ticket.title}</div>
@@ -1686,7 +1675,7 @@ export default function CommerceAdminPage({
                 </div>
                 <div className="mt-3 flex gap-2">
                   <input
-                    className="h-10 flex-1 rounded-xl border border-default-200 bg-white/70 px-3 text-sm outline-none dark:bg-zinc-900"
+                    className="h-10 flex-1 rounded-[var(--radius-control)] border border-input bg-surface px-3 text-sm outline-none focus:ring-2 focus:ring-ring"
                     placeholder="管理员回复"
                     value={ticketReply[ticket.id] || ""}
                     onChange={(event) =>
@@ -1721,7 +1710,7 @@ export default function CommerceAdminPage({
       )}
 
       {activeTab === "coupons" && (
-        <section className="rounded-2xl border border-white/70 bg-white/60 p-5 backdrop-blur-xl dark:border-white/10 dark:bg-zinc-900/50">
+        <section className="native-panel p-5">
           <div className="mb-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
             <Input
               label="优惠码"
@@ -1739,7 +1728,7 @@ export default function CommerceAdminPage({
             />
             <Field label="类型">
               <select
-                className="h-10 rounded-xl border border-default-200 bg-white/70 px-3 dark:bg-zinc-900"
+                className="h-10 rounded-[var(--radius-control)] border border-input bg-surface px-3"
                 value={couponForm.discountType || "fixed"}
                 onChange={(e) =>
                   setCouponForm((prev) => ({
@@ -1765,7 +1754,7 @@ export default function CommerceAdminPage({
             />
             <Field label="绑定套餐">
               <select
-                className="h-10 rounded-xl border border-default-200 bg-white/70 px-3 dark:bg-zinc-900"
+                className="h-10 rounded-[var(--radius-control)] border border-input bg-surface px-3"
                 value={couponForm.planId || 0}
                 onChange={(e) =>
                   setCouponForm((prev) => ({
@@ -1835,7 +1824,7 @@ export default function CommerceAdminPage({
             />
             <Field label="状态">
               <select
-                className="h-10 rounded-xl border border-default-200 bg-white/70 px-3 dark:bg-zinc-900"
+                className="h-10 rounded-[var(--radius-control)] border border-input bg-surface px-3"
                 value={couponForm.status ?? 1}
                 onChange={(e) =>
                   setCouponForm((prev) => ({
@@ -1907,7 +1896,7 @@ export default function CommerceAdminPage({
       )}
 
       {activeTab === "payments" && (
-        <section className="rounded-2xl border border-white/70 bg-white/60 p-5 backdrop-blur-xl dark:border-white/10 dark:bg-zinc-900/50">
+        <section className="native-panel p-5">
           <DataTable
             disablePagination
             headers={["订单号", "渠道", "渠道流水", "金额", "状态", "时间"]}
@@ -1924,7 +1913,7 @@ export default function CommerceAdminPage({
       )}
 
       {activeTab === "wallet" && (
-        <section className="rounded-2xl border border-white/70 bg-white/60 p-5 backdrop-blur-xl dark:border-white/10 dark:bg-zinc-900/50">
+        <section className="native-panel p-5">
           <div className="mb-4 grid gap-3 lg:grid-cols-4">
             <Input
               label="用户ID"
@@ -1978,7 +1967,7 @@ export default function CommerceAdminPage({
       )}
 
       {activeTab === "audit" && (
-        <section className="rounded-2xl border border-white/70 bg-white/60 p-5 backdrop-blur-xl dark:border-white/10 dark:bg-zinc-900/50">
+        <section className="native-panel p-5">
           <DataTable
             disablePagination
             headers={["动作", "对象", "摘要", "时间"]}
@@ -1994,7 +1983,7 @@ export default function CommerceAdminPage({
 
       {refundReview && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-lg rounded-2xl border border-white/70 bg-white p-6 shadow-xl dark:border-white/10 dark:bg-zinc-900">
+          <div className="w-full max-w-lg native-panel p-6">
             <div className="mb-4">
               <h2 className="text-xl font-bold">
                 {refundReview.decision === "approved" ? "通过退款" : "拒绝退款"}
@@ -2007,7 +1996,7 @@ export default function CommerceAdminPage({
             <label className="grid gap-2 text-sm font-medium text-default-700">
               审核备注
               <textarea
-                className="min-h-24 rounded-xl border border-default-200 bg-white/70 px-3 py-2 text-sm outline-none dark:bg-zinc-900"
+                className="min-h-24 rounded-[var(--radius-control)] border border-input bg-surface px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
                 value={refundNote}
                 onChange={(event) => setRefundNote(event.target.value)}
               />
@@ -2035,7 +2024,7 @@ export default function CommerceAdminPage({
 
       {selectedTicket && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4 backdrop-blur-sm">
-          <div className="max-h-[90vh] w-full max-w-3xl overflow-auto rounded-2xl border border-white/70 bg-white p-6 shadow-xl dark:border-white/10 dark:bg-zinc-900">
+          <div className="max-h-[90vh] w-full max-w-3xl overflow-auto native-panel p-6">
             <div className="mb-5 flex items-start justify-between gap-4">
               <div>
                 <h2 className="text-xl font-bold">{selectedTicket.title}</h2>
@@ -2082,7 +2071,7 @@ export default function CommerceAdminPage({
               <label className="grid gap-2 text-sm font-medium text-default-700 md:col-span-3">
                 内部备注
                 <textarea
-                  className="min-h-20 rounded-xl border border-default-200 bg-white/70 px-3 py-2 text-sm outline-none dark:bg-zinc-900"
+                  className="min-h-20 rounded-[var(--radius-control)] border border-input bg-surface px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
                   value={selectedTicket.internalNote || ""}
                   onChange={(e) =>
                     setSelectedTicket((prev) =>
@@ -2096,7 +2085,7 @@ export default function CommerceAdminPage({
               {ticketMessages.map((message) => (
                 <div
                   key={message.id}
-                  className="rounded-xl border border-default-100 bg-white/55 p-3 text-sm dark:bg-zinc-900/40"
+                  className="native-muted-panel p-3 text-sm dark:bg-zinc-900/40"
                 >
                   <div className="mb-1 text-xs text-default-400">
                     {message.isAdmin ? "管理员" : `用户 ${message.userId}`} /{" "}
@@ -2119,7 +2108,7 @@ export default function CommerceAdminPage({
           </div>
         </div>
       )}
-    </div>
+    </PageShell>
   );
 }
 
@@ -2142,13 +2131,10 @@ function SettingsGroup({
   children: ReactNode;
 }) {
   return (
-    <section className="rounded-2xl border border-white/70 bg-white/60 p-5 backdrop-blur-xl dark:border-white/10 dark:bg-zinc-900/50">
-      <div className="mb-4">
-        <h2 className="text-base font-semibold text-default-900">{title}</h2>
-        <p className="mt-1 text-sm text-default-500">{description}</p>
-      </div>
+    <Panel>
+      <PanelHeader description={description} title={title} />
       {children}
-    </section>
+    </Panel>
   );
 }
 
@@ -2198,7 +2184,7 @@ function TextAreaSetting({
     <label className="grid gap-2 text-sm font-medium text-default-700 lg:col-span-2">
       {label}
       <textarea
-        className="min-h-24 rounded-xl border border-default-200 bg-white/70 px-3 py-2 text-sm outline-none dark:bg-zinc-900"
+        className="min-h-24 rounded-[var(--radius-control)] border border-input bg-surface px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
         value={settings[name] || ""}
         onChange={(e) =>
           setSettings((prev) => ({ ...prev, [name]: e.target.value }))
@@ -2260,12 +2246,12 @@ function DataTable({
           </Button>
         </div>
       )}
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[760px] text-sm">
+      <div className="native-panel overflow-x-auto">
+        <table className="native-table w-full min-w-[760px] text-sm">
           <thead>
-            <tr className="border-b text-left text-default-500">
+            <tr className="border-b border-divider text-left text-default-500">
               {headers.map((header) => (
-                <th key={header} className="py-2">
+                <th key={header} className="px-4 py-3">
                   {header}
                 </th>
               ))}
@@ -2273,9 +2259,9 @@ function DataTable({
           </thead>
           <tbody>
             {visibleRows.map((row, index) => (
-              <tr key={index} className="border-b border-default-100">
+              <tr key={index} className="border-b border-divider/80">
                 {row.map((cell, cellIndex) => (
-                  <td key={cellIndex} className="py-3 pr-4">
+                  <td key={cellIndex} className="px-4 py-3">
                     {cell}
                   </td>
                 ))}

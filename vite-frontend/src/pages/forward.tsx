@@ -3741,7 +3741,7 @@ export default function ForwardPage() {
     return (
       <Card
         key={forward.id}
-        className="group h-full flex flex-col overflow-hidden bg-white/20 dark:bg-zinc-900/20 backdrop-blur-3xl border border-white/80 dark:border-white/10 shadow-[0_15px_35px_rgba(0,0,0,0.1)]"
+        className="group h-full flex flex-col overflow-hidden native-panel"
       >
         <CardHeader className="pb-2 md:pb-2">
           <div className="flex justify-between items-start w-full">
@@ -3798,7 +3798,7 @@ export default function ForwardPage() {
             {/* 地址信息 */}
             <div className="space-y-1">
               <button
-                className={`cursor-pointer px-2 py-1 bg-white/20 dark:bg-black/20 backdrop-blur-md rounded border border-default-200 dark:border-default-300 transition-colors duration-200 ${
+                className={`cursor-pointer rounded-[var(--radius-control)] border border-divider bg-surface px-2 py-1 transition-colors duration-200 ${
                   hasMultipleAddresses(forward.inIp)
                     ? "hover:bg-default-100 dark:hover:bg-default-200/50"
                     : ""
@@ -3838,7 +3838,7 @@ export default function ForwardPage() {
               </button>
 
               <button
-                className={`cursor-pointer px-2 py-1 bg-white/20 dark:bg-black/20 backdrop-blur-md rounded border border-default-200 dark:border-default-300 transition-colors duration-200 ${
+                className={`cursor-pointer rounded-[var(--radius-control)] border border-divider bg-surface px-2 py-1 transition-colors duration-200 ${
                   hasMultipleAddresses(forward.remoteAddr)
                     ? "hover:bg-default-100 dark:hover:bg-default-200/50"
                     : ""
@@ -4228,7 +4228,7 @@ export default function ForwardPage() {
                   {sortedForwards.length} 条规则
                 </span>
               </div>
-              <Card className="rounded-2xl border border-white/80 dark:border-white/10 bg-white/20 dark:bg-zinc-900/20 backdrop-blur-3xl shadow-[0_15px_35px_rgba(0,0,0,0.1)]">
+              <Card className="native-panel">
                 <DndContext
                   collisionDetection={pointerWithin}
                   sensors={sensors}
@@ -4246,7 +4246,7 @@ export default function ForwardPage() {
                           "bg-transparent p-0 shadow-none border-none overflow-auto rounded-[24px]",
                         th: "bg-default-100/50 text-default-600 font-semibold text-sm border-b border-divider py-3 uppercase tracking-wider first:rounded-tl-[24px] last:rounded-tr-[24px]",
                         td: "py-3 border-b border-divider/50 group-data-[last=true]:border-b-0",
-                        tr: "hover:bg-white/10 dark:hover:bg-white/5 transition-colors group",
+                        tr: "hover:bg-default-100/60 transition-colors group",
                       }}
                     >
                       <TableHeader>
@@ -4310,7 +4310,7 @@ export default function ForwardPage() {
               </Card>
             </>
           ) : (
-            <Card className="bg-white/20 dark:bg-zinc-900/20 backdrop-blur-3xl border border-white/80 dark:border-white/10 shadow-[0_15px_35px_rgba(0,0,0,0.1)]">
+            <Card className="native-panel">
               <CardBody className="text-center py-20 flex flex-col items-center justify-center min-h-[240px]">
                 <h3 className="text-xl font-medium text-foreground tracking-tight mb-2">
                   暂无规则配置
@@ -4356,7 +4356,7 @@ export default function ForwardPage() {
             </DndContext>
           </>
         ) : (
-          <Card className="bg-white/20 dark:bg-zinc-900/20 backdrop-blur-3xl border border-white/80 dark:border-white/10 shadow-[0_15px_35px_rgba(0,0,0,0.1)]">
+          <Card className="native-panel">
             <CardBody className="text-center py-20 flex flex-col items-center justify-center min-h-[240px]">
               <h3 className="text-xl font-medium text-foreground tracking-tight mb-2">
                 暂无规则配置
@@ -4381,9 +4381,9 @@ export default function ForwardPage() {
               return (
                 <div
                   key={`grouped-table-${group.userId}-${group.userName}`}
-                  className="rounded-2xl border border-white/80 dark:border-white/10 bg-white/20 dark:bg-zinc-900/20 backdrop-blur-3xl shadow-[0_15px_35px_rgba(0,0,0,0.1)]"
+                  className="native-panel"
                 >
-                  <div className="flex items-center justify-between border-b border-white/20 dark:border-white/10 bg-white/20 dark:bg-black/20 backdrop-blur-3xl px-5 py-4">
+                  <div className="flex items-center justify-between border-b border-divider bg-surface px-5 py-4">
                     <div className="flex items-center gap-2">
                       <span className="text-sm font-semibold text-foreground">
                         {group.userName}
@@ -4469,10 +4469,10 @@ export default function ForwardPage() {
                               collapsed={collapsed}
                               countClassName="text-xs text-default-600"
                               groupUserId={group.userId}
-                              headerClassName="flex items-center justify-between border-b border-white/20 dark:border-white/10 bg-white/20 dark:bg-black/20 backdrop-blur-3xl px-4 py-2.5"
+                              headerClassName="flex items-center justify-between border-b border-divider bg-surface px-4 py-2.5"
                               titleClassName="truncate text-sm font-semibold text-default-700"
                               tunnel={tunnel}
-                              wrapperClassName="rounded-2xl border border-white/80 dark:border-white/10 bg-white/20 dark:bg-zinc-900/20 backdrop-blur-3xl shadow-[0_15px_35px_rgba(0,0,0,0.1)]"
+                              wrapperClassName="native-panel"
                               onToggleCollapsed={() =>
                                 toggleTunnelGroupCollapsed(
                                   group.userId,
@@ -4493,11 +4493,10 @@ export default function ForwardPage() {
                                     aria-label={`${group.userName}-${tunnel.tunnelName}规则列表`}
                                     className={`table-fixed ${FORWARD_GROUPED_TABLE_MIN_WIDTH_CLASS}`}
                                     classNames={{
-                                      wrapper:
-                                        "bg-transparent p-0 shadow-none border-none overflow-auto rounded-2xl",
-                                      th: "bg-transparent text-default-600 font-semibold text-sm border-b border-white/20 dark:border-white/10 py-3 uppercase tracking-wider first:rounded-tl-[24px] last:rounded-tr-[24px]",
+                                      wrapper: "native-panel overflow-auto",
+                                      th: "border-b border-divider bg-content2 py-3 text-sm font-semibold text-default-600",
                                       td: "py-3 border-b border-divider/50 group-data-[last=true]:border-b-0",
-                                      tr: "hover:bg-white/40 dark:hover:bg-white/10 transition-colors",
+                                      tr: "hover:bg-default-100/70 transition-colors",
                                     }}
                                   >
                                     <TableHeader>
@@ -4617,7 +4616,7 @@ export default function ForwardPage() {
             })}
           </div>
         ) : (
-          <Card className="bg-white/20 dark:bg-zinc-900/20 backdrop-blur-3xl border border-white/80 dark:border-white/10 shadow-[0_15px_35px_rgba(0,0,0,0.1)]">
+          <Card className="native-panel">
             <CardBody className="text-center py-20 flex flex-col items-center justify-center min-h-[240px]">
               <h3 className="text-xl font-medium text-foreground tracking-tight mb-2">
                 暂无规则配置
@@ -4754,7 +4753,7 @@ export default function ForwardPage() {
       <Modal
         backdrop="blur"
         classNames={{
-          base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-2xl overflow-hidden",
+          base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-[var(--radius-panel)] overflow-hidden",
         }}
         isOpen={modalOpen}
         placement="center"
@@ -5078,7 +5077,7 @@ export default function ForwardPage() {
       <Modal
         backdrop="blur"
         classNames={{
-          base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-2xl overflow-hidden",
+          base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-[var(--radius-panel)] overflow-hidden",
         }}
         isOpen={deleteModalOpen}
         placement="center"
@@ -5124,7 +5123,7 @@ export default function ForwardPage() {
       {/* 地址列表弹窗 */}
       <Modal
         classNames={{
-          base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-2xl overflow-hidden",
+          base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-[var(--radius-panel)] overflow-hidden",
         }}
         isOpen={addressModalOpen}
         scrollBehavior="inside"
@@ -5168,7 +5167,7 @@ export default function ForwardPage() {
       <Modal
         backdrop="blur"
         classNames={{
-          base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-2xl overflow-hidden",
+          base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-[var(--radius-panel)] overflow-hidden",
         }}
         isOpen={exportModalOpen}
         placement="center"
@@ -5327,7 +5326,7 @@ export default function ForwardPage() {
       <Modal
         backdrop="blur"
         classNames={{
-          base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-2xl overflow-hidden",
+          base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-[var(--radius-panel)] overflow-hidden",
         }}
         isOpen={importModalOpen}
         placement="center"
@@ -5544,7 +5543,7 @@ export default function ForwardPage() {
       <Modal
         backdrop="blur"
         classNames={{
-          base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-2xl overflow-hidden [&>div]:bg-content1 [&>div]:dark:bg-content1",
+          base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-[var(--radius-panel)] overflow-hidden [&>div]:bg-content1 [&>div]:dark:bg-content1",
         }}
         isOpen={diagnosisModalOpen}
         placement="center"
@@ -6126,7 +6125,7 @@ export default function ForwardPage() {
       {/* 批量删除确认模态框 */}
       <Modal
         classNames={{
-          base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-2xl overflow-hidden",
+          base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-[var(--radius-panel)] overflow-hidden",
         }}
         isOpen={batchDeleteModalOpen}
         onOpenChange={setBatchDeleteModalOpen}
@@ -6160,7 +6159,7 @@ export default function ForwardPage() {
       {/* 批量换隧道模态框 */}
       <Modal
         classNames={{
-          base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-2xl overflow-hidden",
+          base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-[var(--radius-panel)] overflow-hidden",
         }}
         isOpen={batchChangeTunnelModalOpen}
         onOpenChange={setBatchChangeTunnelModalOpen}
@@ -6213,7 +6212,7 @@ export default function ForwardPage() {
       {/* 搜索与筛选五合一模态框 */}
       <Modal
         classNames={{
-          base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-2xl overflow-hidden",
+          base: "!w-[calc(100%-32px)] !mx-auto sm:!w-full rounded-[var(--radius-panel)] overflow-hidden",
         }}
         isOpen={isSearchModalOpen}
         placement="center"
