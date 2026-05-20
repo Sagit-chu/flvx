@@ -18,7 +18,8 @@ import { siteConfig } from "@/config/site";
 import { VersionFooter } from "@/components/version-footer";
 import { updatePassword } from "@/api";
 import { safeLogout } from "@/utils/logout";
-import { getAdminFlag, getSessionName } from "@/utils/session";
+import { getSessionName } from "@/utils/session";
+import { isAdmin as hasAdminRole } from "@/utils/auth";
 interface PasswordForm {
   newUsername: string;
   currentPassword: string;
@@ -50,7 +51,7 @@ export default function ProfilePage() {
   useEffect(() => {
     // 获取用户信息
     setUsername(getSessionName() || "用户");
-    setIsAdmin(getAdminFlag());
+    setIsAdmin(hasAdminRole());
   }, []);
 
   // 管理员入口

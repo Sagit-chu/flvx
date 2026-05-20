@@ -346,7 +346,7 @@ function App() {
         <Route
           element={
             <AdminRoute>
-              <Navigate replace to="/admin/tunnels" />
+              <Navigate replace to="/admin/reports" />
             </AdminRoute>
           }
           path="/admin"

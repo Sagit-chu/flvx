@@ -41,7 +41,7 @@ import {
   updateTunnelGroup,
   updateUserGroup,
 } from "@/api";
-import { getAdminFlag } from "@/utils/session";
+import { isAdmin as hasAdminRole } from "@/utils/auth";
 
 interface TunnelItem {
   id: number;
@@ -90,7 +90,7 @@ const formatDate = (timestamp?: number): string => {
 
 export default function GroupPage() {
   const [loading, setLoading] = useState(true);
-  const [isAdmin] = useState(getAdminFlag());
+  const [isAdmin] = useState(hasAdminRole());
 
   const [tunnelGroups, setTunnelGroups] = useState<TunnelGroup[]>([]);
   const [userGroups, setUserGroups] = useState<UserGroup[]>([]);

@@ -10,14 +10,14 @@ import {
 import { BrandLogo } from "@/components/brand-logo";
 import { siteConfig, getCachedConfig } from "@/config/site";
 import { useWebViewMode } from "@/hooks/useWebViewMode";
-import { getAdminFlag } from "@/utils/session";
+import { isAdmin as hasAdminRole } from "@/utils/auth";
 
 export const Navbar = () => {
   const navigate = useNavigate();
   // 初始状态使用siteConfig中已经从缓存读取的值，避免闪烁
   const [appName, setAppName] = useState(siteConfig.name);
   const isWebView = useWebViewMode();
-  const isAdmin = getAdminFlag();
+  const isAdmin = hasAdminRole();
 
   useEffect(() => {
     // 异步检查是否有更新的配置

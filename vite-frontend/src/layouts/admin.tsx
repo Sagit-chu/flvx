@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { toast } from "react-hot-toast";
 import { AnimatePresence, motion } from "framer-motion";
 import {
+  ArrowLeftToLine,
   BarChart3,
   Bell,
   BookOpenCheck,
@@ -46,7 +47,7 @@ import { getMonitorAccess, updatePassword } from "@/api";
 import { safeLogout } from "@/utils/logout";
 import { siteConfig } from "@/config/site";
 import { useMobileBreakpoint } from "@/hooks/useMobileBreakpoint";
-import { getAdminFlag } from "@/utils/session";
+import { isAdmin as hasAdminRole } from "@/utils/auth";
 
 interface MenuItem {
   path: string;
@@ -179,20 +180,8 @@ export default function AdminLayout({
       label: "运营总览",
       items: [
         {
-          path: "/dashboard",
-          label: "用户面板",
-          scope: "admin",
-          icon: <LayoutDashboard className={iconClass} />,
-        },
-        {
-          path: "/monitor",
-          label: "监控",
-          scope: "admin",
-          icon: <BarChart3 className={iconClass} />,
-        },
-        {
           path: "/admin/reports",
-          label: "财务报表",
+          label: "运营报表",
           scope: "admin",
           icon: <FileClock className={iconClass} />,
         },
@@ -208,45 +197,45 @@ export default function AdminLayout({
           scope: "admin",
           icon: <BookOpenCheck className={iconClass} />,
         },
+        {
+          path: "/admin/audit",
+          label: "审计日志",
+          scope: "admin",
+          icon: <History className={iconClass} />,
+        },
       ],
     },
     {
       key: "resources",
-      label: "资源管理",
+      label: "资源与节点",
       items: [
         {
-          path: "/forward",
-          label: "规则",
-          scope: "admin",
-          icon: <Gauge className={iconClass} />,
-        },
-        {
           path: "/admin/tunnels",
-          label: "隧道",
+          label: "隧道管理",
           scope: "admin",
           icon: <Link2 className={iconClass} />,
         },
         {
           path: "/admin/nodes",
-          label: "节点",
+          label: "节点管理",
           scope: "admin",
           icon: <Server className={iconClass} />,
         },
         {
           path: "/admin/limits",
-          label: "限速",
+          label: "限速规则",
           scope: "admin",
           icon: <Zap className={iconClass} />,
         },
         {
           path: "/admin/groups",
-          label: "分组",
+          label: "分组管理",
           scope: "admin",
           icon: <Network className={iconClass} />,
         },
         {
           path: "/admin/panel-sharing",
-          label: "共享",
+          label: "面板共享",
           scope: "admin",
           icon: <Share2 className={iconClass} />,
         },
@@ -258,7 +247,7 @@ export default function AdminLayout({
       items: [
         {
           path: "/admin/users",
-          label: "用户",
+          label: "用户管理",
           scope: "admin",
           icon: <Users className={iconClass} />,
         },
@@ -278,7 +267,7 @@ export default function AdminLayout({
     },
     {
       key: "transactions",
-      label: "套餐交易",
+      label: "套餐与订单",
       items: [
         {
           path: "/admin/plans",
@@ -320,19 +309,13 @@ export default function AdminLayout({
     },
     {
       key: "support",
-      label: "客服与审计",
+      label: "客服",
       items: [
         {
           path: "/admin/tickets",
           label: "工单管理",
           scope: "admin",
           icon: <LifeBuoy className={iconClass} />,
-        },
-        {
-          path: "/admin/audit",
-          label: "审计日志",
-          scope: "admin",
-          icon: <History className={iconClass} />,
         },
       ],
     },
@@ -370,7 +353,7 @@ export default function AdminLayout({
 
   useEffect(() => {
     // 获取用户信息
-    const adminFlag = getAdminFlag();
+    const adminFlag = hasAdminRole();
 
     // Monitor permission is not strictly role-based; non-admin users may be
     // granted access explicitly. Fetch a lightweight capability flag so we can
@@ -702,6 +685,21 @@ export default function AdminLayout({
 
         {/* 底部版权信息和折叠按钮 */}
         <div className="px-5 py-6 mt-auto flex-shrink-0 flex flex-col gap-4 overflow-hidden whitespace-nowrap box-border">
+          {scope === "admin" && (
+            <Button
+              className={`min-h-10 rounded-2xl bg-white/50 text-default-700 hover:bg-white/70 dark:bg-white/10 dark:text-default-300 dark:hover:bg-white/15 ${
+                isCollapsed
+                  ? "mx-auto w-10 min-w-10 justify-center px-0"
+                  : "w-full justify-start"
+              }`}
+              title="返回前台"
+              variant="flat"
+              onPress={() => navigate("/dashboard")}
+            >
+              <ArrowLeftToLine className="h-4 w-4 flex-shrink-0" />
+              {!isCollapsed && <span>返回前台</span>}
+            </Button>
+          )}
           <div
             className={`transition-all duration-300 overflow-hidden flex items-center ${isCollapsed ? "max-w-0 opacity-0" : "max-w-[200px] opacity-100"}`}
           >

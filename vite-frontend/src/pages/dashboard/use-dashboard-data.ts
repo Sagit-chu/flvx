@@ -10,7 +10,7 @@ import {
   type AnnouncementData,
 } from "@/api";
 import { getNodeRenewalSnapshot } from "@/pages/node/renewal";
-import { getAdminFlag } from "@/utils/session";
+import { isAdmin as hasAdminRole } from "@/utils/auth";
 
 export interface DashboardUserInfo {
   flow: number;
@@ -412,7 +412,7 @@ export const useDashboardData = (): DashboardDataState => {
 
   useEffect(() => {
     isMountedRef.current = true;
-    const adminFlag = getAdminFlag();
+    const adminFlag = hasAdminRole();
 
     setIsAdmin(adminFlag);
 
