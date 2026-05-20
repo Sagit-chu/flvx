@@ -100,6 +100,8 @@ func commercialLicenseAllowPath(path string) bool {
 		return true
 	case path == "/api/v1/payment/epay/notify":
 		return true
+	case path == "/api/v1/payment/usdt/notify":
+		return true
 	default:
 		return false
 	}

@@ -197,6 +197,12 @@ func TestShouldSkipBypassesPublicConfigGet(t *testing.T) {
 	}
 }
 
+func TestShouldSkipBypassesUSDTNotify(t *testing.T) {
+	if !shouldSkip("/api/v1/payment/usdt/notify") {
+		t.Fatal("expected /api/v1/payment/usdt/notify to bypass JWT auth")
+	}
+}
+
 func TestUserQuotaResetRequiresAdmin(t *testing.T) {
 	if !requiresAdmin("/api/v1/user/quota/reset") {
 		t.Fatal("expected /api/v1/user/quota/reset to require admin")

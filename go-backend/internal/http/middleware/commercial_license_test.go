@@ -39,3 +39,18 @@ func TestCommercialLicenseAllowsLicenseRepairAPI(t *testing.T) {
 		t.Fatalf("expected pass-through, got %d body=%s", rec.Code, rec.Body.String())
 	}
 }
+
+func TestCommercialLicenseAllowsUSDTNotify(t *testing.T) {
+	handler := CommercialLicense(func() (bool, string) {
+		return false, "授权未激活"
+	})(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNoContent)
+	}))
+
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, httptest.NewRequest(http.MethodPost, "/api/v1/payment/usdt/notify", nil))
+
+	if rec.Code != http.StatusNoContent {
+		t.Fatalf("expected pass-through, got %d body=%s", rec.Code, rec.Body.String())
+	}
+}
