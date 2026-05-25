@@ -78,7 +78,12 @@ func (h *Handler) localLicenseUpdateRun(w http.ResponseWriter, r *http.Request) 
 		response.WriteJSON(w, response.ErrDefault(systemUpgradeConflictError))
 		return
 	}
-	defer h.systemUpgradeMu.Unlock()
+	locked := true
+	defer func() {
+		if locked {
+			h.systemUpgradeMu.Unlock()
+		}
+	}()
 
 	var req localLicenseUpdateRunRequest
 	if err := decodeJSON(r.Body, &req); err != nil {
@@ -114,13 +119,19 @@ func (h *Handler) localLicenseUpdateRun(w http.ResponseWriter, r *http.Request) 
 		response.WriteJSON(w, response.ErrDefault("指定版本与官方更新清单不一致"))
 		return
 	}
-	result, err := h.executeOfficialUpdate(r.Context(), cfg.CenterURL, cfg.LicenseKey, manifest)
-	if err != nil {
-		_ = h.reportOfficialUpdate(cfg.CenterURL, cfg.LicenseKey, currentPanelVersion(), manifest.Version, "failed", err.Error())
-		response.WriteJSON(w, response.ErrDefault(err.Error()))
-		return
-	}
-	response.WriteJSON(w, response.OK(result))
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
+	locked = false
+	go func() {
+		defer cancel()
+		defer h.systemUpgradeMu.Unlock()
+		if _, err := h.executeOfficialUpdate(ctx, cfg.CenterURL, cfg.LicenseKey, manifest); err != nil {
+			_ = h.reportOfficialUpdate(cfg.CenterURL, cfg.LicenseKey, currentPanelVersion(), manifest.Version, "failed", err.Error())
+			appendOfficialUpdateLog(filepath.Join(newSystemUpgradeExecutor().deployDir, "upgrade.log"), "错误: "+err.Error())
+		}
+	}()
+	response.WriteJSON(w, response.OK(localLicenseUpdateRunData{
+		Version: manifest.Version, Channel: manifest.Channel, Message: "升级任务已启动，过程日志会实时刷新。",
+	}))
 }
 
 func (h *Handler) localLicenseUpdateLog(w http.ResponseWriter, r *http.Request) {
@@ -157,13 +168,16 @@ func (h *Handler) checkOfficialUpdate(ctx context.Context, channel string) (loca
 	if channel == "" {
 		channel = "stable"
 	}
+	domain := licenseFeatureString(status.Features, "domain", localHostname())
+	ipv4 := licenseFeatureString(status.Features, "ipv4", firstOutboundIP(false))
+	ipv6 := licenseFeatureString(status.Features, "ipv6", firstOutboundIP(true))
 	check, err := license.CheckUpdate(cfg.CenterURL, license.UpdateCheckRequest{
 		LicenseKey:     cfg.LicenseKey,
 		CurrentVersion: currentVersion,
 		Channel:        channel,
-		Domain:         localHostname(),
-		IPv4:           firstOutboundIP(false),
-		IPv6:           firstOutboundIP(true),
+		Domain:         domain,
+		IPv4:           ipv4,
+		IPv6:           ipv6,
 		InstanceID:     cfg.InstanceID,
 		DeployDir:      exec.deployDir,
 		Arch:           runtime.GOARCH,
@@ -244,81 +258,114 @@ func (h *Handler) executeOfficialUpdate(ctx context.Context, centerURL, licenseK
 		return localLicenseUpdateRunData{}, err
 	}
 	exec := newSystemUpgradeExecutor()
+	logPath := filepath.Join(exec.deployDir, "upgrade.log")
+	_ = resetOfficialUpdateLog(logPath)
+	appendOfficialUpdateLog(logPath, "开始商业包在线更新")
+	appendOfficialUpdateLog(logPath, "目标版本: "+manifest.Version)
 	capability := exec.capability(ctx)
 	if !capability.Capable {
+		appendOfficialUpdateLog(logPath, "错误: 当前环境不支持在线更新: "+strings.Join(capability.Reasons, "; "))
 		return localLicenseUpdateRunData{}, fmt.Errorf("当前环境不支持在线更新: %s", strings.Join(capability.Reasons, "; "))
 	}
 	composePath := exec.composePath()
 	envPath := exec.envPath()
+	appendOfficialUpdateLog(logPath, "读取当前部署配置")
 	composeData, err := os.ReadFile(composePath)
 	if err != nil {
+		appendOfficialUpdateLog(logPath, "错误: 读取 compose 失败: "+err.Error())
 		return localLicenseUpdateRunData{}, fmt.Errorf("读取 compose 失败: %w", err)
 	}
 	composeAsset, ok := selectOfficialComposeAsset(manifest.Artifacts, exec.selectComposeAsset(composeData))
 	if !ok {
+		appendOfficialUpdateLog(logPath, "错误: 当前版本缺少匹配的 compose 文件")
 		return localLicenseUpdateRunData{}, fmt.Errorf("当前版本缺少匹配的 compose 文件")
 	}
 	packageAsset, hasPackage := selectOfficialPackageAsset(manifest.Artifacts)
 	if err := h.reportOfficialUpdate(centerURL, licenseKey, currentPanelVersion(), manifest.Version, "downloading", ""); err != nil {
+		appendOfficialUpdateLog(logPath, "错误: 上报下载状态失败: "+err.Error())
 		return localLicenseUpdateRunData{}, err
 	}
 	tempDir, err := os.MkdirTemp("", "flvx-official-update-*")
 	if err != nil {
+		appendOfficialUpdateLog(logPath, "错误: 创建升级临时目录失败: "+err.Error())
 		return localLicenseUpdateRunData{}, fmt.Errorf("创建升级临时目录失败: %w", err)
 	}
 	defer os.RemoveAll(tempDir)
 	composeDownloadPath := filepath.Join(tempDir, composeAsset.File)
+	appendOfficialUpdateLog(logPath, "下载 compose 文件: "+composeAsset.File)
 	if err := license.DownloadAndVerifyAsset(composeAsset, composeDownloadPath, maxOfficialComposeBytes); err != nil {
+		appendOfficialUpdateLog(logPath, "错误: 下载或校验 compose 失败: "+err.Error())
 		return localLicenseUpdateRunData{}, err
 	}
+	appendOfficialUpdateLog(logPath, "compose 文件校验完成")
 	if hasPackage {
 		packagePath := filepath.Join(tempDir, packageAsset.File)
+		appendOfficialUpdateLog(logPath, "下载商业包: "+packageAsset.File)
 		if err := license.DownloadAndVerifyAsset(packageAsset, packagePath, 1024<<20); err != nil {
+			appendOfficialUpdateLog(logPath, "错误: 下载或校验商业包失败: "+err.Error())
 			return localLicenseUpdateRunData{}, err
 		}
-		if err := buildOfficialPackageImages(ctx, packagePath, tempDir, manifest.Version); err != nil {
+		appendOfficialUpdateLog(logPath, "商业包校验完成")
+		if err := buildOfficialPackageImages(ctx, packagePath, tempDir, manifest.Version, logPath); err != nil {
+			appendOfficialUpdateLog(logPath, "错误: "+err.Error())
 			return localLicenseUpdateRunData{}, err
 		}
 	}
+	appendOfficialUpdateLog(logPath, "读取升级 compose 文件")
 	newCompose, err := os.ReadFile(composeDownloadPath)
 	if err != nil {
+		appendOfficialUpdateLog(logPath, "错误: 读取升级 compose 失败: "+err.Error())
 		return localLicenseUpdateRunData{}, fmt.Errorf("读取升级 compose 失败: %w", err)
 	}
+	appendOfficialUpdateLog(logPath, "记录当前后端镜像用于回滚")
 	imageID, err := exec.currentBackendImage(ctx)
 	if err != nil {
+		appendOfficialUpdateLog(logPath, "错误: 读取当前后端镜像失败: "+err.Error())
 		return localLicenseUpdateRunData{}, err
 	}
+	appendOfficialUpdateLog(logPath, "备份 docker-compose.yml")
 	if _, err := exec.backupFile(composePath); err != nil {
+		appendOfficialUpdateLog(logPath, "错误: 备份 compose 失败: "+err.Error())
 		return localLicenseUpdateRunData{}, fmt.Errorf("备份 compose 失败: %w", err)
 	}
+	appendOfficialUpdateLog(logPath, "备份 .env")
 	if _, err := exec.backupFile(envPath); err != nil {
+		appendOfficialUpdateLog(logPath, "错误: 备份 .env 失败: "+err.Error())
 		return localLicenseUpdateRunData{}, fmt.Errorf("备份 .env 失败: %w", err)
 	}
+	appendOfficialUpdateLog(logPath, "替换 docker-compose.yml")
 	if err := exec.replaceCompose(composePath, newCompose); err != nil {
 		if restoreErr := exec.restoreUpgradeBackups(composePath, envPath); restoreErr != nil {
 			err = fmt.Errorf("%v; 回滚失败: %v", err, restoreErr)
 		}
+		appendOfficialUpdateLog(logPath, "错误: 替换 compose 失败: "+err.Error())
 		return localLicenseUpdateRunData{}, fmt.Errorf("替换 compose 失败: %w", err)
 	}
+	appendOfficialUpdateLog(logPath, "写入目标版本到 .env")
 	if err := exec.updateEnvVersion(envPath, manifest.Version); err != nil {
 		if restoreErr := exec.restoreUpgradeBackups(composePath, envPath); restoreErr != nil {
 			err = fmt.Errorf("%v; 回滚失败: %v", err, restoreErr)
 		}
+		appendOfficialUpdateLog(logPath, "错误: 更新版本配置失败: "+err.Error())
 		return localLicenseUpdateRunData{}, fmt.Errorf("更新版本配置失败: %w", err)
 	}
 	if hasPackage {
+		appendOfficialUpdateLog(logPath, "写入本地镜像标签")
 		if err := upsertEnvValues(envPath, map[string]string{
 			"FLVX_BACKEND_IMAGE":  "local/flvx-panel-backend:" + manifest.Version,
 			"FLVX_FRONTEND_IMAGE": "local/flvx-panel-frontend:" + manifest.Version,
 		}); err != nil {
+			appendOfficialUpdateLog(logPath, "错误: 更新本地镜像配置失败: "+err.Error())
 			return localLicenseUpdateRunData{}, fmt.Errorf("更新本地镜像配置失败: %w", err)
 		}
 	}
 	if err := h.reportOfficialUpdate(centerURL, licenseKey, currentPanelVersion(), manifest.Version, "upgrading", ""); err != nil {
+		appendOfficialUpdateLog(logPath, "错误: 上报升级状态失败: "+err.Error())
 		return localLicenseUpdateRunData{}, err
 	}
 	helperName := fmt.Sprintf("flvx-official-update-%d", time.Now().Unix())
 	reportURL := buildCenterEndpoint(centerURL, "/api/v1/update/report")
+	appendOfficialUpdateLog(logPath, "启动升级 helper 重启服务")
 	helperContainer, err := exec.startOfficialUpdateHelper(ctx, imageID, helperName, officialUpdateHelperEnv{
 		ReportURL: reportURL, LicenseKey: licenseKey, CurrentVersion: currentPanelVersion(), TargetVersion: manifest.Version,
 	})
@@ -326,8 +373,10 @@ func (h *Handler) executeOfficialUpdate(ctx context.Context, centerURL, licenseK
 		if restoreErr := exec.restoreUpgradeBackups(composePath, envPath); restoreErr != nil {
 			err = fmt.Errorf("%v; 回滚失败: %v", err, restoreErr)
 		}
+		appendOfficialUpdateLog(logPath, "错误: 启动升级 helper 失败: "+err.Error())
 		return localLicenseUpdateRunData{}, err
 	}
+	appendOfficialUpdateLog(logPath, "升级 helper 已启动: "+helperContainer)
 	return localLicenseUpdateRunData{
 		Version: manifest.Version, Channel: manifest.Channel, ComposeAsset: composeAsset.File,
 		HelperContainer: helperContainer, BackendImageID: imageID, Message: systemUpgradeMessage,
@@ -335,10 +384,30 @@ func (h *Handler) executeOfficialUpdate(ctx context.Context, centerURL, licenseK
 }
 
 func (h *Handler) reportOfficialUpdate(centerURL, licenseKey, currentVersion, targetVersion, status, message string) error {
+	repoCfg, _ := h.repo.GetLicenseClientConfig()
+	localStatus, _ := h.getLocalLicenseStatus(time.Now().UnixMilli())
 	return license.ReportUpdate(centerURL, license.UpdateReportRequest{
 		LicenseKey: licenseKey, CurrentVersion: currentVersion, TargetVersion: targetVersion,
 		Status: status, ErrorMessage: message,
+		Domain:     licenseFeatureString(localStatus.Features, "domain", localHostname()),
+		IPv4:       licenseFeatureString(localStatus.Features, "ipv4", firstOutboundIP(false)),
+		IPv6:       licenseFeatureString(localStatus.Features, "ipv6", firstOutboundIP(true)),
+		InstanceID: repoCfg.InstanceID,
 	})
+}
+
+func licenseFeatureString(features map[string]interface{}, key string, fallback string) string {
+	if features == nil {
+		return strings.TrimSpace(fallback)
+	}
+	value, ok := features[key]
+	if !ok {
+		return strings.TrimSpace(fallback)
+	}
+	if text, ok := value.(string); ok && strings.TrimSpace(text) != "" {
+		return strings.TrimSpace(text)
+	}
+	return strings.TrimSpace(fallback)
 }
 
 func selectOfficialComposeAsset(assets []license.UpdateManifestAsset, preferred string) (license.UpdateManifestAsset, bool) {
@@ -378,21 +447,58 @@ func selectOfficialPackageAsset(assets []license.UpdateManifestAsset) (license.U
 	return license.UpdateManifestAsset{}, false
 }
 
-func buildOfficialPackageImages(ctx context.Context, packagePath, workDir, version string) error {
+func buildOfficialPackageImages(ctx context.Context, packagePath, workDir, version, logPath string) error {
 	sourceDir := filepath.Join(workDir, "source")
 	if err := os.MkdirAll(sourceDir, 0o700); err != nil {
 		return fmt.Errorf("创建商业包解压目录失败: %w", err)
 	}
-	if out, err := exec.CommandContext(ctx, "tar", "-xzf", packagePath, "-C", sourceDir).CombinedOutput(); err != nil {
-		return fmt.Errorf("解压商业包失败: %v: %s", err, strings.TrimSpace(string(out)))
+	appendOfficialUpdateLog(logPath, "解压商业包")
+	if err := runOfficialUpdateCommand(ctx, logPath, "tar", "-xzf", packagePath, "-C", sourceDir); err != nil {
+		return fmt.Errorf("解压商业包失败: %w", err)
 	}
 	backendDir := filepath.Join(sourceDir, "go-backend")
 	frontendDir := filepath.Join(sourceDir, "vite-frontend")
-	if out, err := exec.CommandContext(ctx, "docker", "build", "-t", "local/flvx-panel-backend:"+version, backendDir).CombinedOutput(); err != nil {
-		return fmt.Errorf("构建后端镜像失败: %v: %s", err, strings.TrimSpace(string(out)))
+	appendOfficialUpdateLog(logPath, "构建后端镜像: local/flvx-panel-backend:"+version)
+	if err := runOfficialUpdateCommand(ctx, logPath, "docker", "build", "-t", "local/flvx-panel-backend:"+version, backendDir); err != nil {
+		return fmt.Errorf("构建后端镜像失败: %w", err)
 	}
-	if out, err := exec.CommandContext(ctx, "docker", "build", "-t", "local/flvx-panel-frontend:"+version, "--build-arg", "VITE_BASE_PATH=/", frontendDir).CombinedOutput(); err != nil {
-		return fmt.Errorf("构建前端镜像失败: %v: %s", err, strings.TrimSpace(string(out)))
+	appendOfficialUpdateLog(logPath, "构建前端镜像: local/flvx-panel-frontend:"+version)
+	if err := runOfficialUpdateCommand(ctx, logPath, "docker", "build", "-t", "local/flvx-panel-frontend:"+version, "--build-arg", "VITE_BASE_PATH=/", frontendDir); err != nil {
+		return fmt.Errorf("构建前端镜像失败: %w", err)
+	}
+	appendOfficialUpdateLog(logPath, "商业包镜像构建完成")
+	return nil
+}
+
+func resetOfficialUpdateLog(logPath string) error {
+	if err := os.MkdirAll(filepath.Dir(logPath), 0o755); err != nil {
+		return err
+	}
+	return os.WriteFile(logPath, nil, 0o600)
+}
+
+func appendOfficialUpdateLog(logPath, message string) {
+	line := fmt.Sprintf("[%s] %s\n", time.Now().Format("2006-01-02 15:04:05"), message)
+	file, err := os.OpenFile(logPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o600)
+	if err != nil {
+		return
+	}
+	defer file.Close()
+	_, _ = file.WriteString(line)
+}
+
+func runOfficialUpdateCommand(ctx context.Context, logPath string, name string, args ...string) error {
+	appendOfficialUpdateLog(logPath, "执行命令: "+name+" "+strings.Join(args, " "))
+	file, err := os.OpenFile(logPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o600)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+	cmd := exec.CommandContext(ctx, name, args...)
+	cmd.Stdout = file
+	cmd.Stderr = file
+	if err := cmd.Run(); err != nil {
+		return err
 	}
 	return nil
 }
@@ -542,8 +648,7 @@ fail() {
 trap fail EXIT
 
 cd "$PANEL_DEPLOY_DIR"
-echo "" > "$LOGFILE"
-log "开始商业包在线更新"
+log "进入服务重启阶段"
 log "工作目录: $(pwd)"
 report upgrading ""
 

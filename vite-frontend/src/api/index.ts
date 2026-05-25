@@ -476,6 +476,7 @@ export const runLocalLicenseUpdate = (data?: {
   Network.post<LocalLicenseUpdateRunApiData>(
     "/license/local/update/run",
     data || {},
+    { timeout: 15 * 60 * 1000 },
   );
 export const getLocalLicenseUpdateLog = () =>
   Network.post<LocalLicenseUpdateLogApiData>("/license/local/update/log");

@@ -250,11 +250,15 @@ func (h *Handler) getOrCreateLicenseInstanceID() (string, error) {
 }
 
 func (h *Handler) localLicenseFingerprint() (string, string) {
+	cfg, _ := h.repo.GetLicenseClientConfig()
+	instanceID := strings.TrimSpace(cfg.InstanceID)
+	if instanceID == "" {
+		instanceID = readFirstExistingFile("/etc/machine-id", "/var/lib/dbus/machine-id")
+	}
 	parts := []string{
-		"hostname=" + localHostname(),
+		"instance=" + instanceID,
 		"os=" + runtime.GOOS,
 		"arch=" + runtime.GOARCH,
-		"machine=" + readFirstExistingFile("/etc/machine-id", "/var/lib/dbus/machine-id"),
 	}
 	sum := sha256.Sum256([]byte(strings.Join(parts, "\n")))
 	return hex.EncodeToString(sum[:]), fmt.Sprintf("%s/%s/%s", localHostname(), runtime.GOOS, runtime.GOARCH)

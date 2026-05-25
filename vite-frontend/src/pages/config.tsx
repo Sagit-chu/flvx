@@ -26,7 +26,11 @@ import {
   getAnnouncement,
   updateAnnouncement,
   getStorageSummary,
+  getLocalLicenseStatus,
+  checkLocalLicenseUpdate,
   type AnnouncementData,
+  type LocalLicenseStatusApiData,
+  type LocalLicenseUpdateApiData,
 } from "@/api";
 import { BackIcon, SettingsIcon } from "@/components/icons";
 import { ThemeSettings } from "@/components/theme-settings";
@@ -88,6 +92,49 @@ const BRAND_FILE_ACCEPT = "image/png,image/jpeg,image/webp,image/svg+xml";
 
 const toBrandAssetKind = (key: BrandPreviewKey): BrandAssetKind => {
   return key === "app_logo" ? "logo" : "favicon";
+};
+
+const licenseStateText: Record<string, string> = {
+  active: "已激活",
+  grace: "宽限期",
+  inactive: "未激活",
+  invalid: "无效",
+  expired: "已到期",
+  expired_grace: "宽限期已过",
+  disabled: "已停用",
+};
+
+const formatUpdateBlockReason = (reason: string) => {
+  if (reason.includes("docker socket")) {
+    return "容器未挂载 Docker 控制权限";
+  }
+  if (reason.includes("docker-compose.yml")) {
+    return "未找到标准部署编排文件";
+  }
+  if (reason.includes(".env")) {
+    return "未找到标准部署环境配置";
+  }
+  if (reason.includes("inspect backend image")) {
+    return "无法读取当前后端镜像信息";
+  }
+  if (reason.includes("docker CLI")) {
+    return "容器内 Docker 命令不可用";
+  }
+  if (reason.includes("docker compose")) {
+    return "容器内 Docker Compose 不可用";
+  }
+
+  return reason;
+};
+
+const formatUpdateBlockReasons = (reasons?: string[]) => {
+  const readable = Array.from(
+    new Set((reasons || []).map(formatUpdateBlockReason).filter(Boolean)),
+  );
+
+  return readable.length > 0
+    ? readable.join("；")
+    : "当前部署环境不满足在线更新要求";
 };
 
 // 网站配置项定义
@@ -302,6 +349,12 @@ export default function ConfigPage() {
     Partial<Record<BrandPreviewKey, boolean>>
   >({});
   const [storageSummary, setStorageSummary] = useState("加载中...");
+  const [licenseStatus, setLicenseStatus] =
+    useState<LocalLicenseStatusApiData | null>(null);
+  const [licenseUpdateInfo, setLicenseUpdateInfo] =
+    useState<LocalLicenseUpdateApiData | null>(null);
+  const [licenseUpdateError, setLicenseUpdateError] = useState("");
+  const [checkingLicenseUpdate, setCheckingLicenseUpdate] = useState(false);
 
   const canGoBack =
     typeof window !== "undefined" &&
@@ -376,11 +429,75 @@ export default function ConfigPage() {
     }
   };
 
+  const loadLicenseUpdateHint = async (showToast = false) => {
+    setCheckingLicenseUpdate(true);
+    setLicenseUpdateError("");
+
+    try {
+      const statusResponse = await getLocalLicenseStatus();
+
+      if (statusResponse.code !== 0 || !statusResponse.data) {
+        const message = statusResponse.msg || "读取商业授权状态失败";
+
+        setLicenseUpdateError(message);
+        if (showToast) toast.error(message);
+
+        return;
+      }
+
+      setLicenseStatus(statusResponse.data);
+
+      if (!statusResponse.data.configured) {
+        setLicenseUpdateInfo(null);
+        setLicenseUpdateError("商业授权尚未激活，暂不能检查在线更新");
+
+        return;
+      }
+
+      if (!statusResponse.data.valid) {
+        setLicenseUpdateInfo(null);
+        setLicenseUpdateError(
+          statusResponse.data.reason || "商业授权不可用，暂不能检查在线更新",
+        );
+
+        return;
+      }
+
+      const updateResponse = await checkLocalLicenseUpdate();
+
+      if (updateResponse.code !== 0 || !updateResponse.data) {
+        const message = updateResponse.msg || "检查商业版本更新失败";
+
+        setLicenseUpdateInfo(null);
+        setLicenseUpdateError(message);
+        if (showToast) toast.error(message);
+
+        return;
+      }
+
+      setLicenseUpdateInfo(updateResponse.data);
+      if (showToast) {
+        toast.success(
+          updateResponse.data.hasUpdate ? "发现可用商业版本" : "当前已是最新版本",
+        );
+      }
+    } catch {
+      const message = "检查商业版本更新失败，请稍后重试";
+
+      setLicenseUpdateInfo(null);
+      setLicenseUpdateError(message);
+      if (showToast) toast.error(message);
+    } finally {
+      setCheckingLicenseUpdate(false);
+    }
+  };
+
   useEffect(() => {
     const timer = setTimeout(() => {
       loadConfigs(initialConfigs);
       loadAnnouncement();
       loadStorageSummary();
+      loadLicenseUpdateHint(false);
     }, 100);
 
     return () => clearTimeout(timer);
@@ -1148,6 +1265,121 @@ export default function ConfigPage() {
           </p>
         </div>
       </div>
+
+      <Card className="shadow-md mb-6">
+        <CardHeader className="pb-6">
+          <div className="flex flex-col gap-4 w-full lg:flex-row lg:items-center lg:justify-between">
+            <div>
+              <h2 className="text-xl font-semibold">商业版本与在线更新</h2>
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                当前商业授权和版本检查状态，更新操作统一在商业授权页面执行
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                isLoading={checkingLicenseUpdate}
+                size="sm"
+                variant="flat"
+                onPress={() => loadLicenseUpdateHint(true)}
+              >
+                检查更新
+              </Button>
+              <Button
+                color="primary"
+                size="sm"
+                onPress={() => navigate("/admin/license")}
+              >
+                打开商业授权
+              </Button>
+            </div>
+          </div>
+        </CardHeader>
+        <Divider />
+        <CardBody className="space-y-4 pt-6">
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
+            <div className="rounded-xl bg-default-100 p-4">
+              <p className="text-xs text-gray-500 dark:text-gray-400">
+                授权状态
+              </p>
+              <p className="mt-1 text-sm font-semibold">
+                {licenseStatus?.configured
+                  ? licenseStateText[licenseStatus.state] ||
+                    licenseStatus.state ||
+                    "未知"
+                  : "未激活"}
+              </p>
+            </div>
+            <div className="rounded-xl bg-default-100 p-4">
+              <p className="text-xs text-gray-500 dark:text-gray-400">
+                当前版本
+              </p>
+              <p className="mt-1 break-all font-mono text-sm font-semibold">
+                {licenseUpdateInfo?.currentVersion || "-"}
+              </p>
+            </div>
+            <div className="rounded-xl bg-default-100 p-4">
+              <p className="text-xs text-gray-500 dark:text-gray-400">
+                最新版本
+              </p>
+              <p className="mt-1 break-all font-mono text-sm font-semibold">
+                {licenseUpdateInfo?.latestVersion || "-"}
+              </p>
+            </div>
+            <div className="rounded-xl bg-default-100 p-4">
+              <p className="text-xs text-gray-500 dark:text-gray-400">
+                更新状态
+              </p>
+              <p
+                className={`mt-1 text-sm font-semibold ${
+                  licenseUpdateInfo?.hasUpdate
+                    ? "text-primary"
+                    : licenseUpdateError
+                      ? "text-danger"
+                      : "text-success"
+                }`}
+              >
+                {licenseUpdateInfo?.hasUpdate
+                  ? "发现可用版本"
+                  : licenseUpdateError
+                    ? "检查失败"
+                    : checkingLicenseUpdate
+                      ? "正在检查"
+                      : "未发现新版本"}
+              </p>
+            </div>
+          </div>
+
+          {(licenseUpdateInfo?.hasUpdate || licenseUpdateError) && (
+            <div
+              className={`rounded-xl border px-4 py-3 text-sm ${
+                licenseUpdateInfo?.hasUpdate
+                  ? "border-primary-200 bg-primary-50 text-primary-700"
+                  : "border-danger-200 bg-danger-50 text-danger-700"
+              }`}
+            >
+              {licenseUpdateInfo?.hasUpdate ? (
+                <div className="space-y-1">
+                  <p className="font-medium">
+                    发现新商业版本 {licenseUpdateInfo.latestVersion}。
+                  </p>
+                  {licenseUpdateInfo.capability?.capable === false ? (
+                    <p>
+                      当前部署暂不能直接在线更新：
+                      {formatUpdateBlockReasons(
+                        licenseUpdateInfo.capability.reasons,
+                      )}
+                    </p>
+                  ) : (
+                    <p>可以进入商业授权页面执行更新并查看实时日志。</p>
+                  )}
+                </div>
+              ) : (
+                <p>{licenseUpdateError}</p>
+              )}
+            </div>
+          )}
+        </CardBody>
+      </Card>
 
       <Card className="shadow-md mb-6">
         <CardHeader className="pb-6">

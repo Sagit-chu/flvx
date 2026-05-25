@@ -60,6 +60,7 @@ import {
 import { Button } from "@/shadcn-bridge/heroui/button";
 import { Input } from "@/shadcn-bridge/heroui/input";
 import { PageHeader, PageShell, Panel, PanelHeader } from "@/components/app-ui";
+import { ConfirmDialog } from "@/components/confirm-dialog";
 
 export type CommerceAdminSection =
   | "settings"
@@ -243,6 +244,7 @@ export default function CommerceAdminPage({
   const [settings, setSettings] = useState<Record<string, string>>({});
   const [plans, setPlans] = useState<PlanApiItem[]>([]);
   const [planForm, setPlanForm] = useState<PlanApiItem>(emptyPlan);
+  const [planToDelete, setPlanToDelete] = useState<PlanApiItem | null>(null);
   const [invites, setInvites] = useState<InviteCodeApiItem[]>([]);
   const [inviteForm, setInviteForm] = useState<Partial<InviteCodeApiItem>>({
     maxUses: 1,
@@ -663,15 +665,13 @@ export default function CommerceAdminPage({
     }
   };
 
-  const handlePlanDelete = async (plan: PlanApiItem) => {
-    if (
-      !window.confirm(
-        `确认删除套餐「${plan.name}」？有历史订单时会自动归档并从列表隐藏。`,
-      )
-    ) {
-      return;
-    }
-    const res = await deleteAdminPlan(plan.id);
+  const handlePlanDelete = (plan: PlanApiItem) => {
+    setPlanToDelete(plan);
+  };
+
+  const confirmPlanDelete = async () => {
+    if (!planToDelete) return;
+    const res = await deleteAdminPlan(planToDelete.id);
 
     if (res.code === 0) {
       const result = res.data as
@@ -681,6 +681,7 @@ export default function CommerceAdminPage({
       toast.success(
         result?.archived ? "套餐已有历史订单，已归档隐藏" : "套餐已删除",
       );
+      setPlanToDelete(null);
       await load();
     } else {
       toast.error(res.msg || "删除失败");
@@ -2050,6 +2051,19 @@ export default function CommerceAdminPage({
           </div>
         </div>
       )}
+
+      <ConfirmDialog
+        confirmText="删除套餐"
+        description={`确认删除套餐「${planToDelete?.name || ""}」？如果套餐已有历史订单，系统会自动归档并从列表隐藏，不会破坏历史订单数据。`}
+        isOpen={Boolean(planToDelete)}
+        title="删除套餐"
+        onConfirm={() => void confirmPlanDelete()}
+        onOpenChange={(open) => {
+          if (!open) {
+            setPlanToDelete(null);
+          }
+        }}
+      />
 
       {selectedTicket && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4 backdrop-blur-sm">

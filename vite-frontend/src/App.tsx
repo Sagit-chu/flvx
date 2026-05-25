@@ -5,33 +5,40 @@ import {
   useNavigate,
   Navigate,
 } from "react-router-dom";
-import { useEffect } from "react";
+import { lazy, Suspense, useEffect } from "react";
 import { AnimatePresence } from "framer-motion";
 
-import IndexPage from "@/pages/index";
-import ChangePasswordPage from "@/pages/change-password";
-import DashboardPage from "@/pages/dashboard";
-import MonitorPage from "@/pages/monitor";
-import ForwardPage from "@/pages/forward";
-import PlansPage from "@/pages/plans";
-import TunnelPage from "@/pages/tunnel";
-import NodePage from "@/pages/node";
-import UserPage from "@/pages/user";
-import GroupPage from "@/pages/group";
-import RegisterPage from "@/pages/register";
-import LegalPage from "@/pages/legal";
-import ProfilePage from "@/pages/profile";
-import LimitPage from "@/pages/limit";
-import ConfigPage from "@/pages/config";
-import PanelSharingPage from "@/pages/panel-sharing";
-import CommerceAdminPage from "@/pages/commerce-admin";
-import LicensePage from "@/pages/license";
 import AdminLayout from "@/layouts/admin";
 import H5Layout from "@/layouts/h5";
 import { isAdmin as hasAdminRole, isLoggedIn } from "@/utils/auth";
 import { siteConfig, updateSiteConfig } from "@/config/site";
 import { useH5Mode } from "@/hooks/useH5Mode";
 import { SESSION_UPDATED_EVENT } from "@/utils/session";
+
+const IndexPage = lazy(() => import("@/pages/index"));
+const ChangePasswordPage = lazy(() => import("@/pages/change-password"));
+const DashboardPage = lazy(() => import("@/pages/dashboard"));
+const MonitorPage = lazy(() => import("@/pages/monitor"));
+const ForwardPage = lazy(() => import("@/pages/forward"));
+const PlansPage = lazy(() => import("@/pages/plans"));
+const TunnelPage = lazy(() => import("@/pages/tunnel"));
+const NodePage = lazy(() => import("@/pages/node"));
+const UserPage = lazy(() => import("@/pages/user"));
+const GroupPage = lazy(() => import("@/pages/group"));
+const RegisterPage = lazy(() => import("@/pages/register"));
+const LegalPage = lazy(() => import("@/pages/legal"));
+const ProfilePage = lazy(() => import("@/pages/profile"));
+const LimitPage = lazy(() => import("@/pages/limit"));
+const ConfigPage = lazy(() => import("@/pages/config"));
+const PanelSharingPage = lazy(() => import("@/pages/panel-sharing"));
+const CommerceAdminPage = lazy(() => import("@/pages/commerce-admin"));
+const LicensePage = lazy(() => import("@/pages/license"));
+
+const routeFallback = (
+  <div className="flex min-h-screen items-center justify-center bg-background text-sm text-default-500">
+    加载中...
+  </div>
+);
 
 const ProtectedRoute = ({
   children,
@@ -199,348 +206,356 @@ function App() {
   }, []);
 
   return (
-    <AnimatePresence mode="wait">
-      <Routes key={location.pathname} location={location}>
-        <Route element={<LoginRoute />} path="/" />
-        <Route element={<RegisterPage />} path="/register" />
-        <Route element={<LegalPage type="terms" />} path="/terms" />
-        <Route element={<LegalPage type="privacy" />} path="/privacy" />
-        <Route
-          element={<LegalPage type="refundPolicy" />}
-          path="/refund-policy"
-        />
-        <Route
-          element={<LegalPage type="acceptableUse" />}
-          path="/acceptable-use"
-        />
-        <Route
-          element={
-            <ProtectedRoute skipLayout={true}>
-              <ChangePasswordPage />
-            </ProtectedRoute>
-          }
-          path="/change-password"
-        />
-        <Route
-          element={
-            <ProtectedRoute>
-              <DashboardPage />
-            </ProtectedRoute>
-          }
-          path="/dashboard"
-        />
-        <Route
-          element={
-            <ProtectedRoute>
-              <MonitorPage />
-            </ProtectedRoute>
-          }
-          path="/monitor"
-        />
-        <Route
-          element={
-            <ProtectedRoute>
-              <ForwardPage />
-            </ProtectedRoute>
-          }
-          path="/forward"
-        />
-        <Route
-          element={
-            <ProtectedRoute>
-              <PlansPage />
-            </ProtectedRoute>
-          }
-          path="/plans"
-        />
-        <Route
-          element={
-            <ProtectedRoute>
-              <PlansPage section="subscription" />
-            </ProtectedRoute>
-          }
-          path="/plans/subscription"
-        />
-        <Route
-          element={
-            <ProtectedRoute>
-              <PlansPage section="store" />
-            </ProtectedRoute>
-          }
-          path="/plans/store"
-        />
-        <Route
-          element={
-            <ProtectedRoute>
-              <PlansPage section="coupon" />
-            </ProtectedRoute>
-          }
-          path="/plans/coupon"
-        />
-        <Route
-          element={
-            <ProtectedRoute>
-              <PlansPage section="orders" />
-            </ProtectedRoute>
-          }
-          path="/plans/orders"
-        />
-        <Route
-          element={
-            <ProtectedRoute>
-              <PlansPage section="wallet" />
-            </ProtectedRoute>
-          }
-          path="/plans/wallet"
-        />
-        <Route
-          element={
-            <ProtectedRoute>
-              <PlansPage section="notifications" />
-            </ProtectedRoute>
-          }
-          path="/plans/notifications"
-        />
-        <Route
-          element={
-            <ProtectedRoute>
-              <PlansPage section="tickets" />
-            </ProtectedRoute>
-          }
-          path="/plans/tickets"
-        />
-        <Route
-          element={<LegacyAdminRoute to="/admin/tunnels" />}
-          path="/tunnel"
-        />
-        <Route element={<LegacyAdminRoute to="/admin/nodes" />} path="/node" />
-        <Route element={<LegacyAdminRoute to="/admin/users" />} path="/user" />
-        <Route
-          element={<LegacyAdminRoute to="/admin/groups" />}
-          path="/group"
-        />
-        <Route
-          element={
-            <ProtectedRoute>
-              <ProfilePage />
-            </ProtectedRoute>
-          }
-          path="/profile"
-        />
-        <Route
-          element={<LegacyAdminRoute to="/admin/limits" />}
-          path="/limit"
-        />
-        <Route
-          element={<LegacyAdminRoute to="/admin/config" />}
-          path="/config"
-        />
-        <Route
-          element={<LegacyAdminRoute to="/admin/panel-sharing" />}
-          path="/panel-sharing"
-        />
-        <Route
-          element={<LegacyAdminRoute to="/admin/orders" />}
-          path="/commerce"
-        />
-        <Route
-          element={
-            <AdminRoute>
-              <Navigate replace to="/admin/reports" />
-            </AdminRoute>
-          }
-          path="/admin"
-        />
-        <Route
-          element={
-            <AdminRoute>
-              <TunnelPage />
-            </AdminRoute>
-          }
-          path="/admin/tunnels"
-        />
-        <Route
-          element={
-            <AdminRoute>
-              <NodePage />
-            </AdminRoute>
-          }
-          path="/admin/nodes"
-        />
-        <Route
-          element={
-            <AdminRoute>
-              <UserPage />
-            </AdminRoute>
-          }
-          path="/admin/users"
-        />
-        <Route
-          element={
-            <AdminRoute>
-              <GroupPage />
-            </AdminRoute>
-          }
-          path="/admin/groups"
-        />
-        <Route
-          element={
-            <AdminRoute>
-              <LimitPage />
-            </AdminRoute>
-          }
-          path="/admin/limits"
-        />
-        <Route
-          element={
-            <AdminRoute>
-              <ConfigPage />
-            </AdminRoute>
-          }
-          path="/admin/config"
-        />
-        <Route
-          element={
-            <AdminRoute>
-              <PanelSharingPage />
-            </AdminRoute>
-          }
-          path="/admin/panel-sharing"
-        />
-        <Route
-          element={<LegacyAdminRoute to="/admin/orders" />}
-          path="/admin/commerce"
-        />
-        <Route
-          element={
-            <AdminRoute>
-              <CommerceAdminPage section="plans" />
-            </AdminRoute>
-          }
-          path="/admin/plans"
-        />
-        <Route
-          element={
-            <AdminRoute>
-              <CommerceAdminPage section="orders" />
-            </AdminRoute>
-          }
-          path="/admin/orders"
-        />
-        <Route
-          element={
-            <AdminRoute>
-              <CommerceAdminPage section="payments" />
-            </AdminRoute>
-          }
-          path="/admin/payments"
-        />
-        <Route
-          element={
-            <AdminRoute>
-              <CommerceAdminPage section="refunds" />
-            </AdminRoute>
-          }
-          path="/admin/refunds"
-        />
-        <Route
-          element={
-            <AdminRoute>
-              <CommerceAdminPage section="wallet" />
-            </AdminRoute>
-          }
-          path="/admin/wallet"
-        />
-        <Route
-          element={
-            <AdminRoute>
-              <CommerceAdminPage section="coupons" />
-            </AdminRoute>
-          }
-          path="/admin/coupons"
-        />
-        <Route
-          element={
-            <AdminRoute>
-              <CommerceAdminPage section="tickets" />
-            </AdminRoute>
-          }
-          path="/admin/tickets"
-        />
-        <Route
-          element={
-            <AdminRoute>
-              <CommerceAdminPage section="reports" />
-            </AdminRoute>
-          }
-          path="/admin/reports"
-        />
-        <Route
-          element={
-            <AdminRoute>
-              <CommerceAdminPage section="risk" />
-            </AdminRoute>
-          }
-          path="/admin/risk"
-        />
-        <Route
-          element={
-            <AdminRoute>
-              <CommerceAdminPage section="resource-jobs" />
-            </AdminRoute>
-          }
-          path="/admin/resource-jobs"
-        />
-        <Route
-          element={
-            <AdminRoute>
-              <CommerceAdminPage section="audit" />
-            </AdminRoute>
-          }
-          path="/admin/audit"
-        />
-        <Route
-          element={
-            <AdminRoute>
-              <CommerceAdminPage section="invites" />
-            </AdminRoute>
-          }
-          path="/admin/invites"
-        />
-        <Route
-          element={
-            <AdminRoute>
-              <CommerceAdminPage section="register-settings" />
-            </AdminRoute>
-          }
-          path="/admin/register-settings"
-        />
-        <Route
-          element={
-            <AdminRoute>
-              <CommerceAdminPage section="payment-settings" />
-            </AdminRoute>
-          }
-          path="/admin/payment-settings"
-        />
-        <Route
-          element={
-            <AdminRoute>
-              <CommerceAdminPage section="legal-settings" />
-            </AdminRoute>
-          }
-          path="/admin/legal-settings"
-        />
-        <Route
-          element={
-            <AdminRoute>
-              <LicensePage />
-            </AdminRoute>
-          }
-          path="/admin/license"
-        />
-      </Routes>
-    </AnimatePresence>
+    <Suspense fallback={routeFallback}>
+      <AnimatePresence mode="wait">
+        <Routes key={location.pathname} location={location}>
+          <Route element={<LoginRoute />} path="/" />
+          <Route element={<RegisterPage />} path="/register" />
+          <Route element={<LegalPage type="terms" />} path="/terms" />
+          <Route element={<LegalPage type="privacy" />} path="/privacy" />
+          <Route
+            element={<LegalPage type="refundPolicy" />}
+            path="/refund-policy"
+          />
+          <Route
+            element={<LegalPage type="acceptableUse" />}
+            path="/acceptable-use"
+          />
+          <Route
+            element={
+              <ProtectedRoute skipLayout={true}>
+                <ChangePasswordPage />
+              </ProtectedRoute>
+            }
+            path="/change-password"
+          />
+          <Route
+            element={
+              <ProtectedRoute>
+                <DashboardPage />
+              </ProtectedRoute>
+            }
+            path="/dashboard"
+          />
+          <Route
+            element={
+              <ProtectedRoute>
+                <MonitorPage />
+              </ProtectedRoute>
+            }
+            path="/monitor"
+          />
+          <Route
+            element={
+              <ProtectedRoute>
+                <ForwardPage />
+              </ProtectedRoute>
+            }
+            path="/forward"
+          />
+          <Route
+            element={
+              <ProtectedRoute>
+                <PlansPage />
+              </ProtectedRoute>
+            }
+            path="/plans"
+          />
+          <Route
+            element={
+              <ProtectedRoute>
+                <PlansPage section="subscription" />
+              </ProtectedRoute>
+            }
+            path="/plans/subscription"
+          />
+          <Route
+            element={
+              <ProtectedRoute>
+                <PlansPage section="store" />
+              </ProtectedRoute>
+            }
+            path="/plans/store"
+          />
+          <Route
+            element={
+              <ProtectedRoute>
+                <PlansPage section="coupon" />
+              </ProtectedRoute>
+            }
+            path="/plans/coupon"
+          />
+          <Route
+            element={
+              <ProtectedRoute>
+                <PlansPage section="orders" />
+              </ProtectedRoute>
+            }
+            path="/plans/orders"
+          />
+          <Route
+            element={
+              <ProtectedRoute>
+                <PlansPage section="wallet" />
+              </ProtectedRoute>
+            }
+            path="/plans/wallet"
+          />
+          <Route
+            element={
+              <ProtectedRoute>
+                <PlansPage section="notifications" />
+              </ProtectedRoute>
+            }
+            path="/plans/notifications"
+          />
+          <Route
+            element={
+              <ProtectedRoute>
+                <PlansPage section="tickets" />
+              </ProtectedRoute>
+            }
+            path="/plans/tickets"
+          />
+          <Route
+            element={<LegacyAdminRoute to="/admin/tunnels" />}
+            path="/tunnel"
+          />
+          <Route
+            element={<LegacyAdminRoute to="/admin/nodes" />}
+            path="/node"
+          />
+          <Route
+            element={<LegacyAdminRoute to="/admin/users" />}
+            path="/user"
+          />
+          <Route
+            element={<LegacyAdminRoute to="/admin/groups" />}
+            path="/group"
+          />
+          <Route
+            element={
+              <ProtectedRoute>
+                <ProfilePage />
+              </ProtectedRoute>
+            }
+            path="/profile"
+          />
+          <Route
+            element={<LegacyAdminRoute to="/admin/limits" />}
+            path="/limit"
+          />
+          <Route
+            element={<LegacyAdminRoute to="/admin/config" />}
+            path="/config"
+          />
+          <Route
+            element={<LegacyAdminRoute to="/admin/panel-sharing" />}
+            path="/panel-sharing"
+          />
+          <Route
+            element={<LegacyAdminRoute to="/admin/orders" />}
+            path="/commerce"
+          />
+          <Route
+            element={
+              <AdminRoute>
+                <Navigate replace to="/admin/reports" />
+              </AdminRoute>
+            }
+            path="/admin"
+          />
+          <Route
+            element={
+              <AdminRoute>
+                <TunnelPage />
+              </AdminRoute>
+            }
+            path="/admin/tunnels"
+          />
+          <Route
+            element={
+              <AdminRoute>
+                <NodePage />
+              </AdminRoute>
+            }
+            path="/admin/nodes"
+          />
+          <Route
+            element={
+              <AdminRoute>
+                <UserPage />
+              </AdminRoute>
+            }
+            path="/admin/users"
+          />
+          <Route
+            element={
+              <AdminRoute>
+                <GroupPage />
+              </AdminRoute>
+            }
+            path="/admin/groups"
+          />
+          <Route
+            element={
+              <AdminRoute>
+                <LimitPage />
+              </AdminRoute>
+            }
+            path="/admin/limits"
+          />
+          <Route
+            element={
+              <AdminRoute>
+                <ConfigPage />
+              </AdminRoute>
+            }
+            path="/admin/config"
+          />
+          <Route
+            element={
+              <AdminRoute>
+                <PanelSharingPage />
+              </AdminRoute>
+            }
+            path="/admin/panel-sharing"
+          />
+          <Route
+            element={<LegacyAdminRoute to="/admin/orders" />}
+            path="/admin/commerce"
+          />
+          <Route
+            element={
+              <AdminRoute>
+                <CommerceAdminPage section="plans" />
+              </AdminRoute>
+            }
+            path="/admin/plans"
+          />
+          <Route
+            element={
+              <AdminRoute>
+                <CommerceAdminPage section="orders" />
+              </AdminRoute>
+            }
+            path="/admin/orders"
+          />
+          <Route
+            element={
+              <AdminRoute>
+                <CommerceAdminPage section="payments" />
+              </AdminRoute>
+            }
+            path="/admin/payments"
+          />
+          <Route
+            element={
+              <AdminRoute>
+                <CommerceAdminPage section="refunds" />
+              </AdminRoute>
+            }
+            path="/admin/refunds"
+          />
+          <Route
+            element={
+              <AdminRoute>
+                <CommerceAdminPage section="wallet" />
+              </AdminRoute>
+            }
+            path="/admin/wallet"
+          />
+          <Route
+            element={
+              <AdminRoute>
+                <CommerceAdminPage section="coupons" />
+              </AdminRoute>
+            }
+            path="/admin/coupons"
+          />
+          <Route
+            element={
+              <AdminRoute>
+                <CommerceAdminPage section="tickets" />
+              </AdminRoute>
+            }
+            path="/admin/tickets"
+          />
+          <Route
+            element={
+              <AdminRoute>
+                <CommerceAdminPage section="reports" />
+              </AdminRoute>
+            }
+            path="/admin/reports"
+          />
+          <Route
+            element={
+              <AdminRoute>
+                <CommerceAdminPage section="risk" />
+              </AdminRoute>
+            }
+            path="/admin/risk"
+          />
+          <Route
+            element={
+              <AdminRoute>
+                <CommerceAdminPage section="resource-jobs" />
+              </AdminRoute>
+            }
+            path="/admin/resource-jobs"
+          />
+          <Route
+            element={
+              <AdminRoute>
+                <CommerceAdminPage section="audit" />
+              </AdminRoute>
+            }
+            path="/admin/audit"
+          />
+          <Route
+            element={
+              <AdminRoute>
+                <CommerceAdminPage section="invites" />
+              </AdminRoute>
+            }
+            path="/admin/invites"
+          />
+          <Route
+            element={
+              <AdminRoute>
+                <CommerceAdminPage section="register-settings" />
+              </AdminRoute>
+            }
+            path="/admin/register-settings"
+          />
+          <Route
+            element={
+              <AdminRoute>
+                <CommerceAdminPage section="payment-settings" />
+              </AdminRoute>
+            }
+            path="/admin/payment-settings"
+          />
+          <Route
+            element={
+              <AdminRoute>
+                <CommerceAdminPage section="legal-settings" />
+              </AdminRoute>
+            }
+            path="/admin/legal-settings"
+          />
+          <Route
+            element={
+              <AdminRoute>
+                <LicensePage />
+              </AdminRoute>
+            }
+            path="/admin/license"
+          />
+        </Routes>
+      </AnimatePresence>
+    </Suspense>
   );
 }
 

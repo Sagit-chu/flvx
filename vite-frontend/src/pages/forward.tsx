@@ -28,6 +28,7 @@ import { CSS } from "@dnd-kit/utilities";
 
 import { AnimatedPage } from "@/components/animated-page";
 import { BatchActionResultModal } from "@/components/batch-action-result-modal";
+import { ConfirmDialog } from "@/components/confirm-dialog";
 import { Card, CardBody, CardHeader } from "@/shadcn-bridge/heroui/card";
 import { Button } from "@/shadcn-bridge/heroui/button";
 import { Input } from "@/shadcn-bridge/heroui/input";
@@ -1278,6 +1279,8 @@ export default function ForwardPage() {
   const [isEdit, setIsEdit] = useState(false);
   const [submitLoading, setSubmitLoading] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
+  const [forceDeleteLoading, setForceDeleteLoading] = useState(false);
+  const [forceDeleteError, setForceDeleteError] = useState("");
   const [diagnosisLoading, setDiagnosisLoading] = useState(false);
   const [forwardToDelete, setForwardToDelete] = useState<Forward | null>(null);
   const [currentDiagnosisForward, setCurrentDiagnosisForward] =
@@ -2161,6 +2164,24 @@ export default function ForwardPage() {
     setDeleteModalOpen(true);
   };
 
+  const removeForwardAfterDelete = (id: number) => {
+    setForwards((prev) => prev.filter((forward) => forward.id !== id));
+    setForwardOrder((prev) => {
+      const next = prev.filter((orderId) => orderId !== id);
+
+      saveOrder(FORWARD_ORDER_KEY, next);
+
+      return next;
+    });
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+
+      next.delete(id);
+
+      return next;
+    });
+  };
+
   // 确认删除规则
   const confirmDelete = async () => {
     if (!forwardToDelete) return;
@@ -2171,64 +2192,39 @@ export default function ForwardPage() {
 
       if (res.code === 0) {
         toast.success("删除成功");
+        removeForwardAfterDelete(forwardToDelete.id);
         setDeleteModalOpen(false);
         setForwardToDelete(null);
-        setForwards((prev) =>
-          prev.filter((forward) => forward.id !== forwardToDelete.id),
-        );
-        setForwardOrder((prev) => {
-          const next = prev.filter((id) => id !== forwardToDelete.id);
-
-          saveOrder(FORWARD_ORDER_KEY, next);
-
-          return next;
-        });
-        setSelectedIds((prev) => {
-          const next = new Set(prev);
-
-          next.delete(forwardToDelete.id);
-
-          return next;
-        });
       } else {
-        // 删除失败，询问是否强制删除
-        const confirmed = window.confirm(
-          `常规删除失败：${res.msg || "删除失败"}\n\n是否需要强制删除？\n\n⚠️ 注意：强制删除不会去验证节点端是否已经删除对应的规则服务。`,
-        );
-
-        if (confirmed) {
-          const forceRes = await forceDeleteForward(forwardToDelete.id);
-
-          if (forceRes.code === 0) {
-            toast.success("强制删除成功");
-            setDeleteModalOpen(false);
-            setForwardToDelete(null);
-            setForwards((prev) =>
-              prev.filter((forward) => forward.id !== forwardToDelete.id),
-            );
-            setForwardOrder((prev) => {
-              const next = prev.filter((id) => id !== forwardToDelete.id);
-
-              saveOrder(FORWARD_ORDER_KEY, next);
-
-              return next;
-            });
-            setSelectedIds((prev) => {
-              const next = new Set(prev);
-
-              next.delete(forwardToDelete.id);
-
-              return next;
-            });
-          } else {
-            toast.error(forceRes.msg || "强制删除失败");
-          }
-        }
+        setDeleteModalOpen(false);
+        setForceDeleteError(res.msg || "删除失败");
       }
     } catch {
       toast.error("删除失败");
     } finally {
       setDeleteLoading(false);
+    }
+  };
+
+  const confirmForceDelete = async () => {
+    if (!forwardToDelete) return;
+
+    setForceDeleteLoading(true);
+    try {
+      const forceRes = await forceDeleteForward(forwardToDelete.id);
+
+      if (forceRes.code === 0) {
+        toast.success("强制删除成功");
+        removeForwardAfterDelete(forwardToDelete.id);
+        setForceDeleteError("");
+        setForwardToDelete(null);
+      } else {
+        toast.error(forceRes.msg || "强制删除失败");
+      }
+    } catch {
+      toast.error("强制删除失败");
+    } finally {
+      setForceDeleteLoading(false);
     }
   };
 
@@ -5083,7 +5079,12 @@ export default function ForwardPage() {
         placement="center"
         scrollBehavior="inside"
         size="2xl"
-        onOpenChange={setDeleteModalOpen}
+        onOpenChange={(open) => {
+          setDeleteModalOpen(open);
+          if (!open && !forceDeleteError) {
+            setForwardToDelete(null);
+          }
+        }}
       >
         <ModalContent>
           {(onClose) => (
@@ -5119,6 +5120,21 @@ export default function ForwardPage() {
           )}
         </ModalContent>
       </Modal>
+
+      <ConfirmDialog
+        confirmText="强制删除"
+        description={`常规删除失败：${forceDeleteError || "删除失败"}。是否强制删除规则「${forwardToDelete?.name || ""}」？强制删除不会验证节点端是否已经删除对应规则服务。`}
+        isLoading={forceDeleteLoading}
+        isOpen={Boolean(forceDeleteError && forwardToDelete)}
+        title="强制删除规则"
+        onConfirm={() => void confirmForceDelete()}
+        onOpenChange={(open) => {
+          if (!open) {
+            setForceDeleteError("");
+            setForwardToDelete(null);
+          }
+        }}
+      />
 
       {/* 地址列表弹窗 */}
       <Modal

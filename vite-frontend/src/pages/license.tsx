@@ -121,6 +121,17 @@ export default function LicensePage() {
     void loadStatus();
   }, []);
 
+  useEffect(() => {
+    if (!runningUpdate) return;
+
+    void handleLoadUpdateLog(true);
+    const timer = window.setInterval(() => {
+      void handleLoadUpdateLog(true);
+    }, 1500);
+
+    return () => window.clearInterval(timer);
+  }, [runningUpdate]);
+
   const handleActivate = async () => {
     if (
       !form.centerUrl.trim() ||
@@ -185,6 +196,11 @@ export default function LicensePage() {
 
   const handleRunUpdate = async () => {
     setRunningUpdate(true);
+    setUpdateLog({
+      log: `[${new Date().toLocaleString("zh-CN", { hour12: false })}] 正在启动在线更新，请勿关闭页面。\n`,
+      deployDir: "",
+      logPath: "",
+    });
     try {
       const res = await runLocalLicenseUpdate({
         version: updateInfo?.latestVersion,
@@ -195,25 +211,26 @@ export default function LicensePage() {
         toast.success(res.data.message || "升级任务已启动");
         void handleLoadUpdateLog();
       } else {
-        toast.error(res.msg || "启动更新失败");
+      toast.error(res.msg || "启动更新失败");
       }
     } finally {
+      void handleLoadUpdateLog(true);
       setRunningUpdate(false);
     }
   };
 
-  const handleLoadUpdateLog = async () => {
-    setLoadingLog(true);
+  const handleLoadUpdateLog = async (silent = false) => {
+    if (!silent) setLoadingLog(true);
     try {
       const res = await getLocalLicenseUpdateLog();
 
       if (res.code === 0 && res.data) {
         setUpdateLog(res.data);
-      } else {
+      } else if (!silent) {
         toast.error(res.msg || "读取升级日志失败");
       }
     } finally {
-      setLoadingLog(false);
+      if (!silent) setLoadingLog(false);
     }
   };
 
@@ -416,7 +433,7 @@ export default function LicensePage() {
                 className="gap-2"
                 disabled={loadingLog}
                 variant="outline"
-                onClick={handleLoadUpdateLog}
+                onClick={() => handleLoadUpdateLog(false)}
               >
                 {loadingLog ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
@@ -478,10 +495,27 @@ export default function LicensePage() {
             </Alert>
           )}
 
-          {updateLog?.log && (
-            <pre className="mt-4 max-h-[300px] overflow-auto rounded-xl bg-zinc-950 p-4 text-xs text-zinc-100">
-              {updateLog.log}
-            </pre>
+          {(runningUpdate || updateLog?.log) && (
+            <div className="mt-4 overflow-hidden rounded-xl border border-zinc-800 bg-zinc-950">
+              <div className="flex items-center justify-between border-b border-zinc-800 px-4 py-3">
+                <div>
+                  <p className="text-sm font-semibold text-zinc-100">
+                    更新过程
+                  </p>
+                  <p className="mt-1 text-xs text-zinc-400">
+                    {runningUpdate
+                      ? "正在执行，日志会自动刷新。"
+                      : "最近一次在线更新日志。"}
+                  </p>
+                </div>
+                {runningUpdate && (
+                  <Loader2 className="h-4 w-4 animate-spin text-zinc-100" />
+                )}
+              </div>
+              <pre className="max-h-[420px] min-h-[180px] overflow-auto p-4 text-xs leading-relaxed text-zinc-100">
+                {updateLog?.log || "正在等待后端写入更新日志..."}
+              </pre>
+            </div>
           )}
         </section>
 

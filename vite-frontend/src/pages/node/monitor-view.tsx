@@ -44,6 +44,7 @@ import {
   parseDistroFromVersion,
   getDistroColor,
 } from "@/components/distro-icon";
+import { ConfirmDialog } from "@/components/confirm-dialog";
 import {
   getNodeMetrics,
   getServiceMonitorList,
@@ -572,6 +573,8 @@ export function MonitorView({ nodeMap, viewMode = "grid" }: MonitorViewProps) {
 
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [editingMonitor, setEditingMonitor] =
+    useState<ServiceMonitorApiItem | null>(null);
+  const [monitorToDelete, setMonitorToDelete] =
     useState<ServiceMonitorApiItem | null>(null);
   const [monitorForm, setMonitorForm] = useState({
     name: "",
@@ -1139,13 +1142,26 @@ export function MonitorView({ nodeMap, viewMode = "grid" }: MonitorViewProps) {
     }
   };
 
-  const handleDeleteMonitor = async (id: number) => {
-    if (!confirm("确定删除该监控项?")) return;
+  const handleDeleteMonitor = (id: number) => {
+    const monitor = serviceMonitors.find((item) => item.id === id);
+
+    if (!monitor) {
+      toast.error("监控项不存在");
+
+      return;
+    }
+
+    setMonitorToDelete(monitor);
+  };
+
+  const confirmDeleteMonitor = async () => {
+    if (!monitorToDelete) return;
     try {
-      const response = await deleteServiceMonitor(id);
+      const response = await deleteServiceMonitor(monitorToDelete.id);
 
       if (response.code === 0) {
         toast.success("删除成功");
+        setMonitorToDelete(null);
         void loadServiceMonitors();
         void loadLatestMonitorResults();
       } else {
@@ -2308,6 +2324,19 @@ export function MonitorView({ nodeMap, viewMode = "grid" }: MonitorViewProps) {
           </ModalFooter>
         </ModalContent>
       </Modal>
+
+      <ConfirmDialog
+        confirmText="删除监控"
+        description={`确定要删除监控项「${monitorToDelete?.name || ""}」？删除后会同时清理该监控的历史记录。`}
+        isOpen={Boolean(monitorToDelete)}
+        title="删除监控项"
+        onConfirm={() => void confirmDeleteMonitor()}
+        onOpenChange={(open) => {
+          if (!open) {
+            setMonitorToDelete(null);
+          }
+        }}
+      />
     </div>
   );
 }

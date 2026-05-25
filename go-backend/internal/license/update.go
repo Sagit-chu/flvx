@@ -50,6 +50,10 @@ type UpdateReportRequest struct {
 	TargetVersion  string `json:"targetVersion"`
 	Status         string `json:"status"`
 	ErrorMessage   string `json:"errorMessage"`
+	Domain         string `json:"domain"`
+	IPv4           string `json:"ipv4"`
+	IPv6           string `json:"ipv6"`
+	InstanceID     string `json:"instanceId"`
 }
 
 type UpdateManifest struct {

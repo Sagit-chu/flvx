@@ -32,7 +32,14 @@ write_sha "${OUT_DIR}/docker-compose-v6.yml"
 
 tar \
   --exclude ".git" \
+  --exclude ".github" \
   --exclude ".DS_Store" \
+  --exclude ".env" \
+  --exclude ".env.*" \
+  --exclude "*/.env" \
+  --exclude "*/.env.*" \
+  --exclude ".vscode" \
+  --exclude ".idea" \
   --exclude "release" \
   --exclude "vite-frontend/dist" \
   --exclude "vite-frontend/node_modules" \

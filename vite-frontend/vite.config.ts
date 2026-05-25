@@ -2,50 +2,9 @@ import path from "path";
 
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
-import { VitePWA } from "vite-plugin-pwa";
 
 export default defineConfig({
-  plugins: [
-    react(),
-    VitePWA({
-      registerType: "prompt",
-      injectRegister: "auto",
-      includeAssets: ["favicon.ico", "apple-touch-icon.png"],
-      manifest: {
-        name: "FLVX",
-        short_name: "FLVX",
-        description: "FLVX forwarding management panel",
-        theme_color: "#2563eb",
-        background_color: "#f6f7fb",
-        display: "standalone",
-        start_url: "/",
-        scope: "/",
-        icons: [
-          {
-            src: "pwa-192x192.png",
-            sizes: "192x192",
-            type: "image/png",
-          },
-          {
-            src: "pwa-512x512.png",
-            sizes: "512x512",
-            type: "image/png",
-          },
-          {
-            src: "pwa-maskable-512x512.png",
-            sizes: "512x512",
-            type: "image/png",
-            purpose: "maskable",
-          },
-        ],
-      },
-      workbox: {
-        navigateFallback: "/index.html",
-        cleanupOutdatedCaches: true,
-        maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
-      },
-    }),
-  ],
+  plugins: [react()],
   base: "/",
   resolve: {
     alias: {
@@ -59,9 +18,43 @@ export default defineConfig({
   build: {
     outDir: "dist",
     sourcemap: false,
-    minify: false,
+    minify: "oxc",
     rollupOptions: {
-      treeshake: false,
+      output: {
+        manualChunks(id) {
+          if (!id.includes("node_modules")) return;
+          if (id.includes("/react/") || id.includes("/react-dom/")) {
+            return "react";
+          }
+          if (id.includes("react-router-dom")) {
+            return "router";
+          }
+          if (id.includes("recharts")) {
+            return "charts";
+          }
+          if (id.includes("@dnd-kit")) {
+            return "dnd";
+          }
+          if (
+            id.includes("react-markdown") ||
+            id.includes("rehype-sanitize") ||
+            id.includes("remark-gfm")
+          ) {
+            return "markdown";
+          }
+          if (id.includes("framer-motion")) {
+            return "motion";
+          }
+          if (
+            id.includes("lucide-react") ||
+            id.includes("react-hot-toast") ||
+            id.includes("sonner")
+          ) {
+            return "ui";
+          }
+        },
+      },
+      treeshake: true,
     },
   },
 });
