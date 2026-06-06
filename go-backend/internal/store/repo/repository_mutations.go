@@ -769,6 +769,9 @@ func (r *Repository) DeleteForwardCascade(forwardID int64) error {
 		return errors.New("repository not initialized")
 	}
 	return r.db.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Where("forward_id = ?", forwardID).Delete(&model.NftCounterState{}).Error; err != nil {
+			return err
+		}
 		if err := tx.Where("forward_id = ?", forwardID).Delete(&model.ForwardPort{}).Error; err != nil {
 			return err
 		}

@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"testing"
 	"time"
+
+	"go-backend/internal/store/model"
 )
 
 func TestNftCounterStateUpsertUpdatesExistingKey(t *testing.T) {
@@ -104,6 +106,48 @@ func TestNftCounterStateDeleteByForwardRemovesOnlyMatchingRows(t *testing.T) {
 	}
 	if len(node12) != 0 {
 		t.Fatalf("expected forward 42 state removed from node 12, got %+v", node12)
+	}
+}
+
+func TestDeleteForwardCascadeRemovesNftCounterStateOnlyForDeletedForward(t *testing.T) {
+	r, err := Open(":memory:")
+	if err != nil {
+		t.Fatalf("open repo: %v", err)
+	}
+	defer r.Close()
+
+	now := time.Now().UnixMilli()
+	forwards := []model.Forward{
+		{ID: 42, UserID: 1, UserName: "admin", Name: "forward-a", TunnelID: 10, RemoteAddr: "203.0.113.1:80", Strategy: "fifo", CreatedTime: now, UpdatedTime: now, Status: 1},
+		{ID: 43, UserID: 1, UserName: "admin", Name: "forward-b", TunnelID: 10, RemoteAddr: "203.0.113.2:80", Strategy: "fifo", CreatedTime: now, UpdatedTime: now, Status: 1},
+	}
+	if err := r.DB().Create(&forwards).Error; err != nil {
+		t.Fatalf("seed forwards: %v", err)
+	}
+	if err := r.UpsertNftCounterStates([]NftCounterStateInput{
+		{NodeID: 11, ForwardID: 42, Protocol: "tcp", Direction: "to-target", RuleHash: "a", Bytes: 100, Packets: 10, CollectedTime: now},
+		{NodeID: 11, ForwardID: 43, Protocol: "udp", Direction: "from-target", RuleHash: "b", Bytes: 200, Packets: 20, CollectedTime: now},
+	}, now); err != nil {
+		t.Fatalf("UpsertNftCounterStates: %v", err)
+	}
+
+	if err := r.DeleteForwardCascade(42); err != nil {
+		t.Fatalf("DeleteForwardCascade: %v", err)
+	}
+
+	rows, err := r.GetNftCounterStatesByNode(11)
+	if err != nil {
+		t.Fatalf("GetNftCounterStatesByNode: %v", err)
+	}
+	if len(rows) != 1 || rows[0].ForwardID != 43 {
+		t.Fatalf("expected only forward 43 counter state to remain, got %+v", rows)
+	}
+	var deletedForwardCount int64
+	if err := r.DB().Model(&model.Forward{}).Where("id = ?", int64(42)).Count(&deletedForwardCount).Error; err != nil {
+		t.Fatalf("count deleted forward: %v", err)
+	}
+	if deletedForwardCount != 0 {
+		t.Fatalf("expected forward 42 deleted, count=%d", deletedForwardCount)
 	}
 }
 
