@@ -86,6 +86,99 @@ func TestGetFlowUploadForwardMetasAndApplyFlowUploadDeltasBatch(t *testing.T) {
 	}
 }
 
+func TestApplyNftTrafficAccountingAppliesFlowQuotaAndStates(t *testing.T) {
+	r, err := Open(filepath.Join(t.TempDir(), "nft-accounting.db"))
+	if err != nil {
+		t.Fatalf("open repo: %v", err)
+	}
+	defer r.Close()
+
+	now := time.Now()
+	nowMs := now.UnixMilli()
+	seedFlowBatchRows(t, r, nowMs)
+
+	quotaViews, err := r.ApplyNftTrafficAccounting(
+		[]FlowUploadCounterDelta{{ForwardID: 20, UserID: 2, UserTunnelID: 10, InFlow: 480, OutFlow: 660}},
+		map[int64]int64{2: 1140},
+		[]NftCounterStateInput{{
+			NodeID:        11,
+			ForwardID:     20,
+			Protocol:      "tcp",
+			Direction:     "to-target",
+			RuleHash:      "hash-a",
+			Bytes:         1400,
+			Packets:       14,
+			CollectedTime: nowMs,
+		}},
+		now,
+	)
+	if err != nil {
+		t.Fatalf("ApplyNftTrafficAccounting: %v", err)
+	}
+	if got := mustFlowBatchCount(t, r, `SELECT in_flow FROM forward WHERE id = 20`); got != 480 {
+		t.Fatalf("expected forward in_flow=480, got %d", got)
+	}
+	if got := mustFlowBatchCount(t, r, `SELECT out_flow FROM user WHERE id = 2`); got != 660 {
+		t.Fatalf("expected user out_flow=660, got %d", got)
+	}
+	if got := mustFlowBatchCount(t, r, `SELECT in_flow FROM user_tunnel WHERE id = 10`); got != 480 {
+		t.Fatalf("expected user_tunnel in_flow=480, got %d", got)
+	}
+	if quotaViews[2] == nil || quotaViews[2].DailyUsedBytes != 1140 || quotaViews[2].MonthlyUsedBytes != 1140 {
+		t.Fatalf("unexpected quota view: %#v", quotaViews[2])
+	}
+	states, err := r.GetNftCounterStatesByNode(11)
+	if err != nil {
+		t.Fatalf("GetNftCounterStatesByNode: %v", err)
+	}
+	if len(states) != 1 || states[0].ForwardID != 20 || states[0].Bytes != 1400 {
+		t.Fatalf("unexpected nft counter state: %+v", states)
+	}
+}
+
+func TestApplyNftTrafficAccountingRollsBackFlowAndQuotaWhenStateWriteFails(t *testing.T) {
+	r, err := Open(filepath.Join(t.TempDir(), "nft-accounting-rollback.db"))
+	if err != nil {
+		t.Fatalf("open repo: %v", err)
+	}
+	defer r.Close()
+
+	now := time.Now()
+	nowMs := now.UnixMilli()
+	seedFlowBatchRows(t, r, nowMs)
+	if err := r.DB().Exec(`DROP TABLE nft_counter_state`).Error; err != nil {
+		t.Fatalf("drop nft_counter_state: %v", err)
+	}
+
+	_, err = r.ApplyNftTrafficAccounting(
+		[]FlowUploadCounterDelta{{ForwardID: 20, UserID: 2, UserTunnelID: 10, InFlow: 480, OutFlow: 660}},
+		map[int64]int64{2: 1140},
+		[]NftCounterStateInput{{
+			NodeID:        11,
+			ForwardID:     20,
+			Protocol:      "tcp",
+			Direction:     "to-target",
+			RuleHash:      "hash-a",
+			Bytes:         1400,
+			Packets:       14,
+			CollectedTime: nowMs,
+		}},
+		now,
+	)
+	if err == nil {
+		t.Fatalf("expected ApplyNftTrafficAccounting to fail")
+	}
+	if got := mustFlowBatchCount(t, r, `SELECT in_flow FROM forward WHERE id = 20`); got != 0 {
+		t.Fatalf("expected forward flow rollback, got %d", got)
+	}
+	if got := mustFlowBatchCount(t, r, `SELECT out_flow FROM user WHERE id = 2`); got != 0 {
+		t.Fatalf("expected user flow rollback, got %d", got)
+	}
+	if got := mustFlowBatchCount(t, r, `SELECT COALESCE((SELECT daily_used_bytes FROM user_quota WHERE user_id = 2), 0)`); got != 0 {
+		t.Fatalf("expected quota rollback, got %d", got)
+	}
+}
+
 func TestGetFlowUploadForwardMetasKeepsForwardsWhenTunnelRowMissing(t *testing.T) {
 	r, err := Open(filepath.Join(t.TempDir(), "flow-batch-missing-tunnel.db"))
 	if err != nil {
@@ -166,4 +259,20 @@ func mustFlowBatchCount(t *testing.T, r *Repository, query string, args ...inter
 		t.Fatalf("query %q failed: %v", query, err)
 	}
 	return value
+}
+
+func seedFlowBatchRows(t *testing.T, r *Repository, now int64) {
+	t.Helper()
+	if err := r.DB().Exec(`INSERT INTO user(id, user, pwd, role_id, exp_time, flow, in_flow, out_flow, flow_reset_time, num, created_time, updated_time, status) VALUES(2, 'u2', 'pwd', 1, 2727251700000, 99999, 0, 0, 1, 99999, ?, ?, 1)`, now, now).Error; err != nil {
+		t.Fatalf("insert user: %v", err)
+	}
+	if err := r.DB().Exec(`INSERT INTO tunnel(id, name, traffic_ratio, type, protocol, flow, created_time, updated_time, status, in_ip, inx) VALUES(1, 't1', 2.0, 1, 'tls', 3, ?, ?, 1, NULL, 0)`, now, now).Error; err != nil {
+		t.Fatalf("insert tunnel: %v", err)
+	}
+	if err := r.DB().Exec(`INSERT INTO user_tunnel(id, user_id, tunnel_id, speed_id, num, flow, in_flow, out_flow, flow_reset_time, exp_time, status) VALUES(10, 2, 1, NULL, 99999, 99999, 0, 0, 1, 2727251700000, 1)`).Error; err != nil {
+		t.Fatalf("insert user_tunnel: %v", err)
+	}
+	if err := r.DB().Exec(`INSERT INTO forward(id, user_id, user_name, name, tunnel_id, remote_addr, strategy, in_flow, out_flow, created_time, updated_time, status, inx) VALUES(20, 2, 'u2', 'f20', 1, '1.1.1.1:80', 'fifo', 0, 0, ?, ?, 1, 0)`, now, now).Error; err != nil {
+		t.Fatalf("insert forward: %v", err)
+	}
 }

@@ -104,6 +104,19 @@ func (r *Repository) ApplyFlowUploadDeltasBatch(deltas []FlowUploadCounterDelta)
 		return nil
 	}
 
+	return r.db.Transaction(func(tx *gorm.DB) error {
+		return applyFlowUploadDeltasTx(tx, deltas)
+	})
+}
+
+func applyFlowUploadDeltasTx(tx *gorm.DB, deltas []FlowUploadCounterDelta) error {
+	if tx == nil {
+		return errors.New("database unavailable")
+	}
+	if len(deltas) == 0 {
+		return nil
+	}
+
 	forwardTotals := make(map[int64][2]int64, len(deltas))
 	userTotals := make(map[int64][2]int64, len(deltas))
 	userTunnelTotals := make(map[int64][2]int64, len(deltas))
@@ -128,36 +141,34 @@ func (r *Repository) ApplyFlowUploadDeltasBatch(deltas []FlowUploadCounterDelta)
 		}
 	}
 
-	return r.db.Transaction(func(tx *gorm.DB) error {
-		for _, forwardID := range sortedFlowUploadTargetIDs(forwardTotals) {
-			total := forwardTotals[forwardID]
-			if err := tx.Model(&model.Forward{}).Where("id = ?", forwardID).UpdateColumns(map[string]interface{}{
-				"in_flow":  gorm.Expr("in_flow + ?", total[0]),
-				"out_flow": gorm.Expr("out_flow + ?", total[1]),
-			}).Error; err != nil {
-				return err
-			}
+	for _, forwardID := range sortedFlowUploadTargetIDs(forwardTotals) {
+		total := forwardTotals[forwardID]
+		if err := tx.Model(&model.Forward{}).Where("id = ?", forwardID).UpdateColumns(map[string]interface{}{
+			"in_flow":  gorm.Expr("in_flow + ?", total[0]),
+			"out_flow": gorm.Expr("out_flow + ?", total[1]),
+		}).Error; err != nil {
+			return err
 		}
-		for _, userID := range sortedFlowUploadTargetIDs(userTotals) {
-			total := userTotals[userID]
-			if err := tx.Model(&model.User{}).Where("id = ?", userID).UpdateColumns(map[string]interface{}{
-				"in_flow":  gorm.Expr("in_flow + ?", total[0]),
-				"out_flow": gorm.Expr("out_flow + ?", total[1]),
-			}).Error; err != nil {
-				return err
-			}
+	}
+	for _, userID := range sortedFlowUploadTargetIDs(userTotals) {
+		total := userTotals[userID]
+		if err := tx.Model(&model.User{}).Where("id = ?", userID).UpdateColumns(map[string]interface{}{
+			"in_flow":  gorm.Expr("in_flow + ?", total[0]),
+			"out_flow": gorm.Expr("out_flow + ?", total[1]),
+		}).Error; err != nil {
+			return err
 		}
-		for _, userTunnelID := range sortedFlowUploadTargetIDs(userTunnelTotals) {
-			total := userTunnelTotals[userTunnelID]
-			if err := tx.Model(&model.UserTunnel{}).Where("id = ?", userTunnelID).UpdateColumns(map[string]interface{}{
-				"in_flow":  gorm.Expr("in_flow + ?", total[0]),
-				"out_flow": gorm.Expr("out_flow + ?", total[1]),
-			}).Error; err != nil {
-				return err
-			}
+	}
+	for _, userTunnelID := range sortedFlowUploadTargetIDs(userTunnelTotals) {
+		total := userTunnelTotals[userTunnelID]
+		if err := tx.Model(&model.UserTunnel{}).Where("id = ?", userTunnelID).UpdateColumns(map[string]interface{}{
+			"in_flow":  gorm.Expr("in_flow + ?", total[0]),
+			"out_flow": gorm.Expr("out_flow + ?", total[1]),
+		}).Error; err != nil {
+			return err
 		}
-		return nil
-	})
+	}
+	return nil
 }
 
 // ─── Open / Close ────────────────────────────────────────────────────

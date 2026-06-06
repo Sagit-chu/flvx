@@ -21,6 +21,7 @@ type nftablesRuntimeManager interface {
 	Test(ctx context.Context, cfg runtimenft.SSHConfig) error
 	Reconcile(ctx context.Context, cfg runtimenft.SSHConfig, plan runtimenft.NodePlan) (runtimenft.ApplyResult, error)
 	Clear(ctx context.Context, cfg runtimenft.SSHConfig) error
+	CollectCounters(ctx context.Context, cfg runtimenft.SSHConfig) ([]runtimenft.CounterSample, error)
 }
 
 func isNftablesForwardMode(mode string) bool {

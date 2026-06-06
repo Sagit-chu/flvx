@@ -4,6 +4,7 @@ import (
 	"errors"
 	"math"
 	"strings"
+	"time"
 
 	"go-backend/internal/store/model"
 
@@ -30,6 +31,64 @@ type NftCounterStateInput struct {
 	CollectedTime int64
 }
 
+type NftablesCollectionNode struct {
+	NodeID int64
+	Config model.NodeSSHConfig
+}
+
+func (r *Repository) ListNftablesNodesForCollection() ([]NftablesCollectionNode, error) {
+	if r == nil || r.db == nil {
+		return nil, errors.New("repository not initialized")
+	}
+
+	type collectionRow struct {
+		NodeID      int64  `gorm:"column:node_id"`
+		ConfigID    int64  `gorm:"column:config_id"`
+		Host        string `gorm:"column:host"`
+		Port        int    `gorm:"column:port"`
+		Username    string `gorm:"column:username"`
+		AuthType    string `gorm:"column:auth_type"`
+		Password    string `gorm:"column:password"`
+		PrivateKey  string `gorm:"column:private_key"`
+		Passphrase  string `gorm:"column:passphrase"`
+		SudoMode    string `gorm:"column:sudo_mode"`
+		CreatedTime int64  `gorm:"column:created_time"`
+		UpdatedTime int64  `gorm:"column:updated_time"`
+	}
+
+	var rows []collectionRow
+	if err := r.db.Table("node").
+		Select("node.id AS node_id, node_ssh_config.id AS config_id, node_ssh_config.host, node_ssh_config.port, node_ssh_config.username, node_ssh_config.auth_type, node_ssh_config.password, node_ssh_config.private_key, node_ssh_config.passphrase, node_ssh_config.sudo_mode, node_ssh_config.created_time, node_ssh_config.updated_time").
+		Joins("JOIN node_ssh_config ON node_ssh_config.node_id = node.id").
+		Where("node.status = ? AND LOWER(TRIM(node.forward_mode)) = ?", 1, "nftables").
+		Order("node.id ASC").
+		Scan(&rows).Error; err != nil {
+		return nil, err
+	}
+
+	nodes := make([]NftablesCollectionNode, 0, len(rows))
+	for _, row := range rows {
+		nodes = append(nodes, NftablesCollectionNode{
+			NodeID: row.NodeID,
+			Config: model.NodeSSHConfig{
+				ID:          row.ConfigID,
+				NodeID:      row.NodeID,
+				Host:        row.Host,
+				Port:        row.Port,
+				Username:    row.Username,
+				AuthType:    row.AuthType,
+				Password:    nullStringFromInterface(row.Password),
+				PrivateKey:  nullStringFromInterface(row.PrivateKey),
+				Passphrase:  nullStringFromInterface(row.Passphrase),
+				SudoMode:    row.SudoMode,
+				CreatedTime: row.CreatedTime,
+				UpdatedTime: row.UpdatedTime,
+			},
+		})
+	}
+	return nodes, nil
+}
+
 func (r *Repository) GetNftCounterStatesByNode(nodeID int64) ([]model.NftCounterState, error) {
 	if r == nil || r.db == nil {
 		return nil, errors.New("repository not initialized")
@@ -50,31 +109,61 @@ func (r *Repository) UpsertNftCounterStates(inputs []NftCounterStateInput, now i
 	}
 
 	return r.db.Transaction(func(tx *gorm.DB) error {
-		for _, input := range inputs {
-			row, ok := nftCounterStateFromInput(input, now)
-			if !ok {
-				continue
-			}
-			if err := tx.Clauses(clause.OnConflict{
-				Columns: []clause.Column{
-					{Name: "node_id"},
-					{Name: "forward_id"},
-					{Name: "protocol"},
-					{Name: "direction"},
-				},
-				DoUpdates: clause.Assignments(map[string]interface{}{
-					"rule_hash":      row.RuleHash,
-					"bytes":          row.Bytes,
-					"packets":        row.Packets,
-					"collected_time": row.CollectedTime,
-					"updated_time":   row.UpdatedTime,
-				}),
-			}).Create(&row).Error; err != nil {
-				return err
-			}
-		}
-		return nil
+		return upsertNftCounterStatesTx(tx, inputs, now)
 	})
+}
+
+func (r *Repository) ApplyNftTrafficAccounting(deltas []FlowUploadCounterDelta, quotaUsage map[int64]int64, states []NftCounterStateInput, now time.Time) (map[int64]*model.UserQuotaView, error) {
+	if r == nil || r.db == nil {
+		return nil, errors.New("repository not initialized")
+	}
+
+	quotaViews := map[int64]*model.UserQuotaView{}
+	err := r.db.Transaction(func(tx *gorm.DB) error {
+		if err := applyFlowUploadDeltasTx(tx, deltas); err != nil {
+			return err
+		}
+		var err error
+		quotaViews, err = r.addUserQuotaUsageBatchTx(tx, quotaUsage, now)
+		if err != nil {
+			return err
+		}
+		return upsertNftCounterStatesTx(tx, states, now.UnixMilli())
+	})
+	if err != nil {
+		return nil, err
+	}
+	return quotaViews, nil
+}
+
+func upsertNftCounterStatesTx(tx *gorm.DB, inputs []NftCounterStateInput, now int64) error {
+	if tx == nil {
+		return errors.New("database unavailable")
+	}
+	for _, input := range inputs {
+		row, ok := nftCounterStateFromInput(input, now)
+		if !ok {
+			continue
+		}
+		if err := tx.Clauses(clause.OnConflict{
+			Columns: []clause.Column{
+				{Name: "node_id"},
+				{Name: "forward_id"},
+				{Name: "protocol"},
+				{Name: "direction"},
+			},
+			DoUpdates: clause.Assignments(map[string]interface{}{
+				"rule_hash":      row.RuleHash,
+				"bytes":          row.Bytes,
+				"packets":        row.Packets,
+				"collected_time": row.CollectedTime,
+				"updated_time":   row.UpdatedTime,
+			}),
+		}).Create(&row).Error; err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (r *Repository) DeleteNftCounterStatesByForward(forwardID int64) error {

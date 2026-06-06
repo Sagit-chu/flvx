@@ -20,13 +20,16 @@ import (
 )
 
 type fakeNftablesManager struct {
-	testErr      error
-	reconcileErr error
-	reconcileHit int
-	clearErr     error
-	clearHit     int
-	lastConfig   runtimenft.SSHConfig
-	lastPlan     runtimenft.NodePlan
+	testErr        error
+	reconcileErr   error
+	reconcileHit   int
+	clearErr       error
+	clearHit       int
+	collectErr     error
+	collectHit     int
+	counterSamples []runtimenft.CounterSample
+	lastConfig     runtimenft.SSHConfig
+	lastPlan       runtimenft.NodePlan
 }
 
 func (f *fakeNftablesManager) Test(_ context.Context, cfg runtimenft.SSHConfig) error {
@@ -51,6 +54,15 @@ func (f *fakeNftablesManager) Reconcile(_ context.Context, cfg runtimenft.SSHCon
 func (f *fakeNftablesManager) Clear(context.Context, runtimenft.SSHConfig) error {
 	f.clearHit++
 	return f.clearErr
+}
+
+func (f *fakeNftablesManager) CollectCounters(_ context.Context, cfg runtimenft.SSHConfig) ([]runtimenft.CounterSample, error) {
+	f.collectHit++
+	f.lastConfig = cfg
+	if f.collectErr != nil {
+		return nil, f.collectErr
+	}
+	return f.counterSamples, nil
 }
 
 type nftablesTestFixture struct {

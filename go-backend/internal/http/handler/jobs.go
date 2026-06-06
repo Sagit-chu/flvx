@@ -20,7 +20,7 @@ func (h *Handler) StartBackgroundJobs() {
 	ctx, cancel := context.WithCancel(context.Background())
 	h.jobsCancel = cancel
 	h.jobsStarted = true
-	h.jobsWG.Add(7)
+	h.jobsWG.Add(8)
 	h.jobsMu.Unlock()
 
 	go h.runHourlyStatsLoop(ctx)
@@ -30,6 +30,7 @@ func (h *Handler) StartBackgroundJobs() {
 	go h.runHealthChecks(ctx)
 	go h.runTunnelQualityProber(ctx)
 	go h.runValidateLicenseJob(ctx)
+	go h.runNftablesTrafficCollectLoop(ctx)
 }
 
 func (h *Handler) runValidateLicenseJob(ctx context.Context) {
@@ -64,7 +65,7 @@ func (h *Handler) validateLicenseJob() {
 	fingerprint, _ := h.repo.GetViteConfigValue("machine_fingerprint")
 	client := license.NewKeygenClient(accountID, "")
 	valResp, err := client.ValidateKeyWithFingerprint(key, fingerprint)
-	
+
 	if err != nil {
 		// Network error or timeout. Grace period by not revoking immediately here.
 		return
@@ -126,6 +127,21 @@ func (h *Handler) runTunnelQualityProber(ctx context.Context) {
 	}
 
 	h.qualityProber.Start(ctx)
+}
+
+func (h *Handler) runNftablesTrafficCollectLoop(ctx context.Context) {
+	defer h.jobsWG.Done()
+	ticker := time.NewTicker(time.Minute)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			h.runNftablesTrafficCollectJob(time.Now())
+		}
+	}
 }
 
 func (h *Handler) runHourlyStatsLoop(ctx context.Context) {
