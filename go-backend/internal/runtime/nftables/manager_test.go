@@ -37,7 +37,7 @@ func TestManagerReconcileAppliesRenderedScript(t *testing.T) {
 	if len(runner.scripts) != 1 {
 		t.Fatalf("expected 1 script, got %d", len(runner.scripts))
 	}
-	if !strings.Contains(runner.scripts[0], "flvx forward:42 tcp") {
+	if !strings.Contains(runner.scripts[0], `flvx forward:42 dnat tcp`) {
 		t.Fatalf("script missing forward comment:\n%s", runner.scripts[0])
 	}
 	if result.NodeID != 7 || result.Hashes[42] == "" {

@@ -7,6 +7,10 @@ const (
 	StatusPending = "pending"
 	StatusApplied = "applied"
 	StatusError   = "error"
+
+	CounterDirectionDNAT       = "dnat"
+	CounterDirectionToTarget   = "to-target"
+	CounterDirectionFromTarget = "from-target"
 )
 
 type Target struct {

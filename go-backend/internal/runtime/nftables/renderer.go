@@ -15,14 +15,18 @@ func RenderTable(plan NodePlan) string {
 	b.WriteString("  chain prerouting {\n")
 	b.WriteString("    type nat hook prerouting priority dstnat; policy accept;\n")
 	for _, rule := range sortedRules(plan.Rules) {
+		family := nftAddressFamily(rule.TargetHost)
+		dnatFamily := ""
+		if family != "" {
+			dnatFamily = family + " "
+		}
 		for _, protocol := range normalizedProtocols(rule.Protocols) {
-			b.WriteString(fmt.Sprintf("    %s dport %d dnat %s to %s comment \"flvx forward:%d %s\"\n",
+			b.WriteString(fmt.Sprintf("    %s dport %d counter dnat %sto %s comment %q\n",
 				protocol,
 				rule.InPort,
-				dnatFamilyPrefix(rule.TargetHost),
+				dnatFamily,
 				formatDNATTarget(rule.TargetHost, rule.TargetPort),
-				rule.ForwardID,
-				protocol,
+				counterComment(rule.ForwardID, CounterDirectionDNAT, protocol),
 			))
 		}
 	}
@@ -35,9 +39,36 @@ func RenderTable(plan NodePlan) string {
 	b.WriteString("  }\n\n")
 	b.WriteString("  chain forward {\n")
 	b.WriteString("    type filter hook forward priority filter; policy accept;\n")
+	for _, rule := range sortedRules(plan.Rules) {
+		family := nftAddressFamily(rule.TargetHost)
+		if family == "" {
+			continue
+		}
+		targetHost := strings.Trim(strings.TrimSpace(rule.TargetHost), "[]")
+		for _, protocol := range normalizedProtocols(rule.Protocols) {
+			b.WriteString(fmt.Sprintf("    %s daddr %s %s dport %d counter comment %q\n",
+				family,
+				targetHost,
+				protocol,
+				rule.TargetPort,
+				counterComment(rule.ForwardID, CounterDirectionToTarget, protocol),
+			))
+			b.WriteString(fmt.Sprintf("    %s saddr %s %s sport %d counter comment %q\n",
+				family,
+				targetHost,
+				protocol,
+				rule.TargetPort,
+				counterComment(rule.ForwardID, CounterDirectionFromTarget, protocol),
+			))
+		}
+	}
 	b.WriteString("  }\n")
 	b.WriteString("}\n")
 	return b.String()
+}
+
+func counterComment(forwardID int64, direction, protocol string) string {
+	return fmt.Sprintf("flvx forward:%d %s %s", forwardID, direction, protocol)
 }
 
 func RuleHash(rule Rule) string {
@@ -100,14 +131,14 @@ func formatDNATTarget(host string, port int) string {
 	return fmt.Sprintf("%s:%d", trimmed, port)
 }
 
-func dnatFamilyPrefix(host string) string {
+func nftAddressFamily(host string) string {
 	trimmed := strings.Trim(strings.TrimSpace(host), "[]")
 	ip := net.ParseIP(trimmed)
 	if ip == nil {
 		return ""
 	}
-	if ip.To4() != nil {
-		return "ip"
+	if ip.To4() == nil {
+		return "ip6"
 	}
-	return "ip6"
+	return "ip"
 }

@@ -23,8 +23,8 @@ func TestRenderTableIncludesDNATAndMasquerade(t *testing.T) {
 		"table inet flvx",
 		"type nat hook prerouting priority dstnat; policy accept;",
 		"type nat hook postrouting priority srcnat; policy accept;",
-		"tcp dport 24000 dnat ip to 198.51.100.20:443 comment \"flvx forward:42 tcp\"",
-		"udp dport 24000 dnat ip to 198.51.100.20:443 comment \"flvx forward:42 udp\"",
+		"tcp dport 24000 counter dnat ip to 198.51.100.20:443 comment \"flvx forward:42 dnat tcp\"",
+		"udp dport 24000 counter dnat ip to 198.51.100.20:443 comment \"flvx forward:42 dnat udp\"",
 		"masquerade comment \"flvx masquerade\"",
 	}
 	for _, part := range expectedParts {
@@ -43,6 +43,88 @@ func TestRenderTableBracketsIPv6Target(t *testing.T) {
 	})
 	if !strings.Contains(script, "dnat ip6 to [2001:db8::1]:443") {
 		t.Fatalf("expected bracketed IPv6 dnat target, got:\n%s", script)
+	}
+}
+
+func TestRenderTableIncludesForwardAccountingCounters(t *testing.T) {
+	plan := NodePlan{
+		NodeID: 7,
+		Rules: []Rule{{
+			ForwardID:  42,
+			InPort:     12345,
+			TargetHost: "198.51.100.20",
+			TargetPort: 443,
+			Protocols:  []string{"tcp", "udp"},
+		}},
+	}
+
+	got := RenderTable(plan)
+	wantLines := []string{
+		`tcp dport 12345 counter dnat ip to 198.51.100.20:443 comment "flvx forward:42 dnat tcp"`,
+		`udp dport 12345 counter dnat ip to 198.51.100.20:443 comment "flvx forward:42 dnat udp"`,
+		`ip daddr 198.51.100.20 tcp dport 443 counter comment "flvx forward:42 to-target tcp"`,
+		`ip saddr 198.51.100.20 tcp sport 443 counter comment "flvx forward:42 from-target tcp"`,
+		`ip daddr 198.51.100.20 udp dport 443 counter comment "flvx forward:42 to-target udp"`,
+		`ip saddr 198.51.100.20 udp sport 443 counter comment "flvx forward:42 from-target udp"`,
+	}
+	for _, want := range wantLines {
+		if !strings.Contains(got, want) {
+			t.Fatalf("RenderTable() missing %q\n%s", want, got)
+		}
+	}
+}
+
+func TestRenderTableIncludesIPv6ForwardAccountingCounters(t *testing.T) {
+	plan := NodePlan{
+		NodeID: 7,
+		Rules: []Rule{{
+			ForwardID:  43,
+			InPort:     12346,
+			TargetHost: "2001:db8::20",
+			TargetPort: 8443,
+			Protocols:  []string{"tcp"},
+		}},
+	}
+
+	got := RenderTable(plan)
+	wantLines := []string{
+		`tcp dport 12346 counter dnat ip6 to [2001:db8::20]:8443 comment "flvx forward:43 dnat tcp"`,
+		`ip6 daddr 2001:db8::20 tcp dport 8443 counter comment "flvx forward:43 to-target tcp"`,
+		`ip6 saddr 2001:db8::20 tcp sport 8443 counter comment "flvx forward:43 from-target tcp"`,
+	}
+	for _, want := range wantLines {
+		if !strings.Contains(got, want) {
+			t.Fatalf("RenderTable() missing %q\n%s", want, got)
+		}
+	}
+}
+
+func TestRenderTablePreservesHostnameDNATAndSkipsAccountingCounters(t *testing.T) {
+	plan := NodePlan{
+		NodeID: 7,
+		Rules: []Rule{{
+			ForwardID:  44,
+			InPort:     12347,
+			TargetHost: "example.com",
+			TargetPort: 9443,
+			Protocols:  []string{"tcp"},
+		}},
+	}
+
+	got := RenderTable(plan)
+	want := `tcp dport 12347 counter dnat to example.com:9443 comment "flvx forward:44 dnat tcp"`
+	if !strings.Contains(got, want) {
+		t.Fatalf("RenderTable() missing %q\n%s", want, got)
+	}
+	unwantedLines := []string{
+		`dnat ip to example.com`,
+		`ip daddr example.com`,
+		`ip saddr example.com`,
+	}
+	for _, unwanted := range unwantedLines {
+		if strings.Contains(got, unwanted) {
+			t.Fatalf("RenderTable() unexpectedly contains %q\n%s", unwanted, got)
+		}
 	}
 }
 
