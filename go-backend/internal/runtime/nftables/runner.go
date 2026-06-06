@@ -14,6 +14,7 @@ import (
 type Runner interface {
 	ApplyScript(ctx context.Context, cfg SSHConfig, script string) error
 	Test(ctx context.Context, cfg SSHConfig) error
+	ListTableJSON(ctx context.Context, cfg SSHConfig) ([]byte, error)
 }
 
 type SSHRunner struct {
@@ -44,7 +45,16 @@ func (r *SSHRunner) ApplyScript(ctx context.Context, cfg SSHConfig, script strin
 	return r.run(ctx, cfg, command)
 }
 
+func (r *SSHRunner) ListTableJSON(ctx context.Context, cfg SSHConfig) ([]byte, error) {
+	return r.runOutput(ctx, cfg, nftBinary(cfg)+" -j list table inet flvx")
+}
+
 func (r *SSHRunner) run(ctx context.Context, cfg SSHConfig, command string) error {
+	_, err := r.runOutput(ctx, cfg, command)
+	return err
+}
+
+func (r *SSHRunner) runOutput(ctx context.Context, cfg SSHConfig, command string) ([]byte, error) {
 	timeout := r.Timeout
 	if timeout <= 0 {
 		timeout = 15 * time.Second
@@ -54,31 +64,33 @@ func (r *SSHRunner) run(ctx context.Context, cfg SSHConfig, command string) erro
 
 	clientConfig, err := buildSSHClientConfig(cfg)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	addr := net.JoinHostPort(strings.TrimSpace(cfg.Host), fmt.Sprintf("%d", normalizedSSHPort(cfg.Port)))
 	dialer := net.Dialer{Timeout: timeout}
 	conn, err := dialer.DialContext(runCtx, "tcp", addr)
 	if err != nil {
-		return fmt.Errorf("SSH 连接失败: %w", err)
+		return nil, fmt.Errorf("SSH 连接失败: %w", err)
 	}
 	defer conn.Close()
 
 	sshConn, chans, reqs, err := ssh.NewClientConn(conn, addr, clientConfig)
 	if err != nil {
-		return fmt.Errorf("SSH 认证失败: %w", err)
+		return nil, fmt.Errorf("SSH 认证失败: %w", err)
 	}
 	client := ssh.NewClient(sshConn, chans, reqs)
 	defer client.Close()
 
 	session, err := client.NewSession()
 	if err != nil {
-		return fmt.Errorf("SSH 会话创建失败: %w", err)
+		return nil, fmt.Errorf("SSH 会话创建失败: %w", err)
 	}
 	defer session.Close()
 
+	var stdout bytes.Buffer
 	var stderr bytes.Buffer
+	session.Stdout = &stdout
 	session.Stderr = &stderr
 
 	done := make(chan error, 1)
@@ -89,16 +101,16 @@ func (r *SSHRunner) run(ctx context.Context, cfg SSHConfig, command string) erro
 	select {
 	case <-runCtx.Done():
 		_ = session.Close()
-		return fmt.Errorf("SSH 命令超时: %w", runCtx.Err())
+		return nil, fmt.Errorf("SSH 命令超时: %w", runCtx.Err())
 	case err := <-done:
 		if err != nil {
 			message := strings.TrimSpace(stderr.String())
 			if message != "" {
-				return fmt.Errorf("远程执行失败: %s: %w", message, err)
+				return nil, fmt.Errorf("远程执行失败: %s: %w", message, err)
 			}
-			return fmt.Errorf("远程执行失败: %w", err)
+			return nil, fmt.Errorf("远程执行失败: %w", err)
 		}
-		return nil
+		return stdout.Bytes(), nil
 	}
 }
 

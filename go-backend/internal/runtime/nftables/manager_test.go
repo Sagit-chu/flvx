@@ -8,9 +8,11 @@ import (
 )
 
 type fakeRunner struct {
-	scripts []string
-	err     error
-	testErr error
+	scripts     []string
+	err         error
+	testErr     error
+	listJSON    []byte
+	listJSONErr error
 }
 
 func (f *fakeRunner) ApplyScript(ctx context.Context, cfg SSHConfig, script string) error {
@@ -22,12 +24,16 @@ func (f *fakeRunner) Test(ctx context.Context, cfg SSHConfig) error {
 	return f.testErr
 }
 
+func (f *fakeRunner) ListTableJSON(ctx context.Context, cfg SSHConfig) ([]byte, error) {
+	return f.listJSON, f.listJSONErr
+}
+
 func TestManagerReconcileAppliesRenderedScript(t *testing.T) {
 	runner := &fakeRunner{}
 	manager := NewManager(runner)
 	plan := NodePlan{
 		NodeID: 7,
-		Rules: []Rule{{ForwardID: 42, InPort: 24000, TargetHost: "198.51.100.20", TargetPort: 443, Protocols: []string{"tcp", "udp"}}},
+		Rules:  []Rule{{ForwardID: 42, InPort: 24000, TargetHost: "198.51.100.20", TargetPort: 443, Protocols: []string{"tcp", "udp"}}},
 	}
 
 	result, err := manager.Reconcile(context.Background(), SSHConfig{Host: "203.0.113.10", Port: 22, Username: "root"}, plan)
@@ -80,6 +86,41 @@ func TestManagerTestPassesThroughRunnerError(t *testing.T) {
 	}
 }
 
+func TestManagerCollectCountersParsesRunnerTableJSON(t *testing.T) {
+	runner := &fakeRunner{listJSON: []byte(`{
+		"nftables": [
+			{"rule": {
+				"family": "inet",
+				"table": "flvx",
+				"chain": "forward",
+				"comment": "flvx forward:77 to-target tcp",
+				"expr": [
+					{"counter": {"packets": 3, "bytes": 2048}}
+				]
+			}}
+		]
+	}`)}
+	manager := NewManager(runner)
+
+	samples, err := manager.CollectCounters(context.Background(), SSHConfig{Host: "203.0.113.10", Port: 22, Username: "root"})
+	if err != nil {
+		t.Fatalf("CollectCounters: %v", err)
+	}
+	if len(samples) != 1 {
+		t.Fatalf("expected 1 sample, got %d: %+v", len(samples), samples)
+	}
+	want := CounterSample{
+		ForwardID: 77,
+		Direction: CounterDirectionToTarget,
+		Protocol:  "tcp",
+		Bytes:     2048,
+		Packets:   3,
+	}
+	if samples[0] != want {
+		t.Fatalf("expected %+v, got %+v", want, samples[0])
+	}
+}
+
 func TestManagerMethodsRequireInitializedRunner(t *testing.T) {
 	cfg := SSHConfig{Host: "203.0.113.10", Port: 22, Username: "root"}
 	plan := NodePlan{NodeID: 7}
@@ -98,6 +139,10 @@ func TestManagerMethodsRequireInitializedRunner(t *testing.T) {
 		t.Fatalf("expected not initialized error from nil manager Clear, got %v", err)
 	}
 
+	if _, err := nilManager.CollectCounters(context.Background(), cfg); err == nil || err.Error() != expected.Error() {
+		t.Fatalf("expected not initialized error from nil manager CollectCounters, got %v", err)
+	}
+
 	manager := &Manager{}
 	if err := manager.Test(context.Background(), cfg); err == nil || err.Error() != expected.Error() {
 		t.Fatalf("expected not initialized error from Test, got %v", err)
@@ -109,5 +154,9 @@ func TestManagerMethodsRequireInitializedRunner(t *testing.T) {
 
 	if err := manager.Clear(context.Background(), cfg); err == nil || err.Error() != expected.Error() {
 		t.Fatalf("expected not initialized error from Clear, got %v", err)
+	}
+
+	if _, err := manager.CollectCounters(context.Background(), cfg); err == nil || err.Error() != expected.Error() {
+		t.Fatalf("expected not initialized error from CollectCounters, got %v", err)
 	}
 }

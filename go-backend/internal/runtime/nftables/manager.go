@@ -46,6 +46,17 @@ func (m *Manager) Clear(ctx context.Context, cfg SSHConfig) error {
 	return m.runner.ApplyScript(ctx, cfg, script)
 }
 
+func (m *Manager) CollectCounters(ctx context.Context, cfg SSHConfig) ([]CounterSample, error) {
+	if err := m.ensureInitialized(); err != nil {
+		return nil, err
+	}
+	raw, err := m.runner.ListTableJSON(ctx, cfg)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCounterSamples(raw)
+}
+
 func (m *Manager) ensureInitialized() error {
 	if m == nil || m.runner == nil {
 		return errors.New("nftables manager not initialized")
