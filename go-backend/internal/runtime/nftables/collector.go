@@ -94,6 +94,7 @@ func parseCounterRule(rule nftCounterRule) (CounterSample, bool, error) {
 	var (
 		counter    nftCounter
 		hasCounter bool
+		comment    = rule.Comment
 	)
 
 	for _, expr := range rule.Expr {
@@ -104,12 +105,17 @@ func parseCounterRule(rule nftCounterRule) (CounterSample, bool, error) {
 			hasCounter = true
 			continue
 		}
+		if rawComment, ok := expr["comment"]; ok && strings.TrimSpace(comment) == "" {
+			if err := json.Unmarshal(rawComment, &comment); err != nil {
+				return CounterSample{}, false, err
+			}
+		}
 	}
 	if !hasCounter {
 		return CounterSample{}, false, nil
 	}
 
-	sample, ok := ParseCounterComment(rule.Comment)
+	sample, ok := ParseCounterComment(comment)
 	if !ok {
 		return CounterSample{}, false, nil
 	}

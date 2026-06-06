@@ -280,6 +280,48 @@ func TestNodeUpdatePreservesExistingNftablesSecretsWhenFieldsOmitted(t *testing.
 	}
 }
 
+func TestValidateNftablesForwardRequestRejectsHostnameTarget(t *testing.T) {
+	fixture := setupNftablesHandler(t)
+	h := fixture.handler
+	tunnelID := seedTunnelForNftables(t, h, "nft-tunnel", fixture.nodeID)
+	tunnel, err := h.getTunnelRecord(tunnelID)
+	if err != nil {
+		t.Fatalf("load tunnel: %v", err)
+	}
+
+	err = h.validateNftablesForwardRequest(tunnel, "example.com:443", []int64{fixture.nodeID})
+	if err == nil {
+		t.Fatalf("expected hostname target to be rejected")
+	}
+	if !strings.Contains(err.Error(), "IP") {
+		t.Fatalf("expected IP literal validation error, got %q", err)
+	}
+}
+
+func TestForwardDeleteReconcilesNftablesAfterDBDelete(t *testing.T) {
+	fixture := setupNftablesHandler(t)
+	h := fixture.handler
+	seedNftablesSSHConfig(t, h, fixture.nodeID)
+	tunnelID := seedTunnelForNftables(t, h, "nft-tunnel", fixture.nodeID)
+	forward := seedForwardForNftables(t, h, tunnelID, fixture.nodeID, "203.0.113.9:8080")
+	manager := &fakeNftablesManager{}
+	h.nftablesManager = manager
+
+	req := newAuthenticatedJSONRequest(t, map[string]int64{"id": forward.ID})
+	res := httptest.NewRecorder()
+	h.forwardDelete(res, req)
+	assertNftablesSuccessWithBody(t, res)
+	if manager.reconcileHit != 1 {
+		t.Fatalf("expected reconcile once, got %d", manager.reconcileHit)
+	}
+	if len(manager.lastPlan.Rules) != 0 {
+		t.Fatalf("expected reconcile after DB delete to render no rules, got %+v", manager.lastPlan.Rules)
+	}
+	if _, err := h.getForwardRecord(forward.ID); !errors.Is(err, errForwardNotFound) {
+		t.Fatalf("expected forward to be deleted, got %v", err)
+	}
+}
+
 func TestForwardForceDeleteRemovesNftablesBindingAndReconciles(t *testing.T) {
 	fixture := setupNftablesHandler(t)
 	h := fixture.handler
@@ -316,6 +358,30 @@ func TestForwardForceDeleteRemovesNftablesBindingAndReconciles(t *testing.T) {
 		t.Fatalf("list bindings after delete: %v", err)
 	} else if len(bindings) != 0 {
 		t.Fatalf("expected no bindings after delete, got %+v", bindings)
+	}
+}
+
+func TestForwardBatchDeleteReconcilesNftablesAfterDBDelete(t *testing.T) {
+	fixture := setupNftablesHandler(t)
+	h := fixture.handler
+	seedNftablesSSHConfig(t, h, fixture.nodeID)
+	tunnelID := seedTunnelForNftables(t, h, "nft-tunnel", fixture.nodeID)
+	forward := seedForwardForNftables(t, h, tunnelID, fixture.nodeID, "203.0.113.9:8080")
+	manager := &fakeNftablesManager{}
+	h.nftablesManager = manager
+
+	req := newAuthenticatedJSONRequest(t, map[string][]int64{"ids": {forward.ID}})
+	res := httptest.NewRecorder()
+	h.forwardBatchDelete(res, req)
+	assertNftablesSuccessWithBody(t, res)
+	if manager.reconcileHit != 1 {
+		t.Fatalf("expected reconcile once, got %d", manager.reconcileHit)
+	}
+	if len(manager.lastPlan.Rules) != 0 {
+		t.Fatalf("expected reconcile after DB delete to render no rules, got %+v", manager.lastPlan.Rules)
+	}
+	if _, err := h.getForwardRecord(forward.ID); !errors.Is(err, errForwardNotFound) {
+		t.Fatalf("expected forward to be deleted, got %v", err)
 	}
 }
 

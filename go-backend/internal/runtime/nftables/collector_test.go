@@ -110,6 +110,39 @@ func TestParseCounterSamplesUsesRuleLevelComment(t *testing.T) {
 	}
 }
 
+func TestParseCounterSamplesUsesExprLevelComment(t *testing.T) {
+	raw := []byte(`{
+		"nftables": [
+			{"rule": {
+				"table": "flvx",
+				"chain": "forward",
+				"expr": [
+					{"counter": {"packets": 4, "bytes": 3072}},
+					{"comment": "flvx forward:78 from-target tcp"}
+				]
+			}}
+		]
+	}`)
+
+	samples, err := ParseCounterSamples(raw)
+	if err != nil {
+		t.Fatalf("ParseCounterSamples: %v", err)
+	}
+	if len(samples) != 1 {
+		t.Fatalf("expected 1 sample, got %d: %+v", len(samples), samples)
+	}
+	want := CounterSample{
+		ForwardID: 78,
+		Direction: CounterDirectionFromTarget,
+		Protocol:  "tcp",
+		Bytes:     3072,
+		Packets:   4,
+	}
+	if samples[0] != want {
+		t.Fatalf("expected %+v, got %+v", want, samples[0])
+	}
+}
+
 func TestParseCounterSamplesMalformedJSONReturnsError(t *testing.T) {
 	if _, err := ParseCounterSamples([]byte(`{"nftables": [`)); err == nil {
 		t.Fatal("expected malformed JSON error")

@@ -2412,22 +2412,29 @@ func (h *Handler) forwardDelete(w http.ResponseWriter, r *http.Request) {
 		response.WriteJSON(w, response.Err(-2, err.Error()))
 		return
 	}
-	if err := h.controlForwardServices(forward, "DeleteService", true); err != nil {
-		response.WriteJSON(w, response.ErrDefault(err.Error()))
-		return
-	}
+	var nftNodeID int64
 	if nftMode, entryNodeIDs, modeErr := h.tunnelUsesNftables(forward.TunnelID); modeErr != nil {
 		response.WriteJSON(w, response.Err(-2, modeErr.Error()))
 		return
-	} else if nftMode && len(entryNodeIDs) > 0 {
-		if err := h.reconcileNftablesNodeByRequest(entryNodeIDs[0]); err != nil {
-			response.WriteJSON(w, response.ErrDefault(err.Error()))
+	} else if nftMode {
+		if len(entryNodeIDs) == 0 {
+			response.WriteJSON(w, response.ErrDefault("nftables 转发缺少入口节点"))
 			return
 		}
+		nftNodeID = entryNodeIDs[0]
+	} else if err := h.controlForwardServices(forward, "DeleteService", true); err != nil {
+		response.WriteJSON(w, response.ErrDefault(err.Error()))
+		return
 	}
 	if err := h.deleteForwardByID(id); err != nil {
 		response.WriteJSON(w, response.Err(-2, err.Error()))
 		return
+	}
+	if nftNodeID > 0 {
+		if err := h.reconcileNftablesNodeByRequest(nftNodeID); err != nil {
+			response.WriteJSON(w, response.ErrDefault(err.Error()))
+			return
+		}
 	}
 	response.WriteJSON(w, response.OKEmpty())
 }
@@ -2577,7 +2584,19 @@ func (h *Handler) forwardBatchDelete(w http.ResponseWriter, r *http.Request) {
 			failures = appendBatchFailure(failures, id, "", accessErr)
 			continue
 		}
-		if err := h.controlForwardServices(forward, "DeleteService", true); err != nil {
+		var nftNodeID int64
+		if nftMode, entryNodeIDs, modeErr := h.tunnelUsesNftables(forward.TunnelID); modeErr != nil {
+			f++
+			failures = appendBatchFailure(failures, id, forward.Name, modeErr)
+			continue
+		} else if nftMode {
+			if len(entryNodeIDs) == 0 {
+				f++
+				failures = appendBatchFailureReason(failures, id, forward.Name, "nftables 转发缺少入口节点")
+				continue
+			}
+			nftNodeID = entryNodeIDs[0]
+		} else if err := h.controlForwardServices(forward, "DeleteService", true); err != nil {
 			f++
 			failures = appendBatchFailure(failures, id, forward.Name, err)
 			continue
@@ -2585,9 +2604,16 @@ func (h *Handler) forwardBatchDelete(w http.ResponseWriter, r *http.Request) {
 		if err := h.deleteForwardByID(id); err != nil {
 			f++
 			failures = appendBatchFailure(failures, id, forward.Name, err)
-		} else {
-			s++
+			continue
 		}
+		if nftNodeID > 0 {
+			if err := h.reconcileNftablesNodeByRequest(nftNodeID); err != nil {
+				f++
+				failures = appendBatchFailure(failures, id, forward.Name, err)
+				continue
+			}
+		}
+		s++
 	}
 	response.WriteJSON(w, response.OK(batchOperationResult{SuccessCount: s, FailCount: f, Failures: failures}))
 }

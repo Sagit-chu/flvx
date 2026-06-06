@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"net"
 	"net/http"
 	"strings"
 	"time"
@@ -78,8 +79,12 @@ func (h *Handler) validateNftablesForwardRequest(tunnel *tunnelRecord, remoteAdd
 	if len(entryNodeIDs) != 1 {
 		return errors.New("nftables 节点仅支持单入口隧道")
 	}
-	if _, err := runtimenft.ParseSingleTarget(remoteAddr); err != nil {
+	target, err := runtimenft.ParseSingleTarget(remoteAddr)
+	if err != nil {
 		return err
+	}
+	if net.ParseIP(strings.Trim(strings.TrimSpace(target.Host), "[]")) == nil {
+		return errors.New("nftables 节点仅支持 IP 目标地址")
 	}
 	return nil
 }
