@@ -131,6 +131,22 @@ type NftRuleBinding struct {
 
 func (NftRuleBinding) TableName() string { return "nft_rule_binding" }
 
+type NftCounterState struct {
+	ID            int64  `gorm:"primaryKey;autoIncrement"`
+	NodeID        int64  `gorm:"column:node_id;not null;uniqueIndex:idx_nft_counter_state_key;index"`
+	ForwardID     int64  `gorm:"column:forward_id;not null;uniqueIndex:idx_nft_counter_state_key;index"`
+	Protocol      string `gorm:"type:varchar(10);not null;uniqueIndex:idx_nft_counter_state_key"`
+	Direction     string `gorm:"type:varchar(20);not null;uniqueIndex:idx_nft_counter_state_key"`
+	RuleHash      string `gorm:"column:rule_hash;type:varchar(128);not null;default:''"`
+	Bytes         int64  `gorm:"not null;default:0"`
+	Packets       int64  `gorm:"not null;default:0"`
+	CollectedTime int64  `gorm:"column:collected_time;not null;default:0"`
+	CreatedTime   int64  `gorm:"column:created_time;not null"`
+	UpdatedTime   int64  `gorm:"column:updated_time;not null"`
+}
+
+func (NftCounterState) TableName() string { return "nft_counter_state" }
+
 type SpeedLimit struct {
 	ID          int64          `gorm:"primaryKey;autoIncrement"`
 	Name        string         `gorm:"type:varchar(100);not null"`

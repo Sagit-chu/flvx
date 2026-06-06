@@ -282,6 +282,7 @@ func autoMigrateAll(db *gorm.DB) error {
 		&model.Node{},
 		&model.NodeSSHConfig{},
 		&model.NftRuleBinding{},
+		&model.NftCounterState{},
 		&model.SpeedLimit{},
 		&model.StatisticsFlow{},
 		&model.Tunnel{},
