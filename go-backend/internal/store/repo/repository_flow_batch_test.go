@@ -64,7 +64,7 @@ func TestGetFlowUploadForwardMetasAndApplyFlowUploadDeltasBatch(t *testing.T) {
 	if err != nil {
 		t.Fatalf("get metas: %v", err)
 	}
-	if metas[20].TunnelID != 1 || metas[20].TrafficRatio != 2 || metas[20].TunnelFlow != 3 {
+	if metas[20].UserID != 2 || metas[20].UserTunnelID != 10 || metas[20].TunnelID != 1 || metas[20].TrafficRatio != 2 || metas[20].TunnelFlow != 3 {
 		t.Fatalf("unexpected meta for forward 20: %#v", metas[20])
 	}
 	if _, ok := metas[99]; ok {
@@ -106,7 +106,7 @@ func TestGetFlowUploadForwardMetasKeepsForwardsWhenTunnelRowMissing(t *testing.T
 	if !ok {
 		t.Fatalf("expected metadata for forward with missing tunnel row")
 	}
-	if meta.ForwardID != 25 || meta.TunnelID != 99 || meta.TrafficRatio != 1 || meta.TunnelFlow != 1 {
+	if meta.ForwardID != 25 || meta.UserID != 2 || meta.UserTunnelID != 0 || meta.TunnelID != 99 || meta.TrafficRatio != 1 || meta.TunnelFlow != 1 {
 		t.Fatalf("unexpected fallback meta: %#v", meta)
 	}
 }

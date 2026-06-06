@@ -11,6 +11,8 @@ import (
 
 type FlowUploadForwardMeta struct {
 	ForwardID    int64
+	UserID       int64
+	UserTunnelID int64
 	TunnelID     int64
 	TrafficRatio float64
 	TunnelFlow   int64
@@ -59,6 +61,8 @@ func (r *Repository) GetFlowUploadForwardMetas(forwardIDs []int64) (map[int64]Fl
 
 	type row struct {
 		ForwardID    int64   `gorm:"column:forward_id"`
+		UserID       int64   `gorm:"column:user_id"`
+		UserTunnelID int64   `gorm:"column:user_tunnel_id"`
 		TunnelID     int64   `gorm:"column:tunnel_id"`
 		TrafficRatio float64 `gorm:"column:traffic_ratio"`
 		TunnelFlow   int64   `gorm:"column:tunnel_flow"`
@@ -68,8 +72,9 @@ func (r *Repository) GetFlowUploadForwardMetas(forwardIDs []int64) (map[int64]Fl
 	for _, chunk := range chunkFlowUploadForwardIDs(ids) {
 		var rows []row
 		err := r.db.Table("forward AS f").
-			Select("f.id AS forward_id, f.tunnel_id AS tunnel_id, t.traffic_ratio AS traffic_ratio, t.flow AS tunnel_flow").
+			Select("f.id AS forward_id, f.user_id AS user_id, COALESCE(ut.id, 0) AS user_tunnel_id, f.tunnel_id AS tunnel_id, t.traffic_ratio AS traffic_ratio, t.flow AS tunnel_flow").
 			Joins("LEFT JOIN tunnel t ON t.id = f.tunnel_id").
+			Joins("LEFT JOIN user_tunnel ut ON ut.user_id = f.user_id AND ut.tunnel_id = f.tunnel_id").
 			Where("f.id IN ?", chunk).
 			Scan(&rows).Error
 		if err != nil {
@@ -84,6 +89,8 @@ func (r *Repository) GetFlowUploadForwardMetas(forwardIDs []int64) (map[int64]Fl
 			}
 			out[row.ForwardID] = FlowUploadForwardMeta{
 				ForwardID:    row.ForwardID,
+				UserID:       row.UserID,
+				UserTunnelID: row.UserTunnelID,
 				TunnelID:     row.TunnelID,
 				TrafficRatio: row.TrafficRatio,
 				TunnelFlow:   row.TunnelFlow,
