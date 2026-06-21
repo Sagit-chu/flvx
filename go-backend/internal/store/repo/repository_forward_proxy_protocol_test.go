@@ -160,7 +160,7 @@ func TestForwardRepositoryPersistsPerIPLimits(t *testing.T) {
 	defer r.Close()
 
 	now := time.Now().UnixMilli()
-	forwardID, err := r.CreateForwardTx(1, "admin", "per-ip-forward", 2, "1.1.1.1:443", "fifo", now, 1, []int64{3}, 24000, "", nil, 0, 5, int64(21), 0)
+	forwardID, err := r.CreateForwardTx(1, "admin", "per-ip-forward", 2, "1.1.1.1:443", "fifo", now, 1, []int64{3}, 24000, "", nil, 0, 5, int64(21), 0, 0, 0)
 	if err != nil {
 		t.Fatalf("CreateForwardTx: %v", err)
 	}
@@ -175,7 +175,7 @@ func TestForwardRepositoryPersistsPerIPLimits(t *testing.T) {
 		t.Fatalf("expected created ipSpeedId 21, got %+v", record.IPSpeedID)
 	}
 
-	if err := r.UpdateForward(forwardID, "per-ip-forward", 2, "2.2.2.2:443", "fifo", now+1, nil, 0, 9, int64(22), 0); err != nil {
+	if err := r.UpdateForward(forwardID, "per-ip-forward", 2, "2.2.2.2:443", "fifo", now+1, nil, 0, 9, int64(22), 0, 0, 0); err != nil {
 		t.Fatalf("UpdateForward: %v", err)
 	}
 	record, err = r.GetForwardRecord(forwardID)
@@ -216,6 +216,83 @@ func TestForwardRepositoryPersistsPerIPLimits(t *testing.T) {
 	}
 }
 
+func TestForwardRepositoryPersistsProxyProtocolReceiveAndSend(t *testing.T) {
+	r, err := Open(":memory:")
+	if err != nil {
+		t.Fatalf("open repo: %v", err)
+	}
+	defer r.Close()
+
+	now := time.Now().UnixMilli()
+	forwardID, err := r.CreateForwardTx(1, "admin", "proxy-protocol-forward", 2, "1.1.1.1:443", "fifo", now, 1, []int64{3}, 24000, "", nil, 0, 0, nil, 0, 1, 2)
+	if err != nil {
+		t.Fatalf("CreateForwardTx: %v", err)
+	}
+
+	record, err := r.GetForwardRecord(forwardID)
+	if err != nil {
+		t.Fatalf("GetForwardRecord after create: %v", err)
+	}
+	if record.ProxyProtocolReceive != 1 || record.ProxyProtocolSend != 2 {
+		t.Fatalf("expected proxyProtocol receive/send 1/2 after create, got %d/%d", record.ProxyProtocolReceive, record.ProxyProtocolSend)
+	}
+
+	if err := r.UpdateForward(forwardID, "proxy-protocol-forward", 2, "2.2.2.2:443", "fifo", now+1, nil, 0, 0, nil, 0, 2, 1); err != nil {
+		t.Fatalf("UpdateForward: %v", err)
+	}
+	record, err = r.GetForwardRecord(forwardID)
+	if err != nil {
+		t.Fatalf("GetForwardRecord after update: %v", err)
+	}
+	if record.ProxyProtocolReceive != 2 || record.ProxyProtocolSend != 1 {
+		t.Fatalf("expected proxyProtocol receive/send 2/1 after update, got %d/%d", record.ProxyProtocolReceive, record.ProxyProtocolSend)
+	}
+
+	records, err := r.ListForwardsByTunnel(2)
+	if err != nil {
+		t.Fatalf("ListForwardsByTunnel: %v", err)
+	}
+	if len(records) != 1 {
+		t.Fatalf("expected 1 listed record, got %d", len(records))
+	}
+	if records[0].ProxyProtocolReceive != 2 || records[0].ProxyProtocolSend != 1 {
+		t.Fatalf("expected listed proxyProtocol receive/send 2/1, got %d/%d", records[0].ProxyProtocolReceive, records[0].ProxyProtocolSend)
+	}
+}
+
+func TestForwardRepositoryMapsLegacyProxyProtocolToSend(t *testing.T) {
+	r, err := Open(":memory:")
+	if err != nil {
+		t.Fatalf("open repo: %v", err)
+	}
+	defer r.Close()
+
+	now := time.Now().UnixMilli()
+	if err := r.DB().Create(&model.Forward{
+		UserID:        2,
+		UserName:      "user",
+		Name:          "legacy-proxy-protocol-forward",
+		TunnelID:      9,
+		RemoteAddr:    "1.1.1.1:443",
+		Strategy:      "fifo",
+		CreatedTime:   now,
+		UpdatedTime:   now,
+		Status:        1,
+		ProxyProtocol: 2,
+	}).Error; err != nil {
+		t.Fatalf("create legacy forward: %v", err)
+	}
+	forwardID := mustRepoLastInsertID(t, r)
+
+	record, err := r.GetForwardRecord(forwardID)
+	if err != nil {
+		t.Fatalf("GetForwardRecord: %v", err)
+	}
+	if record.ProxyProtocolReceive != 0 || record.ProxyProtocolSend != 2 {
+		t.Fatalf("expected legacy proxyProtocol to map to receive/send 0/2, got %d/%d", record.ProxyProtocolReceive, record.ProxyProtocolSend)
+	}
+}
+
 func TestRollbackForwardFieldsRestoresPerIPLimits(t *testing.T) {
 	r, err := Open(":memory:")
 	if err != nil {
@@ -224,15 +301,15 @@ func TestRollbackForwardFieldsRestoresPerIPLimits(t *testing.T) {
 	defer r.Close()
 
 	now := time.Now().UnixMilli()
-	forwardID, err := r.CreateForwardTx(1, "admin", "rollback-per-ip-forward", 2, "1.1.1.1:443", "fifo", now, 1, nil, 0, "", nil, 7, 5, int64(21), 2)
+	forwardID, err := r.CreateForwardTx(1, "admin", "rollback-per-ip-forward", 2, "1.1.1.1:443", "fifo", now, 1, nil, 0, "", nil, 7, 5, int64(21), 2, 0, 2)
 	if err != nil {
 		t.Fatalf("CreateForwardTx: %v", err)
 	}
-	if err := r.UpdateForward(forwardID, "rollback-per-ip-forward", 2, "2.2.2.2:443", "fifo", now+1, nil, 0, 0, nil, 0); err != nil {
+	if err := r.UpdateForward(forwardID, "rollback-per-ip-forward", 2, "2.2.2.2:443", "fifo", now+1, nil, 0, 0, nil, 0, 0, 0); err != nil {
 		t.Fatalf("UpdateForward: %v", err)
 	}
 
-	r.RollbackForwardFields(forwardID, 1, "admin", "rollback-per-ip-forward", 2, "1.1.1.1:443", "fifo", 1, nil, 7, 5, int64(21), 2, now+2)
+	r.RollbackForwardFields(forwardID, 1, "admin", "rollback-per-ip-forward", 2, "1.1.1.1:443", "fifo", 1, nil, 7, 5, int64(21), 2, 0, 2, now+2)
 
 	record, err := r.GetForwardRecord(forwardID)
 	if err != nil {

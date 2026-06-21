@@ -1757,6 +1757,7 @@ func buildForwardServiceConfigs(baseName string, forward *forwardRecord, tunnel 
 	services := make([]map[string]interface{}, 0, 2)
 	targets := splitRemoteTargets(forward.RemoteAddr)
 	strategy := strings.TrimSpace(forward.Strategy)
+	proxyProtocolReceive, proxyProtocolSend := normalizeForwardProxyProtocol(forward.ProxyProtocol, forward.ProxyProtocolReceive, forward.ProxyProtocolSend)
 	if strategy == "" {
 		strategy = "fifo"
 	}
@@ -1801,12 +1802,16 @@ func buildForwardServiceConfigs(baseName string, forward *forwardRecord, tunnel 
 		if runtimeLimiters.TrafficLimiter != "" {
 			service["limiter"] = runtimeLimiters.TrafficLimiter
 		}
-		if forward.ProxyProtocol > 0 {
+		if proxyProtocolReceive > 0 {
+			serviceMetadata := ensureServiceMetadata(service)
+			serviceMetadata["proxyProtocol"] = proxyProtocolReceive
+		}
+		if proxyProtocolSend > 0 {
 			handlerConfig := service["handler"].(map[string]interface{})
 			if handlerConfig["metadata"] == nil {
 				handlerConfig["metadata"] = map[string]interface{}{}
 			}
-			handlerConfig["metadata"].(map[string]interface{})["proxyProtocol"] = forward.ProxyProtocol
+			handlerConfig["metadata"].(map[string]interface{})["proxyProtocol"] = proxyProtocolSend
 		}
 		if protocol == "udp" {
 			listenerMetadata := map[string]interface{}{
@@ -1819,10 +1824,8 @@ func buildForwardServiceConfigs(baseName string, forward *forwardRecord, tunnel 
 			service["handler"].(map[string]interface{})["chain"] = fmt.Sprintf("chains_%d", forward.TunnelID)
 		}
 		if tunnel != nil && tunnel.Type == 1 && strings.TrimSpace(node.InterfaceName) != "" {
-			if service["metadata"] == nil {
-				service["metadata"] = map[string]interface{}{}
-			}
-			service["metadata"].(map[string]interface{})["interface"] = node.InterfaceName
+			serviceMetadata := ensureServiceMetadata(service)
+			serviceMetadata["interface"] = node.InterfaceName
 		}
 		services = append(services, service)
 	}
@@ -1839,6 +1842,25 @@ func buildForwarderNodes(targets []string) []map[string]interface{} {
 		})
 	}
 	return nodes
+}
+
+func ensureServiceMetadata(service map[string]interface{}) map[string]interface{} {
+	if service["metadata"] == nil {
+		service["metadata"] = map[string]interface{}{}
+	}
+	metadata, ok := service["metadata"].(map[string]interface{})
+	if !ok {
+		metadata = map[string]interface{}{}
+		service["metadata"] = metadata
+	}
+	return metadata
+}
+
+func normalizeForwardProxyProtocol(legacy, receive, send int) (int, int) {
+	if send == 0 && legacy > 0 {
+		send = legacy
+	}
+	return receive, send
 }
 
 func processServerAddress(serverAddr string) string {

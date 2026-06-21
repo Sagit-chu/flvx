@@ -31,24 +31,26 @@ func (User) TableName() string { return "user" }
 
 // Forward maps to the "forward" table.
 type Forward struct {
-	ID            int64         `gorm:"primaryKey;autoIncrement"`
-	UserID        int64         `gorm:"column:user_id;not null"`
-	UserName      string        `gorm:"column:user_name;type:varchar(100);not null"`
-	Name          string        `gorm:"type:varchar(100);not null"`
-	TunnelID      int64         `gorm:"column:tunnel_id;not null"`
-	RemoteAddr    string        `gorm:"column:remote_addr;type:text;not null"`
-	Strategy      string        `gorm:"type:varchar(100);not null;default:'fifo'"`
-	InFlow        int64         `gorm:"not null;default:0"`
-	OutFlow       int64         `gorm:"column:out_flow;not null;default:0"`
-	CreatedTime   int64         `gorm:"column:created_time;not null"`
-	UpdatedTime   int64         `gorm:"column:updated_time;not null"`
-	Status        int           `gorm:"not null"`
-	Inx           int           `gorm:"not null;default:0"`
-	SpeedID       sql.NullInt64 `gorm:"column:speed_id"`
-	MaxConn       int           `gorm:"column:max_conn;not null;default:0"`
-	IPMaxConn     int           `gorm:"column:ip_max_conn;not null;default:0"`
-	IPSpeedID     sql.NullInt64 `gorm:"column:ip_speed_id"`
-	ProxyProtocol int           `gorm:"column:proxy_protocol;not null;default:0"`
+	ID                   int64         `gorm:"primaryKey;autoIncrement"`
+	UserID               int64         `gorm:"column:user_id;not null"`
+	UserName             string        `gorm:"column:user_name;type:varchar(100);not null"`
+	Name                 string        `gorm:"type:varchar(100);not null"`
+	TunnelID             int64         `gorm:"column:tunnel_id;not null"`
+	RemoteAddr           string        `gorm:"column:remote_addr;type:text;not null"`
+	Strategy             string        `gorm:"type:varchar(100);not null;default:'fifo'"`
+	InFlow               int64         `gorm:"not null;default:0"`
+	OutFlow              int64         `gorm:"column:out_flow;not null;default:0"`
+	CreatedTime          int64         `gorm:"column:created_time;not null"`
+	UpdatedTime          int64         `gorm:"column:updated_time;not null"`
+	Status               int           `gorm:"not null"`
+	Inx                  int           `gorm:"not null;default:0"`
+	SpeedID              sql.NullInt64 `gorm:"column:speed_id"`
+	MaxConn              int           `gorm:"column:max_conn;not null;default:0"`
+	IPMaxConn            int           `gorm:"column:ip_max_conn;not null;default:0"`
+	IPSpeedID            sql.NullInt64 `gorm:"column:ip_speed_id"`
+	ProxyProtocol        int           `gorm:"column:proxy_protocol;not null;default:0"`
+	ProxyProtocolReceive int           `gorm:"column:proxy_protocol_receive;not null;default:0"`
+	ProxyProtocolSend    int           `gorm:"column:proxy_protocol_send;not null;default:0"`
 }
 
 func (Forward) TableName() string { return "forward" }
@@ -487,24 +489,26 @@ type ChainTunnelBackup struct {
 }
 
 type ForwardBackup struct {
-	ID            int64                `json:"id"`
-	UserID        int64                `json:"userId"`
-	UserName      string               `json:"userName"`
-	Name          string               `json:"name"`
-	TunnelID      int64                `json:"tunnelId"`
-	RemoteAddr    string               `json:"remoteAddr"`
-	Strategy      string               `json:"strategy"`
-	InFlow        int64                `json:"inFlow"`
-	OutFlow       int64                `json:"outFlow"`
-	CreatedTime   int64                `json:"createdTime"`
-	UpdatedTime   int64                `json:"updatedTime"`
-	Status        int                  `json:"status"`
-	Inx           int                  `json:"inx"`
-	SpeedID       *int64               `json:"speedId,omitempty"`
-	IPMaxConn     int                  `json:"ipMaxConn,omitempty"`
-	IPSpeedID     *int64               `json:"ipSpeedId,omitempty"`
-	ForwardPorts  *[]ForwardPortBackup `json:"forwardPorts,omitempty"`
-	ProxyProtocol int                  `json:"proxyProtocol"`
+	ID                   int64                `json:"id"`
+	UserID               int64                `json:"userId"`
+	UserName             string               `json:"userName"`
+	Name                 string               `json:"name"`
+	TunnelID             int64                `json:"tunnelId"`
+	RemoteAddr           string               `json:"remoteAddr"`
+	Strategy             string               `json:"strategy"`
+	InFlow               int64                `json:"inFlow"`
+	OutFlow              int64                `json:"outFlow"`
+	CreatedTime          int64                `json:"createdTime"`
+	UpdatedTime          int64                `json:"updatedTime"`
+	Status               int                  `json:"status"`
+	Inx                  int                  `json:"inx"`
+	SpeedID              *int64               `json:"speedId,omitempty"`
+	IPMaxConn            int                  `json:"ipMaxConn,omitempty"`
+	IPSpeedID            *int64               `json:"ipSpeedId,omitempty"`
+	ForwardPorts         *[]ForwardPortBackup `json:"forwardPorts,omitempty"`
+	ProxyProtocol        int                  `json:"proxyProtocol"`
+	ProxyProtocolReceive int                  `json:"proxyProtocolReceive,omitempty"`
+	ProxyProtocolSend    int                  `json:"proxyProtocolSend,omitempty"`
 }
 
 type ForwardPortBackup struct {
@@ -593,19 +597,21 @@ type ImportResult struct {
 
 // ForwardRecord is a minimal forward view used by control plane and flow policy.
 type ForwardRecord struct {
-	ID            int64
-	UserID        int64
-	UserName      string
-	Name          string
-	TunnelID      int64
-	RemoteAddr    string
-	Strategy      string
-	Status        int
-	SpeedID       sql.NullInt64
-	MaxConn       int
-	IPMaxConn     int
-	IPSpeedID     sql.NullInt64
-	ProxyProtocol int
+	ID                   int64
+	UserID               int64
+	UserName             string
+	Name                 string
+	TunnelID             int64
+	RemoteAddr           string
+	Strategy             string
+	Status               int
+	SpeedID              sql.NullInt64
+	MaxConn              int
+	IPMaxConn            int
+	IPSpeedID            sql.NullInt64
+	ProxyProtocol        int
+	ProxyProtocolReceive int
+	ProxyProtocolSend    int
 }
 
 // TunnelRecord is a minimal tunnel view used by control plane.

@@ -9,14 +9,15 @@ import (
 	"go-backend/internal/store/repo"
 )
 
-func TestBuildForwardServiceConfigsSendsProxyProtocolToForwardHandler(t *testing.T) {
+func TestBuildForwardServiceConfigsAppliesProxyProtocolReceiveAndSendIndependently(t *testing.T) {
 	forward := &forwardRecord{
-		ID:            1,
-		UserID:        2,
-		TunnelID:      3,
-		RemoteAddr:    "1.1.1.1:443",
-		Strategy:      "fifo",
-		ProxyProtocol: 2,
+		ID:                   1,
+		UserID:               2,
+		TunnelID:             3,
+		RemoteAddr:           "1.1.1.1:443",
+		Strategy:             "fifo",
+		ProxyProtocolReceive: 1,
+		ProxyProtocolSend:    2,
 	}
 	tunnel := &tunnelRecord{Type: 1}
 	node := &nodeRecord{
@@ -38,8 +39,8 @@ func TestBuildForwardServiceConfigsSendsProxyProtocolToForwardHandler(t *testing
 		if serviceMetadata["interface"] != "eth0" {
 			t.Fatalf("expected interface metadata eth0, got %v", serviceMetadata["interface"])
 		}
-		if _, ok := serviceMetadata["proxyProtocol"]; ok {
-			t.Fatalf("proxyProtocol should not be listener metadata: %v", serviceMetadata)
+		if serviceMetadata["proxyProtocol"] != 1 {
+			t.Fatalf("expected service proxyProtocol 1 for receive mode, got %v", serviceMetadata["proxyProtocol"])
 		}
 
 		handlerConfig, ok := service["handler"].(map[string]interface{})
@@ -52,6 +53,46 @@ func TestBuildForwardServiceConfigsSendsProxyProtocolToForwardHandler(t *testing
 		}
 		if handlerMetadata["proxyProtocol"] != 2 {
 			t.Fatalf("expected handler proxyProtocol 2, got %v", handlerMetadata["proxyProtocol"])
+		}
+	}
+}
+
+func TestBuildForwardServiceConfigsKeepsLegacyProxyProtocolAsSend(t *testing.T) {
+	forward := &forwardRecord{
+		ID:            1,
+		UserID:        2,
+		TunnelID:      3,
+		RemoteAddr:    "1.1.1.1:443",
+		Strategy:      "fifo",
+		ProxyProtocol: 2,
+	}
+	tunnel := &tunnelRecord{Type: 1}
+	node := &nodeRecord{
+		TCPListenAddr: "0.0.0.0",
+		UDPListenAddr: "0.0.0.0",
+	}
+
+	services := buildForwardServiceConfigs("1_2_3", forward, tunnel, node, 4001, "", forwardRuntimeLimiters{})
+	if len(services) != 2 {
+		t.Fatalf("expected 2 services, got %d", len(services))
+	}
+
+	for _, service := range services {
+		serviceMetadata, _ := service["metadata"].(map[string]interface{})
+		if _, ok := serviceMetadata["proxyProtocol"]; ok {
+			t.Fatalf("legacy proxyProtocol should not enable receive mode: %v", serviceMetadata)
+		}
+
+		handlerConfig, ok := service["handler"].(map[string]interface{})
+		if !ok {
+			t.Fatalf("expected handler config map, got %T", service["handler"])
+		}
+		handlerMetadata, ok := handlerConfig["metadata"].(map[string]interface{})
+		if !ok {
+			t.Fatalf("expected handler metadata map, got %T", handlerConfig["metadata"])
+		}
+		if handlerMetadata["proxyProtocol"] != 2 {
+			t.Fatalf("expected legacy proxyProtocol to send version 2, got %v", handlerMetadata["proxyProtocol"])
 		}
 	}
 }

@@ -2143,8 +2143,10 @@ func (h *Handler) forwardCreate(w http.ResponseWriter, r *http.Request) {
 		ipMaxConn = 0
 	}
 	proxyProtocol := asInt(req["proxyProtocol"], 0)
+	proxyProtocolReceive := asInt(req["proxyProtocolReceive"], 0)
+	proxyProtocolSend := asInt(req["proxyProtocolSend"], proxyProtocol)
 
-	forwardID, err := h.repo.CreateForwardTx(userID, userName, name, tunnelID, remoteAddr, defaultString(asString(req["strategy"]), "fifo"), now, inx, entryNodes, port, inIp, nullableInt(speedID), maxConn, ipMaxConn, nullableInt(ipSpeedID), proxyProtocol)
+	forwardID, err := h.repo.CreateForwardTx(userID, userName, name, tunnelID, remoteAddr, defaultString(asString(req["strategy"]), "fifo"), now, inx, entryNodes, port, inIp, nullableInt(speedID), maxConn, ipMaxConn, nullableInt(ipSpeedID), proxyProtocol, proxyProtocolReceive, proxyProtocolSend)
 	if err != nil {
 		response.WriteJSON(w, response.Err(-2, err.Error()))
 		return
@@ -2333,8 +2335,10 @@ func (h *Handler) forwardUpdate(w http.ResponseWriter, r *http.Request) {
 		ipMaxConn = 0
 	}
 	proxyProtocol := asInt(req["proxyProtocol"], forward.ProxyProtocol)
+	proxyProtocolReceive := asInt(req["proxyProtocolReceive"], forward.ProxyProtocolReceive)
+	proxyProtocolSend := asInt(req["proxyProtocolSend"], forward.ProxyProtocolSend)
 
-	if err := h.repo.UpdateForward(id, name, tunnelID, remoteAddr, strategy, now, newSpeedID, maxConn, ipMaxConn, newIPSpeedID, proxyProtocol); err != nil {
+	if err := h.repo.UpdateForward(id, name, tunnelID, remoteAddr, strategy, now, newSpeedID, maxConn, ipMaxConn, newIPSpeedID, proxyProtocol, proxyProtocolReceive, proxyProtocolSend); err != nil {
 		response.WriteJSON(w, response.Err(-2, err.Error()))
 		return
 	}
@@ -4722,7 +4726,7 @@ func (h *Handler) rollbackForwardMutation(oldForward *forwardRecord, oldPorts []
 	h.repo.RollbackForwardFields(
 		oldForward.ID, oldForward.UserID, oldForward.UserName, oldForward.Name,
 		oldForward.TunnelID, oldForward.RemoteAddr, oldForward.Strategy, oldForward.Status,
-		oldForward.SpeedID, oldForward.MaxConn, oldForward.IPMaxConn, oldForward.IPSpeedID, oldForward.ProxyProtocol,
+		oldForward.SpeedID, oldForward.MaxConn, oldForward.IPMaxConn, oldForward.IPSpeedID, oldForward.ProxyProtocol, oldForward.ProxyProtocolReceive, oldForward.ProxyProtocolSend,
 		time.Now().UnixMilli(),
 	)
 

@@ -207,20 +207,23 @@ func (r *Repository) ListActiveForwardsByNode(nodeID int64) ([]model.ForwardReco
 	}
 	rows := make([]model.ForwardRecord, 0, len(forwards))
 	for _, f := range forwards {
+		proxyProtocolReceive, proxyProtocolSend := normalizeForwardProxyProtocol(f.ProxyProtocol, f.ProxyProtocolReceive, f.ProxyProtocolSend)
 		rows = append(rows, model.ForwardRecord{
-			ID:            f.ID,
-			UserID:        f.UserID,
-			UserName:      f.UserName,
-			Name:          f.Name,
-			TunnelID:      f.TunnelID,
-			RemoteAddr:    f.RemoteAddr,
-			Strategy:      f.Strategy,
-			Status:        f.Status,
-			SpeedID:       f.SpeedID,
-			MaxConn:       f.MaxConn,
-			IPMaxConn:     f.IPMaxConn,
-			IPSpeedID:     f.IPSpeedID,
-			ProxyProtocol: f.ProxyProtocol,
+			ID:                   f.ID,
+			UserID:               f.UserID,
+			UserName:             f.UserName,
+			Name:                 f.Name,
+			TunnelID:             f.TunnelID,
+			RemoteAddr:           f.RemoteAddr,
+			Strategy:             f.Strategy,
+			Status:               f.Status,
+			SpeedID:              f.SpeedID,
+			MaxConn:              f.MaxConn,
+			IPMaxConn:            f.IPMaxConn,
+			IPSpeedID:            f.IPSpeedID,
+			ProxyProtocol:        f.ProxyProtocol,
+			ProxyProtocolReceive: proxyProtocolReceive,
+			ProxyProtocolSend:    proxyProtocolSend,
 		})
 	}
 	for i := range rows {
@@ -236,4 +239,11 @@ func defaultString(value, fallback string) string {
 		return fallback
 	}
 	return value
+}
+
+func normalizeForwardProxyProtocol(legacy, receive, send int) (int, int) {
+	if send == 0 && legacy > 0 {
+		send = legacy
+	}
+	return receive, send
 }

@@ -130,6 +130,8 @@ interface Forward {
   ipSpeedId?: number | null;
   ipSpeedLimitName?: string;
   proxyProtocol?: number;
+  proxyProtocolReceive?: number;
+  proxyProtocolSend?: number;
 }
 
 interface Tunnel {
@@ -169,6 +171,8 @@ interface ForwardForm {
   ipSpeedId: number | null;
   maxConn?: number;
   proxyProtocol?: number;
+  proxyProtocolReceive?: number;
+  proxyProtocolSend?: number;
 }
 
 interface ForwardUserGroup {
@@ -600,6 +604,16 @@ const mapForwardApiItems = (items: ForwardApiItem[]): Forward[] => {
       typeof forward.proxyProtocol === "number"
         ? forward.proxyProtocol
         : undefined,
+    proxyProtocolReceive:
+      typeof forward.proxyProtocolReceive === "number"
+        ? forward.proxyProtocolReceive
+        : 0,
+    proxyProtocolSend:
+      typeof forward.proxyProtocolSend === "number"
+        ? forward.proxyProtocolSend
+        : typeof forward.proxyProtocol === "number"
+          ? forward.proxyProtocol
+          : 0,
     serviceRunning: forward.status === 1,
   }));
 };
@@ -1337,6 +1351,8 @@ export default function ForwardPage() {
     ipSpeedId: null,
     maxConn: 0,
     proxyProtocol: 0,
+    proxyProtocolReceive: 0,
+    proxyProtocolSend: 0,
   });
   const [inIpTouched, setInIpTouched] = useState(false);
 
@@ -2128,6 +2144,8 @@ export default function ForwardPage() {
       ipMaxConn: 0,
       ipSpeedId: null,
       proxyProtocol: 0,
+      proxyProtocolReceive: 0,
+      proxyProtocolSend: 0,
     });
     setErrors({});
     setModalOpen(true);
@@ -2152,6 +2170,8 @@ export default function ForwardPage() {
       ipSpeedId: normalizeSpeedId(forward.ipSpeedId),
       maxConn: forward.maxConn ?? 0,
       proxyProtocol: forward.proxyProtocol ?? 0,
+      proxyProtocolReceive: forward.proxyProtocolReceive ?? 0,
+      proxyProtocolSend: forward.proxyProtocolSend ?? forward.proxyProtocol ?? 0,
     });
     setErrors({});
     setModalOpen(true);
@@ -2285,7 +2305,9 @@ export default function ForwardPage() {
           ipMaxConn: form.ipMaxConn,
           ...(isAdmin ? { ipSpeedId: normalizedIPSpeedId } : {}),
           maxConn: form.maxConn,
-          proxyProtocol: form.proxyProtocol,
+          proxyProtocol: form.proxyProtocolSend,
+          proxyProtocolReceive: form.proxyProtocolReceive,
+          proxyProtocolSend: form.proxyProtocolSend,
         };
 
         res = await updateForward(updateData);
@@ -2301,7 +2323,9 @@ export default function ForwardPage() {
           ipMaxConn: form.ipMaxConn,
           ...(isAdmin ? { ipSpeedId: normalizedIPSpeedId } : {}),
           maxConn: form.maxConn,
-          proxyProtocol: form.proxyProtocol,
+          proxyProtocol: form.proxyProtocolSend,
+          proxyProtocolReceive: form.proxyProtocolReceive,
+          proxyProtocolSend: form.proxyProtocolSend,
         };
 
         res = await createForward(createData);
@@ -4968,25 +4992,50 @@ export default function ForwardPage() {
                             setForm((prev) => ({ ...prev, ipMaxConn: value }));
                           }}
                         />
-                        <Select
-                          description="启用 PROXY protocol，用于透传客户端真实 IP"
-                          label="Proxy Protocol"
-                          placeholder="禁用"
-                          selectedKeys={[String(form.proxyProtocol || 0)]}
-                          variant="bordered"
-                          onSelectionChange={(keys) => {
-                            const selectedKey = Array.from(keys)[0] as string;
+                        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                          <Select
+                            description="入口监听接收 PROXY protocol，用于读取上游传入的真实客户端 IP。"
+                            label="Proxy Protocol 接收"
+                            placeholder="禁用"
+                            selectedKeys={[
+                              String(form.proxyProtocolReceive || 0),
+                            ]}
+                            variant="bordered"
+                            onSelectionChange={(keys) => {
+                              const selectedKey = Array.from(keys)[0] as string;
 
-                            setForm((prev) => ({
-                              ...prev,
-                              proxyProtocol: Number(selectedKey),
-                            }));
-                          }}
-                        >
-                          <SelectItem key="0">禁用</SelectItem>
-                          <SelectItem key="1">Version 1</SelectItem>
-                          <SelectItem key="2">Version 2</SelectItem>
-                        </Select>
+                              setForm((prev) => ({
+                                ...prev,
+                                proxyProtocolReceive: Number(selectedKey),
+                              }));
+                            }}
+                          >
+                            <SelectItem key="0">禁用</SelectItem>
+                            <SelectItem key="1">Version 1</SelectItem>
+                            <SelectItem key="2">Version 2</SelectItem>
+                          </Select>
+                          <Select
+                            description="连接目标地址时发送 PROXY protocol，用于向下游透传客户端真实 IP。"
+                            label="Proxy Protocol 发送"
+                            placeholder="禁用"
+                            selectedKeys={[String(form.proxyProtocolSend || 0)]}
+                            variant="bordered"
+                            onSelectionChange={(keys) => {
+                              const selectedKey = Array.from(keys)[0] as string;
+                              const proxyProtocolSend = Number(selectedKey);
+
+                              setForm((prev) => ({
+                                ...prev,
+                                proxyProtocol: proxyProtocolSend,
+                                proxyProtocolSend,
+                              }));
+                            }}
+                          >
+                            <SelectItem key="0">禁用</SelectItem>
+                            <SelectItem key="1">Version 1</SelectItem>
+                            <SelectItem key="2">Version 2</SelectItem>
+                          </Select>
+                        </div>
                         {isAdmin && (
                           <Select
                             label="规则限速"

@@ -490,7 +490,7 @@ func seedForwardForNftables(t *testing.T, h *Handler, tunnelID, nodeID int64, re
 	now := time.Now().UnixMilli()
 	forwardID, err := h.repo.CreateForwardTx(
 		1, "admin", "nft-forward", tunnelID, remoteAddr, "fifo", now, 1,
-		[]int64{nodeID}, 20000, "", nil, 0, 0, nil, 0,
+		[]int64{nodeID}, 20000, "", nil, 0, 0, nil, 0, 0, 0,
 	)
 	if err != nil {
 		t.Fatalf("create forward: %v", err)
