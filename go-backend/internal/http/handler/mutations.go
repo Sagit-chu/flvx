@@ -2502,6 +2502,26 @@ func (h *Handler) forwardPause(w http.ResponseWriter, r *http.Request) {
 	response.WriteJSON(w, response.OKEmpty())
 }
 
+func (h *Handler) forwardResetFlow(w http.ResponseWriter, r *http.Request) {
+	id := idFromBody(r, w)
+	if id <= 0 {
+		return
+	}
+	if _, _, _, err := h.resolveForwardAccess(r, id); err != nil {
+		if errors.Is(err, errForwardNotFound) {
+			response.WriteJSON(w, response.ErrDefault("转发不存在"))
+			return
+		}
+		response.WriteJSON(w, response.Err(-2, err.Error()))
+		return
+	}
+	if err := h.repo.ResetForwardFlow(id, time.Now().UnixMilli()); err != nil {
+		response.WriteJSON(w, response.Err(-2, err.Error()))
+		return
+	}
+	response.WriteJSON(w, response.OKEmpty())
+}
+
 func (h *Handler) forwardResume(w http.ResponseWriter, r *http.Request) {
 	id := idFromBody(r, w)
 	if id <= 0 {

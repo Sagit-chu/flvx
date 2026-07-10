@@ -221,6 +221,7 @@ func (h *Handler) Register(mux *http.ServeMux) {
 	mux.HandleFunc("/api/v1/forward/force-delete", h.forwardForceDelete)
 	mux.HandleFunc("/api/v1/forward/pause", h.forwardPause)
 	mux.HandleFunc("/api/v1/forward/resume", h.forwardResume)
+	mux.HandleFunc("/api/v1/forward/reset-flow", h.forwardResetFlow)
 	mux.HandleFunc("/api/v1/forward/diagnose", h.forwardDiagnose)
 	mux.HandleFunc("/api/v1/forward/diagnose/stream", h.forwardDiagnoseStream)
 	mux.HandleFunc("/api/v1/forward/update-order", h.forwardUpdateOrder)
