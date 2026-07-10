@@ -217,6 +217,8 @@ export const pauseForwardService = (forwardId: number) =>
   Network.post("/forward/pause", { id: forwardId });
 export const resumeForwardService = (forwardId: number) =>
   Network.post("/forward/resume", { id: forwardId });
+export const resetForwardFlow = (forwardId: number) =>
+  Network.post("/forward/reset-flow", { id: forwardId });
 
 // 转发诊断操作
 export const diagnoseForward = (forwardId: number) =>
