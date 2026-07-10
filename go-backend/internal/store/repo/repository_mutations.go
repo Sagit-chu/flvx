@@ -197,6 +197,19 @@ func (r *Repository) ResetUserFlowByUserTunnel(userTunnelID int64) {
 		Updates(map[string]interface{}{"in_flow": 0, "out_flow": 0}).Error
 }
 
+func (r *Repository) ResetForwardFlow(forwardID int64, now int64) error {
+	if r == nil || r.db == nil {
+		return errors.New("repository not initialized")
+	}
+	return r.db.Model(&model.Forward{}).
+		Where("id = ?", forwardID).
+		Updates(map[string]interface{}{
+			"in_flow":      0,
+			"out_flow":     0,
+			"updated_time": now,
+		}).Error
+}
+
 func (r *Repository) GetUsernameByID(userID int64) string {
 	if r == nil || r.db == nil {
 		return ""
