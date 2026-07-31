@@ -151,6 +151,7 @@ const (
 	initialBackoff              = 2 * time.Second  // 重连初始退避
 	maxBackoff                  = 2 * time.Minute  // 重连最大退避
 	defaultMetricReportInterval = 5 * time.Second
+	maxConcurrentTCPPings       = 8
 )
 
 type WebSocketReporter struct {
@@ -172,6 +173,7 @@ type WebSocketReporter struct {
 	connecting        bool              // 正在连接状态
 	connMutex         sync.Mutex        // 连接状态锁
 	aesCrypto         *crypto.AESCrypto // AES加密器
+	tcpPingSem        chan struct{}     // 限制诊断探测并发，避免离线目标耗尽连接
 }
 
 var wsDial = func(dialer *websocket.Dialer, rawURL string) (*websocket.Conn, *http.Response, error) {
@@ -201,6 +203,29 @@ func NewWebSocketReporter(serverURL string, secret string) *WebSocketReporter {
 		connected:      false,
 		connecting:     false,
 		aesCrypto:      aesCrypto,
+		tcpPingSem:     make(chan struct{}, maxConcurrentTCPPings),
+	}
+}
+
+func (w *WebSocketReporter) tryAcquireTCPPingSlot() bool {
+	if w == nil || w.tcpPingSem == nil {
+		return false
+	}
+	select {
+	case w.tcpPingSem <- struct{}{}:
+		return true
+	default:
+		return false
+	}
+}
+
+func (w *WebSocketReporter) releaseTCPPingSlot() {
+	if w == nil || w.tcpPingSem == nil {
+		return
+	}
+	select {
+	case <-w.tcpPingSem:
+	default:
 	}
 }
 
@@ -840,9 +865,14 @@ func (w *WebSocketReporter) routeCommand(cmd CommandMessage) {
 
 	// TCP Ping 诊断命令（只读，不需要保存配置）
 	case "TcpPing":
+		response.Type = "TcpPingResponse"
+		if !w.tryAcquireTCPPingSlot() {
+			err = fmt.Errorf("TCP探测任务过多，请稍后重试")
+			break
+		}
+		defer w.releaseTCPPingSlot()
 		var tcpPingResult TcpPingResponse
 		tcpPingResult, err = w.handleTcpPing(cmd.Data)
-		response.Type = "TcpPingResponse"
 		response.Data = tcpPingResult
 		// needSaveConfig = false (默认值)
 

@@ -44,6 +44,14 @@ import { ThemeSettings } from "@/components/theme-settings";
 import { isAdmin } from "@/utils/auth";
 import { getCachedConfigs, configCache, updateSiteConfig } from "@/config/site";
 import {
+  DEFAULT_TUNNEL_QUALITY_INTERVAL_SEC,
+  MAX_TUNNEL_QUALITY_INTERVAL_SEC,
+  MIN_TUNNEL_QUALITY_INTERVAL_SEC,
+  parseTunnelQualityIntervalSeconds,
+  TUNNEL_QUALITY_INTERVAL_CONFIG_KEY,
+  validateTunnelQualityInterval,
+} from "@/config/tunnel-quality";
+import {
   type UpdateReleaseChannel,
   getUpdateReleaseChannel,
   setUpdateReleaseChannel,
@@ -158,6 +166,16 @@ const CONFIG_ITEMS: ConfigItem[] = [
     type: "switch",
   },
   {
+    key: TUNNEL_QUALITY_INTERVAL_CONFIG_KEY,
+    label: "隧道质量探测间隔",
+    placeholder: String(DEFAULT_TUNNEL_QUALITY_INTERVAL_SEC),
+    description:
+      "设置实时隧道质量检测的执行频率，单位为秒；允许 1–3600 秒，默认 1 秒。",
+    type: "input",
+    dependsOn: "monitor_tunnel_quality_enabled",
+    dependsValue: "true",
+  },
+  {
     key: "monitor_retention_days",
     label: "监控数据保留天数",
     placeholder: "7",
@@ -239,6 +257,7 @@ const getInitialConfigs = (): Record<string, string> => {
     "cloudflare_secret_key",
     "forward_compact_mode",
     "monitor_tunnel_quality_enabled",
+    TUNNEL_QUALITY_INTERVAL_CONFIG_KEY,
     "monitor_retention_days",
     "ip",
     "panel_domain",
@@ -622,6 +641,19 @@ export default function ConfigPage() {
 
   // 保存配置
   const handleSave = async () => {
+    const intervalValue = configs[TUNNEL_QUALITY_INTERVAL_CONFIG_KEY];
+    const intervalChanged =
+      intervalValue !== originalConfigs[TUNNEL_QUALITY_INTERVAL_CONFIG_KEY];
+    const intervalError = intervalChanged
+      ? validateTunnelQualityInterval(intervalValue || "")
+      : null;
+
+    if (intervalError) {
+      toast.error(intervalError);
+
+      return;
+    }
+
     setSaving(true);
     try {
       const changedKeys = Object.keys(configs).filter(
@@ -667,12 +699,22 @@ export default function ConfigPage() {
           }),
         );
 
-        // 如果隧道质量检测开关变更，通知 tunnel-monitor-view
-        if (changedKeys.includes("monitor_tunnel_quality_enabled")) {
+        // 如果隧道质量检测配置变更，通知 tunnel-monitor-view
+        if (
+          changedKeys.some((key) =>
+            [
+              "monitor_tunnel_quality_enabled",
+              TUNNEL_QUALITY_INTERVAL_CONFIG_KEY,
+            ].includes(key),
+          )
+        ) {
           window.dispatchEvent(
             new CustomEvent("monitorTunnelQualityEnabledChanged", {
               detail: {
                 enabled: configs["monitor_tunnel_quality_enabled"] === "true",
+                intervalSec: parseTunnelQualityIntervalSeconds(
+                  configs[TUNNEL_QUALITY_INTERVAL_CONFIG_KEY],
+                ),
               },
             }),
           );
@@ -1075,10 +1117,20 @@ export default function ConfigPage() {
       case "bg_image":
         return renderBgImageUploader();
 
-      case "input":
+      case "input": {
         if (isBrandPreviewKey(item.key)) {
           return renderBrandAssetUploader(item.key, isChanged);
         }
+
+        const isTunnelQualityInterval =
+          item.key === TUNNEL_QUALITY_INTERVAL_CONFIG_KEY;
+        const intervalValue = isTunnelQualityInterval
+          ? (configs[item.key] ?? String(DEFAULT_TUNNEL_QUALITY_INTERVAL_SEC))
+          : (configs[item.key] ?? "");
+        const intervalError =
+          isTunnelQualityInterval && configs[item.key] !== undefined
+            ? validateTunnelQualityInterval(intervalValue)
+            : null;
 
         return (
           <Input
@@ -1091,14 +1143,30 @@ export default function ConfigPage() {
             description={
               isCommercialDisabled ? "需商业版授权才能修改此项" : undefined
             }
+            endContent={isTunnelQualityInterval ? "秒" : undefined}
+            errorMessage={intervalError || undefined}
             isDisabled={isCommercialDisabled}
+            isInvalid={Boolean(intervalError)}
+            max={
+              isTunnelQualityInterval
+                ? MAX_TUNNEL_QUALITY_INTERVAL_SEC
+                : undefined
+            }
+            min={
+              isTunnelQualityInterval
+                ? MIN_TUNNEL_QUALITY_INTERVAL_SEC
+                : undefined
+            }
             placeholder={item.placeholder}
             size="md"
-            value={configs[item.key] || ""}
+            step={isTunnelQualityInterval ? 1 : undefined}
+            type={isTunnelQualityInterval ? "number" : "text"}
+            value={intervalValue}
             variant="bordered"
             onChange={(e) => handleConfigChange(item.key, e.target.value)}
           />
         );
+      }
 
       case "switch":
         return (

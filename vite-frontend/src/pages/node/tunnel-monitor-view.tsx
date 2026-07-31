@@ -53,12 +53,17 @@ import {
   TableRow,
   TableCell,
 } from "@/shadcn-bridge/heroui/table";
+import {
+  DEFAULT_TUNNEL_QUALITY_INTERVAL_SEC,
+  parseTunnelQualityIntervalSeconds,
+  TUNNEL_QUALITY_INTERVAL_CONFIG_KEY,
+  tunnelQualityIntervalLabel,
+} from "@/config/tunnel-quality";
 
 interface TunnelMonitorViewProps {
   viewMode?: "list" | "grid";
 }
 
-const QUALITY_POLL_INTERVAL = 1_000; // 1 second
 const MONITOR_TUNNEL_QUALITY_ENABLED_CONFIG_KEY =
   "monitor_tunnel_quality_enabled";
 const MONITOR_TUNNEL_QUALITY_ENABLED_EVENT =
@@ -562,6 +567,9 @@ export function TunnelMonitorView({
   const qualityTimerRef = useRef<number | null>(null);
   const [monitorTunnelQualityEnabled, setMonitorTunnelQualityEnabled] =
     useState(true);
+  const [tunnelQualityIntervalSec, setTunnelQualityIntervalSec] = useState(
+    DEFAULT_TUNNEL_QUALITY_INTERVAL_SEC,
+  );
 
   // Detail view state
   const [detailTunnelId, setDetailTunnelId] = useState<number | null>(null);
@@ -618,26 +626,28 @@ export function TunnelMonitorView({
     }
   }, []);
 
-  const loadMonitorTunnelQualityEnabled = useCallback(async () => {
-    try {
-      const response = await getConfigByName(
-        MONITOR_TUNNEL_QUALITY_ENABLED_CONFIG_KEY,
-      );
+  const loadTunnelQualityConfig = useCallback(async () => {
+    const [enabledResponse, intervalResponse] = await Promise.all([
+      getConfigByName(MONITOR_TUNNEL_QUALITY_ENABLED_CONFIG_KEY).catch(
+        () => null,
+      ),
+      getConfigByName(TUNNEL_QUALITY_INTERVAL_CONFIG_KEY).catch(() => null),
+    ]);
 
-      setMonitorTunnelQualityEnabled(
-        typeof response.data?.value === "string"
-          ? response.data.value === "true"
-          : true,
-      );
-    } catch {
-      setMonitorTunnelQualityEnabled(true);
-    }
+    setMonitorTunnelQualityEnabled(
+      typeof enabledResponse?.data?.value === "string"
+        ? enabledResponse.data.value === "true"
+        : true,
+    );
+    setTunnelQualityIntervalSec(
+      parseTunnelQualityIntervalSeconds(intervalResponse?.data?.value),
+    );
   }, []);
 
   useEffect(() => {
     void loadTunnels();
-    void loadMonitorTunnelQualityEnabled();
-  }, [loadMonitorTunnelQualityEnabled, loadTunnels]);
+    void loadTunnelQualityConfig();
+  }, [loadTunnelQualityConfig, loadTunnels]);
 
   useEffect(() => {
     const timer = window.setInterval(() => {
@@ -649,8 +659,11 @@ export function TunnelMonitorView({
 
   useEffect(() => {
     const handleMonitorTunnelQualityEnabledChanged = (event: Event) => {
-      const enabled = (event as CustomEvent<{ enabled?: boolean }>).detail
-        ?.enabled;
+      const detail = (
+        event as CustomEvent<{ enabled?: boolean; intervalSec?: number }>
+      ).detail;
+      const enabled = detail?.enabled;
+      const intervalSec = detail?.intervalSec;
 
       if (typeof enabled === "boolean") {
         setMonitorTunnelQualityEnabled(enabled);
@@ -658,7 +671,12 @@ export function TunnelMonitorView({
           setQualityLoading(false);
         }
       } else {
-        void loadMonitorTunnelQualityEnabled();
+        void loadTunnelQualityConfig();
+      }
+      if (typeof intervalSec === "number") {
+        setTunnelQualityIntervalSec(
+          parseTunnelQualityIntervalSeconds(String(intervalSec)),
+        );
       }
     };
 
@@ -673,7 +691,7 @@ export function TunnelMonitorView({
         handleMonitorTunnelQualityEnabledChanged as EventListener,
       );
     };
-  }, [loadMonitorTunnelQualityEnabled]);
+  }, [loadTunnelQualityConfig]);
 
   useEffect(() => {
     if (tunnels.length > 0 && !initialHistoryFetched.current) {
@@ -726,7 +744,7 @@ export function TunnelMonitorView({
     }
   }, [tunnels]);
 
-  // --- Load quality snapshots (auto-polling every 10s) ---
+  // --- Load quality snapshots using the configured probe interval ---
   const loadQuality = useCallback(async (options?: { silent?: boolean }) => {
     const silent = options?.silent ?? false;
 
@@ -788,7 +806,7 @@ export function TunnelMonitorView({
 
     qualityTimerRef.current = window.setInterval(() => {
       void loadQuality({ silent: true });
-    }, QUALITY_POLL_INTERVAL);
+    }, tunnelQualityIntervalSec * 1000);
 
     return () => {
       if (qualityTimerRef.current) {
@@ -796,7 +814,7 @@ export function TunnelMonitorView({
         qualityTimerRef.current = null;
       }
     };
-  }, [loadQuality, monitorTunnelQualityEnabled]);
+  }, [loadQuality, monitorTunnelQualityEnabled, tunnelQualityIntervalSec]);
 
   // --- Load quality history for detail chart ---
   const loadQualityHistory = useCallback(
@@ -1065,7 +1083,7 @@ export function TunnelMonitorView({
           {monitorTunnelQualityEnabled ? (
             <>
               <LiveDot />
-              <span>自动探测中（每秒测试，30秒上报）</span>
+              <span>{`自动探测中（${tunnelQualityIntervalLabel(tunnelQualityIntervalSec)}测试）`}</span>
             </>
           ) : (
             <>
@@ -1129,7 +1147,7 @@ export function TunnelMonitorView({
             {monitorTunnelQualityEnabled ? (
               <>
                 <LiveDot />
-                <span>每秒探测 · 更新于 {lastQualityUpdate}</span>
+                <span>{`${tunnelQualityIntervalLabel(tunnelQualityIntervalSec)}探测 · 更新于 ${lastQualityUpdate}`}</span>
               </>
             ) : (
               <>

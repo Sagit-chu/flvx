@@ -59,6 +59,7 @@ type diagnosisWorkItem struct {
 type diagnosisExecOptions struct {
 	commandTimeout time.Duration
 	pingTimeoutMS  int
+	pingCount      int
 	timeoutMessage string
 }
 
@@ -1596,10 +1597,14 @@ func (h *Handler) tcpPingViaNode(nodeID int64, ip string, port int, options diag
 	if options.pingTimeoutMS <= 0 {
 		options.pingTimeoutMS = int(diagnosisCommandTimeout / time.Millisecond)
 	}
+	pingCount := options.pingCount
+	if pingCount <= 0 {
+		pingCount = 4
+	}
 	res, err := h.sendNodeCommandWithTimeout(nodeID, "TcpPing", map[string]interface{}{
 		"ip":      ip,
 		"port":    port,
-		"count":   4,
+		"count":   pingCount,
 		"timeout": options.pingTimeoutMS,
 	}, options.commandTimeout, false, false)
 	if err != nil {
@@ -1626,12 +1631,16 @@ func (h *Handler) tcpPingViaRemoteNode(node *nodeRecord, ip string, port int, op
 	if options.pingTimeoutMS <= 0 {
 		options.pingTimeoutMS = int(diagnosisCommandTimeout / time.Millisecond)
 	}
+	pingCount := options.pingCount
+	if pingCount <= 0 {
+		pingCount = 4
+	}
 
 	fc := client.NewFederationClientWithTimeout(options.commandTimeout)
 	return fc.Diagnose(remoteURL, remoteToken, h.federationLocalDomain(), client.RuntimeDiagnoseRequest{
 		IP:       strings.TrimSpace(ip),
 		Port:     port,
-		Count:    4,
+		Count:    pingCount,
 		Timeout:  options.pingTimeoutMS,
 		Protocol: "tcp",
 	})

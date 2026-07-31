@@ -152,7 +152,11 @@ func evaluateBestExitOwner(owner chainNodeRecord, exits []chainNodeRecord, nodes
 	ownerNode := nodes[owner.NodeID]
 	for _, exit := range exits {
 		exitNode := nodes[exit.NodeID]
-		if exitNode == nil {
+		if !isTunnelProbeNodeOnline(ownerNode) {
+			scores = append(scores, failedBestExitCandidate(owner.NodeID, exit, "owner node offline"))
+			continue
+		}
+		if !isTunnelProbeNodeOnline(exitNode) {
 			scores = append(scores, failedBestExitCandidate(owner.NodeID, exit, "exit node unavailable"))
 			continue
 		}

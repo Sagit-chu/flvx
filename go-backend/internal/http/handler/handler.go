@@ -1015,6 +1015,7 @@ func (h *Handler) updateConfigs(w http.ResponseWriter, r *http.Request) {
 			response.WriteJSON(w, response.Err(-2, err.Error()))
 			return
 		}
+		h.notifyTunnelQualityConfigChanged(key)
 	}
 
 	response.WriteJSON(w, response.OKEmpty())
@@ -1062,6 +1063,7 @@ func (h *Handler) updateSingleConfig(w http.ResponseWriter, r *http.Request) {
 		response.WriteJSON(w, response.Err(-2, err.Error()))
 		return
 	}
+	h.notifyTunnelQualityConfigChanged(name)
 
 	response.WriteJSON(w, response.OKEmpty())
 }
@@ -1110,8 +1112,20 @@ func normalizeAndValidateConfigValue(key, value string) (string, error) {
 		}
 	case monitoring.ConfigMonitorRetentionDays:
 		return monitoring.NormalizeMonitoringRetentionDays(value)
+	case monitoring.ConfigTunnelQualityProbeIntervalSec:
+		return monitoring.NormalizeTunnelQualityProbeIntervalSeconds(value)
 	default:
 		return value, nil
+	}
+}
+
+func (h *Handler) notifyTunnelQualityConfigChanged(key string) {
+	if h == nil || h.qualityProber == nil {
+		return
+	}
+	switch strings.TrimSpace(key) {
+	case monitorTunnelQualityEnabledConfigKey, monitoring.ConfigTunnelQualityProbeIntervalSec:
+		h.qualityProber.NotifyConfigChanged()
 	}
 }
 

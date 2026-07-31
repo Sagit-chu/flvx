@@ -3,6 +3,7 @@ package handler
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"log"
 	"sync"
 	"sync/atomic"
@@ -13,7 +14,6 @@ import (
 )
 
 const (
-	tunnelQualityProbeInterval  = 1 * time.Second
 	tunnelQualityProbeTimeout   = 8 * time.Second
 	tunnelQualityPingTimeoutMs  = 5000
 	tunnelQualityPruneInterval  = 10 * time.Minute
@@ -56,7 +56,7 @@ type tunnelQualityProber struct {
 	cache     sync.Map // tunnelID (int64) → *tunnelQualitySnapshot
 	ctx       context.Context
 	cancel    context.CancelFunc
-	interval  time.Duration
+	wake      chan struct{}
 	lastPrune int64
 	probing   int32 // atomic flag: 1 = probeAll running, 0 = idle
 	probeNode bestExitProbeFunc
@@ -65,8 +65,8 @@ type tunnelQualityProber struct {
 // newTunnelQualityProber creates a new prober (not yet running).
 func newTunnelQualityProber(h *Handler) *tunnelQualityProber {
 	return &tunnelQualityProber{
-		handler:  h,
-		interval: tunnelQualityProbeInterval,
+		handler: h,
+		wake:    make(chan struct{}, 1),
 	}
 }
 
@@ -84,6 +84,16 @@ func (p *tunnelQualityProber) Stop() {
 	}
 
 	p.cancel()
+}
+
+func (p *tunnelQualityProber) NotifyConfigChanged() {
+	if p == nil || p.wake == nil {
+		return
+	}
+	select {
+	case p.wake <- struct{}{}:
+	default:
+	}
 }
 
 // GetAll returns all cached quality snapshots (latest per tunnel).
@@ -109,18 +119,42 @@ func (p *tunnelQualityProber) loop() {
 	// Run once immediately
 	p.probeAll()
 
-	ticker := time.NewTicker(p.interval)
-	defer ticker.Stop()
-
 	for {
+		timer := time.NewTimer(p.probeInterval())
 		select {
 		case <-p.ctx.Done():
+			stopAndDrainTunnelQualityTimer(timer)
 			return
-		case <-ticker.C:
+		case <-p.wake:
+			stopAndDrainTunnelQualityTimer(timer)
+			continue
+		case <-timer.C:
 			p.probeAll()
 			p.maybePrune()
 		}
 	}
+}
+
+func stopAndDrainTunnelQualityTimer(timer *time.Timer) {
+	if timer == nil || timer.Stop() {
+		return
+	}
+	select {
+	case <-timer.C:
+	default:
+	}
+}
+
+func (p *tunnelQualityProber) probeInterval() time.Duration {
+	if p == nil || p.handler == nil || p.handler.repo == nil {
+		return time.Duration(monitoring.DefaultTunnelQualityProbeIntervalSec) * time.Second
+	}
+	cfg, err := p.handler.repo.GetConfigsByNames([]string{monitoring.ConfigTunnelQualityProbeIntervalSec})
+	if err != nil {
+		return time.Duration(monitoring.DefaultTunnelQualityProbeIntervalSec) * time.Second
+	}
+	seconds := monitoring.TunnelQualityProbeIntervalSecondsFromConfigMap(cfg)
+	return time.Duration(seconds) * time.Second
 }
 
 func (p *tunnelQualityProber) isEnabled() bool {
@@ -246,15 +280,19 @@ func (p *tunnelQualityProber) probeTunnel(tunnelID int64) {
 	options := diagnosisExecOptions{
 		commandTimeout: tunnelQualityProbeTimeout,
 		pingTimeoutMS:  tunnelQualityPingTimeoutMs,
+		pingCount:      1,
 		timeoutMessage: "探测超时",
 	}
 	p.probeBestExitOwners(tunnelID, inNodes, midNodesGrouped, outNodes, ipPreference, options, probeTarget)
 
+	entry, _, entryOnline := p.firstOnlineChainNode(inNodes)
+	exit, _, exitOnline := p.firstOnlineChainNode(outNodes)
+
 	switch tunnel.Type {
 	case 1:
 		// Port forwarding: entry → public probe target only.
-		if len(inNodes) > 0 {
-			lat, loss, err := p.pingNode(inNodes[0].NodeID, probeTarget.Host, probeTarget.Port, options)
+		if entryOnline {
+			lat, loss, err := p.pingNode(entry.NodeID, probeTarget.Host, probeTarget.Port, options)
 			if err == nil {
 				snap.ExitToBingLatency = lat
 				snap.ExitToBingLoss = loss
@@ -262,24 +300,42 @@ func (p *tunnelQualityProber) probeTunnel(tunnelID int64) {
 			} else {
 				snap.ErrorMessage = err.Error()
 			}
+		} else {
+			snap.ErrorMessage = "入口节点均不在线"
 		}
 	case 2:
 		// Tunnel forwarding: entry → exit + exit → Bing
 		probeOK := true
 
-		if len(inNodes) > 0 && len(outNodes) > 0 {
+		if !entryOnline {
+			probeOK = false
+			snap.ErrorMessage = "入口节点均不在线"
+			snap.EntryToExitLatency = -1
+			snap.EntryToExitLoss = 100
+		} else if !exitOnline {
+			probeOK = false
+			snap.ErrorMessage = "出口节点均不在线"
+			snap.EntryToExitLatency = -1
+			snap.EntryToExitLoss = 100
+		} else {
 			var hops []TunnelQualityHop
 			var totalLat float64
 			remainingSuccessProb := 1.0
 
 			nodesInPath := make([]chainNodeRecord, 0, 2+len(midNodesGrouped))
-			nodesInPath = append(nodesInPath, inNodes[0])
+			nodesInPath = append(nodesInPath, entry)
 			for _, midGroup := range midNodesGrouped {
-				if len(midGroup) > 0 {
-					nodesInPath = append(nodesInPath, midGroup[0])
+				mid, _, online := p.firstOnlineChainNode(midGroup)
+				if !online {
+					probeOK = false
+					snap.ErrorMessage = "中间节点组均不在线"
+					break
 				}
+				nodesInPath = append(nodesInPath, mid)
 			}
-			nodesInPath = append(nodesInPath, outNodes[0])
+			if probeOK {
+				nodesInPath = append(nodesInPath, exit)
+			}
 
 			for i := 0; i < len(nodesInPath)-1; i++ {
 				source := nodesInPath[i]
@@ -293,7 +349,7 @@ func (p *tunnelQualityProber) probeTunnel(tunnelID int64) {
 				}
 
 				targetNode, nodeErr := h.getNodeRecord(target.NodeID)
-				if nodeErr != nil || targetNode == nil {
+				if nodeErr != nil || !isTunnelProbeNodeOnline(targetNode) {
 					snap.ErrorMessage = "节点 " + target.NodeName + " 不可用"
 					probeOK = false
 					hop.Latency = -1
@@ -351,8 +407,8 @@ func (p *tunnelQualityProber) probeTunnel(tunnelID int64) {
 		}
 
 		// Exit → Bing
-		if len(outNodes) > 0 {
-			lat, loss, err := p.pingNode(outNodes[0].NodeID, probeTarget.Host, probeTarget.Port, options)
+		if exitOnline {
+			lat, loss, err := p.pingNode(exit.NodeID, probeTarget.Host, probeTarget.Port, options)
 			if err == nil {
 				snap.ExitToBingLatency = lat
 				snap.ExitToBingLoss = loss
@@ -367,8 +423,8 @@ func (p *tunnelQualityProber) probeTunnel(tunnelID int64) {
 		snap.Success = probeOK
 	default:
 		// Unknown type: entry → public probe target.
-		if len(inNodes) > 0 {
-			lat, loss, err := p.pingNode(inNodes[0].NodeID, probeTarget.Host, probeTarget.Port, options)
+		if entryOnline {
+			lat, loss, err := p.pingNode(entry.NodeID, probeTarget.Host, probeTarget.Port, options)
 			if err == nil {
 				snap.ExitToBingLatency = lat
 				snap.ExitToBingLoss = loss
@@ -376,10 +432,29 @@ func (p *tunnelQualityProber) probeTunnel(tunnelID int64) {
 			} else {
 				snap.ErrorMessage = err.Error()
 			}
+		} else {
+			snap.ErrorMessage = "入口节点均不在线"
 		}
 	}
 
 	p.storeResult(snap)
+}
+
+func isTunnelProbeNodeOnline(node *nodeRecord) bool {
+	return node != nil && (node.IsRemote == 1 || node.Status == 1)
+}
+
+func (p *tunnelQualityProber) firstOnlineChainNode(nodes []chainNodeRecord) (chainNodeRecord, *nodeRecord, bool) {
+	if p == nil || p.handler == nil {
+		return chainNodeRecord{}, nil, false
+	}
+	for _, candidate := range nodes {
+		node, err := p.handler.getNodeRecord(candidate.NodeID)
+		if err == nil && isTunnelProbeNodeOnline(node) {
+			return candidate, node, true
+		}
+	}
+	return chainNodeRecord{}, nil, false
 }
 
 func (p *tunnelQualityProber) probeBestExitOwners(tunnelID int64, inNodes []chainNodeRecord, chainHops [][]chainNodeRecord, outNodes []chainNodeRecord, ipPreference string, options diagnosisExecOptions, probeTarget tunnelProbeTarget) {
@@ -443,6 +518,9 @@ func (p *tunnelQualityProber) tcpPingNode(nodeID int64, ip string, port int, opt
 	node, nodeErr := h.getNodeRecord(nodeID)
 	if nodeErr != nil {
 		return 0, 100, nodeErr
+	}
+	if !isTunnelProbeNodeOnline(node) {
+		return 0, 100, errors.New("节点不在线")
 	}
 
 	var pingData map[string]interface{}

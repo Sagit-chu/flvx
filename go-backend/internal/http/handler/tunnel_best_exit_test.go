@@ -358,9 +358,9 @@ func TestEvaluateBestExitOwnerScoresAllCandidates(t *testing.T) {
 		{NodeID: 31, NodeName: "exit-b", Port: 30031},
 	}
 	nodes := map[int64]*nodeRecord{
-		10: {ID: 10, ServerIP: "10.0.0.10", ServerIPv4: "10.0.0.10", TCPListenAddr: "[::]"},
-		30: {ID: 30, ServerIP: "10.0.0.30", ServerIPv4: "10.0.0.30", TCPListenAddr: "[::]"},
-		31: {ID: 31, ServerIP: "10.0.0.31", ServerIPv4: "10.0.0.31", TCPListenAddr: "[::]"},
+		10: {ID: 10, Status: 1, ServerIP: "10.0.0.10", ServerIPv4: "10.0.0.10", TCPListenAddr: "[::]"},
+		30: {ID: 30, Status: 1, ServerIP: "10.0.0.30", ServerIPv4: "10.0.0.30", TCPListenAddr: "[::]"},
+		31: {ID: 31, Status: 1, ServerIP: "10.0.0.31", ServerIPv4: "10.0.0.31", TCPListenAddr: "[::]"},
 	}
 	pinger := func(nodeID int64, ip string, port int, _ diagnosisExecOptions) (float64, float64, error) {
 		switch {
@@ -387,12 +387,30 @@ func TestEvaluateBestExitOwnerScoresAllCandidates(t *testing.T) {
 	}
 }
 
+func TestEvaluateBestExitOwnerSkipsOfflineCandidate(t *testing.T) {
+	owner := chainNodeRecord{NodeID: 10, NodeName: "entry"}
+	exits := []chainNodeRecord{{NodeID: 30, NodeName: "exit-a", Port: 30030}}
+	nodes := map[int64]*nodeRecord{
+		10: {ID: 10, Status: 1, ServerIP: "10.0.0.10", ServerIPv4: "10.0.0.10"},
+		30: {ID: 30, Status: 0, ServerIP: "10.0.0.30", ServerIPv4: "10.0.0.30"},
+	}
+	ping := func(nodeID int64, ip string, port int, options diagnosisExecOptions) (float64, float64, error) {
+		t.Fatalf("offline best-exit candidate should not be probed: node=%d target=%s:%d", nodeID, ip, port)
+		return 0, 100, nil
+	}
+
+	scores := evaluateBestExitOwner(owner, exits, nodes, "", diagnosisExecOptions{}, defaultTunnelProbeTarget(), ping)
+	if len(scores) != 1 || scores[0].Success {
+		t.Fatalf("expected one failed offline candidate, got %+v", scores)
+	}
+}
+
 func TestEvaluateBestExitOwnerUsesConfiguredPublicProbeTarget(t *testing.T) {
 	owner := chainNodeRecord{NodeID: 10, NodeName: "entry-a"}
 	exits := []chainNodeRecord{{NodeID: 30, NodeName: "exit-a", Port: 30001}}
 	nodes := map[int64]*nodeRecord{
-		10: {ID: 10, Name: "entry-a", ServerIP: "10.0.0.10", ServerIPv4: "10.0.0.10"},
-		30: {ID: 30, Name: "exit-a", ServerIP: "10.0.0.30", ServerIPv4: "10.0.0.30"},
+		10: {ID: 10, Name: "entry-a", Status: 1, ServerIP: "10.0.0.10", ServerIPv4: "10.0.0.10"},
+		30: {ID: 30, Name: "exit-a", Status: 1, ServerIP: "10.0.0.30", ServerIPv4: "10.0.0.30"},
 	}
 	target := tunnelProbeTarget{Host: "speed.example.com", Port: 8443}
 	var calls []string
@@ -419,8 +437,8 @@ func TestEvaluateBestExitOwnerMarksCandidateFailedWhenOwnerToExitFails(t *testin
 	owner := chainNodeRecord{NodeID: 10, NodeName: "entry"}
 	exits := []chainNodeRecord{{NodeID: 30, NodeName: "exit-a", Port: 30030}}
 	nodes := map[int64]*nodeRecord{
-		10: {ID: 10, ServerIP: "10.0.0.10", ServerIPv4: "10.0.0.10", TCPListenAddr: "[::]"},
-		30: {ID: 30, ServerIP: "10.0.0.30", ServerIPv4: "10.0.0.30", TCPListenAddr: "[::]"},
+		10: {ID: 10, Status: 1, ServerIP: "10.0.0.10", ServerIPv4: "10.0.0.10", TCPListenAddr: "[::]"},
+		30: {ID: 30, Status: 1, ServerIP: "10.0.0.30", ServerIPv4: "10.0.0.30", TCPListenAddr: "[::]"},
 	}
 	pinger := func(nodeID int64, ip string, port int, _ diagnosisExecOptions) (float64, float64, error) {
 		return 0, 100, errBestExitProbeForTest
@@ -436,8 +454,8 @@ func TestEvaluateBestExitOwnerMarksCandidateFailedWhenTargetResolutionFails(t *t
 	owner := chainNodeRecord{NodeID: 10, NodeName: "entry"}
 	exits := []chainNodeRecord{{NodeID: 30, NodeName: "exit-v6", Port: 30030}}
 	nodes := map[int64]*nodeRecord{
-		10: {ID: 10, Name: "entry", ServerIP: "10.0.0.10", ServerIPv4: "10.0.0.10", TCPListenAddr: "[::]"},
-		30: {ID: 30, Name: "exit-v6", ServerIP: "2001:db8::30", ServerIPv6: "2001:db8::30", TCPListenAddr: "[::]"},
+		10: {ID: 10, Name: "entry", Status: 1, ServerIP: "10.0.0.10", ServerIPv4: "10.0.0.10", TCPListenAddr: "[::]"},
+		30: {ID: 30, Name: "exit-v6", Status: 1, ServerIP: "2001:db8::30", ServerIPv6: "2001:db8::30", TCPListenAddr: "[::]"},
 	}
 	pinger := func(nodeID int64, ip string, port int, _ diagnosisExecOptions) (float64, float64, error) {
 		t.Fatalf("ping should not be called when target resolution fails: node=%d ip=%s port=%d", nodeID, ip, port)

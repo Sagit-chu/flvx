@@ -148,6 +148,25 @@ func TestNewWebSocketReporterUsesReducedMetricInterval(t *testing.T) {
 	}
 }
 
+func TestWebSocketReporterLimitsConcurrentTCPPings(t *testing.T) {
+	reporter := &WebSocketReporter{tcpPingSem: make(chan struct{}, maxConcurrentTCPPings)}
+	for i := 0; i < maxConcurrentTCPPings; i++ {
+		if !reporter.tryAcquireTCPPingSlot() {
+			t.Fatalf("expected TCP ping slot %d to be available", i)
+		}
+	}
+	if reporter.tryAcquireTCPPingSlot() {
+		t.Fatalf("expected TCP ping concurrency limit at %d", maxConcurrentTCPPings)
+	}
+	for i := 0; i < maxConcurrentTCPPings; i++ {
+		reporter.releaseTCPPingSlot()
+	}
+	if !reporter.tryAcquireTCPPingSlot() {
+		t.Fatalf("expected released TCP ping slot to be reusable")
+	}
+	reporter.releaseTCPPingSlot()
+}
+
 func TestFormatWebSocketDialErrorIncludesHTTPStatus(t *testing.T) {
 	err := errors.New("websocket: bad handshake")
 	resp := &http.Response{
