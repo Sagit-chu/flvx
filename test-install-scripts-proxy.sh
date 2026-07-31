@@ -90,6 +90,7 @@ test_update_flux_agent_asks_for_proxy_config() (
   set -euo pipefail
   load_script_without_main "$ROOT_DIR/install.sh"
 
+  SERVICE_MANAGER="systemd"
   INSTALL_DIR=$(mktemp -d)
   cat > "$INSTALL_DIR/flux_agent" <<'EOF'
 #!/bin/bash
@@ -165,6 +166,7 @@ test_install_flux_agent_preserves_legacy_gost_when_download_fails() (
   set -euo pipefail
   load_script_without_main "$ROOT_DIR/install.sh"
 
+  SERVICE_MANAGER="systemd"
   INSTALL_DIR=$(mktemp -d)
   cat > "$INSTALL_DIR/flux_agent" <<'EOF'
 #!/bin/bash
@@ -199,6 +201,7 @@ test_update_flux_agent_preserves_legacy_gost_when_download_fails() (
   set -euo pipefail
   load_script_without_main "$ROOT_DIR/install.sh"
 
+  SERVICE_MANAGER="systemd"
   INSTALL_DIR=$(mktemp -d)
   cat > "$INSTALL_DIR/flux_agent" <<'EOF'
 #!/bin/bash
@@ -236,7 +239,9 @@ test_install_flux_agent_writes_json_safe_config() (
   set -euo pipefail
   load_script_without_main "$ROOT_DIR/install.sh"
 
+  SERVICE_MANAGER="systemd"
   INSTALL_DIR=$(mktemp -d)
+  FLUX_AGENT_SYSTEMD_SERVICE_FILE="$INSTALL_DIR/flux_agent.service"
   SERVER_ADDR='panel"addr'
   SECRET='sec\ret"1'
   DOWNLOAD_URL="https://example.com/gost"
@@ -272,6 +277,117 @@ EOF
   local expected=$'{\n  "addr": "panel\\"addr",\n  "secret": "sec\\\\ret\\"1"\n}'
 
   assert_equals "$expected" "$actual" "install_flux_agent should JSON-escape config values"
+)
+
+test_install_script_bootstraps_bash_for_alpine() (
+  set -euo pipefail
+
+  local shebang
+  shebang=$(head -n 1 "$ROOT_DIR/install.sh")
+  assert_equals "#!/bin/sh" "$shebang" "install.sh should start with Alpine's default shell"
+
+  grep -Fq 'apk add --no-cache bash' "$ROOT_DIR/install.sh" || \
+    fail "install.sh should bootstrap Bash through apk on Alpine"
+)
+
+test_install_flux_agent_uses_openrc() (
+  set -euo pipefail
+  load_script_without_main "$ROOT_DIR/install.sh"
+
+  local temp_root
+  temp_root=$(mktemp -d)
+  INSTALL_DIR="$temp_root/flux_agent"
+  FLUX_AGENT_OPENRC_SERVICE_FILE="$temp_root/init.d/flux_agent"
+  SERVICE_MANAGER="openrc"
+  SERVER_ADDR="panel.example.com:443"
+  SECRET="secret"
+  DOWNLOAD_URL="https://example.com/gost"
+
+  local rc_service_calls=""
+  local rc_update_calls=""
+
+  ask_proxy_config() { :; }
+  ensure_download_url_initialized() { :; }
+  get_config_params() { :; }
+  check_and_install_tcpkill() { :; }
+  cleanup_legacy_gost_installation() { :; }
+  curl() {
+    local output=""
+    while [[ $# -gt 0 ]]; do
+      if [[ "$1" == "-o" ]]; then
+        output="$2"
+        shift 2
+        continue
+      fi
+      shift
+    done
+
+    cat > "$output" <<'EOF'
+#!/bin/sh
+echo "new version"
+EOF
+    chmod +x "$output"
+  }
+  rc-service() {
+    rc_service_calls+=$'\n'"$*"
+    if [[ "$2" == "status" ]]; then
+      echo "status: started"
+    fi
+    return 0
+  }
+  rc-update() {
+    rc_update_calls+=$'\n'"$*"
+    return 0
+  }
+
+  install_flux_agent >/dev/null
+
+  [[ -x "$FLUX_AGENT_OPENRC_SERVICE_FILE" ]] || fail "OpenRC service file should be executable"
+  grep -Fq '#!/sbin/openrc-run' "$FLUX_AGENT_OPENRC_SERVICE_FILE" || \
+    fail "OpenRC service should use openrc-run"
+  grep -Fq "command=\"$INSTALL_DIR/flux_agent\"" "$FLUX_AGENT_OPENRC_SERVICE_FILE" || \
+    fail "OpenRC service should launch the installed flux_agent binary"
+  grep -Fq 'command_background="yes"' "$FLUX_AGENT_OPENRC_SERVICE_FILE" || \
+    fail "OpenRC service should run flux_agent in the background"
+  if command -v openrc-run >/dev/null 2>&1; then
+    "$FLUX_AGENT_OPENRC_SERVICE_FILE" describe >/dev/null 2>&1
+  fi
+  [[ "$rc_update_calls" == *"add flux_agent default"* ]] || \
+    fail "OpenRC install should enable flux_agent in the default runlevel"
+  [[ "$rc_service_calls" == *"start"* ]] || fail "OpenRC install should start flux_agent"
+  [[ "$rc_service_calls" == *"status"* ]] || fail "OpenRC install should verify flux_agent status"
+)
+
+test_remove_flux_agent_service_uses_openrc() (
+  set -euo pipefail
+  load_script_without_main "$ROOT_DIR/install.sh"
+
+  local temp_root
+  temp_root=$(mktemp -d)
+  SERVICE_MANAGER="openrc"
+  FLUX_AGENT_OPENRC_SERVICE_FILE="$temp_root/init.d/flux_agent"
+  mkdir -p "$(dirname "$FLUX_AGENT_OPENRC_SERVICE_FILE")"
+  : > "$FLUX_AGENT_OPENRC_SERVICE_FILE"
+
+  local rc_service_calls=""
+  local rc_update_calls=""
+  rc-service() {
+    rc_service_calls+=$'\n'"$*"
+    return 0
+  }
+  rc-update() {
+    rc_update_calls+=$'\n'"$*"
+    return 0
+  }
+
+  stop_flux_agent_service
+  disable_flux_agent_service
+  remove_flux_agent_service
+
+  [[ "$rc_service_calls" == *"stop"* ]] || fail "OpenRC uninstall should stop flux_agent"
+  [[ "$rc_update_calls" == *"del flux_agent default"* ]] || \
+    fail "OpenRC uninstall should remove flux_agent from the default runlevel"
+  [[ ! -e "$FLUX_AGENT_OPENRC_SERVICE_FILE" ]] || fail "OpenRC uninstall should remove its service file"
 )
 
 test_cleanup_legacy_gost_installation_removes_service_and_binary() (
@@ -504,6 +620,9 @@ test_update_flux_agent_skips_proxy_prompt_when_not_installed
 test_install_flux_agent_preserves_legacy_gost_when_download_fails
 test_update_flux_agent_preserves_legacy_gost_when_download_fails
 test_install_flux_agent_writes_json_safe_config
+test_install_script_bootstraps_bash_for_alpine
+test_install_flux_agent_uses_openrc
+test_remove_flux_agent_service_uses_openrc
 test_cleanup_legacy_gost_installation_removes_service_and_binary
 test_cleanup_legacy_gost_installation_preserves_unrelated_gost
 test_install_script_accepts_proxy_url_env_without_prompt
@@ -514,4 +633,4 @@ test_panel_install_script_uses_default_proxy
 test_panel_install_script_accepts_proxy_url_env_without_prompt
 test_panel_install_script_defaults_proxy_on_eof
 
-echo "install script proxy tests passed"
+echo "install script tests passed"

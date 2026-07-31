@@ -1,4 +1,31 @@
-#!/bin/bash
+#!/bin/sh
+# shellcheck shell=bash
+
+# Alpine 默认不带 Bash。先用系统自带的 /bin/sh 安装/切换到 Bash，
+# 后续主体继续使用 Bash 语法，避免要求用户手动准备运行环境。
+if [ -z "${BASH_VERSION:-}" ]; then
+  if command -v bash >/dev/null 2>&1; then
+    exec bash "$0" "$@"
+  fi
+
+  if [ -f /etc/alpine-release ] && command -v apk >/dev/null 2>&1; then
+    if [ "$(id -u)" -eq 0 ]; then
+      apk add --no-cache bash
+    elif command -v sudo >/dev/null 2>&1; then
+      sudo apk add --no-cache bash
+    elif command -v doas >/dev/null 2>&1; then
+      doas apk add --no-cache bash
+    else
+      echo "❌ Alpine 安装需要 root 权限，或已配置 sudo/doas。" >&2
+      exit 1
+    fi
+
+    exec bash "$0" "$@"
+  fi
+
+  echo "❌ 此安装脚本需要 Bash。" >&2
+  exit 1
+fi
 
 # GitHub repo used for release downloads
 REPO="Sagit-chu/flux-panel"
@@ -24,11 +51,14 @@ get_architecture() {
 
 # 安装目录
 INSTALL_DIR="/etc/flux_agent"
+FLUX_AGENT_SYSTEMD_SERVICE_FILE="/etc/systemd/system/flux_agent.service"
+FLUX_AGENT_OPENRC_SERVICE_FILE="/etc/init.d/flux_agent"
 LEGACY_GOST_BINARY="/usr/local/bin/gost"
 LEGACY_GOST_CONFIG_DIR="/etc/gost"
 LEGACY_GOST_SERVICE_FILE_ETC="/etc/systemd/system/gost.service"
 LEGACY_GOST_SERVICE_FILE_LIB="/lib/systemd/system/gost.service"
 LEGACY_GOST_SERVICE_FILE_USR_LIB="/usr/lib/systemd/system/gost.service"
+SERVICE_MANAGER="${SERVICE_MANAGER:-}"
 
 # 镜像加速配置（可由面板传入或交互式询问）
 PROXY_ENABLED="${PROXY_ENABLED:-}"
@@ -256,6 +286,199 @@ write_flux_agent_config() {
     "$(json_escape "$SECRET")" > "$path"
 }
 
+ensure_service_manager() {
+  if [[ -n "$SERVICE_MANAGER" ]]; then
+    case "$SERVICE_MANAGER" in
+      systemd|openrc)
+        return 0
+        ;;
+      *)
+        echo "❌ 不支持的服务管理器: $SERVICE_MANAGER" >&2
+        return 1
+        ;;
+    esac
+  fi
+
+  if command -v systemctl >/dev/null 2>&1 && [[ -d /run/systemd/system ]]; then
+    SERVICE_MANAGER="systemd"
+    return 0
+  fi
+  if command -v rc-service >/dev/null 2>&1 && command -v rc-update >/dev/null 2>&1; then
+    SERVICE_MANAGER="openrc"
+    return 0
+  fi
+
+  echo "❌ 未检测到受支持的服务管理器（systemd 或 OpenRC）。" >&2
+  return 1
+}
+
+flux_agent_service_exists() {
+  ensure_service_manager || return 1
+
+  case "$SERVICE_MANAGER" in
+    systemd)
+      [[ -f "$FLUX_AGENT_SYSTEMD_SERVICE_FILE" ]] || \
+        systemctl list-units --full -all 2>/dev/null | grep -Fq "flux_agent.service"
+      ;;
+    openrc)
+      [[ -f "$FLUX_AGENT_OPENRC_SERVICE_FILE" ]]
+      ;;
+  esac
+}
+
+stop_flux_agent_service() {
+  ensure_service_manager || return 1
+
+  case "$SERVICE_MANAGER" in
+    systemd)
+      systemctl stop flux_agent 2>/dev/null || true
+      ;;
+    openrc)
+      rc-service flux_agent stop 2>/dev/null || true
+      ;;
+  esac
+}
+
+disable_flux_agent_service() {
+  ensure_service_manager || return 1
+
+  case "$SERVICE_MANAGER" in
+    systemd)
+      systemctl disable flux_agent 2>/dev/null || true
+      ;;
+    openrc)
+      rc-update del flux_agent default 2>/dev/null || true
+      ;;
+  esac
+}
+
+write_flux_agent_service() {
+  ensure_service_manager || return 1
+
+  case "$SERVICE_MANAGER" in
+    systemd)
+      mkdir -p "$(dirname "$FLUX_AGENT_SYSTEMD_SERVICE_FILE")"
+      cat > "$FLUX_AGENT_SYSTEMD_SERVICE_FILE" <<EOF
+[Unit]
+Description=Flux_agent Proxy Service
+After=network.target
+
+[Service]
+WorkingDirectory=$INSTALL_DIR
+ExecStart=$INSTALL_DIR/flux_agent
+Restart=on-failure
+StandardOutput=null
+StandardError=null
+
+[Install]
+WantedBy=multi-user.target
+EOF
+      ;;
+    openrc)
+      mkdir -p "$(dirname "$FLUX_AGENT_OPENRC_SERVICE_FILE")"
+      cat > "$FLUX_AGENT_OPENRC_SERVICE_FILE" <<EOF
+#!/sbin/openrc-run
+
+name="flux_agent"
+description="Flux_agent Proxy Service"
+command="$INSTALL_DIR/flux_agent"
+directory="$INSTALL_DIR"
+command_background="yes"
+pidfile="/run/\${RC_SVCNAME}.pid"
+output_log="/dev/null"
+error_log="/dev/null"
+
+depend() {
+  need net
+}
+EOF
+      chmod +x "$FLUX_AGENT_OPENRC_SERVICE_FILE"
+      ;;
+  esac
+}
+
+enable_and_start_flux_agent_service() {
+  ensure_service_manager || return 1
+
+  case "$SERVICE_MANAGER" in
+    systemd)
+      systemctl daemon-reload
+      systemctl enable flux_agent
+      systemctl start flux_agent
+      ;;
+    openrc)
+      rc-update add flux_agent default
+      rc-service flux_agent start
+      ;;
+  esac
+}
+
+start_flux_agent_service() {
+  ensure_service_manager || return 1
+
+  case "$SERVICE_MANAGER" in
+    systemd)
+      systemctl start flux_agent
+      ;;
+    openrc)
+      rc-service flux_agent start
+      ;;
+  esac
+}
+
+flux_agent_service_is_active() {
+  ensure_service_manager || return 1
+
+  case "$SERVICE_MANAGER" in
+    systemd)
+      systemctl is-active --quiet flux_agent
+      ;;
+    openrc)
+      rc-service flux_agent status >/dev/null 2>&1
+      ;;
+  esac
+}
+
+flux_agent_service_status() {
+  ensure_service_manager || return 1
+
+  case "$SERVICE_MANAGER" in
+    systemd)
+      systemctl is-active flux_agent 2>/dev/null || true
+      ;;
+    openrc)
+      rc-service flux_agent status 2>/dev/null || true
+      ;;
+  esac
+}
+
+remove_flux_agent_service() {
+  ensure_service_manager || return 1
+
+  case "$SERVICE_MANAGER" in
+    systemd)
+      rm -f "$FLUX_AGENT_SYSTEMD_SERVICE_FILE"
+      systemctl daemon-reload 2>/dev/null || true
+      ;;
+    openrc)
+      rm -f "$FLUX_AGENT_OPENRC_SERVICE_FILE"
+      ;;
+  esac
+}
+
+flux_agent_service_status_hint() {
+  ensure_service_manager || return 1
+
+  case "$SERVICE_MANAGER" in
+    systemd)
+      echo "systemctl status flux_agent --no-pager"
+      ;;
+    openrc)
+      echo "rc-service flux_agent status"
+      ;;
+  esac
+}
+
 cleanup_legacy_gost_installation() {
   local matched_service_files=()
   local service_file=""
@@ -341,19 +564,21 @@ install_flux_agent() {
 
   get_config_params
 
-    # 检查并安装 tcpkill
+  # 检查并安装 tcpkill
   check_and_install_tcpkill
-  
+  ensure_service_manager || exit 1
 
   mkdir -p "$INSTALL_DIR"
 
   local tmp_binary="$INSTALL_DIR/flux_agent.new"
 
   # 停止并禁用已有服务
-  if systemctl list-units --full -all | grep -Fq "flux_agent.service"; then
+  if flux_agent_service_exists; then
     echo "🔍 检测到已存在的flux_agent服务"
-    systemctl stop flux_agent 2>/dev/null && echo "🛑 停止服务"
-    systemctl disable flux_agent 2>/dev/null && echo "🚫 禁用自启"
+    stop_flux_agent_service
+    echo "🛑 停止服务"
+    disable_flux_agent_service
+    echo "🚫 禁用自启"
   fi
 
   # 下载 flux_agent
@@ -392,38 +617,21 @@ EOF
   # 加强权限
   chmod 600 "$INSTALL_DIR"/*.json
 
-  # 创建 systemd 服务
-  SERVICE_FILE="/etc/systemd/system/flux_agent.service"
-  cat > "$SERVICE_FILE" <<EOF
-[Unit]
-Description=Flux_agent Proxy Service
-After=network.target
-
-[Service]
-WorkingDirectory=$INSTALL_DIR
-ExecStart=$INSTALL_DIR/flux_agent
-Restart=on-failure
-StandardOutput=null
-StandardError=null
-
-[Install]
-WantedBy=multi-user.target
-EOF
+  # 创建 systemd 或 OpenRC 服务
+  write_flux_agent_service
 
   # 启动服务
-  systemctl daemon-reload
-  systemctl enable flux_agent
-  systemctl start flux_agent
+  enable_and_start_flux_agent_service
 
   # 检查状态
   echo "🔄 检查服务状态..."
-  if systemctl is-active --quiet flux_agent; then
+  if flux_agent_service_is_active; then
     echo "✅ 安装完成，flux_agent服务已启动并设置为开机启动。"
     echo "📁 配置目录: $INSTALL_DIR"
-    echo "🔧 服务状态: $(systemctl is-active flux_agent)"
+    echo "🔧 服务状态: $(flux_agent_service_status)"
   else
     echo "❌ flux_agent服务启动失败，请执行以下命令查看状态："
-    echo "systemctl status flux_agent --no-pager"
+    flux_agent_service_status_hint
   fi
 }
 
@@ -443,6 +651,7 @@ update_flux_agent() {
   
   # 检查并安装 tcpkill
   check_and_install_tcpkill
+  ensure_service_manager || return 1
   
   # 先下载新版本
   echo "⬇️ 下载最新版本..."
@@ -455,9 +664,9 @@ update_flux_agent() {
   cleanup_legacy_gost_installation
 
   # 停止服务
-  if systemctl list-units --full -all | grep -Fq "flux_agent.service"; then
+  if flux_agent_service_exists; then
     echo "🛑 停止 flux_agent 服务..."
-    systemctl stop flux_agent
+    stop_flux_agent_service
   fi
 
   # 替换文件
@@ -469,7 +678,7 @@ update_flux_agent() {
 
   # 重启服务
   echo "🔄 重启服务..."
-  systemctl start flux_agent
+  start_flux_agent_service
   
   echo "✅ 更新完成，服务已重新启动。"
 }
@@ -477,6 +686,7 @@ update_flux_agent() {
 # 卸载功能
 uninstall_flux_agent() {
   echo "🗑️ 开始卸载 flux_agent..."
+  ensure_service_manager || return 1
   
   read -p "确认卸载 flux_agent 吗？此操作将删除所有相关文件 (y/N): " confirm
   if [[ "$confirm" != "y" && "$confirm" != "Y" ]]; then
@@ -485,15 +695,15 @@ uninstall_flux_agent() {
   fi
 
   # 停止并禁用服务
-  if systemctl list-units --full -all | grep -Fq "flux_agent.service"; then
+  if flux_agent_service_exists; then
     echo "🛑 停止并禁用服务..."
-    systemctl stop flux_agent 2>/dev/null
-    systemctl disable flux_agent 2>/dev/null
+    stop_flux_agent_service
+    disable_flux_agent_service
   fi
 
   # 删除服务文件
-  if [[ -f "/etc/systemd/system/flux_agent.service" ]]; then
-    rm -f "/etc/systemd/system/flux_agent.service"
+  if [[ -f "$FLUX_AGENT_SYSTEMD_SERVICE_FILE" || -f "$FLUX_AGENT_OPENRC_SERVICE_FILE" ]]; then
+    remove_flux_agent_service
     echo "🧹 删除服务文件"
   fi
 
@@ -502,9 +712,6 @@ uninstall_flux_agent() {
     rm -rf "$INSTALL_DIR"
     echo "🧹 删除安装目录: $INSTALL_DIR"
   fi
-
-  # 重载 systemd
-  systemctl daemon-reload
 
   echo "✅ 卸载完成"
 }

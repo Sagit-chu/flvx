@@ -64,6 +64,14 @@ curl -L https://raw.githubusercontent.com/Sagit-chu/flux-panel/main/panel_instal
 curl -L https://raw.githubusercontent.com/Sagit-chu/flux-panel/main/install.sh -o install.sh && chmod +x install.sh && ./install.sh
 ```
 
+Alpine Linux 最小化安装若未包含 `curl`，可使用系统自带的 `wget` 下载：
+
+```bash
+wget -O install.sh https://raw.githubusercontent.com/Sagit-chu/flux-panel/main/install.sh && chmod +x install.sh && ./install.sh
+```
+
+脚本会在 Alpine 上自动安装 Bash，并使用 OpenRC 注册、启动和管理 `flux_agent` 服务；其他受支持的 Linux 发行版继续使用 systemd。
+
 **安装过程中会提示输入：**
 - **服务器地址**: 面板端的通信地址（通常是 `http://<面板IP>:<后端端口>`，例如 `http://1.2.3.4:6365`）。
 - **密钥**: 刚才在面板中获取的节点密钥。
@@ -77,7 +85,8 @@ curl -L https://raw.githubusercontent.com/Sagit-chu/flux-panel/main/install.sh -
 
 ### 3. 验证安装
 安装完成后，服务会自动启动。
-- 查看状态: `systemctl status flux_agent`
+- systemd 查看状态: `systemctl status flux_agent`
+- Alpine/OpenRC 查看状态: `rc-service flux_agent status`
 - 回到面板 **节点管理** 页面，该节点状态应显示为 **在线**。
 
 ---
