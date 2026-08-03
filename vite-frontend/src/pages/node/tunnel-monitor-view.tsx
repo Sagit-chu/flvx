@@ -492,20 +492,211 @@ const parseTunnelQualityChainDetails = (
   return {};
 };
 
-const candidateRoleLabel = (role: string) => {
-  switch (role) {
-    case "entry":
-      return "入口";
-    case "middle":
-      return "中转";
-    case "exit":
-      return "出口";
-    case "target":
-      return "测试目标";
-    default:
-      return role;
-  }
+type TunnelTopologyHop = TunnelQualityHopApiItem & {
+  errorMessage?: string;
 };
+
+interface TunnelTopologyPath {
+  key: string;
+  hops: TunnelTopologyHop[];
+  alternativeNodeIndex?: number;
+}
+
+const tunnelTopologyHopKey = (fromNodeId: number, toNodeId: number) =>
+  `${fromNodeId}:${toNodeId}`;
+
+const buildTunnelTopologyPaths = (
+  details: TunnelQualityChainDetailsApiItem,
+): TunnelTopologyPath[] => {
+  const primaryHops = details.primaryPath ?? [];
+  const candidates = details.candidateHops ?? [];
+
+  if (primaryHops.length === 0) {
+    const publicCandidates = candidates.filter(
+      (candidate) => candidate.toRole === "target",
+    );
+    const selected = publicCandidates.find((candidate) => candidate.selected);
+    const paths: TunnelTopologyPath[] = [];
+
+    if (selected) {
+      paths.push({ key: "primary-public", hops: [selected] });
+    }
+    for (const candidate of publicCandidates) {
+      if (candidate.selected) continue;
+      paths.push({
+        key: `alternative-public-${candidate.fromNodeId}`,
+        hops: [candidate],
+        alternativeNodeIndex: 0,
+      });
+    }
+
+    return paths;
+  }
+
+  const primaryNodeIds = [
+    primaryHops[0].fromNodeId,
+    ...primaryHops.map((hop) => hop.toNodeId),
+  ];
+  const internalCandidates = candidates.filter(
+    (candidate) => candidate.toRole !== "target",
+  );
+  const candidateHopMap = new Map<string, TunnelQualityCandidateHopApiItem>();
+  const alternativeNodes = new Map<
+    string,
+    { column: number; nodeId: number }
+  >();
+
+  for (const candidate of internalCandidates) {
+    candidateHopMap.set(
+      tunnelTopologyHopKey(candidate.fromNodeId, candidate.toNodeId),
+      candidate,
+    );
+
+    const sourceColumn = candidate.hopIndex;
+    const targetColumn = candidate.hopIndex + 1;
+
+    if (
+      sourceColumn >= 0 &&
+      sourceColumn < primaryNodeIds.length &&
+      candidate.fromNodeId !== primaryNodeIds[sourceColumn]
+    ) {
+      alternativeNodes.set(`${sourceColumn}:${candidate.fromNodeId}`, {
+        column: sourceColumn,
+        nodeId: candidate.fromNodeId,
+      });
+    }
+    if (
+      targetColumn >= 0 &&
+      targetColumn < primaryNodeIds.length &&
+      candidate.toNodeId !== primaryNodeIds[targetColumn]
+    ) {
+      alternativeNodes.set(`${targetColumn}:${candidate.toNodeId}`, {
+        column: targetColumn,
+        nodeId: candidate.toNodeId,
+      });
+    }
+  }
+
+  const paths: TunnelTopologyPath[] = [{ key: "primary", hops: primaryHops }];
+
+  for (const alternative of alternativeNodes.values()) {
+    const nodeIds = [...primaryNodeIds];
+
+    nodeIds[alternative.column] = alternative.nodeId;
+    const hops: TunnelTopologyHop[] = [];
+
+    for (let index = 0; index < nodeIds.length - 1; index += 1) {
+      const fromNodeId = nodeIds[index];
+      const toNodeId = nodeIds[index + 1];
+      const usesPrimaryEdge =
+        fromNodeId === primaryNodeIds[index] &&
+        toNodeId === primaryNodeIds[index + 1];
+      const hop = usesPrimaryEdge
+        ? primaryHops[index]
+        : candidateHopMap.get(tunnelTopologyHopKey(fromNodeId, toNodeId));
+
+      if (!hop) break;
+      hops.push(hop);
+    }
+
+    if (hops.length === primaryHops.length) {
+      paths.push({
+        key: `alternative-${alternative.column}-${alternative.nodeId}`,
+        hops,
+        alternativeNodeIndex: alternative.column,
+      });
+    }
+  }
+
+  return paths;
+};
+
+function TunnelTopologyPathRow({ path }: { path: TunnelTopologyPath }) {
+  return (
+    <div className="flex min-w-max items-center py-2">
+      {path.hops.map((hop, index) => {
+        const hasError =
+          Boolean(hop.errorMessage) || hop.latency < 0 || hop.loss > 0;
+        const colorClass =
+          hop.latency < 0 || hop.errorMessage
+            ? "text-danger"
+            : hop.loss > 0
+              ? "text-warning"
+              : "text-success";
+        const borderColor = hasError ? "border-danger" : "";
+
+        return (
+          <React.Fragment
+            key={`${path.key}-${hop.fromNodeId}-${hop.toNodeId}-${index}`}
+          >
+            {index === 0 ? (
+              <TopologyNodeChip
+                isAlternative={path.alternativeNodeIndex === 0}
+                name={hop.fromNodeName}
+              />
+            ) : null}
+            <div
+              className="relative mx-1 flex min-w-[70px] shrink-0 flex-col items-center justify-center"
+              title={hop.errorMessage}
+            >
+              <span
+                className={`mb-1 text-[10px] font-mono leading-none ${colorClass}`}
+              >
+                {hop.latency >= 0 && !hop.errorMessage
+                  ? `${hop.latency.toFixed(0)}ms`
+                  : "超时"}
+              </span>
+              <div
+                className={`relative flex h-[2px] w-full items-center justify-end bg-default-200 ${hop.latency < 0 || hop.errorMessage ? "!bg-danger" : ""}`}
+              >
+                <ArrowRight
+                  className={`absolute -right-2 z-10 h-3.5 w-3.5 rounded-full bg-background p-[1px] ${colorClass}`}
+                />
+              </div>
+              <span
+                className={`mt-1.5 text-[10px] font-mono leading-none ${hop.errorMessage || hop.loss > 0 ? "text-warning" : "text-default-400"}`}
+              >
+                {hop.errorMessage ? "探测失败" : `${hop.loss.toFixed(0)}% 丢包`}
+              </span>
+            </div>
+            <TopologyNodeChip
+              borderColor={borderColor}
+              isAlternative={path.alternativeNodeIndex === index + 1}
+              name={hop.toNodeName}
+            />
+          </React.Fragment>
+        );
+      })}
+    </div>
+  );
+}
+
+function TopologyNodeChip({
+  name,
+  isAlternative = false,
+  borderColor = "",
+}: {
+  name: string;
+  isAlternative?: boolean;
+  borderColor?: string;
+}) {
+  return (
+    <Chip
+      className={`shrink-0 font-mono shadow-sm ${borderColor}`}
+      size="sm"
+      variant="flat"
+    >
+      <span className="flex items-center gap-1.5">
+        <span>{name}</span>
+        {isAlternative ? (
+          <span className="rounded-full bg-warning/20 px-1.5 py-0.5 text-[9px] font-semibold leading-none text-warning">
+            备选
+          </span>
+        ) : null}
+      </span>
+    </Chip>
+  );
+}
 
 const ForwardingChainTopology = React.memo(function ForwardingChainTopology({
   hopsStr,
@@ -516,13 +707,12 @@ const ForwardingChainTopology = React.memo(function ForwardingChainTopology({
     () => parseTunnelQualityChainDetails(hopsStr),
     [hopsStr],
   );
-  const primaryHops = details.primaryPath ?? [];
-  const alternativeHops = useMemo(
-    () => (details.candidateHops ?? []).filter((hop) => !hop.selected),
-    [details.candidateHops],
+  const topologyPaths = useMemo(
+    () => buildTunnelTopologyPaths(details),
+    [details],
   );
 
-  if (primaryHops.length === 0 && alternativeHops.length === 0) return null;
+  if (topologyPaths.length === 0) return null;
 
   return (
     <Card className="border border-divider/60 shadow-sm transition-shadow bg-gradient-to-br from-background to-default-50/50 mt-4">
@@ -533,132 +723,24 @@ const ForwardingChainTopology = React.memo(function ForwardingChainTopology({
         </h3>
       </CardHeader>
       <CardBody className="py-2 px-4 pb-4">
-        {primaryHops.length > 0 ? (
-          <div className="flex items-center overflow-x-auto pb-2 py-2">
-            {primaryHops.map((hop, index) => {
-              const hasError = hop.latency < 0 || hop.loss > 0;
-              const colorClass =
-                hop.latency < 0
-                  ? "text-danger"
-                  : hop.loss > 0
-                    ? "text-warning"
-                    : "text-success";
-              const borderColor = hasError ? "border-danger" : "";
-
-              return (
-                <React.Fragment
-                  key={`${hop.fromNodeId}-${hop.toNodeId}-${index}`}
-                >
-                  {index === 0 ? (
-                    <Chip
-                      className="shrink-0 font-mono shadow-sm"
-                      size="sm"
-                      variant="flat"
-                    >
-                      {hop.fromNodeName}
-                    </Chip>
-                  ) : null}
-                  <div className="flex flex-col items-center justify-center min-w-[70px] mx-1 shrink-0 relative">
-                    <span
-                      className={`text-[10px] font-mono leading-none mb-1 ${colorClass}`}
-                    >
-                      {hop.latency >= 0
-                        ? `${hop.latency.toFixed(0)}ms`
-                        : "超时"}
-                    </span>
-                    <div
-                      className={`h-[2px] w-full relative flex items-center justify-end bg-default-200 ${hop.latency < 0 ? "!bg-danger" : ""}`}
-                    >
-                      <ArrowRight
-                        className={`w-3.5 h-3.5 absolute -right-2 ${colorClass} bg-background rounded-full p-[1px] z-10`}
-                      />
-                    </div>
-                    <span
-                      className={`text-[10px] font-mono leading-none mt-1.5 ${hop.loss > 0 ? "text-warning" : "text-default-400"}`}
-                    >
-                      {hop.loss.toFixed(0)}% 丢包
-                    </span>
-                  </div>
-                  <Chip
-                    className={`shrink-0 font-mono shadow-sm ${borderColor}`}
-                    size="sm"
-                    variant="flat"
-                  >
-                    {hop.toNodeName}
-                  </Chip>
-                </React.Fragment>
-              );
-            })}
-          </div>
-        ) : null}
-
-        {alternativeHops.length > 0 ? (
-          <div
-            className={`${primaryHops.length > 0 ? "mt-3 border-t border-divider/60 pt-3" : ""}`}
-          >
-            <div className="mb-2 flex items-center justify-between gap-2">
-              <span className="text-xs font-semibold text-default-600">
-                备选节点实时延迟
-              </span>
-              <span className="text-[10px] text-default-400">
-                {alternativeHops.length} 条候选链路
-              </span>
+        <div className="max-h-80 space-y-1 overflow-auto pb-1">
+          {topologyPaths.map((path, index) => (
+            <div
+              key={path.key}
+              className={
+                index === 0
+                  ? "overflow-x-auto"
+                  : "overflow-x-auto border-t border-dashed border-divider/60"
+              }
+            >
+              <TunnelTopologyPathRow path={path} />
             </div>
-            <div className="grid max-h-72 grid-cols-1 gap-2 overflow-y-auto pr-1 md:grid-cols-2">
-              {alternativeHops.map((hop) => (
-                <CandidateHopLatency
-                  key={`${hop.hopIndex}-${hop.fromNodeId}-${hop.toRole}-${hop.toNodeId || hop.toNodeName}`}
-                  hop={hop}
-                />
-              ))}
-            </div>
-          </div>
-        ) : null}
+          ))}
+        </div>
       </CardBody>
     </Card>
   );
 });
-
-function CandidateHopLatency({
-  hop,
-}: {
-  hop: TunnelQualityCandidateHopApiItem;
-}) {
-  const hasError = Boolean(hop.errorMessage) || hop.latency < 0;
-
-  return (
-    <div className="rounded-xl border border-divider/60 bg-default-50/50 px-3 py-2.5">
-      <div className="flex items-center gap-2 text-xs">
-        <span className="min-w-0 truncate font-medium text-foreground">
-          {hop.fromNodeName}
-        </span>
-        <ArrowRight className="h-3.5 w-3.5 shrink-0 text-default-400" />
-        <span className="min-w-0 truncate font-medium text-foreground">
-          {hop.toNodeName}
-        </span>
-        <span className="ml-auto shrink-0">
-          <LatencyDisplay value={hop.latency} />
-        </span>
-      </div>
-      <div className="mt-1.5 flex items-center gap-2 text-[10px] text-default-400">
-        <span>
-          {candidateRoleLabel(hop.fromRole)} → {candidateRoleLabel(hop.toRole)}
-        </span>
-        {hasError ? (
-          <span className="ml-auto truncate text-danger">
-            {hop.errorMessage || "探测失败"}
-          </span>
-        ) : (
-          <span
-            className={`ml-auto font-mono ${hop.loss > 0 ? "text-warning" : "text-default-500"}`}
-          >
-            {hop.loss.toFixed(0)}% 丢包
-          </span>
-        )}
-      </div>
-    </div>
-  );
-}
 
 export function TunnelMonitorView({
   viewMode = "grid",
