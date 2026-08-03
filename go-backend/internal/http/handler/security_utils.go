@@ -3,6 +3,7 @@ package handler
 import (
 	"fmt"
 	"net"
+	"net/netip"
 	"strings"
 )
 
@@ -74,6 +75,12 @@ func IsValidNodeAddress(addr string) error {
 	}
 	if strings.ContainsAny(addr, "/?") {
 		return fmt.Errorf("address must not contain path or query parameters")
+	}
+	// A bare IPv6 literal contains multiple colons, so net.SplitHostPort treats
+	// it as a malformed host:port pair. Accept IP literals before attempting
+	// host:port parsing; netip also handles scoped IPv6 addresses.
+	if _, err := netip.ParseAddr(addr); err == nil {
+		return nil
 	}
 
 	_, _, err := net.SplitHostPort(addr)
