@@ -595,6 +595,20 @@ export interface TunnelQualityHopApiItem {
   targetPort?: number;
 }
 
+export interface TunnelQualityCandidateHopApiItem
+  extends TunnelQualityHopApiItem {
+  fromRole: "entry" | "middle" | "exit";
+  toRole: "middle" | "exit" | "target";
+  hopIndex: number;
+  selected: boolean;
+  errorMessage?: string;
+}
+
+export interface TunnelQualityChainDetailsApiItem {
+  primaryPath?: TunnelQualityHopApiItem[];
+  candidateHops?: TunnelQualityCandidateHopApiItem[];
+}
+
 export interface TunnelQualityApiItem {
   tunnelId: number;
   entryToExitLatency: number;

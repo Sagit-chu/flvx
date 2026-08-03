@@ -132,3 +132,31 @@ func TestUpsertTunnelMetricBucketsIsSafeUnderConcurrency(t *testing.T) {
 		t.Fatalf("expected bytesOut %d, got %d", wantOut, rows[0].BytesOut)
 	}
 }
+
+func TestGetLatestTunnelQualitiesIncludesChainDetails(t *testing.T) {
+	r, err := Open(":memory:")
+	if err != nil {
+		t.Fatalf("open repo: %v", err)
+	}
+	defer r.Close()
+
+	if err := r.InsertTunnelQuality(&model.TunnelQuality{
+		TunnelID:     7,
+		Timestamp:    time.Now().UnixMilli(),
+		Success:      1,
+		ChainDetails: `{"primaryPath":[],"candidateHops":[{"fromNodeId":10,"toNodeId":31}]}`,
+	}); err != nil {
+		t.Fatalf("insert tunnel quality: %v", err)
+	}
+
+	items, err := r.GetLatestTunnelQualities()
+	if err != nil {
+		t.Fatalf("get latest tunnel qualities: %v", err)
+	}
+	if len(items) != 1 {
+		t.Fatalf("expected one latest tunnel quality, got %+v", items)
+	}
+	if items[0].ChainDetails == "" {
+		t.Fatalf("expected chain details in latest quality row, got %+v", items[0])
+	}
+}

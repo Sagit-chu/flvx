@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"encoding/json"
 	"fmt"
 	"slices"
 	"testing"
@@ -104,6 +105,57 @@ func TestTunnelQualityProberUsesOnlineBackupExit(t *testing.T) {
 	if len(snaps) != 1 || !snaps[0].Success {
 		t.Fatalf("expected successful backup exit snapshot, got %+v", snaps)
 	}
+}
+
+func TestTunnelQualityProberReportsAllExitCandidateLatencies(t *testing.T) {
+	h := setupProbeTargetTunnelHandler(t)
+	seedQualityForwardTunnel(t, h, 83, []int{1, 1})
+
+	p := newTunnelQualityProber(h)
+	p.probeNode = func(nodeID int64, ip string, port int, options diagnosisExecOptions) (float64, float64, error) {
+		switch fmt.Sprintf("%d|%s|%d", nodeID, ip, port) {
+		case "10|10.0.0.30|30030":
+			return 20, 0, nil
+		case "10|10.0.0.31|30031":
+			return 35, 0, nil
+		case "30|www.bing.com|443":
+			return 50, 0, nil
+		case "31|www.bing.com|443":
+			return 65, 0, nil
+		default:
+			return 0, 100, fmt.Errorf("unexpected probe node=%d target=%s:%d", nodeID, ip, port)
+		}
+	}
+	p.probeTunnel(83)
+
+	snaps := p.GetAll()
+	if len(snaps) != 1 {
+		t.Fatalf("expected one quality snapshot, got %+v", snaps)
+	}
+	if snaps[0].EntryToExitLatency != 20 || snaps[0].ExitToBingLatency != 50 {
+		t.Fatalf("expected primary path metrics to remain unchanged, got %+v", snaps[0])
+	}
+
+	var details tunnelQualityChainDetails
+	if err := json.Unmarshal([]byte(snaps[0].ChainDetails), &details); err != nil {
+		t.Fatalf("decode chain details: %v", err)
+	}
+	assertCandidateHop := func(fromID, toID int64, latency float64, selected bool) {
+		t.Helper()
+		for _, hop := range details.CandidateHops {
+			if hop.FromNodeID == fromID && hop.ToNodeID == toID {
+				if hop.Latency != latency || hop.Selected != selected || hop.ErrorMessage != "" {
+					t.Fatalf("unexpected candidate hop: %+v", hop)
+				}
+				return
+			}
+		}
+		t.Fatalf("candidate hop %d -> %d not found in %+v", fromID, toID, details.CandidateHops)
+	}
+	assertCandidateHop(10, 30, 20, true)
+	assertCandidateHop(10, 31, 35, false)
+	assertCandidateHop(30, 0, 50, true)
+	assertCandidateHop(31, 0, 65, false)
 }
 
 func TestTunnelQualityProberStoresProbeTargetWhenChainIncomplete(t *testing.T) {

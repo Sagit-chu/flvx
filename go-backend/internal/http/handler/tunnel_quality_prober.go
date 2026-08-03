@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log"
 	"sync"
 	"sync/atomic"
@@ -29,6 +30,26 @@ type TunnelQualityHop struct {
 	Loss         float64 `json:"loss"`
 	TargetIP     string  `json:"targetIp,omitempty"`
 	TargetPort   int     `json:"targetPort,omitempty"`
+}
+
+type TunnelQualityCandidateHop struct {
+	TunnelQualityHop
+	FromRole     string `json:"fromRole"`
+	ToRole       string `json:"toRole"`
+	HopIndex     int    `json:"hopIndex"`
+	Selected     bool   `json:"selected"`
+	ErrorMessage string `json:"errorMessage,omitempty"`
+}
+
+type tunnelQualityChainDetails struct {
+	PrimaryPath   []TunnelQualityHop          `json:"primaryPath,omitempty"`
+	CandidateHops []TunnelQualityCandidateHop `json:"candidateHops,omitempty"`
+}
+
+type tunnelQualityCandidateGroup struct {
+	role      string
+	roleIndex int
+	nodes     []chainNodeRecord
 }
 
 // tunnelQualitySnapshot is the in-memory latest probe result for a tunnel.
@@ -283,16 +304,25 @@ func (p *tunnelQualityProber) probeTunnel(tunnelID int64) {
 		pingCount:      1,
 		timeoutMessage: "探测超时",
 	}
-	p.probeBestExitOwners(tunnelID, inNodes, midNodesGrouped, outNodes, ipPreference, options, probeTarget)
+	roundPinger := newBestExitRoundPinger(p.pingNode)
+	p.probeBestExitOwners(tunnelID, inNodes, midNodesGrouped, outNodes, ipPreference, options, probeTarget, roundPinger)
 
 	entry, _, entryOnline := p.firstOnlineChainNode(inNodes)
 	exit, _, exitOnline := p.firstOnlineChainNode(outNodes)
+	selectedNodeIDs := make(map[string]int64, 2+len(midNodesGrouped))
+	if entryOnline {
+		selectedNodeIDs[tunnelQualityGroupKey("entry", 0)] = entry.NodeID
+	}
+	if exitOnline {
+		selectedNodeIDs[tunnelQualityGroupKey("exit", 0)] = exit.NodeID
+	}
+	var primaryHops []TunnelQualityHop
 
 	switch tunnel.Type {
 	case 1:
 		// Port forwarding: entry → public probe target only.
 		if entryOnline {
-			lat, loss, err := p.pingNode(entry.NodeID, probeTarget.Host, probeTarget.Port, options)
+			lat, loss, err := roundPinger(entry.NodeID, probeTarget.Host, probeTarget.Port, options)
 			if err == nil {
 				snap.ExitToBingLatency = lat
 				snap.ExitToBingLoss = loss
@@ -318,13 +348,12 @@ func (p *tunnelQualityProber) probeTunnel(tunnelID int64) {
 			snap.EntryToExitLatency = -1
 			snap.EntryToExitLoss = 100
 		} else {
-			var hops []TunnelQualityHop
 			var totalLat float64
 			remainingSuccessProb := 1.0
 
 			nodesInPath := make([]chainNodeRecord, 0, 2+len(midNodesGrouped))
 			nodesInPath = append(nodesInPath, entry)
-			for _, midGroup := range midNodesGrouped {
+			for midIndex, midGroup := range midNodesGrouped {
 				mid, _, online := p.firstOnlineChainNode(midGroup)
 				if !online {
 					probeOK = false
@@ -332,6 +361,7 @@ func (p *tunnelQualityProber) probeTunnel(tunnelID int64) {
 					break
 				}
 				nodesInPath = append(nodesInPath, mid)
+				selectedNodeIDs[tunnelQualityGroupKey("middle", midIndex)] = mid.NodeID
 			}
 			if probeOK {
 				nodesInPath = append(nodesInPath, exit)
@@ -354,7 +384,7 @@ func (p *tunnelQualityProber) probeTunnel(tunnelID int64) {
 					probeOK = false
 					hop.Latency = -1
 					hop.Loss = 100
-					hops = append(hops, hop)
+					primaryHops = append(primaryHops, hop)
 					break
 				}
 
@@ -365,25 +395,25 @@ func (p *tunnelQualityProber) probeTunnel(tunnelID int64) {
 					probeOK = false
 					hop.Latency = -1
 					hop.Loss = 100
-					hops = append(hops, hop)
+					primaryHops = append(primaryHops, hop)
 					break
 				}
 
 				hop.TargetIP = targetIP
 				hop.TargetPort = targetPort
 
-				lat, loss, err := p.pingNode(source.NodeID, targetIP, targetPort, options)
+				lat, loss, err := roundPinger(source.NodeID, targetIP, targetPort, options)
 				if err == nil {
 					hop.Latency = lat
 					hop.Loss = loss
 					totalLat += lat
 					remainingSuccessProb *= (1.0 - loss/100.0)
-					hops = append(hops, hop)
+					primaryHops = append(primaryHops, hop)
 				} else {
 					probeOK = false
 					hop.Latency = -1
 					hop.Loss = 100
-					hops = append(hops, hop)
+					primaryHops = append(primaryHops, hop)
 					if snap.ErrorMessage == "" {
 						snap.ErrorMessage = err.Error()
 					}
@@ -398,17 +428,11 @@ func (p *tunnelQualityProber) probeTunnel(tunnelID int64) {
 				snap.EntryToExitLatency = -1
 				snap.EntryToExitLoss = 100
 			}
-
-			if len(hops) > 0 {
-				if b, err := json.Marshal(hops); err == nil {
-					snap.ChainDetails = string(b)
-				}
-			}
 		}
 
 		// Exit → Bing
 		if exitOnline {
-			lat, loss, err := p.pingNode(exit.NodeID, probeTarget.Host, probeTarget.Port, options)
+			lat, loss, err := roundPinger(exit.NodeID, probeTarget.Host, probeTarget.Port, options)
 			if err == nil {
 				snap.ExitToBingLatency = lat
 				snap.ExitToBingLoss = loss
@@ -424,7 +448,7 @@ func (p *tunnelQualityProber) probeTunnel(tunnelID int64) {
 	default:
 		// Unknown type: entry → public probe target.
 		if entryOnline {
-			lat, loss, err := p.pingNode(entry.NodeID, probeTarget.Host, probeTarget.Port, options)
+			lat, loss, err := roundPinger(entry.NodeID, probeTarget.Host, probeTarget.Port, options)
 			if err == nil {
 				snap.ExitToBingLatency = lat
 				snap.ExitToBingLoss = loss
@@ -437,7 +461,190 @@ func (p *tunnelQualityProber) probeTunnel(tunnelID int64) {
 		}
 	}
 
+	candidateHops := p.probeTunnelCandidateHops(
+		tunnel.Type,
+		inNodes,
+		midNodesGrouped,
+		outNodes,
+		selectedNodeIDs,
+		ipPreference,
+		options,
+		probeTarget,
+		roundPinger,
+	)
+	if len(primaryHops) > 0 || len(candidateHops) > 0 {
+		details := tunnelQualityChainDetails{
+			PrimaryPath:   primaryHops,
+			CandidateHops: candidateHops,
+		}
+		if b, err := json.Marshal(details); err == nil {
+			snap.ChainDetails = string(b)
+		}
+	}
+
 	p.storeResult(snap)
+}
+
+func tunnelQualityGroupKey(role string, index int) string {
+	return fmt.Sprintf("%s:%d", role, index)
+}
+
+func (p *tunnelQualityProber) probeTunnelCandidateHops(
+	tunnelType int,
+	inNodes []chainNodeRecord,
+	chainHops [][]chainNodeRecord,
+	outNodes []chainNodeRecord,
+	selectedNodeIDs map[string]int64,
+	ipPreference string,
+	options diagnosisExecOptions,
+	probeTarget tunnelProbeTarget,
+	ping bestExitProbeFunc,
+) []TunnelQualityCandidateHop {
+	if p == nil || p.handler == nil || ping == nil {
+		return nil
+	}
+
+	if tunnelType != 2 {
+		return p.probePublicTargetCandidates("entry", 0, inNodes, selectedNodeIDs, options, probeTarget, ping)
+	}
+
+	groups := make([]tunnelQualityCandidateGroup, 0, 2+len(chainHops))
+	groups = append(groups, tunnelQualityCandidateGroup{role: "entry", roleIndex: 0, nodes: inNodes})
+	for i, hop := range chainHops {
+		groups = append(groups, tunnelQualityCandidateGroup{role: "middle", roleIndex: i, nodes: hop})
+	}
+	groups = append(groups, tunnelQualityCandidateGroup{role: "exit", roleIndex: 0, nodes: outNodes})
+
+	var items []TunnelQualityCandidateHop
+	for i := 0; i < len(groups)-1; i++ {
+		items = append(items, p.probeCandidateGroupLinks(
+			groups[i],
+			groups[i+1],
+			i,
+			selectedNodeIDs,
+			ipPreference,
+			options,
+			ping,
+		)...)
+	}
+	items = append(items, p.probePublicTargetCandidates(
+		"exit",
+		0,
+		outNodes,
+		selectedNodeIDs,
+		options,
+		probeTarget,
+		ping,
+	)...)
+	return items
+}
+
+func (p *tunnelQualityProber) probeCandidateGroupLinks(
+	fromGroup tunnelQualityCandidateGroup,
+	toGroup tunnelQualityCandidateGroup,
+	hopIndex int,
+	selectedNodeIDs map[string]int64,
+	ipPreference string,
+	options diagnosisExecOptions,
+	ping bestExitProbeFunc,
+) []TunnelQualityCandidateHop {
+	items := make([]TunnelQualityCandidateHop, 0, len(fromGroup.nodes)*len(toGroup.nodes))
+	for _, source := range fromGroup.nodes {
+		for _, target := range toGroup.nodes {
+			item := TunnelQualityCandidateHop{
+				TunnelQualityHop: TunnelQualityHop{
+					FromNodeID:   source.NodeID,
+					FromNodeName: source.NodeName,
+					ToNodeID:     target.NodeID,
+					ToNodeName:   target.NodeName,
+					Latency:      -1,
+					Loss:         100,
+				},
+				FromRole: fromGroup.role,
+				ToRole:   toGroup.role,
+				HopIndex: hopIndex,
+				Selected: selectedNodeIDs[tunnelQualityGroupKey(fromGroup.role, fromGroup.roleIndex)] == source.NodeID &&
+					selectedNodeIDs[tunnelQualityGroupKey(toGroup.role, toGroup.roleIndex)] == target.NodeID,
+			}
+
+			sourceNode, sourceErr := p.handler.getNodeRecord(source.NodeID)
+			if sourceErr != nil || !isTunnelProbeNodeOnline(sourceNode) {
+				item.ErrorMessage = "来源节点不在线"
+				items = append(items, item)
+				continue
+			}
+			targetNode, targetErr := p.handler.getNodeRecord(target.NodeID)
+			if targetErr != nil || !isTunnelProbeNodeOnline(targetNode) {
+				item.ErrorMessage = "目标节点不在线"
+				items = append(items, item)
+				continue
+			}
+
+			targetIP, targetPort, resolveErr := resolveChainProbeTarget(sourceNode, targetNode, target.Port, ipPreference, target.ConnectIP)
+			if resolveErr != nil {
+				item.ErrorMessage = resolveErr.Error()
+				items = append(items, item)
+				continue
+			}
+			item.TargetIP = targetIP
+			item.TargetPort = targetPort
+			latency, loss, probeErr := ping(source.NodeID, targetIP, targetPort, options)
+			if probeErr != nil {
+				item.ErrorMessage = probeErr.Error()
+				items = append(items, item)
+				continue
+			}
+			item.Latency = latency
+			item.Loss = loss
+			items = append(items, item)
+		}
+	}
+	return items
+}
+
+func (p *tunnelQualityProber) probePublicTargetCandidates(
+	fromRole string,
+	fromIndex int,
+	nodes []chainNodeRecord,
+	selectedNodeIDs map[string]int64,
+	options diagnosisExecOptions,
+	probeTarget tunnelProbeTarget,
+	ping bestExitProbeFunc,
+) []TunnelQualityCandidateHop {
+	items := make([]TunnelQualityCandidateHop, 0, len(nodes))
+	for _, source := range nodes {
+		item := TunnelQualityCandidateHop{
+			TunnelQualityHop: TunnelQualityHop{
+				FromNodeID:   source.NodeID,
+				FromNodeName: source.NodeName,
+				ToNodeName:   formatTunnelProbeTarget(probeTarget),
+				Latency:      -1,
+				Loss:         100,
+				TargetIP:     probeTarget.Host,
+				TargetPort:   probeTarget.Port,
+			},
+			FromRole: fromRole,
+			ToRole:   "target",
+			HopIndex: fromIndex,
+			Selected: selectedNodeIDs[tunnelQualityGroupKey(fromRole, fromIndex)] == source.NodeID,
+		}
+		sourceNode, sourceErr := p.handler.getNodeRecord(source.NodeID)
+		if sourceErr != nil || !isTunnelProbeNodeOnline(sourceNode) {
+			item.ErrorMessage = "来源节点不在线"
+			items = append(items, item)
+			continue
+		}
+		latency, loss, probeErr := ping(source.NodeID, probeTarget.Host, probeTarget.Port, options)
+		if probeErr != nil {
+			item.ErrorMessage = probeErr.Error()
+			items = append(items, item)
+			continue
+		}
+		item.Latency = latency
+		item.Loss = loss
+		items = append(items, item)
+	}
+	return items
 }
 
 func isTunnelProbeNodeOnline(node *nodeRecord) bool {
@@ -457,7 +664,7 @@ func (p *tunnelQualityProber) firstOnlineChainNode(nodes []chainNodeRecord) (cha
 	return chainNodeRecord{}, nil, false
 }
 
-func (p *tunnelQualityProber) probeBestExitOwners(tunnelID int64, inNodes []chainNodeRecord, chainHops [][]chainNodeRecord, outNodes []chainNodeRecord, ipPreference string, options diagnosisExecOptions, probeTarget tunnelProbeTarget) {
+func (p *tunnelQualityProber) probeBestExitOwners(tunnelID int64, inNodes []chainNodeRecord, chainHops [][]chainNodeRecord, outNodes []chainNodeRecord, ipPreference string, options diagnosisExecOptions, probeTarget tunnelProbeTarget, roundPinger bestExitProbeFunc) {
 	if p == nil || p.handler == nil || p.handler.bestExit == nil || len(outNodes) <= 1 {
 		return
 	}
@@ -479,9 +686,6 @@ func (p *tunnelQualityProber) probeBestExitOwners(tunnelID int64, inNodes []chai
 			nodeMap[exit.NodeID] = node
 		}
 	}
-	// This best-exit decision cache is per decision round; the display-oriented
-	// tunnel quality snapshot may still collect its own first-exit public probe.
-	roundPinger := newBestExitRoundPinger(p.pingNode)
 	for _, owner := range owners {
 		if nodeMap[owner.NodeID] == nil {
 			continue

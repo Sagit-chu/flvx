@@ -2,6 +2,8 @@ import type {
   MonitorTunnelApiItem,
   TunnelMetricApiItem,
   TunnelQualityApiItem,
+  TunnelQualityCandidateHopApiItem,
+  TunnelQualityChainDetailsApiItem,
   TunnelQualityHopApiItem,
 } from "@/api/types";
 
@@ -468,18 +470,59 @@ const TrafficChartCard = React.memo(function TrafficChartCard({
   );
 });
 
-function ForwardingChainTopology({ hopsStr }: { hopsStr?: string }) {
-  if (!hopsStr) return null;
-
-  let hops: TunnelQualityHopApiItem[] = [];
-
+const parseTunnelQualityChainDetails = (
+  raw?: string,
+): TunnelQualityChainDetailsApiItem => {
+  if (!raw) return {};
   try {
-    hops = JSON.parse(hopsStr);
+    const parsed: unknown = JSON.parse(raw);
+
+    // Backward-compatible with historical rows that stored the primary path
+    // directly as a JSON array.
+    if (Array.isArray(parsed)) {
+      return { primaryPath: parsed as TunnelQualityHopApiItem[] };
+    }
+    if (parsed && typeof parsed === "object") {
+      return parsed as TunnelQualityChainDetailsApiItem;
+    }
   } catch {
-    return null;
+    return {};
   }
 
-  if (!Array.isArray(hops) || hops.length === 0) return null;
+  return {};
+};
+
+const candidateRoleLabel = (role: string) => {
+  switch (role) {
+    case "entry":
+      return "入口";
+    case "middle":
+      return "中转";
+    case "exit":
+      return "出口";
+    case "target":
+      return "测试目标";
+    default:
+      return role;
+  }
+};
+
+const ForwardingChainTopology = React.memo(function ForwardingChainTopology({
+  hopsStr,
+}: {
+  hopsStr?: string;
+}) {
+  const details = useMemo(
+    () => parseTunnelQualityChainDetails(hopsStr),
+    [hopsStr],
+  );
+  const primaryHops = details.primaryPath ?? [];
+  const alternativeHops = useMemo(
+    () => (details.candidateHops ?? []).filter((hop) => !hop.selected),
+    [details.candidateHops],
+  );
+
+  if (primaryHops.length === 0 && alternativeHops.length === 0) return null;
 
   return (
     <Card className="border border-divider/60 shadow-sm transition-shadow bg-gradient-to-br from-background to-default-50/50 mt-4">
@@ -490,60 +533,130 @@ function ForwardingChainTopology({ hopsStr }: { hopsStr?: string }) {
         </h3>
       </CardHeader>
       <CardBody className="py-2 px-4 pb-4">
-        <div className="flex items-center overflow-x-auto pb-2 py-2">
-          {hops.map((hop, index) => {
-            const hasError = hop.latency < 0 || hop.loss > 0;
-            const colorClass =
-              hop.latency < 0
-                ? "text-danger"
-                : hop.loss > 0
-                  ? "text-warning"
-                  : "text-success";
-            const borderColor = hasError ? "border-danger" : "";
+        {primaryHops.length > 0 ? (
+          <div className="flex items-center overflow-x-auto pb-2 py-2">
+            {primaryHops.map((hop, index) => {
+              const hasError = hop.latency < 0 || hop.loss > 0;
+              const colorClass =
+                hop.latency < 0
+                  ? "text-danger"
+                  : hop.loss > 0
+                    ? "text-warning"
+                    : "text-success";
+              const borderColor = hasError ? "border-danger" : "";
 
-            return (
-              <React.Fragment key={index}>
-                {index === 0 && (
+              return (
+                <React.Fragment
+                  key={`${hop.fromNodeId}-${hop.toNodeId}-${index}`}
+                >
+                  {index === 0 ? (
+                    <Chip
+                      className="shrink-0 font-mono shadow-sm"
+                      size="sm"
+                      variant="flat"
+                    >
+                      {hop.fromNodeName}
+                    </Chip>
+                  ) : null}
+                  <div className="flex flex-col items-center justify-center min-w-[70px] mx-1 shrink-0 relative">
+                    <span
+                      className={`text-[10px] font-mono leading-none mb-1 ${colorClass}`}
+                    >
+                      {hop.latency >= 0
+                        ? `${hop.latency.toFixed(0)}ms`
+                        : "超时"}
+                    </span>
+                    <div
+                      className={`h-[2px] w-full relative flex items-center justify-end bg-default-200 ${hop.latency < 0 ? "!bg-danger" : ""}`}
+                    >
+                      <ArrowRight
+                        className={`w-3.5 h-3.5 absolute -right-2 ${colorClass} bg-background rounded-full p-[1px] z-10`}
+                      />
+                    </div>
+                    <span
+                      className={`text-[10px] font-mono leading-none mt-1.5 ${hop.loss > 0 ? "text-warning" : "text-default-400"}`}
+                    >
+                      {hop.loss.toFixed(0)}% 丢包
+                    </span>
+                  </div>
                   <Chip
-                    className="shrink-0 font-mono shadow-sm"
+                    className={`shrink-0 font-mono shadow-sm ${borderColor}`}
                     size="sm"
                     variant="flat"
                   >
-                    {hop.fromNodeName}
+                    {hop.toNodeName}
                   </Chip>
-                )}
-                <div className="flex flex-col items-center justify-center min-w-[70px] mx-1 shrink-0 relative">
-                  <span
-                    className={`text-[10px] font-mono leading-none mb-1 ${colorClass}`}
-                  >
-                    {hop.latency >= 0 ? `${hop.latency.toFixed(0)}ms` : "超时"}
-                  </span>
-                  <div
-                    className={`h-[2px] w-full relative flex items-center justify-end bg-default-200 ${hop.latency < 0 ? "!bg-danger" : ""}`}
-                  >
-                    <ArrowRight
-                      className={`w-3.5 h-3.5 absolute -right-2 ${colorClass} bg-background rounded-full p-[1px] z-10`}
-                    />
-                  </div>
-                  <span
-                    className={`text-[10px] font-mono leading-none mt-1.5 ${hop.loss > 0 ? "text-warning" : "text-default-400"}`}
-                  >
-                    {hop.loss.toFixed(0)}% 丢包
-                  </span>
-                </div>
-                <Chip
-                  className={`shrink-0 font-mono shadow-sm ${borderColor}`}
-                  size="sm"
-                  variant="flat"
-                >
-                  {hop.toNodeName}
-                </Chip>
-              </React.Fragment>
-            );
-          })}
-        </div>
+                </React.Fragment>
+              );
+            })}
+          </div>
+        ) : null}
+
+        {alternativeHops.length > 0 ? (
+          <div
+            className={`${primaryHops.length > 0 ? "mt-3 border-t border-divider/60 pt-3" : ""}`}
+          >
+            <div className="mb-2 flex items-center justify-between gap-2">
+              <span className="text-xs font-semibold text-default-600">
+                备选节点实时延迟
+              </span>
+              <span className="text-[10px] text-default-400">
+                {alternativeHops.length} 条候选链路
+              </span>
+            </div>
+            <div className="grid max-h-72 grid-cols-1 gap-2 overflow-y-auto pr-1 md:grid-cols-2">
+              {alternativeHops.map((hop) => (
+                <CandidateHopLatency
+                  key={`${hop.hopIndex}-${hop.fromNodeId}-${hop.toRole}-${hop.toNodeId || hop.toNodeName}`}
+                  hop={hop}
+                />
+              ))}
+            </div>
+          </div>
+        ) : null}
       </CardBody>
     </Card>
+  );
+});
+
+function CandidateHopLatency({
+  hop,
+}: {
+  hop: TunnelQualityCandidateHopApiItem;
+}) {
+  const hasError = Boolean(hop.errorMessage) || hop.latency < 0;
+
+  return (
+    <div className="rounded-xl border border-divider/60 bg-default-50/50 px-3 py-2.5">
+      <div className="flex items-center gap-2 text-xs">
+        <span className="min-w-0 truncate font-medium text-foreground">
+          {hop.fromNodeName}
+        </span>
+        <ArrowRight className="h-3.5 w-3.5 shrink-0 text-default-400" />
+        <span className="min-w-0 truncate font-medium text-foreground">
+          {hop.toNodeName}
+        </span>
+        <span className="ml-auto shrink-0">
+          <LatencyDisplay value={hop.latency} />
+        </span>
+      </div>
+      <div className="mt-1.5 flex items-center gap-2 text-[10px] text-default-400">
+        <span>
+          {candidateRoleLabel(hop.fromRole)} → {candidateRoleLabel(hop.toRole)}
+        </span>
+        {hasError ? (
+          <span className="ml-auto truncate text-danger">
+            {hop.errorMessage || "探测失败"}
+          </span>
+        ) : (
+          <span
+            className={`ml-auto font-mono ${hop.loss > 0 ? "text-warning" : "text-default-500"}`}
+          >
+            {hop.loss.toFixed(0)}% 丢包
+          </span>
+        )}
+      </div>
+    </div>
   );
 }
 

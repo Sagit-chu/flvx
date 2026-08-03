@@ -44,7 +44,8 @@ func (r *Repository) GetLatestTunnelQualities() ([]model.TunnelQuality, error) {
 	// Use window function (works on modern SQLite 3.25+ and PostgreSQL).
 	q := `
 		SELECT id, tunnel_id, entry_to_exit_latency, exit_to_bing_latency,
-		       entry_to_exit_loss, exit_to_bing_loss, success, error_message, timestamp
+		       entry_to_exit_loss, exit_to_bing_loss, success, error_message, timestamp,
+		       chain_details
 		FROM (
 			SELECT *, ROW_NUMBER() OVER (PARTITION BY tunnel_id ORDER BY timestamp DESC, id DESC) AS rn
 			FROM tunnel_quality
