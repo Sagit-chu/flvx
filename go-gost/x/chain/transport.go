@@ -2,6 +2,8 @@ package chain
 
 import (
 	"context"
+	"errors"
+	"io"
 	"net"
 
 	"github.com/go-gost/core/chain"
@@ -102,5 +104,34 @@ func (tr *Transport) Options() *chain.TransportOptions {
 func (tr *Transport) Copy() chain.Transporter {
 	tr2 := &Transport{}
 	*tr2 = *tr
-	return tr
+	return tr2
+}
+
+// Retire prevents long-lived dialer sessions owned by an obsolete chain from
+// accepting new streams while allowing existing streams to drain.
+func (tr *Transport) Retire() {
+	if tr == nil {
+		return
+	}
+	if retirer, ok := tr.dialer.(interface{ Retire() }); ok {
+		retirer.Retire()
+	}
+	if retirer, ok := tr.connector.(interface{ Retire() }); ok {
+		retirer.Retire()
+	}
+}
+
+// Close immediately releases transport-owned dialer and connector resources.
+func (tr *Transport) Close() error {
+	if tr == nil {
+		return nil
+	}
+	var errs []error
+	if closer, ok := tr.dialer.(io.Closer); ok {
+		errs = append(errs, closer.Close())
+	}
+	if closer, ok := tr.connector.(io.Closer); ok {
+		errs = append(errs, closer.Close())
+	}
+	return errors.Join(errs...)
 }

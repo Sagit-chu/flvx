@@ -12,6 +12,7 @@ import (
 	"github.com/go-gost/core/logger"
 	md "github.com/go-gost/core/metadata"
 	"github.com/go-gost/x/internal/util/mux"
+	"github.com/go-gost/x/internal/util/sessionretire"
 	ws_util "github.com/go-gost/x/internal/util/ws"
 	"github.com/go-gost/x/registry"
 	"github.com/gorilla/websocket"
@@ -25,6 +26,7 @@ func init() {
 type mwsDialer struct {
 	sessions     map[string]*muxSession
 	sessionMutex sync.Mutex
+	retired      bool
 	tlsEnabled   bool
 	md           metadata
 	options      dialer.Options
@@ -70,6 +72,9 @@ func (d *mwsDialer) Multiplex() bool {
 func (d *mwsDialer) Dial(ctx context.Context, addr string, opts ...dialer.DialOption) (conn net.Conn, err error) {
 	d.sessionMutex.Lock()
 	defer d.sessionMutex.Unlock()
+	if d.retired {
+		return nil, net.ErrClosed
+	}
 
 	session, ok := d.sessions[addr]
 	if session != nil && session.IsClosed() {
@@ -108,6 +113,10 @@ func (d *mwsDialer) Handshake(ctx context.Context, conn net.Conn, options ...dia
 
 	d.sessionMutex.Lock()
 	defer d.sessionMutex.Unlock()
+	if d.retired {
+		conn.Close()
+		return nil, net.ErrClosed
+	}
 
 	session, ok := d.sessions[opts.Addr]
 	if session != nil && session.conn != conn {
@@ -207,4 +216,35 @@ func (d *mwsDialer) keepAlive(conn ws_util.WebsocketConn) {
 		}
 		conn.SetWriteDeadline(time.Time{})
 	}
+}
+
+func (d *mwsDialer) Retire() {
+	for _, session := range d.detachSessions() {
+		sessionretire.Gracefully(session)
+	}
+}
+
+func (d *mwsDialer) Close() error {
+	var errs []error
+	for _, session := range d.detachSessions() {
+		errs = append(errs, session.Close())
+	}
+	return errors.Join(errs...)
+}
+
+func (d *mwsDialer) detachSessions() []*muxSession {
+	if d == nil {
+		return nil
+	}
+	d.sessionMutex.Lock()
+	d.retired = true
+	sessions := make([]*muxSession, 0, len(d.sessions))
+	for _, session := range d.sessions {
+		if session != nil {
+			sessions = append(sessions, session)
+		}
+	}
+	d.sessions = make(map[string]*muxSession)
+	d.sessionMutex.Unlock()
+	return sessions
 }

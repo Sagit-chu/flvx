@@ -28,7 +28,13 @@ func (r *chainRegistry) Register(name string, v chain.Chainer) error {
 }
 
 func (r *chainRegistry) replace(name string, v chain.Chainer) {
-	r.m.Store(name, v)
+	old, loaded := r.m.Swap(name, v)
+	if !loaded {
+		return
+	}
+	if retirer, ok := old.(interface{ Retire() }); ok {
+		retirer.Retire()
+	}
 }
 
 func (r *chainRegistry) Get(name string) chain.Chainer {

@@ -11,6 +11,7 @@ import (
 	"github.com/go-gost/core/logger"
 	md "github.com/go-gost/core/metadata"
 	"github.com/go-gost/x/internal/util/mux"
+	"github.com/go-gost/x/internal/util/sessionretire"
 	"github.com/go-gost/x/registry"
 )
 
@@ -21,6 +22,7 @@ func init() {
 type mtcpDialer struct {
 	sessions     map[string]*muxSession
 	sessionMutex sync.Mutex
+	retired      bool
 	logger       logger.Logger
 	md           metadata
 	options      dialer.Options
@@ -55,6 +57,9 @@ func (d *mtcpDialer) Multiplex() bool {
 func (d *mtcpDialer) Dial(ctx context.Context, addr string, opts ...dialer.DialOption) (conn net.Conn, err error) {
 	d.sessionMutex.Lock()
 	defer d.sessionMutex.Unlock()
+	if d.retired {
+		return nil, net.ErrClosed
+	}
 
 	session, ok := d.sessions[addr]
 	if session != nil && session.IsClosed() {
@@ -88,6 +93,10 @@ func (d *mtcpDialer) Handshake(ctx context.Context, conn net.Conn, options ...di
 
 	d.sessionMutex.Lock()
 	defer d.sessionMutex.Unlock()
+	if d.retired {
+		conn.Close()
+		return nil, net.ErrClosed
+	}
 
 	if d.md.handshakeTimeout > 0 {
 		conn.SetDeadline(time.Now().Add(d.md.handshakeTimeout))
@@ -128,4 +137,35 @@ func (d *mtcpDialer) initSession(ctx context.Context, conn net.Conn) (*muxSessio
 		return nil, err
 	}
 	return &muxSession{conn: conn, session: session}, nil
+}
+
+func (d *mtcpDialer) Retire() {
+	for _, session := range d.detachSessions() {
+		sessionretire.Gracefully(session)
+	}
+}
+
+func (d *mtcpDialer) Close() error {
+	var errs []error
+	for _, session := range d.detachSessions() {
+		errs = append(errs, session.Close())
+	}
+	return errors.Join(errs...)
+}
+
+func (d *mtcpDialer) detachSessions() []*muxSession {
+	if d == nil {
+		return nil
+	}
+	d.sessionMutex.Lock()
+	d.retired = true
+	sessions := make([]*muxSession, 0, len(d.sessions))
+	for _, session := range d.sessions {
+		if session != nil {
+			sessions = append(sessions, session)
+		}
+	}
+	d.sessions = make(map[string]*muxSession)
+	d.sessionMutex.Unlock()
+	return sessions
 }

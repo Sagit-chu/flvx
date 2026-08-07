@@ -3,6 +3,7 @@ package hop
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"net"
 	"sort"
@@ -92,6 +93,7 @@ type chainHop struct {
 	nodes      []*chain.Node
 	mu         sync.RWMutex
 	cancelFunc context.CancelFunc
+	stopOnce   sync.Once
 	options    options
 }
 
@@ -383,13 +385,52 @@ func (p *chainHop) parseNode(r io.Reader) ([]*chain.Node, error) {
 	return nodes, nil
 }
 
+func (p *chainHop) stopReload() {
+	if p == nil {
+		return
+	}
+	p.stopOnce.Do(func() {
+		p.cancelFunc()
+		if p.options.fileLoader != nil {
+			p.options.fileLoader.Close()
+		}
+		if p.options.redisLoader != nil {
+			p.options.redisLoader.Close()
+		}
+		if p.options.httpLoader != nil {
+			p.options.httpLoader.Close()
+		}
+	})
+}
+
+func (p *chainHop) Retire() {
+	if p == nil {
+		return
+	}
+	p.stopReload()
+	for _, node := range p.Nodes() {
+		if node == nil || node.Options().Transport == nil {
+			continue
+		}
+		if retirer, ok := node.Options().Transport.(interface{ Retire() }); ok {
+			retirer.Retire()
+		}
+	}
+}
+
 func (p *chainHop) Close() error {
-	p.cancelFunc()
-	if p.options.fileLoader != nil {
-		p.options.fileLoader.Close()
+	if p == nil {
+		return nil
 	}
-	if p.options.redisLoader != nil {
-		p.options.redisLoader.Close()
+	p.stopReload()
+	var errs []error
+	for _, node := range p.Nodes() {
+		if node == nil || node.Options().Transport == nil {
+			continue
+		}
+		if closer, ok := node.Options().Transport.(io.Closer); ok {
+			errs = append(errs, closer.Close())
+		}
 	}
-	return nil
+	return errors.Join(errs...)
 }

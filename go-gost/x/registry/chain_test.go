@@ -16,6 +16,15 @@ func (c testChainer) Route(context.Context, string, string, ...chain.RouteOption
 	return c.route
 }
 
+type retiringTestChainer struct {
+	testChainer
+	retired bool
+}
+
+func (c *retiringTestChainer) Retire() {
+	c.retired = true
+}
+
 type testRoute struct {
 	nodes []*chain.Node
 }
@@ -47,5 +56,22 @@ func TestReplaceChainOverwritesExistingRegistration(t *testing.T) {
 	route := ChainRegistry().Get(name).Route(context.Background(), "tcp", "example.com:443")
 	if route == nil || len(route.Nodes()) != 1 || route.Nodes()[0].Name != "new" {
 		t.Fatalf("expected replacement chain route, got %#v", route)
+	}
+}
+
+func TestReplaceChainRetiresPreviousRegistration(t *testing.T) {
+	name := "replace_chain_retire_tdd"
+	ChainRegistry().Unregister(name)
+	defer ChainRegistry().Unregister(name)
+
+	old := &retiringTestChainer{}
+	if err := ChainRegistry().Register(name, old); err != nil {
+		t.Fatalf("register old chain: %v", err)
+	}
+	if err := ReplaceChain(name, testChainer{}); err != nil {
+		t.Fatalf("replace chain: %v", err)
+	}
+	if !old.retired {
+		t.Fatal("previous chain was not retired")
 	}
 }

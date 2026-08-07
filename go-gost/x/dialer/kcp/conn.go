@@ -19,20 +19,23 @@ func (session *muxSession) Accept() (net.Conn, error) {
 }
 
 func (session *muxSession) Close() error {
-	if session.session == nil {
+	if session == nil || session.session == nil {
 		return nil
 	}
 	return session.session.Close()
 }
 
 func (session *muxSession) IsClosed() bool {
-	if session.session == nil {
+	if session == nil || session.session == nil {
 		return true
 	}
 	return session.session.IsClosed()
 }
 
 func (session *muxSession) NumStreams() int {
+	if session == nil || session.session == nil {
+		return 0
+	}
 	return session.session.NumStreams()
 }
 

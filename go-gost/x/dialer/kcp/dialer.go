@@ -11,6 +11,7 @@ import (
 	"github.com/go-gost/core/logger"
 	md "github.com/go-gost/core/metadata"
 	kcp_util "github.com/go-gost/x/internal/util/kcp"
+	"github.com/go-gost/x/internal/util/sessionretire"
 	mdutil "github.com/go-gost/x/metadata/util"
 	"github.com/go-gost/x/registry"
 	"github.com/xtaci/kcp-go/v5"
@@ -25,6 +26,7 @@ func init() {
 type kcpDialer struct {
 	sessions     map[string]*muxSession
 	sessionMutex sync.Mutex
+	retired      bool
 	logger       logger.Logger
 	md           metadata
 	options      dialer.Options
@@ -64,6 +66,9 @@ func (d *kcpDialer) Dial(ctx context.Context, addr string, opts ...dialer.DialOp
 
 	d.sessionMutex.Lock()
 	defer d.sessionMutex.Unlock()
+	if d.retired {
+		return nil, net.ErrClosed
+	}
 
 	session, ok := d.sessions[addr]
 	if session != nil && session.IsClosed() {
@@ -170,4 +175,37 @@ func (d *kcpDialer) initSession(ctx context.Context, addr net.Addr, conn net.Pac
 // Multiplex implements dialer.Multiplexer interface.
 func (d *kcpDialer) Multiplex() bool {
 	return true
+}
+
+// Retire drains existing streams and closes their backing sessions once idle.
+func (d *kcpDialer) Retire() {
+	for _, session := range d.detachSessions() {
+		sessionretire.Gracefully(session)
+	}
+}
+
+// Close immediately releases all cached multiplex sessions.
+func (d *kcpDialer) Close() error {
+	var errs []error
+	for _, session := range d.detachSessions() {
+		errs = append(errs, session.Close())
+	}
+	return errors.Join(errs...)
+}
+
+func (d *kcpDialer) detachSessions() []*muxSession {
+	if d == nil {
+		return nil
+	}
+	d.sessionMutex.Lock()
+	d.retired = true
+	sessions := make([]*muxSession, 0, len(d.sessions))
+	for _, session := range d.sessions {
+		if session != nil {
+			sessions = append(sessions, session)
+		}
+	}
+	d.sessions = make(map[string]*muxSession)
+	d.sessionMutex.Unlock()
+	return sessions
 }

@@ -2,6 +2,8 @@ package chain
 
 import (
 	"context"
+	"errors"
+	"io"
 
 	"github.com/go-gost/core/chain"
 	"github.com/go-gost/core/hop"
@@ -38,11 +40,12 @@ type chainNamer interface {
 }
 
 type Chain struct {
-	name     string
-	hops     []hop.Hop
-	marker   selector.Marker
-	metadata metadata.Metadata
-	logger   logger.Logger
+	name      string
+	hops      []hop.Hop
+	ownedHops []hop.Hop
+	marker    selector.Marker
+	metadata  metadata.Metadata
+	logger    logger.Logger
 }
 
 func NewChain(name string, opts ...ChainOption) *Chain {
@@ -61,8 +64,15 @@ func NewChain(name string, opts ...ChainOption) *Chain {
 	}
 }
 
-func (c *Chain) AddHop(hop hop.Hop) {
+func (c *Chain) AddHop(hop hop.Hop, owned ...bool) {
 	c.hops = append(c.hops, hop)
+	isOwned := true
+	if len(owned) > 0 {
+		isOwned = owned[0]
+	}
+	if isOwned {
+		c.ownedHops = append(c.ownedHops, hop)
+	}
 }
 
 // Metadata implements metadata.Metadatable interface.
@@ -110,6 +120,36 @@ func (c *Chain) Route(ctx context.Context, network, address string, opts ...chai
 		rt.addNode(node)
 	}
 	return rt
+}
+
+// Retire gracefully drains resources owned by a chain that has been replaced.
+func (c *Chain) Retire() {
+	if c == nil {
+		return
+	}
+	for _, h := range c.ownedHops {
+		if retirer, ok := h.(interface{ Retire() }); ok {
+			retirer.Retire()
+			continue
+		}
+		if closer, ok := h.(io.Closer); ok {
+			_ = closer.Close()
+		}
+	}
+}
+
+// Close immediately releases all resources owned by the chain.
+func (c *Chain) Close() error {
+	if c == nil {
+		return nil
+	}
+	var errs []error
+	for _, h := range c.ownedHops {
+		if closer, ok := h.(io.Closer); ok {
+			errs = append(errs, closer.Close())
+		}
+	}
+	return errors.Join(errs...)
 }
 
 type chainGroup struct {
