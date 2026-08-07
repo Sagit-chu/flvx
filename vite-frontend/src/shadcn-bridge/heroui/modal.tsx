@@ -49,6 +49,41 @@ function useModalContext() {
   return React.useContext(ModalContext);
 }
 
+interface ScrollPosition {
+  element: HTMLElement | null;
+  left: number;
+  top: number;
+}
+
+function captureScrollPositions(): ScrollPosition[] {
+  const positions: ScrollPosition[] = [
+    { element: null, left: window.scrollX, top: window.scrollY },
+  ];
+
+  for (const element of Array.from(
+    document.querySelectorAll<HTMLElement>("main, [data-scroll-container]"),
+  )) {
+    positions.push({
+      element,
+      left: element.scrollLeft,
+      top: element.scrollTop,
+    });
+  }
+
+  return positions;
+}
+
+function restoreScrollPositions(positions: ScrollPosition[]) {
+  for (const position of positions) {
+    if (position.element) {
+      position.element.scrollLeft = position.left;
+      position.element.scrollTop = position.top;
+    } else {
+      window.scrollTo(position.left, position.top);
+    }
+  }
+}
+
 type ModalSize = "sm" | "md" | "lg" | "xl" | "2xl" | "4xl" | "full";
 
 function mapSize(size: ModalSize | undefined) {
@@ -97,6 +132,46 @@ export function Modal({
   scrollBehavior,
   size,
 }: ModalProps) {
+  const previousScrollPositionsRef = React.useRef<ScrollPosition[] | null>(
+    null,
+  );
+
+  // Radix focus management and scroll locking can move an ancestor scroll
+  // container when a modal is opened from a card/grid item. Capture the
+  // current positions before the open render and restore them after focus
+  // settles so opening a modal never changes the page position.
+  React.useLayoutEffect(() => {
+    return () => {
+      if (!isOpen) {
+        previousScrollPositionsRef.current = captureScrollPositions();
+      }
+    };
+  }, [isOpen]);
+
+  React.useLayoutEffect(() => {
+    const positions = previousScrollPositionsRef.current;
+
+    if (!isOpen || !positions) {
+      return;
+    }
+
+    restoreScrollPositions(positions);
+    let nestedFrame = 0;
+    const frame = window.requestAnimationFrame(() => {
+      restoreScrollPositions(positions);
+      nestedFrame = window.requestAnimationFrame(() =>
+        restoreScrollPositions(positions),
+      );
+    });
+
+    previousScrollPositionsRef.current = null;
+
+    return () => {
+      window.cancelAnimationFrame(frame);
+      window.cancelAnimationFrame(nestedFrame);
+    };
+  }, [isOpen]);
+
   const handleOpenChange = (open: boolean) => {
     onOpenChange?.(open);
     if (!open) {
