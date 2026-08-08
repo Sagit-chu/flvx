@@ -1,0 +1,1212 @@
+
+<!doctype html>
+<html lang="zh" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="FLVX官方文档">
+      
+      
+        <meta name="author" content="Sagit-chu">
+      
+      
+        <link rel="canonical" href="https://sagit-chu.github.io/flux-panel/ai-skill/">
+      
+      
+        <link rel="prev" href="../usage/">
+      
+      
+        <link rel="next" href="../postgresql/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+    
+    
+      
+        <title>AI Skill 接入 - FLVX 文档</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.ec1eaa64.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#ai-skill" class="md-skip">
+          跳转至
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="页眉">
+    <a href=".." title="FLVX 文档" class="md-header__button md-logo" aria-label="FLVX 文档" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            FLVX 文档
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              AI Skill 接入
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-hidden="true"  type="radio" name="__palette" id="__palette_0">
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="搜索" placeholder="搜索" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="查找">
+        
+        <button type="reset" class="md-search__icon md-icon" title="清空当前内容" aria-label="清空当前内容" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            正在初始化搜索引擎
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="标签" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href=".." class="md-tabs__link">
+        
+  
+  
+    
+  
+  首页
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../install/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  安装部署
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../usage/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  使用指南
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    <li class="md-tabs__item md-tabs__item--active">
+      <a href="./" class="md-tabs__link">
+        
+  
+  
+    
+  
+  AI Skill 接入
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../postgresql/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  PostgreSQL
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../faq/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  常见问题
+
+      </a>
+    </li>
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="导航栏" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="FLVX 文档" class="md-nav__button md-logo" aria-label="FLVX 文档" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    FLVX 文档
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    首页
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../install/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    安装部署
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../usage/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    使用指南
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    AI Skill 接入
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    AI Skill 接入
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="目录">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      目录
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        安装
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="安装">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-npm" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        方式 1: npm (推荐)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        方式 2: 手动链接
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        配置
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        工具接入方法
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="工具接入方法">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#opencode" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        OpenCode
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#openclaw" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        OpenClaw
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#claude-code" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Claude Code
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Claude Code">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-claudemd" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        方式 1: 项目级 CLAUDE.md
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-claudemd" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        方式 2: 全局 CLAUDE.md
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-skillmd" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        方式 3: 复制 SKILL.md
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#api" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        API 覆盖
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_4" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        安全提示
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_5" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        发布
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../postgresql/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    PostgreSQL
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../faq/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    常见问题
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="目录">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      目录
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        安装
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="安装">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-npm" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        方式 1: npm (推荐)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        方式 2: 手动链接
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        配置
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        工具接入方法
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="工具接入方法">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#opencode" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        OpenCode
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#openclaw" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        OpenClaw
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#claude-code" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Claude Code
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Claude Code">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-claudemd" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        方式 1: 项目级 CLAUDE.md
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-claudemd" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        方式 2: 全局 CLAUDE.md
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-skillmd" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        方式 3: 复制 SKILL.md
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#api" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        API 覆盖
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_4" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        安全提示
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_5" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        发布
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+
+<h1 id="ai-skill">AI Skill 使用指南</h1>
+<p>让大模型直接操作 FLVX 面板的技能包。支持 OpenCode、OpenClaw、Claude Code 等工具。</p>
+<h2 id="_1">安装</h2>
+<h3 id="1-npm">方式 1: npm (推荐)</h3>
+<div class="highlight"><pre><span></span><code>npm<span class="w"> </span>install<span class="w"> </span>-g<span class="w"> </span>@flvx/skill-api
+</code></pre></div>
+<p>postinstall 脚本会自动链接到 <code>~/.agents/skills/flvx-api/</code>。</p>
+<h3 id="2">方式 2: 手动链接</h3>
+<div class="highlight"><pre><span></span><code><span class="c1"># 从 FLVX 源码</span>
+<span class="nb">cd</span><span class="w"> </span>/path/to/flvx
+mkdir<span class="w"> </span>-p<span class="w"> </span>~/.agents/skills
+ln<span class="w"> </span>-sf<span class="w"> </span><span class="k">$(</span><span class="nb">pwd</span><span class="k">)</span>/skills/flvx-api<span class="w"> </span>~/.agents/skills/
+
+<span class="c1"># 或从 GitHub</span>
+git<span class="w"> </span>clone<span class="w"> </span>https://github.com/Sagit-chu/flvx.git
+<span class="nb">cd</span><span class="w"> </span>flvx
+ln<span class="w"> </span>-sf<span class="w"> </span><span class="k">$(</span><span class="nb">pwd</span><span class="k">)</span>/skills/flvx-api<span class="w"> </span>~/.agents/skills/
+</code></pre></div>
+<h2 id="_2">配置</h2>
+<p>设置环境变量：</p>
+<div class="highlight"><pre><span></span><code><span class="nb">export</span><span class="w"> </span><span class="nv">FLVX_BASE_URL</span><span class="o">=</span><span class="s2">&quot;https://your-panel.example.com&quot;</span>
+<span class="nb">export</span><span class="w"> </span><span class="nv">FLVX_USERNAME</span><span class="o">=</span><span class="s2">&quot;admin&quot;</span>
+<span class="nb">export</span><span class="w"> </span><span class="nv">FLVX_PASSWORD</span><span class="o">=</span><span class="s2">&quot;your-password&quot;</span>
+</code></pre></div>
+<p>或使用凭证文件：</p>
+<div class="highlight"><pre><span></span><code>mkdir<span class="w"> </span>-p<span class="w"> </span>~/.flvx
+cat<span class="w"> </span>&gt;<span class="w"> </span>~/.flvx/.env<span class="w"> </span><span class="s">&lt;&lt; &#39;EOF&#39;</span>
+<span class="s">export FLVX_BASE_URL=&quot;https://panel.example.com&quot;</span>
+<span class="s">export FLVX_USERNAME=&quot;admin&quot;</span>
+<span class="s">export FLVX_PASSWORD=&quot;your-password&quot;</span>
+<span class="s">EOF</span>
+chmod<span class="w"> </span><span class="m">600</span><span class="w"> </span>~/.flvx/.env
+<span class="nb">source</span><span class="w"> </span>~/.flvx/.env
+</code></pre></div>
+<hr />
+<h2 id="_3">工具接入方法</h2>
+<h3 id="opencode">OpenCode</h3>
+<p>OpenCode 是命令行 AI 编程助手，支持通过 skills 扩展能力。</p>
+<p><strong>安装 skill:</strong>
+<div class="highlight"><pre><span></span><code>npm<span class="w"> </span>install<span class="w"> </span>-g<span class="w"> </span>@flvx/skill-api
+</code></pre></div></p>
+<p><strong>使用:</strong>
+<div class="highlight"><pre><span></span><code><span class="nb">export</span><span class="w"> </span><span class="nv">FLVX_BASE_URL</span><span class="o">=</span><span class="s2">&quot;https://panel.example.com&quot;</span>
+<span class="nb">export</span><span class="w"> </span><span class="nv">FLVX_USERNAME</span><span class="o">=</span><span class="s2">&quot;admin&quot;</span>
+<span class="nb">export</span><span class="w"> </span><span class="nv">FLVX_PASSWORD</span><span class="o">=</span><span class="s2">&quot;your-password&quot;</span>
+
+opencode
+</code></pre></div></p>
+<p><strong>示例对话:</strong>
+<div class="highlight"><pre><span></span><code>你: 查看我的转发列表
+你: 创建一个转发到 192.168.1.100:80 使用隧道 1
+你: 检查节点状态
+你: 查看流量使用情况
+</code></pre></div></p>
+<hr />
+<h3 id="openclaw">OpenClaw</h3>
+<p>OpenClaw 同样支持 skills 机制。</p>
+<p><strong>安装 skill:</strong>
+<div class="highlight"><pre><span></span><code>npm<span class="w"> </span>install<span class="w"> </span>-g<span class="w"> </span>@flvx/skill-api
+
+<span class="c1"># 或手动链接</span>
+mkdir<span class="w"> </span>-p<span class="w"> </span>~/.openclaw/skills
+ln<span class="w"> </span>-sf<span class="w"> </span>/path/to/flvx/skills/flvx-api<span class="w"> </span>~/.openclaw/skills/flvx-api
+</code></pre></div></p>
+<p><strong>使用:</strong>
+<div class="highlight"><pre><span></span><code>openclaw
+
+&gt;&gt;&gt;<span class="w"> </span>查看所有节点状态
+&gt;&gt;&gt;<span class="w"> </span>给用户<span class="w"> </span>alice<span class="w"> </span>分配<span class="w"> </span>50GB<span class="w"> </span>流量
+&gt;&gt;&gt;<span class="w"> </span>导出系统备份
+</code></pre></div></p>
+<hr />
+<h3 id="claude-code">Claude Code</h3>
+<p>Claude Code 是 Anthropic 官方的命令行工具，支持通过 CLAUDE.md 扩展。</p>
+<h4 id="1-claudemd">方式 1: 项目级 CLAUDE.md</h4>
+<p>在项目根目录创建 <code>CLAUDE.md</code>：</p>
+<div class="highlight"><pre><span></span><code><span class="gh"># FLVX API Skill</span>
+
+你可以通过 REST API 操作 FLVX 面板。
+
+<span class="gu">## 环境变量</span>
+<span class="k">-</span><span class="w"> </span>FLVX_BASE_URL: 面板地址
+<span class="k">-</span><span class="w"> </span>FLVX_USERNAME: 用户名
+<span class="k">-</span><span class="w"> </span>FLVX_PASSWORD: 密码
+
+<span class="gu">## 认证规则</span>
+<span class="k">-</span><span class="w"> </span>Authorization 头使用原始 JWT token，不加 &quot;Bearer &quot; 前缀
+<span class="k">-</span><span class="w"> </span>所有 API 使用 POST 方法
+
+<span class="gu">## 常用 API</span>
+
+<span class="gu">### 登录获取 token</span>
+POST /api/v1/user/login
+{&quot;username&quot;: &quot;...&quot;, &quot;password&quot;: &quot;...&quot;}
+
+<span class="gu">### 查看转发列表</span>
+POST /api/v1/forward/list
+Authorization: &lt;token&gt;
+{}
+
+<span class="gu">### 创建转发</span>
+POST /api/v1/forward/create
+{&quot;name&quot;: &quot;xxx&quot;, &quot;tunnelId&quot;: 1, &quot;remoteAddr&quot;: &quot;1.2.3.4:80&quot;}
+
+<span class="gu">### 查看节点</span>
+POST /api/v1/node/list
+{}
+</code></pre></div>
+<p><strong>使用:</strong>
+<div class="highlight"><pre><span></span><code><span class="nb">cd</span><span class="w"> </span>/path/to/your/project
+claude
+</code></pre></div></p>
+<h4 id="2-claudemd">方式 2: 全局 CLAUDE.md</h4>
+<div class="highlight"><pre><span></span><code>mkdir<span class="w"> </span>-p<span class="w"> </span>~/.claude
+cat<span class="w"> </span>&gt;<span class="w"> </span>~/.claude/CLAUDE.md<span class="w"> </span><span class="s">&lt;&lt; &#39;EOF&#39;</span>
+<span class="s"># FLVX Panel Operations</span>
+
+<span class="s">使用 FLVX REST API 操作流量转发面板。</span>
+
+<span class="s">环境变量: FLVX_BASE_URL, FLVX_USERNAME, FLVX_PASSWORD</span>
+<span class="s">调用方式: curl -X POST &quot;$FLVX_BASE_URL/api/v1/...&quot; -H &quot;Authorization: $TOKEN&quot;</span>
+<span class="s">注意: Authorization 不要加 Bearer 前缀</span>
+<span class="s">EOF</span>
+</code></pre></div>
+<h4 id="3-skillmd">方式 3: 复制 SKILL.md</h4>
+<div class="highlight"><pre><span></span><code>cat<span class="w"> </span>~/.agents/skills/flvx-api/SKILL.md<span class="w"> </span>&gt;&gt;<span class="w"> </span>~/.claude/CLAUDE.md
+</code></pre></div>
+<p><strong>示例对话:</strong>
+<div class="highlight"><pre><span></span><code>&gt;&gt;&gt; 帮我查看 FLVX 面板上有哪些节点
+&gt;&gt;&gt; 创建一个名为 test 的转发，目标地址 10.0.0.1:80
+&gt;&gt;&gt; 查看我的流量使用情况
+</code></pre></div></p>
+<hr />
+<h2 id="api">API 覆盖</h2>
+<table>
+<thead>
+<tr>
+<th>模块</th>
+<th>操作</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>认证</td>
+<td>登录、Token 管理</td>
+</tr>
+<tr>
+<td>用户</td>
+<td>增删改查、流量重置、密码</td>
+</tr>
+<tr>
+<td>节点</td>
+<td>增删改查、安装、升级、状态</td>
+</tr>
+<tr>
+<td>隧道</td>
+<td>增删改查、用户分配</td>
+</tr>
+<tr>
+<td>转发</td>
+<td>增删改查、暂停/恢复、诊断</td>
+</tr>
+<tr>
+<td>分组</td>
+<td>用户/隧道分组、权限</td>
+</tr>
+<tr>
+<td>限速</td>
+<td>增删改查</td>
+</tr>
+<tr>
+<td>联邦</td>
+<td>节点共享、远程节点</td>
+</tr>
+<tr>
+<td>备份</td>
+<td>导出/导入</td>
+</tr>
+</tbody>
+</table>
+<h2 id="_4">安全提示</h2>
+<ul>
+<li>⚠️ 环境变量在进程列表中可见</li>
+<li>使用 <code>~/.flvx/.env</code> 文件并设置 <code>chmod 600</code></li>
+<li>添加 <code>export HISTIGNORE="*FLVX_PASSWORD*"</code> 防止密码进入历史记录</li>
+<li>Token 仅在会话内存中缓存，不写入磁盘</li>
+</ul>
+<h2 id="_5">发布</h2>
+<p>维护者可通过以下方式发布新版本：</p>
+<div class="highlight"><pre><span></span><code><span class="c1"># 方式 1: 推送 tag</span>
+git<span class="w"> </span>tag<span class="w"> </span>skill-v2.1.6
+git<span class="w"> </span>push<span class="w"> </span>--tags
+
+<span class="c1"># 方式 2: GitHub Actions 手动触发</span>
+<span class="c1"># 在 Actions 页面运行 publish-skill workflow</span>
+</code></pre></div>
+<p>需要在 GitHub 仓库设置 <code>NPM_TOKEN</code> secret。</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  回到页面顶部
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.tabs", "navigation.sections", "navigation.top", "search.suggest", "search.highlight", "content.code.copy"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "\u5df2\u590d\u5236", "clipboard.copy": "\u590d\u5236", "search.result.more.one": "\u5728\u8be5\u9875\u4e0a\u8fd8\u6709 1 \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.more.other": "\u5728\u8be5\u9875\u4e0a\u8fd8\u6709 # \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.none": "\u6ca1\u6709\u627e\u5230\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.one": "\u627e\u5230 1 \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.other": "# \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.placeholder": "\u952e\u5165\u4ee5\u5f00\u59cb\u641c\u7d22", "search.result.term.missing": "\u7f3a\u5c11", "select.version": "\u9009\u62e9\u5f53\u524d\u7248\u672c"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.d7400e89.min.js"></script>
+      
+    
+  </body>
+</html>
