@@ -64,6 +64,38 @@ SERVICE_MANAGER="${SERVICE_MANAGER:-}"
 PROXY_ENABLED="${PROXY_ENABLED:-}"
 PROXY_URL="${PROXY_URL:-}"
 
+ensure_alpine_runtime_dependencies() {
+  [[ -f /etc/alpine-release ]] || return 0
+
+  local missing_packages=()
+  local privileged_command=""
+
+  command -v curl >/dev/null 2>&1 || missing_packages+=(curl)
+  [[ -f /etc/ssl/certs/ca-certificates.crt ]] || missing_packages+=(ca-certificates)
+
+  if [[ ${#missing_packages[@]} -eq 0 ]]; then
+    return 0
+  fi
+
+  if [[ $EUID -ne 0 ]]; then
+    if command -v sudo >/dev/null 2>&1; then
+      privileged_command="sudo"
+    elif command -v doas >/dev/null 2>&1; then
+      privileged_command="doas"
+    else
+      echo "❌ Alpine 安装需要 root 权限，或已配置 sudo/doas 来安装依赖: ${missing_packages[*]}。" >&2
+      return 1
+    fi
+  fi
+
+  echo "📦 Alpine 缺少运行依赖，正在安装: ${missing_packages[*]}"
+  if [[ -n "$privileged_command" ]]; then
+    "$privileged_command" apk add --no-cache "${missing_packages[@]}"
+  else
+    apk add --no-cache "${missing_packages[@]}"
+  fi
+}
+
 # 镜像加速
 maybe_proxy_url() {
   local url="$1"
@@ -169,6 +201,8 @@ build_download_url() {
 }
 
 ensure_download_url_initialized() {
+  ensure_alpine_runtime_dependencies || return 1
+
   if [[ -n "${DOWNLOAD_URL:-}" ]]; then
     return 0
   fi
@@ -299,11 +333,16 @@ ensure_service_manager() {
     esac
   fi
 
-  if command -v systemctl >/dev/null 2>&1 && [[ -d /run/systemd/system ]]; then
+  # Alpine uses OpenRC even if a systemctl compatibility command happens to be installed.
+  if [[ -f /etc/alpine-release ]]; then
+    if command -v rc-service >/dev/null 2>&1 && command -v rc-update >/dev/null 2>&1; then
+      SERVICE_MANAGER="openrc"
+      return 0
+    fi
+  elif command -v systemctl >/dev/null 2>&1 && [[ -d /run/systemd/system ]]; then
     SERVICE_MANAGER="systemd"
     return 0
-  fi
-  if command -v rc-service >/dev/null 2>&1 && command -v rc-update >/dev/null 2>&1; then
+  elif command -v rc-service >/dev/null 2>&1 && command -v rc-update >/dev/null 2>&1; then
     SERVICE_MANAGER="openrc"
     return 0
   fi
@@ -501,7 +540,8 @@ cleanup_legacy_gost_installation() {
     return 0
   fi
 
-  if systemctl list-units --full -all 2>/dev/null | grep -Fq "gost.service"; then
+  if [[ "$SERVICE_MANAGER" == "systemd" ]] && \
+    systemctl list-units --full -all 2>/dev/null | grep -Fq "gost.service"; then
     systemctl stop gost 2>/dev/null || true
     systemctl disable gost 2>/dev/null || true
   fi
@@ -520,7 +560,7 @@ cleanup_legacy_gost_installation() {
     rm -f "$LEGACY_GOST_CONFIG_DIR/gost"
   fi
 
-  if [[ "$removed_service_file" == "1" ]]; then
+  if [[ "$removed_service_file" == "1" && "$SERVICE_MANAGER" == "systemd" ]]; then
     systemctl daemon-reload 2>/dev/null || true
   fi
 }

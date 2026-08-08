@@ -399,6 +399,7 @@ test_cleanup_legacy_gost_installation_removes_service_and_binary() (
   LEGACY_GOST_SERVICE_FILE_LIB=$(mktemp -u)
   LEGACY_GOST_SERVICE_FILE_USR_LIB=$(mktemp -u)
   LEGACY_GOST_CONFIG_DIR=$(mktemp -d)
+  SERVICE_MANAGER="systemd"
   cat > "$LEGACY_GOST_SERVICE_FILE_ETC" <<EOF
 [Unit]
 Description=Gost Proxy Service
@@ -442,6 +443,7 @@ test_cleanup_legacy_gost_installation_preserves_unrelated_gost() (
   LEGACY_GOST_SERVICE_FILE_LIB=$(mktemp -u)
   LEGACY_GOST_SERVICE_FILE_USR_LIB=$(mktemp -u)
   LEGACY_GOST_CONFIG_DIR=$(mktemp -d)
+  SERVICE_MANAGER="systemd"
   cat > "$LEGACY_GOST_SERVICE_FILE_ETC" <<'EOF'
 [Unit]
 Description=Unrelated Gost Service
@@ -467,6 +469,35 @@ EOF
   [[ -e "$LEGACY_GOST_SERVICE_FILE_ETC" ]] || fail "cleanup_legacy_gost_installation should preserve unrelated gost service files"
   [[ "$systemctl_calls" != *"stop gost"* ]] || fail "cleanup_legacy_gost_installation should not stop unrelated gost services"
   [[ "$systemctl_calls" != *"disable gost"* ]] || fail "cleanup_legacy_gost_installation should not disable unrelated gost services"
+)
+
+test_cleanup_legacy_gost_installation_skips_systemd_on_openrc() (
+  set -euo pipefail
+  load_script_without_main "$ROOT_DIR/install.sh"
+
+  LEGACY_GOST_SERVICE_FILE_ETC=$(mktemp)
+  LEGACY_GOST_SERVICE_FILE_LIB=$(mktemp -u)
+  LEGACY_GOST_SERVICE_FILE_USR_LIB=$(mktemp -u)
+  LEGACY_GOST_CONFIG_DIR=$(mktemp -d)
+  SERVICE_MANAGER="openrc"
+  cat > "$LEGACY_GOST_SERVICE_FILE_ETC" <<EOF
+[Unit]
+WorkingDirectory=$LEGACY_GOST_CONFIG_DIR
+ExecStart=$LEGACY_GOST_CONFIG_DIR/gost
+EOF
+  : > "$LEGACY_GOST_CONFIG_DIR/config.json"
+  : > "$LEGACY_GOST_CONFIG_DIR/gost.json"
+
+  local systemctl_calls=""
+  systemctl() {
+    systemctl_calls+=$'\n'"$*"
+    return 1
+  }
+
+  cleanup_legacy_gost_installation >/dev/null
+
+  [[ -z "$systemctl_calls" ]] || fail "OpenRC cleanup should not invoke systemctl"
+  [[ ! -e "$LEGACY_GOST_SERVICE_FILE_ETC" ]] || fail "OpenRC cleanup should still remove the legacy service file"
 )
 
 test_install_script_accepts_proxy_url_env_without_prompt() (
@@ -625,6 +656,7 @@ test_install_flux_agent_uses_openrc
 test_remove_flux_agent_service_uses_openrc
 test_cleanup_legacy_gost_installation_removes_service_and_binary
 test_cleanup_legacy_gost_installation_preserves_unrelated_gost
+test_cleanup_legacy_gost_installation_skips_systemd_on_openrc
 test_install_script_accepts_proxy_url_env_without_prompt
 test_panel_install_script_can_disable_proxy
 test_panel_install_script_recomputes_compose_urls_after_prompt
