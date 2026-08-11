@@ -4,8 +4,6 @@ import (
 	"context"
 	"log"
 	"time"
-
-	"go-backend/internal/license"
 )
 
 var nftablesTrafficCollectInterval = 30 * time.Second
@@ -56,8 +54,6 @@ func (h *Handler) validateLicenseJob() {
 		return
 	}
 
-	accountID := "1bc96cac-09de-4cf4-af34-26afdad63a90"
-
 	key, _ := h.repo.GetViteConfigValue("license_key")
 	isCommercial, _ := h.repo.GetViteConfigValue("is_commercial")
 
@@ -65,12 +61,16 @@ func (h *Handler) validateLicenseJob() {
 		return // Nothing to validate
 	}
 
-	fingerprint, _ := h.repo.GetViteConfigValue("machine_fingerprint")
-	client := license.NewKeygenClient(accountID, "")
-	valResp, err := client.ValidateKeyWithFingerprint(key, fingerprint)
+	valResp, err := h.validateLicenseForMachine(key)
 
 	if err != nil {
-		// Network error or timeout. Grace period by not revoking immediately here.
+		// Network and decode failures have no validation response, so retain the
+		// current state as a grace period. A rejected machine binding still has
+		// the original invalid response and must not stay commercially enabled.
+		if valResp != nil && !valResp.Meta.Valid {
+			now := time.Now().UnixMilli()
+			_ = h.repo.UpsertConfig("is_commercial", "false", now)
+		}
 		return
 	}
 

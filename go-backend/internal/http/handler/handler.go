@@ -20,7 +20,6 @@ import (
 	"go-backend/internal/health"
 	"go-backend/internal/http/middleware"
 	"go-backend/internal/http/response"
-	"go-backend/internal/license"
 	"go-backend/internal/metrics"
 	"go-backend/internal/monitoring"
 	runtimenft "go-backend/internal/runtime/nftables"
@@ -909,38 +908,15 @@ func (h *Handler) licenseActivate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	accountID := "1bc96cac-09de-4cf4-af34-26afdad63a90"
-
-	fingerprint, err := h.getOrCreateMachineFingerprint()
+	valResp, err := h.validateLicenseForMachine(key)
 	if err != nil {
-		response.WriteJSON(w, response.ErrDefault("生成设备指纹失败"))
-		return
-	}
-
-	client := license.NewKeygenClient(accountID, "")
-	valResp, err := client.ValidateKeyWithFingerprint(key, fingerprint)
-	if err != nil {
-		response.WriteJSON(w, response.ErrDefault("连接授权服务器失败: "+err.Error()))
+		response.WriteJSON(w, response.ErrDefault("授权校验失败: "+err.Error()))
 		return
 	}
 
 	if !valResp.Meta.Valid {
-		if valResp.Meta.Code == "NO_MACHINES" || valResp.Meta.Code == "NO_MACHINE" || valResp.Meta.Code == "MACHINE_SCOPE_REQUIRED" || valResp.Meta.Code == "FINGERPRINT_SCOPE_MISMATCH" {
-			// Needs machine activation
-			client.Token = key
-			err = client.ActivateMachine(valResp.Data.ID, fingerprint)
-			if err != nil {
-				// Translate specific error messages or log them
-				response.WriteJSON(w, response.ErrDefault("设备绑定失败: "+err.Error()))
-				return
-			}
-
-			// Validation might still fail with scope if we don't query via machine id, but since activate machine succeeded
-			// we can consider the license valid for our simple usecase
-		} else {
-			response.WriteJSON(w, response.ErrDefault("授权码无效或已过期 (Code: "+valResp.Meta.Code+")"))
-			return
-		}
+		response.WriteJSON(w, response.ErrDefault("授权码无效或已过期 (Code: "+valResp.Meta.Code+")"))
+		return
 	}
 
 	now := time.Now().UnixMilli()

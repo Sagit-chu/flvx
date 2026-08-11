@@ -49,6 +49,30 @@ const readCachedConfigs = (keys: readonly string[]) => {
   return { cachedConfigs, hasCachedData };
 };
 
+const readAllCachedSafeConfigs = () => {
+  const cachedConfigs: Record<string, string> = {};
+
+  Object.keys(localStorage).forEach((storageKey) => {
+    if (!storageKey.startsWith(CACHE_PREFIX)) {
+      return;
+    }
+
+    const key = storageKey.slice(CACHE_PREFIX.length).trim().toLowerCase();
+
+    if (!key || SENSITIVE_CONFIG_KEYS.has(key)) {
+      return;
+    }
+
+    const value = localStorage.getItem(storageKey);
+
+    if (value !== null) {
+      cachedConfigs[key] = value;
+    }
+  });
+
+  return cachedConfigs;
+};
+
 const fetchPublicBrandConfigs = async (): Promise<Record<string, string>> => {
   const publicConfigMap: Record<string, string> = {};
 
@@ -206,19 +230,23 @@ export const getCachedConfig = async (key: string): Promise<string | null> => {
 
 // 获取所有配置（优先从缓存）
 export const getCachedConfigs = async (): Promise<Record<string, string>> => {
-  const { cachedConfigs, hasCachedData } = readCachedConfigs(
-    PUBLIC_BRAND_CONFIG_KEYS,
-  );
+  const {
+    cachedConfigs: publicCachedConfigs,
+    hasCachedData: hasPublicCachedData,
+  } = readCachedConfigs(PUBLIC_BRAND_CONFIG_KEYS);
 
   if (!isLoggedIn()) {
     const publicConfigs = await fetchPublicBrandConfigs();
 
     if (Object.keys(publicConfigs).length > 0) {
-      return { ...cachedConfigs, ...publicConfigs };
+      return { ...publicCachedConfigs, ...publicConfigs };
     }
 
-    return cachedConfigs;
+    return publicCachedConfigs;
   }
+
+  const cachedConfigs = readAllCachedSafeConfigs();
+  const hasCachedData = Object.keys(cachedConfigs).length > 0;
 
   // 从API获取最新配置
   try {
@@ -249,14 +277,20 @@ export const getCachedConfigs = async (): Promise<Record<string, string>> => {
       return cachedConfigs;
     }
 
-    return await fetchPublicBrandConfigs();
+    const publicConfigs = await fetchPublicBrandConfigs();
+
+    return { ...publicCachedConfigs, ...publicConfigs };
   } catch {
     // API失败时返回缓存的数据
     if (hasCachedData) {
       return cachedConfigs;
     }
 
-    return await fetchPublicBrandConfigs();
+    const publicConfigs = await fetchPublicBrandConfigs();
+
+    return hasPublicCachedData
+      ? { ...publicCachedConfigs, ...publicConfigs }
+      : publicConfigs;
   }
 };
 
@@ -365,8 +399,17 @@ export const updateSiteConfig = async (configMap?: Record<string, string>) => {
   siteConfig.app_logo = appLogo;
   siteConfig.app_favicon = appFavicon;
   siteConfig.app_bg_image = appBgImage;
-  siteConfig.is_commercial = resolvedConfigMap.is_commercial === "true";
-  siteConfig.hide_footer_brand = resolvedConfigMap.hide_footer_brand === "true";
+  if (
+    Object.prototype.hasOwnProperty.call(resolvedConfigMap, "is_commercial")
+  ) {
+    siteConfig.is_commercial = resolvedConfigMap.is_commercial === "true";
+  }
+  if (
+    Object.prototype.hasOwnProperty.call(resolvedConfigMap, "hide_footer_brand")
+  ) {
+    siteConfig.hide_footer_brand =
+      resolvedConfigMap.hide_footer_brand === "true";
+  }
 
   if (typeof document !== "undefined") {
     document.title = siteConfig.name;

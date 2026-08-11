@@ -13,15 +13,27 @@ import (
 type KeygenClient struct {
 	AccountID  string
 	Token      string
+	BaseURL    string
 	HTTPClient *http.Client
 }
 
+const defaultAPIBaseURL = "https://api.keygen.sh/v1"
+
 func NewKeygenClient(accountID, token string) *KeygenClient {
 	return &KeygenClient{
-		AccountID: accountID,
-		Token:     token,
+		AccountID:  accountID,
+		Token:      token,
+		BaseURL:    defaultAPIBaseURL,
 		HTTPClient: &http.Client{Timeout: 10 * time.Second},
 	}
+}
+
+func (c *KeygenClient) apiURL(path string) string {
+	baseURL := strings.TrimRight(c.BaseURL, "/")
+	if baseURL == "" {
+		baseURL = defaultAPIBaseURL
+	}
+	return fmt.Sprintf("%s/accounts/%s/%s", baseURL, c.AccountID, strings.TrimLeft(path, "/"))
 }
 
 type ValidateResponse struct {
@@ -55,7 +67,7 @@ type ActivateMachineRequest struct {
 }
 
 func (c *KeygenClient) ValidateKeyWithFingerprint(key string, fingerprint string) (*ValidateResponse, error) {
-	url := fmt.Sprintf("https://api.keygen.sh/v1/accounts/%s/licenses/actions/validate-key", c.AccountID)
+	url := c.apiURL("licenses/actions/validate-key")
 
 	meta := map[string]interface{}{
 		"key": key,
@@ -103,7 +115,7 @@ func (c *KeygenClient) ValidateKeyWithFingerprint(key string, fingerprint string
 }
 
 func (c *KeygenClient) ValidateKey(key string) (*ValidateResponse, error) {
-	url := fmt.Sprintf("https://api.keygen.sh/v1/accounts/%s/licenses/actions/validate-key", c.AccountID)
+	url := c.apiURL("licenses/actions/validate-key")
 
 	reqBody := map[string]interface{}{
 		"meta": map[string]string{
@@ -142,7 +154,7 @@ func (c *KeygenClient) ValidateKey(key string) (*ValidateResponse, error) {
 }
 
 func (c *KeygenClient) ActivateMachine(licenseID, fingerprint string) error {
-	url := fmt.Sprintf("https://api.keygen.sh/v1/accounts/%s/machines", c.AccountID)
+	url := c.apiURL("machines")
 
 	var reqBody ActivateMachineRequest
 	reqBody.Data.Type = "machines"
@@ -174,14 +186,6 @@ func (c *KeygenClient) ActivateMachine(licenseID, fingerprint string) error {
 	}
 
 	body, _ := io.ReadAll(resp.Body)
-	
-	if resp.StatusCode == http.StatusConflict || resp.StatusCode == http.StatusUnprocessableEntity {
-		if strings.Contains(string(body), "FINGERPRINT_TAKEN") || strings.Contains(string(body), "MACHINE_LIMIT_EXCEEDED") {
-			// Machine already registered to this license or limit reached because it's already us.
-			// The subsequent ValidateKey check will determine if the existing machine is actually us.
-			return nil
-		}
-	}
 
 	return fmt.Errorf("failed to activate machine: status %d, response: %s", resp.StatusCode, string(body))
 }

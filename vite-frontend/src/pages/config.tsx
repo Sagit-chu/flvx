@@ -266,6 +266,9 @@ const getInitialConfigs = (): Record<string, string> => {
     "github_proxy_enabled",
     "github_proxy_url",
     "allow_local_remote_addr",
+    "is_commercial",
+    "license_expiry",
+    "hide_footer_brand",
   ];
   const initialConfigs: Record<string, string> = {};
 
