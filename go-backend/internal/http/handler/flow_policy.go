@@ -659,9 +659,21 @@ func (h *Handler) sendDeleteOrphanedForwardService(nodeID int64, serviceName str
 }
 
 func (h *Handler) speedLimiterExists(name string) bool {
+	name = strings.TrimSpace(name)
 	if name == "" {
 		return false
 	}
+
+	const forwardRulePrefix = "rule_traffic_limit_"
+	if strings.HasPrefix(name, forwardRulePrefix) {
+		forwardID, err := strconv.ParseInt(strings.TrimPrefix(name, forwardRulePrefix), 10, 64)
+		if err != nil || forwardID <= 0 {
+			return false
+		}
+		forward, err := h.getForwardRecord(forwardID)
+		return err == nil && forward != nil && forward.IPSpeedID.Valid && forward.IPSpeedID.Int64 > 0
+	}
+
 	id, err := strconv.ParseInt(name, 10, 64)
 	if err != nil || id <= 0 {
 		return false
