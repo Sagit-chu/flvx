@@ -54,6 +54,41 @@ func TestValidateLicenseJobRepairsMissingMachineBinding(t *testing.T) {
 	}
 }
 
+func TestValidateLicenseJobAcceptsExistingMachineActivation(t *testing.T) {
+	r := openLicenseTestRepository(t)
+	now := time.Now().UnixMilli()
+	seedLicenseConfig(t, r, "license_key", "license-secret", now)
+	seedLicenseConfig(t, r, "is_commercial", "true", now)
+
+	var validations atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		switch {
+		case strings.HasSuffix(req.URL.Path, "/licenses/actions/validate-key"):
+			if validations.Add(1) == 1 {
+				_, _ = fmt.Fprint(w, `{"meta":{"valid":false,"code":"NO_MACHINE"},"data":{"id":"license-id","attributes":{}}}`)
+				return
+			}
+			_, _ = fmt.Fprint(w, `{"meta":{"valid":true,"code":"VALID"},"data":{"id":"license-id","attributes":{"expiry":"never"}}}`)
+		case strings.HasSuffix(req.URL.Path, "/machines"):
+			w.WriteHeader(http.StatusUnprocessableEntity)
+			_, _ = fmt.Fprint(w, `{"errors":[{"code":"FINGERPRINT_TAKEN"},{"code":"MACHINE_LIMIT_EXCEEDED"}]}`)
+		default:
+			http.NotFound(w, req)
+		}
+	}))
+	defer server.Close()
+	restoreLicenseClientFactory(t, server.URL)
+
+	h := &Handler{repo: r}
+	h.validateLicenseJob()
+
+	assertLicenseConfig(t, r, "is_commercial", "true")
+	assertLicenseConfig(t, r, "license_expiry", "never")
+	if got := validations.Load(); got != 2 {
+		t.Fatalf("validation calls = %d, want 2", got)
+	}
+}
+
 func TestLicenseActivateRequiresSuccessfulPostActivationValidation(t *testing.T) {
 	r := openLicenseTestRepository(t)
 

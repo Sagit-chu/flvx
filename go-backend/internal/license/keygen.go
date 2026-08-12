@@ -66,6 +66,25 @@ type ActivateMachineRequest struct {
 	} `json:"data"`
 }
 
+type keygenErrorResponse struct {
+	Errors []struct {
+		Code string `json:"code"`
+	} `json:"errors"`
+}
+
+func hasKeygenErrorCode(body []byte, code string) bool {
+	var resp keygenErrorResponse
+	if err := json.Unmarshal(body, &resp); err != nil {
+		return false
+	}
+	for _, item := range resp.Errors {
+		if strings.EqualFold(strings.TrimSpace(item.Code), code) {
+			return true
+		}
+	}
+	return false
+}
+
 func (c *KeygenClient) ValidateKeyWithFingerprint(key string, fingerprint string) (*ValidateResponse, error) {
 	url := c.apiURL("licenses/actions/validate-key")
 
@@ -186,6 +205,11 @@ func (c *KeygenClient) ActivateMachine(licenseID, fingerprint string) error {
 	}
 
 	body, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode == http.StatusUnprocessableEntity && hasKeygenErrorCode(body, "FINGERPRINT_TAKEN") {
+		// Machine activation is idempotent. Keygen scopes fingerprint uniqueness
+		// to the target license, so this means the same machine is already bound.
+		return nil
+	}
 
 	return fmt.Errorf("failed to activate machine: status %d, response: %s", resp.StatusCode, string(body))
 }
