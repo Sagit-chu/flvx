@@ -197,6 +197,39 @@ func TestShouldSkipBypassesPublicConfigGet(t *testing.T) {
 	}
 }
 
+func TestLicenseActivateRequiresAdmin(t *testing.T) {
+	if !requiresAdmin("/api/v1/license/activate") {
+		t.Fatal("expected license activation to require admin")
+	}
+}
+
+func TestJWTRejectsNonAdminLicenseActivation(t *testing.T) {
+	secret := "unit-test-secret"
+	token, err := auth.GenerateToken(2, "regular_user", 1, secret)
+	if err != nil {
+		t.Fatalf("generate token: %v", err)
+	}
+	claims, err := auth.ParseClaims(token, secret)
+	if err != nil {
+		t.Fatalf("parse claims: %v", err)
+	}
+
+	wrapped := JWT(AuthOptions{
+		JWTSecret: secret,
+		GetUserAuthState: func(userID int64) (*auth.UserAuthState, error) {
+			return &auth.UserAuthState{ID: userID, RoleID: 1, Status: 1, PasswordChangedAt: claims.IatMs - 1}, nil
+		},
+	})(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		response.WriteJSON(w, response.OK("pass"))
+	}))
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/license/activate", nil)
+	req.Header.Set("Authorization", token)
+	res := httptest.NewRecorder()
+	wrapped.ServeHTTP(res, req)
+	assertCodeMsg(t, res, 403, "权限不足，仅管理员可操作")
+}
+
 func TestJWTExpiresAfterSevenDays(t *testing.T) {
 	secret := "unit-test-secret"
 	token, err := auth.GenerateToken(1, "admin_user", 0, secret)

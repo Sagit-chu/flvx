@@ -97,6 +97,10 @@ func TestExportAllOmitsSensitiveConfigs(t *testing.T) {
 	seedConfig(t, r, "cloudflare_site_key", "site-key")
 	seedConfig(t, r, "jwt_secret", "jwt-secret")
 	seedConfig(t, r, "license_key", "license-secret")
+	seedConfig(t, r, "license_expiry", "2030-01-02T00:00:00.000Z")
+	seedConfig(t, r, "license_machine_id", "machine-id")
+	seedConfig(t, r, "is_commercial", "true")
+	seedConfig(t, r, "machine_fingerprint", "machine-fingerprint")
 	seedConfig(t, r, "cloudflare_secret_key", "cloudflare-secret")
 
 	for _, tc := range []struct {
@@ -117,7 +121,7 @@ func TestExportAllOmitsSensitiveConfigs(t *testing.T) {
 			if backup.Configs["cloudflare_site_key"] != "site-key" {
 				t.Fatalf("expected public config in export, got %+v", backup.Configs)
 			}
-			for _, key := range []string{"jwt_secret", "license_key", "cloudflare_secret_key"} {
+			for _, key := range []string{"jwt_secret", "license_key", "license_expiry", "license_machine_id", "is_commercial", "machine_fingerprint", "cloudflare_secret_key"} {
 				if _, ok := backup.Configs[key]; ok {
 					t.Fatalf("expected %s to be omitted from export, got %+v", key, backup.Configs)
 				}
@@ -136,12 +140,20 @@ func TestImportIgnoresSensitiveConfigs(t *testing.T) {
 	seedConfig(t, r, "app_name", "before")
 	seedConfig(t, r, "jwt_secret", "jwt-before")
 	seedConfig(t, r, "license_key", "license-before")
+	seedConfig(t, r, "license_expiry", "expiry-before")
+	seedConfig(t, r, "license_machine_id", "machine-before")
+	seedConfig(t, r, "is_commercial", "true")
+	seedConfig(t, r, "machine_fingerprint", "fingerprint-before")
 	seedConfig(t, r, "cloudflare_secret_key", "cloudflare-before")
 
 	backup := &model.BackupData{Configs: map[string]string{
 		"app_name":              "after",
 		"jwt_secret":            "jwt-after",
 		"license_key":           "license-after",
+		"license_expiry":        "expiry-after",
+		"license_machine_id":    "machine-after",
+		"is_commercial":         "false",
+		"machine_fingerprint":   "fingerprint-after",
 		"cloudflare_secret_key": "cloudflare-after",
 	}}
 
@@ -156,6 +168,10 @@ func TestImportIgnoresSensitiveConfigs(t *testing.T) {
 	assertConfigValue(t, r, "app_name", "after")
 	assertConfigValue(t, r, "jwt_secret", "jwt-before")
 	assertConfigValue(t, r, "license_key", "license-before")
+	assertConfigValue(t, r, "license_expiry", "expiry-before")
+	assertConfigValue(t, r, "license_machine_id", "machine-before")
+	assertConfigValue(t, r, "is_commercial", "true")
+	assertConfigValue(t, r, "machine_fingerprint", "fingerprint-before")
 	assertConfigValue(t, r, "cloudflare_secret_key", "cloudflare-before")
 }
 

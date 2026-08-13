@@ -473,6 +473,14 @@ func seedData(db *gorm.DB) {
 
 	appNameConfig := model.ViteConfig{ID: 1, Name: "app_name", Value: "flux", Time: 1755147963000}
 	db.Where("id = ?", 1).FirstOrCreate(&appNameConfig)
+	now := time.Now().UnixMilli()
+	for name, value := range map[string]string{
+		"is_commercial":     "false",
+		"hide_footer_brand": "false",
+	} {
+		cfg := model.ViteConfig{Name: name, Value: value, Time: now}
+		db.Where("name = ?", name).FirstOrCreate(&cfg)
+	}
 }
 
 // ─── User Queries ────────────────────────────────────────────────────
@@ -598,6 +606,23 @@ func (r *Repository) UpsertConfig(name, value string, now int64) error {
 		Columns:   []clause.Column{{Name: "name"}},
 		DoUpdates: clause.AssignmentColumns([]string{"value", "time"}),
 	}).Create(&model.ViteConfig{Name: name, Value: value, Time: now}).Error
+}
+
+func (r *Repository) UpsertConfigs(values map[string]string, now int64) error {
+	if r == nil || r.db == nil {
+		return errors.New("repository not initialized")
+	}
+	return r.db.Transaction(func(tx *gorm.DB) error {
+		for name, value := range values {
+			if err := tx.Clauses(clause.OnConflict{
+				Columns:   []clause.Column{{Name: "name"}},
+				DoUpdates: clause.AssignmentColumns([]string{"value", "time"}),
+			}).Create(&model.ViteConfig{Name: name, Value: value, Time: now}).Error; err != nil {
+				return err
+			}
+		}
+		return nil
+	})
 }
 
 // ─── Announcement Queries ────────────────────────────────────────────
@@ -1967,7 +1992,7 @@ func (r *Repository) ExportAll() (*model.BackupData, error) {
 	if err != nil {
 		return nil, fmt.Errorf("export configs failed: %w", err)
 	}
-	backup.Configs = FilterSensitiveConfigs(configs)
+	backup.Configs = FilterBackupConfigs(configs)
 
 	return backup, nil
 }
@@ -2047,7 +2072,7 @@ func (r *Repository) ExportPartial(types []string) (*model.BackupData, error) {
 		if err != nil {
 			return nil, fmt.Errorf("export configs failed: %w", err)
 		}
-		backup.Configs = FilterSensitiveConfigs(v)
+		backup.Configs = FilterBackupConfigs(v)
 	}
 	return backup, nil
 }
@@ -2839,7 +2864,7 @@ func importPermissions(tx *gorm.DB, permissions []model.PermissionBackup, _ int6
 }
 
 func importConfigs(tx *gorm.DB, configs map[string]string, now int64) (int, error) {
-	configs = FilterSensitiveConfigs(configs)
+	configs = FilterBackupConfigs(configs)
 	count := 0
 	for name, value := range configs {
 		err := tx.Clauses(clause.OnConflict{

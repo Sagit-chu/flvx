@@ -229,6 +229,7 @@ jobs:
 
           docker buildx build \
             --platform linux/amd64,linux/arm64 \
+            --build-arg KEYGEN_ACCOUNT_ID=${{ secrets.KEYGEN_ACCOUNT_ID }} \
             --push \
             -t ${{ env.REGISTRY }}/${OWNER}/flux-panel-backend:latest \
             -t ${{ env.REGISTRY }}/${OWNER}/flux-panel-backend:${VERSION} \
@@ -431,4 +432,3 @@ jobs:
           gh release upload "${VERSION}" ./artifacts/gost-arm64.sha256 --clobber
 
           echo "✅ GOST 二进制文件更新完成"
-

@@ -29,6 +29,10 @@ func (h *Handler) getPublicConfigByName(w http.ResponseWriter, r *http.Request) 
 		response.WriteJSON(w, response.Err(403, "禁止访问敏感配置"))
 		return
 	}
+	if value, gated := h.unlicensedPublicBrandValue(configName); gated {
+		response.WriteJSON(w, response.OK(map[string]string{"name": configName, "value": value}))
+		return
+	}
 
 	cfg, err := h.repo.GetConfigByName(configName)
 	if err != nil {
@@ -41,4 +45,23 @@ func (h *Handler) getPublicConfigByName(w http.ResponseWriter, r *http.Request) 
 	}
 
 	response.WriteJSON(w, response.OK(cfg))
+}
+
+func (h *Handler) unlicensedPublicBrandValue(configName string) (string, bool) {
+	switch configName {
+	case "app_name", "app_logo", "app_favicon", "hide_footer_brand":
+	default:
+		return "", false
+	}
+	isCommercial, _ := h.repo.GetViteConfigValue("is_commercial")
+	if isCommercial == "true" {
+		return "", false
+	}
+	if configName == "app_name" {
+		return "FLVX", true
+	}
+	if configName == "hide_footer_brand" {
+		return "false", true
+	}
+	return "", true
 }

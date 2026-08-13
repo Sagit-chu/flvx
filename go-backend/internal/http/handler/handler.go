@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -41,10 +42,12 @@ type Handler struct {
 	captchaMu     sync.Mutex
 	captchaTokens map[string]int64
 
-	jobsMu      sync.Mutex
-	jobsCancel  context.CancelFunc
-	jobsStarted bool
-	jobsWG      sync.WaitGroup
+	jobsMu              sync.Mutex
+	jobsCancel          context.CancelFunc
+	jobsStarted         bool
+	jobsWG              sync.WaitGroup
+	fingerprintMu       sync.Mutex
+	licenseValidationMu sync.Mutex
 
 	upgradeMu                sync.Mutex
 	systemUpgradeMu          sync.Mutex
@@ -399,6 +402,10 @@ func (h *Handler) getConfigByName(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	configName := strings.ToLower(strings.TrimSpace(req.Name))
+	if configName == "license_key" || configName == "license_machine_id" || configName == "machine_fingerprint" {
+		response.WriteJSON(w, response.Err(403, "禁止访问系统授权凭据"))
+		return
+	}
 	if repo.IsSensitiveConfigKey(configName) && !isAdminRequest(r) {
 		response.WriteJSON(w, response.Err(403, "禁止访问敏感配置"))
 		return
@@ -434,11 +441,13 @@ func (h *Handler) getConfigs(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	ctxClaims := r.Context().Value(middleware.ClaimsContextKey)
-	if claims, ok := ctxClaims.(auth.Claims); !ok || claims.RoleID != 0 {
-		delete(cfgMap, "license_key")
-		delete(cfgMap, "cloudflare_secret_key")
-		delete(cfgMap, "jwt_secret")
+	claims, isAdmin := ctxClaims.(auth.Claims)
+	if !isAdmin || claims.RoleID != 0 {
+		cfgMap = repo.FilterSensitiveConfigs(cfgMap)
 	}
+	delete(cfgMap, "license_key")
+	delete(cfgMap, "license_machine_id")
+	delete(cfgMap, "machine_fingerprint")
 	response.WriteJSON(w, response.OK(cfgMap))
 }
 
@@ -877,9 +886,15 @@ func (h *Handler) flowUpload(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) getOrCreateMachineFingerprint() (string, error) {
-	fp, _ := h.repo.GetViteConfigValue("machine_fingerprint")
+	h.fingerprintMu.Lock()
+	defer h.fingerprintMu.Unlock()
+
+	fp, err := h.repo.GetViteConfigValue("machine_fingerprint")
 	if fp != "" {
 		return fp, nil
+	}
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return "", err
 	}
 
 	newFp := uuid.New().String()
@@ -907,10 +922,13 @@ func (h *Handler) licenseActivate(w http.ResponseWriter, r *http.Request) {
 		response.WriteJSON(w, response.ErrDefault("授权码不能为空"))
 		return
 	}
+	h.licenseValidationMu.Lock()
+	defer h.licenseValidationMu.Unlock()
 
 	valResp, err := h.validateLicenseForMachine(key)
 	if err != nil {
-		response.WriteJSON(w, response.ErrDefault("授权校验失败: "+err.Error()))
+		log.Printf("license activation failed: %v", err)
+		response.WriteJSON(w, response.ErrDefault(licenseValidationErrorMessage(err)))
 		return
 	}
 
@@ -920,20 +938,19 @@ func (h *Handler) licenseActivate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	now := time.Now().UnixMilli()
-	if err := h.repo.UpsertConfig("license_key", key, now); err != nil {
-		response.WriteJSON(w, response.Err(-2, err.Error()))
-		return
-	}
-	if err := h.repo.UpsertConfig("is_commercial", "true", now); err != nil {
-		response.WriteJSON(w, response.Err(-2, err.Error()))
-		return
-	}
-
 	expiry := valResp.Data.Attributes.Expiry
 	if expiry == "" {
 		expiry = "never"
 	}
-	if err := h.repo.UpsertConfig("license_expiry", expiry, now); err != nil {
+	licenseState := map[string]string{
+		"license_key":    key,
+		"is_commercial":  "true",
+		"license_expiry": expiry,
+	}
+	if valResp.MachineID != "" {
+		licenseState["license_machine_id"] = valResp.MachineID
+	}
+	if err := h.repo.UpsertConfigs(licenseState, now); err != nil {
 		response.WriteJSON(w, response.Err(-2, err.Error()))
 		return
 	}
@@ -973,6 +990,10 @@ func (h *Handler) updateConfigs(w http.ResponseWriter, r *http.Request) {
 		}
 		if repo.IsSensitiveConfigKey(key) && !isAdminRequest(r) {
 			response.WriteJSON(w, response.Err(403, "禁止访问敏感配置"))
+			return
+		}
+		if repo.IsSystemManagedConfigKey(key) {
+			response.WriteJSON(w, response.ErrDefault("该配置由系统管理"))
 			return
 		}
 
@@ -1015,6 +1036,10 @@ func (h *Handler) updateSingleConfig(w http.ResponseWriter, r *http.Request) {
 	}
 	if repo.IsSensitiveConfigKey(name) && !isAdminRequest(r) {
 		response.WriteJSON(w, response.Err(403, "禁止访问敏感配置"))
+		return
+	}
+	if repo.IsSystemManagedConfigKey(name) {
+		response.WriteJSON(w, response.ErrDefault("该配置由系统管理"))
 		return
 	}
 

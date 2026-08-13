@@ -6,15 +6,32 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 )
+
+var AccountID string
 
 type KeygenClient struct {
 	AccountID  string
 	Token      string
 	BaseURL    string
 	HTTPClient *http.Client
+}
+
+type APIError struct {
+	Operation  string
+	StatusCode int
+	Body       string
+}
+
+func (e *APIError) Error() string {
+	return fmt.Sprintf("keygen %s failed: status %d, response: %s", e.Operation, e.StatusCode, e.Body)
+}
+
+func (e *APIError) HasCode(code string) bool {
+	return e != nil && hasKeygenErrorCode([]byte(e.Body), code)
 }
 
 const defaultAPIBaseURL = "https://api.keygen.sh/v1"
@@ -47,6 +64,7 @@ type ValidateResponse struct {
 			Expiry string `json:"expiry"`
 		} `json:"attributes"`
 	} `json:"data"`
+	MachineID string `json:"-"`
 }
 
 type ActivateMachineRequest struct {
@@ -72,6 +90,12 @@ type keygenErrorResponse struct {
 	} `json:"errors"`
 }
 
+type MachineResponse struct {
+	Data struct {
+		ID string `json:"id"`
+	} `json:"data"`
+}
+
 func hasKeygenErrorCode(body []byte, code string) bool {
 	var resp keygenErrorResponse
 	if err := json.Unmarshal(body, &resp); err != nil {
@@ -86,6 +110,10 @@ func hasKeygenErrorCode(body []byte, code string) bool {
 }
 
 func (c *KeygenClient) ValidateKeyWithFingerprint(key string, fingerprint string) (*ValidateResponse, error) {
+	return c.ValidateKeyWithMachine(key, fingerprint, "")
+}
+
+func (c *KeygenClient) ValidateKeyWithMachine(key, fingerprint, machineID string) (*ValidateResponse, error) {
 	url := c.apiURL("licenses/actions/validate-key")
 
 	meta := map[string]interface{}{
@@ -96,6 +124,14 @@ func (c *KeygenClient) ValidateKeyWithFingerprint(key string, fingerprint string
 		meta["scope"] = map[string]interface{}{
 			"fingerprint": fingerprint,
 		}
+	}
+	if machineID != "" {
+		scope, _ := meta["scope"].(map[string]interface{})
+		if scope == nil {
+			scope = make(map[string]interface{})
+			meta["scope"] = scope
+		}
+		scope["machine"] = machineID
 	}
 
 	reqBody := map[string]interface{}{
@@ -122,7 +158,8 @@ func (c *KeygenClient) ValidateKeyWithFingerprint(key string, fingerprint string
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("keygen api error: status %d", resp.StatusCode)
+		body, _ := io.ReadAll(resp.Body)
+		return nil, &APIError{Operation: "validate license", StatusCode: resp.StatusCode, Body: string(body)}
 	}
 
 	var valResp ValidateResponse
@@ -131,6 +168,42 @@ func (c *KeygenClient) ValidateKeyWithFingerprint(key string, fingerprint string
 	}
 
 	return &valResp, nil
+}
+
+func (c *KeygenClient) GetMachineID(fingerprint string) (string, error) {
+	machineURL := c.apiURL("machines/" + url.PathEscape(fingerprint))
+	req, err := http.NewRequest(http.MethodGet, machineURL, nil)
+	if err != nil {
+		return "", err
+	}
+	req.Header.Set("Accept", "application/vnd.api+json")
+	if c.Token != "" {
+		if !strings.HasPrefix(c.Token, "Bearer ") && !strings.HasPrefix(c.Token, "License ") {
+			req.Header.Set("Authorization", "License "+c.Token)
+		} else {
+			req.Header.Set("Authorization", c.Token)
+		}
+	}
+
+	resp, err := c.HTTPClient.Do(req)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return "", &APIError{Operation: "retrieve machine", StatusCode: resp.StatusCode, Body: string(body)}
+	}
+
+	var machineResp MachineResponse
+	if err := json.NewDecoder(resp.Body).Decode(&machineResp); err != nil {
+		return "", err
+	}
+	machineID := strings.TrimSpace(machineResp.Data.ID)
+	if machineID == "" {
+		return "", fmt.Errorf("failed to retrieve machine: empty machine id")
+	}
+	return machineID, nil
 }
 
 func (c *KeygenClient) ValidateKey(key string) (*ValidateResponse, error) {
@@ -161,7 +234,8 @@ func (c *KeygenClient) ValidateKey(key string) (*ValidateResponse, error) {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("keygen api error: status %d", resp.StatusCode)
+		body, _ := io.ReadAll(resp.Body)
+		return nil, &APIError{Operation: "validate license", StatusCode: resp.StatusCode, Body: string(body)}
 	}
 
 	var valResp ValidateResponse
@@ -172,7 +246,7 @@ func (c *KeygenClient) ValidateKey(key string) (*ValidateResponse, error) {
 	return &valResp, nil
 }
 
-func (c *KeygenClient) ActivateMachine(licenseID, fingerprint string) error {
+func (c *KeygenClient) ActivateMachine(licenseID, fingerprint string) (string, error) {
 	url := c.apiURL("machines")
 
 	var reqBody ActivateMachineRequest
@@ -196,20 +270,24 @@ func (c *KeygenClient) ActivateMachine(licenseID, fingerprint string) error {
 
 	resp, err := c.HTTPClient.Do(req)
 	if err != nil {
-		return err
+		return "", err
 	}
 	defer resp.Body.Close()
+	body, _ := io.ReadAll(resp.Body)
 
 	if resp.StatusCode == http.StatusCreated || resp.StatusCode == http.StatusOK {
-		return nil
+		var machineResp MachineResponse
+		if json.Unmarshal(body, &machineResp) == nil {
+			return strings.TrimSpace(machineResp.Data.ID), nil
+		}
+		return "", nil
 	}
 
-	body, _ := io.ReadAll(resp.Body)
 	if resp.StatusCode == http.StatusUnprocessableEntity && hasKeygenErrorCode(body, "FINGERPRINT_TAKEN") {
 		// Machine activation is idempotent. Keygen scopes fingerprint uniqueness
 		// to the target license, so this means the same machine is already bound.
-		return nil
+		return "", nil
 	}
 
-	return fmt.Errorf("failed to activate machine: status %d, response: %s", resp.StatusCode, string(body))
+	return "", &APIError{Operation: "activate machine", StatusCode: resp.StatusCode, Body: string(body)}
 }

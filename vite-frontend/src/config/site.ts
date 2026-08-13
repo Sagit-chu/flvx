@@ -14,10 +14,14 @@ const PUBLIC_BRAND_CONFIG_KEYS = [
   "app_logo",
   "app_favicon",
   "app_bg_image",
+  "is_commercial",
+  "hide_footer_brand",
 ] as const;
 const SENSITIVE_CONFIG_KEYS = new Set([
   "jwt_secret",
   "license_key",
+  "license_machine_id",
+  "machine_fingerprint",
   "cloudflare_secret_key",
 ]);
 const GITHUB_REPO =
@@ -130,15 +134,15 @@ const getInitialConfig = () => {
 
   if (cachedAppName) {
     return {
-      name: cachedAppName,
+      name: isCommercial ? cachedAppName : "FLVX",
       version: VERSION,
       app_version: APP_VERSION,
       github_repo: GITHUB_REPO,
-      app_logo: cachedAppLogo,
-      app_favicon: cachedAppFavicon,
+      app_logo: isCommercial ? cachedAppLogo : "",
+      app_favicon: isCommercial ? cachedAppFavicon : "",
       app_bg_image: cachedAppBgImage,
       is_commercial: isCommercial,
-      hide_footer_brand: hideFooterBrand,
+      hide_footer_brand: isCommercial && hideFooterBrand,
     };
   }
 
@@ -147,11 +151,11 @@ const getInitialConfig = () => {
     version: VERSION,
     app_version: APP_VERSION,
     github_repo: GITHUB_REPO,
-    app_logo: cachedAppLogo,
-    app_favicon: cachedAppFavicon,
+    app_logo: isCommercial ? cachedAppLogo : "",
+    app_favicon: isCommercial ? cachedAppFavicon : "",
     app_bg_image: cachedAppBgImage,
     is_commercial: isCommercial,
-    hide_footer_brand: hideFooterBrand,
+    hide_footer_brand: isCommercial && hideFooterBrand,
   };
 };
 
@@ -379,6 +383,12 @@ export const updateSiteConfig = async (configMap?: Record<string, string>) => {
     "app_bg_image",
   );
 
+  const resolvedCommercial = Object.prototype.hasOwnProperty.call(
+    resolvedConfigMap,
+    "is_commercial",
+  )
+    ? resolvedConfigMap.is_commercial === "true"
+    : siteConfig.is_commercial;
   const appName = hasAppName
     ? String(resolvedConfigMap.app_name || "").trim()
     : siteConfig.name;
@@ -392,23 +402,22 @@ export const updateSiteConfig = async (configMap?: Record<string, string>) => {
     ? String(resolvedConfigMap.app_bg_image || "").trim()
     : (siteConfig.app_bg_image || "").trim();
 
-  if (appName && appName !== siteConfig.name) {
-    siteConfig.name = appName;
-  }
-
-  siteConfig.app_logo = appLogo;
-  siteConfig.app_favicon = appFavicon;
+  siteConfig.name = resolvedCommercial && appName ? appName : "FLVX";
+  siteConfig.app_logo = resolvedCommercial ? appLogo : "";
+  siteConfig.app_favicon = resolvedCommercial ? appFavicon : "";
   siteConfig.app_bg_image = appBgImage;
   if (
     Object.prototype.hasOwnProperty.call(resolvedConfigMap, "is_commercial")
   ) {
-    siteConfig.is_commercial = resolvedConfigMap.is_commercial === "true";
+    siteConfig.is_commercial = resolvedCommercial;
   }
   if (
     Object.prototype.hasOwnProperty.call(resolvedConfigMap, "hide_footer_brand")
   ) {
     siteConfig.hide_footer_brand =
-      resolvedConfigMap.hide_footer_brand === "true";
+      resolvedCommercial && resolvedConfigMap.hide_footer_brand === "true";
+  } else if (!resolvedCommercial) {
+    siteConfig.hide_footer_brand = false;
   }
 
   if (typeof document !== "undefined") {

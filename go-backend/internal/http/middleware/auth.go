@@ -182,6 +182,8 @@ func requiresAdmin(path string) bool {
 		return true
 	case "/api/v1/config/update", "/api/v1/config/update-single":
 		return true
+	case "/api/v1/license/activate":
+		return true
 	case "/api/v1/announcement/update":
 		return true
 	default:

@@ -36,6 +36,7 @@ func (h *Handler) StartBackgroundJobs() {
 
 func (h *Handler) runValidateLicenseJob(ctx context.Context) {
 	defer h.jobsWG.Done()
+	h.validateLicenseJob()
 	ticker := time.NewTicker(12 * time.Hour)
 	defer ticker.Stop()
 
@@ -53,11 +54,12 @@ func (h *Handler) validateLicenseJob() {
 	if h == nil || h.repo == nil {
 		return
 	}
+	h.licenseValidationMu.Lock()
+	defer h.licenseValidationMu.Unlock()
 
 	key, _ := h.repo.GetViteConfigValue("license_key")
-	isCommercial, _ := h.repo.GetViteConfigValue("is_commercial")
 
-	if key == "" || isCommercial != "true" {
+	if key == "" {
 		return // Nothing to validate
 	}
 
@@ -67,7 +69,7 @@ func (h *Handler) validateLicenseJob() {
 		// Network and decode failures have no validation response, so retain the
 		// current state as a grace period. A rejected machine binding still has
 		// the original invalid response and must not stay commercially enabled.
-		if valResp != nil && !valResp.Meta.Valid {
+		if licenseValidationErrorIsDefinitive(valResp, err) {
 			now := time.Now().UnixMilli()
 			_ = h.repo.UpsertConfig("is_commercial", "false", now)
 		}
@@ -84,7 +86,14 @@ func (h *Handler) validateLicenseJob() {
 		if expiry == "" {
 			expiry = "never"
 		}
-		_ = h.repo.UpsertConfig("license_expiry", expiry, now)
+		licenseState := map[string]string{
+			"is_commercial":  "true",
+			"license_expiry": expiry,
+		}
+		if valResp.MachineID != "" {
+			licenseState["license_machine_id"] = valResp.MachineID
+		}
+		_ = h.repo.UpsertConfigs(licenseState, now)
 	}
 }
 

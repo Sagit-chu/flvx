@@ -30,6 +30,40 @@ func TestPublicConfigGetAllowsBrandKeys(t *testing.T) {
 	assertHandlerCode(t, resp, 0)
 }
 
+func TestPublicBrandConfigFallsBackWithoutCommercialLicense(t *testing.T) {
+	router, r := setupConfigAccessTestRouter(t)
+	seedConfigValue(t, r, "app_name", "Paid Brand")
+	seedConfigValue(t, r, "app_logo", "logo-data")
+	seedConfigValue(t, r, "app_favicon", "favicon-data")
+	seedConfigValue(t, r, "hide_footer_brand", "true")
+	seedConfigValue(t, r, "is_commercial", "false")
+
+	for name, want := range map[string]string{
+		"app_name":          "FLVX",
+		"app_logo":          "",
+		"app_favicon":       "",
+		"hide_footer_brand": "false",
+	} {
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/public/config/get", bytes.NewBufferString(`{"name":"`+name+`"}`))
+		req.Header.Set("Content-Type", "application/json")
+		resp := httptest.NewRecorder()
+		router.ServeHTTP(resp, req)
+		assertHandlerConfigValue(t, resp, name, want)
+	}
+}
+
+func TestPublicBrandConfigUsesSavedValuesWithCommercialLicense(t *testing.T) {
+	router, r := setupConfigAccessTestRouter(t)
+	seedConfigValue(t, r, "app_name", "Paid Brand")
+	seedConfigValue(t, r, "is_commercial", "true")
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/public/config/get", bytes.NewBufferString(`{"name":"app_name"}`))
+	req.Header.Set("Content-Type", "application/json")
+	resp := httptest.NewRecorder()
+	router.ServeHTTP(resp, req)
+	assertHandlerConfigValue(t, resp, "app_name", "Paid Brand")
+}
+
 func TestPublicConfigGetRejectsSensitiveKeys(t *testing.T) {
 	router, _ := setupConfigAccessTestRouter(t)
 
@@ -80,6 +114,56 @@ func TestConfigGetAllowsSensitiveKeysForAdmin(t *testing.T) {
 	router.ServeHTTP(resp, req)
 
 	assertHandlerConfigValue(t, resp, "jwt_secret", "jwt-secret")
+}
+
+func TestConfigGetNeverReturnsLicenseCredentials(t *testing.T) {
+	router, r := setupConfigAccessTestRouter(t)
+	adminToken := mustGenerateConfigAccessToken(t, 1, "admin_user", 0)
+	seedConfigValue(t, r, "license_key", "license-secret")
+	seedConfigValue(t, r, "machine_fingerprint", "fingerprint-secret")
+
+	for _, name := range []string{"license_key", "license_machine_id", "machine_fingerprint"} {
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/config/get", bytes.NewBufferString(`{"name":"`+name+`"}`))
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Authorization", adminToken)
+		resp := httptest.NewRecorder()
+		router.ServeHTTP(resp, req)
+		assertHandlerCodeMsg(t, resp, 403, "禁止访问系统授权凭据")
+	}
+}
+
+func TestConfigListNeverReturnsLicenseCredentials(t *testing.T) {
+	router, r := setupConfigAccessTestRouter(t)
+	adminToken := mustGenerateConfigAccessToken(t, 1, "admin_user", 0)
+	seedConfigValue(t, r, "license_key", "license-secret")
+	seedConfigValue(t, r, "license_machine_id", "machine-id")
+	seedConfigValue(t, r, "machine_fingerprint", "fingerprint-secret")
+	seedConfigValue(t, r, "is_commercial", "true")
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/config/list", nil)
+	req.Header.Set("Authorization", adminToken)
+	resp := httptest.NewRecorder()
+	router.ServeHTTP(resp, req)
+
+	var out struct {
+		Code int               `json:"code"`
+		Data map[string]string `json:"data"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if out.Code != 0 || out.Data["is_commercial"] != "true" {
+		t.Fatalf("unexpected config response: %+v", out)
+	}
+	if _, ok := out.Data["license_key"]; ok {
+		t.Fatal("license_key must not be returned")
+	}
+	if _, ok := out.Data["license_machine_id"]; ok {
+		t.Fatal("license_machine_id must not be returned")
+	}
+	if _, ok := out.Data["machine_fingerprint"]; ok {
+		t.Fatal("machine_fingerprint must not be returned")
+	}
 }
 
 func TestConfigUpdateAllowsSensitiveKeysForAdmin(t *testing.T) {
@@ -154,7 +238,7 @@ func TestConfigUpdateSingleAllowsCloudflareSecretKeyWrite(t *testing.T) {
 	}
 }
 
-func TestConfigUpdateAllowsLicenseKeyWrite(t *testing.T) {
+func TestConfigUpdateRejectsLicenseKeyWrite(t *testing.T) {
 	router, r := setupConfigAccessTestRouter(t)
 	adminToken := mustGenerateConfigAccessToken(t, 1, "admin_user", 0)
 
@@ -165,18 +249,13 @@ func TestConfigUpdateAllowsLicenseKeyWrite(t *testing.T) {
 
 	router.ServeHTTP(resp, req)
 
-	assertHandlerCode(t, resp, 0)
-
-	cfg, err := r.GetConfigByName("license_key")
-	if err != nil {
-		t.Fatalf("get config: %v", err)
-	}
-	if cfg == nil || cfg.Value != "license-secret" {
-		t.Fatalf("expected license_key to be updated, got %#v", cfg)
+	assertHandlerCodeMsg(t, resp, -1, "该配置由系统管理")
+	if cfg, err := r.GetConfigByName("license_key"); err != nil || cfg != nil {
+		t.Fatalf("license_key should not be written, got %#v err=%v", cfg, err)
 	}
 }
 
-func TestConfigUpdateSingleAllowsLicenseKeyWrite(t *testing.T) {
+func TestConfigUpdateSingleRejectsLicenseKeyWrite(t *testing.T) {
 	router, r := setupConfigAccessTestRouter(t)
 	adminToken := mustGenerateConfigAccessToken(t, 1, "admin_user", 0)
 
@@ -187,14 +266,9 @@ func TestConfigUpdateSingleAllowsLicenseKeyWrite(t *testing.T) {
 
 	router.ServeHTTP(resp, req)
 
-	assertHandlerCode(t, resp, 0)
-
-	cfg, err := r.GetConfigByName("license_key")
-	if err != nil {
-		t.Fatalf("get config: %v", err)
-	}
-	if cfg == nil || cfg.Value != "license-secret" {
-		t.Fatalf("expected license_key to be updated, got %#v", cfg)
+	assertHandlerCodeMsg(t, resp, -1, "该配置由系统管理")
+	if cfg, err := r.GetConfigByName("license_key"); err != nil || cfg != nil {
+		t.Fatalf("license_key should not be written, got %#v err=%v", cfg, err)
 	}
 }
 
