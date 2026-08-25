@@ -42,9 +42,9 @@ func EnablePersist() {
 // persist writes the current global config to the configured file atomically.
 func persist() error {
 	persistMu.Lock()
+	defer persistMu.Unlock()
 	path := persistPath
 	enabled := persistEnable
-	persistMu.Unlock()
 
 	if !enabled || path == "" {
 		return nil

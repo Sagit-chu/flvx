@@ -405,6 +405,7 @@ After=network.target
 [Service]
 WorkingDirectory=$INSTALL_DIR
 ExecStart=$INSTALL_DIR/flux_agent
+Environment=GODEBUG=disablethp=1
 Restart=on-failure
 StandardOutput=null
 StandardError=null

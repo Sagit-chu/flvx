@@ -15,6 +15,11 @@ import (
 	xservice "github.com/go-gost/x/service"
 )
 
+type serviceReplacement struct {
+	config    config.ServiceConfig
+	oldConfig *config.ServiceConfig
+}
+
 func createServices(req createServicesRequest) error {
 
 	if len(req.Data) == 0 {
@@ -95,11 +100,11 @@ func updateServices(req updateServicesRequest) error {
 		req.Data[i].Name = name
 	}
 
-	// 第二阶段：逐个更新服务（Upsert模式：存在则更新，不存在则创建）
-	changedServices := make([]struct {
-		config  config.ServiceConfig
-		service service.Service
-	}, 0, len(req.Data))
+	// 第二阶段：逐个更新服务（Upsert模式：存在则更新，不存在则创建）。
+	// 配置变更命令由 WebSocket reporter 串行调度，但这里仍保留完整回滚，
+	// 避免新配置解析或监听失败后旧服务永久消失。
+	originalConfig := config.Global()
+	changedServices := make([]serviceReplacement, 0, len(req.Data))
 	for i := range req.Data {
 		serviceConfig := &req.Data[i]
 		name := serviceConfig.Name
@@ -107,33 +112,48 @@ func updateServices(req updateServicesRequest) error {
 			continue
 		}
 
-		// 1. 获取旧服务
-		old := registry.ServiceRegistry().Get(name)
+		var oldConfig *config.ServiceConfig
+		if originalConfig != nil {
+			for _, current := range originalConfig.Services {
+				if current != nil && strings.TrimSpace(current.Name) == name {
+					oldConfig = current
+					break
+				}
+			}
+		}
 
-		// 2. 关闭旧服务 (如果存在)
-		if old != nil {
-			// 3. 从注册表移除旧服务；registry 会负责关闭旧服务。
+		// 1. 关闭并移除旧服务（如果存在）。同名监听必须先释放端口，
+		// 才能创建新 listener。
+		if registry.ServiceRegistry().Get(name) != nil {
 			registry.ServiceRegistry().Unregister(name)
 		}
 
-		// 4. 解析新服务配置
+		// 2. 解析新服务配置。
 		svc, err := parser.ParseService(serviceConfig)
 		if err != nil {
+			rollbackErr := restoreServiceRuntime(name, oldConfig)
+			rollbackErr = errors.Join(rollbackErr, rollbackServiceReplacements(changedServices))
+			if rollbackErr != nil {
+				return fmt.Errorf("create service %s failed: %v; restore previous service failed: %w", name, err, rollbackErr)
+			}
 			return errors.New("create service " + name + " failed: " + err.Error())
 		}
-		changedServices = append(changedServices, struct {
-			config  config.ServiceConfig
-			service service.Service
-		}{*serviceConfig, svc})
 
-		// 5. 注册新服务
+		// 3. 注册并启动新服务。
 		if err := registry.ServiceRegistry().Register(name, svc); err != nil {
 			svc.Close()
+			rollbackErr := restoreServiceRuntime(name, oldConfig)
+			rollbackErr = errors.Join(rollbackErr, rollbackServiceReplacements(changedServices))
+			if rollbackErr != nil {
+				return fmt.Errorf("service %s already exists; restore previous service failed: %w", name, rollbackErr)
+			}
 			return errors.New("service " + name + " already exists")
 		}
-
-		// 6. 启动新服务
 		go svc.Serve()
+		changedServices = append(changedServices, serviceReplacement{
+			config:    *serviceConfig,
+			oldConfig: oldConfig,
+		})
 	}
 	if len(changedServices) == 0 {
 		return nil
@@ -158,10 +178,54 @@ func updateServices(req updateServicesRequest) error {
 		}
 		return nil
 	}); err != nil {
+		config.Set(originalConfig)
+		if rollbackErr := rollbackServiceReplacements(changedServices); rollbackErr != nil {
+			return fmt.Errorf("%w; restore previous services failed: %v", err, rollbackErr)
+		}
 		return err
 	}
 
 	return nil
+}
+
+func restoreServiceRuntime(name string, serviceConfig *config.ServiceConfig) error {
+	name = strings.TrimSpace(name)
+	if name == "" || serviceConfig == nil {
+		return nil
+	}
+	if registry.ServiceRegistry().Get(name) != nil {
+		registry.ServiceRegistry().Unregister(name)
+	}
+
+	cfgCopy := *serviceConfig
+	cfgCopy.Name = name
+	svc, err := parser.ParseService(&cfgCopy)
+	if err != nil {
+		return err
+	}
+	if err := registry.ServiceRegistry().Register(name, svc); err != nil {
+		svc.Close()
+		return err
+	}
+	go svc.Serve()
+	return nil
+}
+
+func rollbackServiceReplacements(replacements []serviceReplacement) error {
+	var rollbackErr error
+	for i := len(replacements) - 1; i >= 0; i-- {
+		name := strings.TrimSpace(replacements[i].config.Name)
+		if name == "" {
+			continue
+		}
+		if registry.ServiceRegistry().Get(name) != nil {
+			registry.ServiceRegistry().Unregister(name)
+		}
+		if err := restoreServiceRuntime(name, replacements[i].oldConfig); err != nil {
+			rollbackErr = errors.Join(rollbackErr, fmt.Errorf("restore service %s: %w", name, err))
+		}
+	}
+	return rollbackErr
 }
 
 func serviceConfigUnchanged(name string, next config.ServiceConfig) bool {

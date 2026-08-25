@@ -277,6 +277,8 @@ EOF
   local expected=$'{\n  "addr": "panel\\"addr",\n  "secret": "sec\\\\ret\\"1"\n}'
 
   assert_equals "$expected" "$actual" "install_flux_agent should JSON-escape config values"
+  grep -Fqx 'Environment=GODEBUG=disablethp=1' "$FLUX_AGENT_SYSTEMD_SERVICE_FILE" || \
+    fail "systemd service should disable transparent huge pages for the Go heap"
 )
 
 test_install_script_bootstraps_bash_for_alpine() (

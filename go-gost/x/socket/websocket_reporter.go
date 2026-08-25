@@ -16,6 +16,7 @@ import (
 	"os"
 	"os/exec"
 	"runtime"
+	"runtime/debug"
 	"strconv"
 	"strings"
 	"sync"
@@ -152,6 +153,8 @@ const (
 	maxBackoff                  = 2 * time.Minute  // 重连最大退避
 	defaultMetricReportInterval = 5 * time.Second
 	maxConcurrentTCPPings       = 8
+	maxConcurrentReadCommands   = 16
+	maxQueuedMutationCommands   = 256
 )
 
 type WebSocketReporter struct {
@@ -174,6 +177,8 @@ type WebSocketReporter struct {
 	connMutex         sync.Mutex        // 连接状态锁
 	aesCrypto         *crypto.AESCrypto // AES加密器
 	tcpPingSem        chan struct{}     // 限制诊断探测并发，避免离线目标耗尽连接
+	readCommandSem    chan struct{}     // 限制只读命令并发，避免诊断请求耗尽资源
+	mutationQueue     chan CommandMessage
 }
 
 var wsDial = func(dialer *websocket.Dialer, rawURL string) (*websocket.Conn, *http.Response, error) {
@@ -204,6 +209,8 @@ func NewWebSocketReporter(serverURL string, secret string) *WebSocketReporter {
 		connecting:     false,
 		aesCrypto:      aesCrypto,
 		tcpPingSem:     make(chan struct{}, maxConcurrentTCPPings),
+		readCommandSem: make(chan struct{}, maxConcurrentReadCommands),
+		mutationQueue:  make(chan CommandMessage, maxQueuedMutationCommands),
 	}
 }
 
@@ -231,6 +238,7 @@ func (w *WebSocketReporter) releaseTCPPingSlot() {
 
 // Start 启动WebSocket报告器
 func (w *WebSocketReporter) Start() {
+	go w.runMutationCommands()
 	go w.run()
 }
 
@@ -777,8 +785,7 @@ func (w *WebSocketReporter) handleReceivedMessage(messageType int, message []byt
 			}
 
 			if cmdMsg.Type != "call" {
-				// 所有命令统一异步执行，避免阻塞消息接收循环
-				go w.routeCommand(cmdMsg)
+				w.dispatchCommand(cmdMsg)
 			}
 		} else {
 			// 处理普通消息
@@ -789,13 +796,92 @@ func (w *WebSocketReporter) handleReceivedMessage(messageType int, message []byt
 				return
 			}
 			if cmdMsg.Type != "call" {
-				// 所有命令统一异步执行，避免阻塞消息接收循环
-				go w.routeCommand(cmdMsg)
+				w.dispatchCommand(cmdMsg)
 			}
 		}
 
 	default:
 		fmt.Printf("📨 收到未知类型消息: %d\n", messageType)
+	}
+}
+
+// dispatchCommand keeps all runtime mutations ordered while allowing bounded
+// concurrency for read-only diagnostics. Mutations share process-wide
+// registries and configuration, so running them concurrently can corrupt the
+// persisted config or interleave service lifecycle operations.
+func (w *WebSocketReporter) dispatchCommand(cmd CommandMessage) {
+	if isMutationCommand(cmd.Type) {
+		select {
+		case w.mutationQueue <- cmd:
+		case <-w.ctx.Done():
+			w.sendCommandFailure(cmd, "Agent is shutting down")
+		default:
+			w.sendCommandFailure(cmd, "运行时配置命令队列已满，请稍后重试")
+		}
+		return
+	}
+
+	select {
+	case w.readCommandSem <- struct{}{}:
+		go func() {
+			defer func() { <-w.readCommandSem }()
+			w.routeCommandSafely(cmd)
+		}()
+	case <-w.ctx.Done():
+		w.sendCommandFailure(cmd, "Agent is shutting down")
+	default:
+		w.sendCommandFailure(cmd, "只读命令并发过多，请稍后重试")
+	}
+}
+
+func (w *WebSocketReporter) runMutationCommands() {
+	for {
+		select {
+		case <-w.ctx.Done():
+			return
+		case cmd := <-w.mutationQueue:
+			w.routeCommandSafely(cmd)
+		}
+	}
+}
+
+func (w *WebSocketReporter) routeCommandSafely(cmd CommandMessage) {
+	defer func() {
+		if recovered := recover(); recovered != nil {
+			fmt.Printf("❌ 命令处理 panic: type=%s panic=%v\n%s", cmd.Type, recovered, debug.Stack())
+			w.sendCommandFailure(cmd, fmt.Sprintf("命令处理异常: %v", recovered))
+		}
+	}()
+	w.routeCommand(cmd)
+}
+
+func (w *WebSocketReporter) sendCommandFailure(cmd CommandMessage, message string) {
+	w.sendResponse(CommandResponse{
+		Type:      commandResponseType(cmd.Type),
+		Success:   false,
+		Message:   message,
+		RequestId: cmd.RequestId,
+	})
+}
+
+func commandResponseType(commandType string) string {
+	commandType = strings.TrimSpace(commandType)
+	if commandType == "" {
+		return "UnknownCommandResponse"
+	}
+	return commandType + "Response"
+}
+
+func isMutationCommand(commandType string) bool {
+	switch strings.ToLower(strings.TrimSpace(commandType)) {
+	case "addservice", "updateservice", "deleteservice", "pauseservice", "resumeservice",
+		"addchains", "updatechains", "deletechains",
+		"addlimiters", "updatelimiters", "deletelimiters",
+		"addclimiters", "updateclimiters", "deleteclimiters",
+		"setprotocol", "upgradeagent", "rollbackagent", "reload":
+		return true
+	default:
+		return false
 	}
 }
 
