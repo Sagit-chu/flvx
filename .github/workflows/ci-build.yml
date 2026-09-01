@@ -22,7 +22,7 @@ jobs:
           node-version: '20.19.0'
 
       - name: Install pnpm
-        run: npm install -g pnpm@11.24.0
+        run: npm install -g pnpm@10.28.1
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
