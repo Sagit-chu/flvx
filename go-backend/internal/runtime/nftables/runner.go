@@ -26,23 +26,58 @@ func NewSSHRunner() *SSHRunner {
 }
 
 func (r *SSHRunner) Test(ctx context.Context, cfg SSHConfig) error {
-	return r.run(ctx, cfg, "command -v nft >/dev/null 2>&1 && nft --version >/dev/null 2>&1")
+	nft := nftBinary(cfg)
+	tableName := fmt.Sprintf("flvx_capability_%d", time.Now().UnixNano())
+	return r.run(ctx, cfg, buildCapabilityCheckCommand(nft, tableName))
+}
+
+func buildCapabilityCheckCommand(nft, tableName string) string {
+	script := RenderTable(NodePlan{
+		Rules: []Rule{{
+			ForwardID:  1,
+			InPort:     12345,
+			TargetHost: "192.0.2.1",
+			TargetPort: 443,
+			Protocols:  []string{"tcp", "udp"},
+		}},
+	})
+	script = strings.Replace(script, "table inet flvx {", "table inet "+tableName+" {", 1)
+	return "set -eu\n" +
+		"command -v nft >/dev/null 2>&1\n" +
+		nft + " --version >/dev/null 2>&1\n" +
+		"tmp=$(mktemp /tmp/flvx-nft-capability-XXXXXX.nft)\n" +
+		"trap 'rm -f \"$tmp\"' EXIT\n" +
+		"cat > \"$tmp\" <<'EOF'\n" + script + "\nEOF\n" +
+		"if ! " + nft + " -c -f \"$tmp\"; then\n" +
+		"  echo 'nftables cannot validate the generated FLVX rules' >&2\n" +
+		"  exit 1\n" +
+		"fi"
 }
 
 func (r *SSHRunner) ApplyScript(ctx context.Context, cfg SSHConfig, script string) error {
-	nft := nftBinary(cfg)
-	command := "tmp=$(mktemp /tmp/flvx-nft-XXXXXX.nft) || exit 1\n" +
+	command := buildApplyCommand(nftBinary(cfg), script)
+	return r.run(ctx, cfg, command)
+}
+
+func buildApplyCommand(nft, script string) string {
+	return "set -eu\n" +
+		"tmp=$(mktemp /tmp/flvx-nft-XXXXXX.nft)\n" +
+		"batch=$(mktemp /tmp/flvx-nft-batch-XXXXXX.nft) || { rm -f \"$tmp\"; exit 1; }\n" +
 		"cleanup() {\n" +
-		"  rm -f \"$tmp\"\n" +
+		"  rm -f \"$tmp\" \"$batch\"\n" +
 		"}\n" +
 		"trap cleanup EXIT\n" +
 		"cat > \"$tmp\" <<'EOF'\n" + script + "\nEOF\n" +
-		nft + " -c -f \"$tmp\"\n" +
 		"if " + nft + " list table inet flvx >/dev/null 2>&1; then\n" +
-		"  " + nft + " delete table inet flvx\n" +
+		"  { printf '%s\\n' 'delete table inet flvx'; cat \"$tmp\"; } > \"$batch\"\n" +
+		"else\n" +
+		"  cp \"$tmp\" \"$batch\"\n" +
 		"fi\n" +
-		nft + " -f \"$tmp\""
-	return r.run(ctx, cfg, command)
+		"if ! " + nft + " -c -f \"$batch\"; then\n" +
+		"  echo 'nftables rule validation failed; active rules were preserved' >&2\n" +
+		"  exit 1\n" +
+		"fi\n" +
+		nft + " -f \"$batch\""
 }
 
 func (r *SSHRunner) ListTableJSON(ctx context.Context, cfg SSHConfig) ([]byte, error) {

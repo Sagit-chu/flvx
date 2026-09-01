@@ -16,6 +16,9 @@ PINNED_VERSION=""
 # 镜像加速配置（可由面板传入或交互式询问）
 PROXY_ENABLED="${PROXY_ENABLED:-}"
 PROXY_URL="${PROXY_URL:-}"
+DEFAULT_PANEL_BACKEND_CONTAINER="flux-panel-backend"
+DEFAULT_PANEL_POSTGRES_CONTAINER="flux-panel-postgres"
+PANEL_SCRIPT_PATH="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/$(basename "${BASH_SOURCE[0]}")"
 
 # 镜像加速
 maybe_proxy_url() {
@@ -304,8 +307,8 @@ get_env_var() {
 get_current_db_type() {
   local db_type database_url
 
-  db_type=$(get_env_var "DB_TYPE")
-  database_url=$(get_env_var "DATABASE_URL")
+  db_type=$(get_env_var "DB_TYPE" || true)
+  database_url=$(get_env_var "DATABASE_URL" || true)
 
   if [[ "$db_type" == "sqlite" ]]; then
     echo "sqlite"
@@ -316,13 +319,289 @@ get_current_db_type() {
   fi
 }
 
+get_container_compose_label() {
+  local container="$1"
+  local label="$2"
+  local value
+
+  value=$(docker inspect -f "{{ index .Config.Labels \"$label\" }}" "$container" 2>/dev/null || true)
+  if [[ "$value" == "<no value>" ]]; then
+    value=""
+  fi
+  printf '%s' "$value"
+}
+
+resolve_panel_deployment() {
+  local backend_container="${PANEL_BACKEND_CONTAINER:-$DEFAULT_PANEL_BACKEND_CONTAINER}"
+  local requested_dir="${PANEL_DEPLOY_DIR:-}"
+  local label_dir label_project deploy_dir project_name
+
+  label_dir=$(get_container_compose_label "$backend_container" "com.docker.compose.project.working_dir")
+  label_project=$(get_container_compose_label "$backend_container" "com.docker.compose.project")
+
+  if [[ -n "$requested_dir" ]]; then
+    deploy_dir="$requested_dir"
+  elif [[ -n "$label_dir" ]]; then
+    deploy_dir="$label_dir"
+  elif [[ -f ".env" && -f "docker-compose.yml" ]]; then
+    deploy_dir=$(pwd -P)
+  else
+    echo "❌ 无法识别面板部署目录：未找到容器 Compose 标签，当前目录也没有完整部署配置"
+    return 1
+  fi
+
+  if [[ ! -d "$deploy_dir" ]]; then
+    echo "❌ 面板部署目录不存在：$deploy_dir"
+    return 1
+  fi
+  deploy_dir=$(cd "$deploy_dir" && pwd -P)
+  if [[ -n "$label_dir" && -d "$label_dir" ]]; then
+    label_dir=$(cd "$label_dir" && pwd -P)
+  fi
+  if [[ -n "$requested_dir" && -n "$label_dir" && "$deploy_dir" != "$label_dir" ]]; then
+    echo "❌ 指定部署目录与运行中容器标签不一致：$deploy_dir != $label_dir"
+    return 1
+  fi
+
+  project_name="${COMPOSE_PROJECT_NAME:-}"
+  if [[ -z "$project_name" && -n "$label_project" ]]; then
+    project_name="$label_project"
+  fi
+  if [[ -n "$project_name" && ! "$project_name" =~ ^[a-z0-9][a-z0-9_-]*$ ]]; then
+    echo "❌ Compose 项目名不合法：$project_name"
+    return 1
+  fi
+
+  PANEL_DEPLOY_DIR="$deploy_dir"
+  PANEL_BACKEND_CONTAINER="$backend_container"
+  PANEL_POSTGRES_CONTAINER="${PANEL_POSTGRES_CONTAINER:-$DEFAULT_PANEL_POSTGRES_CONTAINER}"
+  PANEL_COMPOSE_PROJECT="$project_name"
+  export PANEL_DEPLOY_DIR PANEL_BACKEND_CONTAINER PANEL_POSTGRES_CONTAINER PANEL_COMPOSE_PROJECT
+  if [[ -n "$project_name" ]]; then
+    COMPOSE_PROJECT_NAME="$project_name"
+    export COMPOSE_PROJECT_NAME
+  fi
+
+  cd "$PANEL_DEPLOY_DIR"
+  echo "📁 部署目录：$PANEL_DEPLOY_DIR"
+  if [[ -n "$PANEL_COMPOSE_PROJECT" ]]; then
+    echo "📦 Compose 项目：$PANEL_COMPOSE_PROJECT"
+  fi
+}
+
+run_panel_compose() {
+  $DOCKER_CMD "$@"
+}
+
+validate_panel_update_environment() {
+  local key value backend_port frontend_port configured_db_type db_type database_url postgres_password
+
+  if [[ ! -f ".env" ]]; then
+    echo "❌ 部署目录缺少 .env，更新终止"
+    return 1
+  fi
+  if [[ ! -f "docker-compose.yml" ]]; then
+    echo "❌ 部署目录缺少 docker-compose.yml，更新终止"
+    return 1
+  fi
+
+  for key in JWT_SECRET BACKEND_PORT FRONTEND_PORT; do
+    value=$(get_env_var "$key" || true)
+    if [[ -z "${value//[[:space:]]/}" ]]; then
+      echo "❌ .env 中 $key 缺失或为空，更新终止"
+      return 1
+    fi
+  done
+
+  backend_port=$(get_env_var "BACKEND_PORT" || true)
+  frontend_port=$(get_env_var "FRONTEND_PORT" || true)
+  if [[ ! "$backend_port" =~ ^[0-9]+$ || "$backend_port" -lt 1 || "$backend_port" -gt 65535 ]]; then
+    echo "❌ BACKEND_PORT 不是有效端口：$backend_port"
+    return 1
+  fi
+  if [[ ! "$frontend_port" =~ ^[0-9]+$ || "$frontend_port" -lt 1 || "$frontend_port" -gt 65535 ]]; then
+    echo "❌ FRONTEND_PORT 不是有效端口：$frontend_port"
+    return 1
+  fi
+
+  configured_db_type=$(get_env_var "DB_TYPE" || true)
+  if [[ -n "$configured_db_type" && "$configured_db_type" != "sqlite" && "$configured_db_type" != "postgres" ]]; then
+    echo "❌ DB_TYPE 仅支持 sqlite 或 postgres：$configured_db_type"
+    return 1
+  fi
+  db_type=$(get_current_db_type)
+  if [[ "$db_type" == "postgres" ]]; then
+    database_url=$(get_env_var "DATABASE_URL" || true)
+    postgres_password=$(get_env_var "POSTGRES_PASSWORD" || true)
+    if [[ -z "${database_url//[[:space:]]/}" || -z "${postgres_password//[[:space:]]/}" ]]; then
+      echo "❌ PostgreSQL 模式要求 DATABASE_URL 和 POSTGRES_PASSWORD 均非空"
+      return 1
+    fi
+  fi
+
+  if ! run_panel_compose -f docker-compose.yml config -q; then
+    echo "❌ 当前 Compose 配置校验失败，更新终止"
+    return 1
+  fi
+}
+
+download_panel_update_compose() {
+  local compose_url="$1"
+
+  UPDATE_COMPOSE_CANDIDATE=$(mktemp "$PANEL_DEPLOY_DIR/.docker-compose.yml.update.XXXXXX")
+  if ! curl -fL -o "$UPDATE_COMPOSE_CANDIDATE" "$compose_url"; then
+    rm -f "$UPDATE_COMPOSE_CANDIDATE"
+    UPDATE_COMPOSE_CANDIDATE=""
+    echo "❌ 下载最新 Compose 配置失败，更新终止"
+    return 1
+  fi
+  if [[ ! -s "$UPDATE_COMPOSE_CANDIDATE" ]]; then
+    rm -f "$UPDATE_COMPOSE_CANDIDATE"
+    UPDATE_COMPOSE_CANDIDATE=""
+    echo "❌ 下载的 Compose 配置为空，更新终止"
+    return 1
+  fi
+}
+
+validate_panel_update_compose() {
+  if ! FLUX_VERSION="$LATEST_VERSION" run_panel_compose -f "$UPDATE_COMPOSE_CANDIDATE" config -q; then
+    echo "❌ 新 Compose 配置校验失败，更新终止"
+    return 1
+  fi
+}
+
+backup_sqlite_for_update() (
+  local destination="$1"
+  local running paused="false"
+
+  cleanup_paused_backend() {
+    if [[ "$paused" == "true" ]]; then
+      docker unpause "$PANEL_BACKEND_CONTAINER" >/dev/null 2>&1 || true
+    fi
+  }
+  trap cleanup_paused_backend EXIT
+
+  running=$(docker inspect -f '{{.State.Running}}' "$PANEL_BACKEND_CONTAINER" 2>/dev/null || true)
+  if [[ "$running" == "true" ]]; then
+    if ! docker pause "$PANEL_BACKEND_CONTAINER" >/dev/null; then
+      echo "❌ 暂停后端以创建一致性 SQLite 备份失败"
+      return 1
+    fi
+    paused="true"
+  fi
+
+  mkdir -p "$destination"
+  if ! docker cp "$PANEL_BACKEND_CONTAINER:/app/data/." "$destination"; then
+    echo "❌ SQLite 数据备份失败"
+    return 1
+  fi
+
+  if [[ "$paused" == "true" ]] && ! docker unpause "$PANEL_BACKEND_CONTAINER" >/dev/null; then
+    echo "❌ SQLite 备份完成，但恢复后端运行失败"
+    return 1
+  fi
+  paused="false"
+)
+
+backup_postgres_for_update() {
+  local destination="$1"
+  local postgres_db postgres_user
+
+  postgres_db=$(get_env_var "POSTGRES_DB" || true)
+  postgres_user=$(get_env_var "POSTGRES_USER" || true)
+  postgres_db=${postgres_db:-flux_panel}
+  postgres_user=${postgres_user:-flux_panel}
+
+  if ! docker exec "$PANEL_POSTGRES_CONTAINER" pg_dump -U "$postgres_user" "$postgres_db" > "$destination"; then
+    rm -f "$destination"
+    echo "❌ PostgreSQL 数据备份失败"
+    return 1
+  fi
+}
+
+create_panel_update_backup() {
+  local db_type="$1"
+  local timestamp
+
+  timestamp=$(date '+%Y%m%d-%H%M%S')
+  if ! (umask 077 && mkdir -p "$PANEL_DEPLOY_DIR/backups"); then
+    echo "❌ 创建更新备份目录失败"
+    return 1
+  fi
+  UPDATE_BACKUP_DIR=$(umask 077 && mktemp -d "$PANEL_DEPLOY_DIR/backups/panel-update-$timestamp.XXXXXX") || {
+    echo "❌ 创建更新备份目录失败"
+    return 1
+  }
+  if ! cp -p .env docker-compose.yml "$UPDATE_BACKUP_DIR/"; then
+    echo "❌ 备份面板配置失败"
+    return 1
+  fi
+
+  if [[ "$db_type" == "postgres" ]]; then
+    backup_postgres_for_update "$UPDATE_BACKUP_DIR/postgres.sql" || return 1
+  else
+    backup_sqlite_for_update "$UPDATE_BACKUP_DIR/sqlite" || return 1
+  fi
+  echo "💾 更新备份：$UPDATE_BACKUP_DIR"
+}
+
+pull_panel_update_images() {
+  local db_type="$1"
+
+  if [[ "$db_type" == "postgres" ]]; then
+    FLUX_VERSION="$LATEST_VERSION" run_panel_compose -f "$UPDATE_COMPOSE_CANDIDATE" pull backend frontend postgres
+  else
+    FLUX_VERSION="$LATEST_VERSION" run_panel_compose -f "$UPDATE_COMPOSE_CANDIDATE" pull backend frontend
+  fi
+}
+
+activate_panel_update_files() {
+  if ! chmod 0644 "$UPDATE_COMPOSE_CANDIDATE" || ! mv "$UPDATE_COMPOSE_CANDIDATE" docker-compose.yml; then
+    echo "❌ 替换 Compose 配置失败"
+    return 1
+  fi
+  UPDATE_COMPOSE_CANDIDATE=""
+  if ! upsert_env_var ".env" "FLUX_VERSION" "$LATEST_VERSION"; then
+    echo "❌ 更新版本配置失败"
+    return 1
+  fi
+}
+
+start_panel_after_update() {
+  local db_type="$1"
+
+  if [[ "$db_type" == "postgres" ]]; then
+    run_panel_compose up -d postgres || return 1
+    wait_for_postgres_healthy || return 1
+  fi
+  run_panel_compose up -d --force-recreate --remove-orphans backend frontend || return 1
+  wait_for_backend_healthy
+}
+
+rollback_panel_update() {
+  local db_type="$1"
+
+  echo "↩️ 正在恢复更新前配置..."
+  if ! cp -p "$UPDATE_BACKUP_DIR/.env" .env || ! cp -p "$UPDATE_BACKUP_DIR/docker-compose.yml" docker-compose.yml; then
+    echo "❌ 配置回滚失败，请从 $UPDATE_BACKUP_DIR 手动恢复"
+    return 1
+  fi
+  if [[ "$db_type" == "postgres" ]]; then
+    run_panel_compose up -d postgres || return 1
+    wait_for_postgres_healthy || return 1
+  fi
+  run_panel_compose up -d --force-recreate --remove-orphans backend frontend || return 1
+  wait_for_backend_healthy
+}
+
 wait_for_postgres_healthy() {
   local pg_health
+  local postgres_container="${PANEL_POSTGRES_CONTAINER:-$DEFAULT_PANEL_POSTGRES_CONTAINER}"
 
   echo "🔍 检查 PostgreSQL 服务状态..."
   for i in {1..90}; do
-    if docker ps --format "{{.Names}}" | grep -q "^flux-panel-postgres$"; then
-      pg_health=$(docker inspect -f '{{.State.Health.Status}}' flux-panel-postgres 2>/dev/null || echo "unknown")
+    if docker ps --format "{{.Names}}" | grep -Fxq "$postgres_container"; then
+      pg_health=$(docker inspect -f '{{.State.Health.Status}}' "$postgres_container" 2>/dev/null || echo "unknown")
       if [[ "$pg_health" == "healthy" ]]; then
         echo "✅ PostgreSQL 服务健康检查通过"
         return 0
@@ -335,7 +614,7 @@ wait_for_postgres_healthy() {
 
     if [ $i -eq 90 ]; then
       echo "❌ PostgreSQL 启动超时（90秒）"
-      echo "🔍 当前状态：$(docker inspect -f '{{.State.Health.Status}}' flux-panel-postgres 2>/dev/null || echo '容器不存在')"
+      echo "🔍 当前状态：$(docker inspect -f '{{.State.Health.Status}}' "$postgres_container" 2>/dev/null || echo '容器不存在')"
       return 1
     fi
 
@@ -348,11 +627,12 @@ wait_for_postgres_healthy() {
 
 wait_for_backend_healthy() {
   local backend_health
+  local backend_container="${PANEL_BACKEND_CONTAINER:-$DEFAULT_PANEL_BACKEND_CONTAINER}"
 
   echo "🔍 检查后端服务状态..."
   for i in {1..90}; do
-    if docker ps --format "{{.Names}}" | grep -q "^flux-panel-backend$"; then
-      backend_health=$(docker inspect -f '{{.State.Health.Status}}' flux-panel-backend 2>/dev/null || echo "unknown")
+    if docker ps --format "{{.Names}}" | grep -Fxq "$backend_container"; then
+      backend_health=$(docker inspect -f '{{.State.Health.Status}}' "$backend_container" 2>/dev/null || echo "unknown")
       if [[ "$backend_health" == "healthy" ]]; then
         echo "✅ 后端服务健康检查通过"
         return 0
@@ -365,7 +645,7 @@ wait_for_backend_healthy() {
 
     if [ $i -eq 90 ]; then
       echo "❌ 后端服务启动超时（90秒）"
-      echo "🔍 当前状态：$(docker inspect -f '{{.State.Health.Status}}' flux-panel-backend 2>/dev/null || echo '容器不存在')"
+      echo "🔍 当前状态：$(docker inspect -f '{{.State.Health.Status}}' "$backend_container" 2>/dev/null || echo '容器不存在')"
       return 1
     fi
 
@@ -380,9 +660,8 @@ wait_for_backend_healthy() {
 delete_self() {
   echo ""
   echo "🗑️ 操作已完成，正在清理脚本文件..."
-  SCRIPT_PATH="$(readlink -f "$0" 2>/dev/null || realpath "$0" 2>/dev/null || echo "$0")"
   sleep 1
-  rm -f "$SCRIPT_PATH" && echo "✅ 脚本文件已删除" || echo "❌ 删除脚本文件失败"
+  rm -f "$PANEL_SCRIPT_PATH" && echo "✅ 脚本文件已删除" || echo "❌ 删除脚本文件失败"
 }
 
 
@@ -486,12 +765,11 @@ EOF
 # 更新功能
 update_panel() {
   echo "🔄 开始更新面板..."
-  ask_proxy_config
   check_docker
+  resolve_panel_deployment || return 1
+  ask_proxy_config
+  validate_panel_update_environment || return 1
 
-  if [[ ! -f ".env" ]]; then
-    echo "⚠️ 未找到 .env，默认按 SQLite 模式更新"
-  fi
   CURRENT_DB_TYPE=$(get_current_db_type)
   echo "🗄️ 当前数据库类型：$CURRENT_DB_TYPE"
 
@@ -502,52 +780,45 @@ update_panel() {
   }
   echo "🆕 最新版本：$LATEST_VERSION"
   set_compose_urls_by_version "$LATEST_VERSION"
-  upsert_env_var ".env" "FLUX_VERSION" "$LATEST_VERSION"
 
   echo "🔽 下载最新配置文件..."
   DOCKER_COMPOSE_URL=$(get_docker_compose_url)
   echo "📡 选择配置文件：$(basename "$DOCKER_COMPOSE_URL")"
-  curl -L -o docker-compose.yml "$DOCKER_COMPOSE_URL"
-  echo "✅ 下载完成"
-
-  # 自动检测并配置 IPv6 支持
-  if check_ipv6_support; then
-    echo "🚀 系统支持 IPv6，自动启用 IPv6 配置..."
-    configure_docker_ipv6
+  download_panel_update_compose "$DOCKER_COMPOSE_URL" || return 1
+  if ! validate_panel_update_compose; then
+    rm -f "$UPDATE_COMPOSE_CANDIDATE"
+    UPDATE_COMPOSE_CANDIDATE=""
+    return 1
   fi
 
-  # 先发送 SIGTERM 信号，让应用优雅关闭
-  docker stop -t 30 flux-panel-backend 2>/dev/null || true
-  docker stop -t 10 vite-frontend 2>/dev/null || true
-  
-  # 等待 WAL 文件同步
-  echo "⏳ 等待数据同步..."
-  sleep 5
-  
-  # 然后再完全停止
-  $DOCKER_CMD down
+  echo "💾 备份当前配置和数据库..."
+  if ! create_panel_update_backup "$CURRENT_DB_TYPE"; then
+    rm -f "$UPDATE_COMPOSE_CANDIDATE"
+    UPDATE_COMPOSE_CANDIDATE=""
+    return 1
+  fi
 
   echo "⬇️ 拉取最新镜像..."
-  if [[ "$CURRENT_DB_TYPE" == "postgres" ]]; then
-    $DOCKER_CMD pull backend frontend postgres
-  else
-    $DOCKER_CMD pull backend frontend
+  if ! pull_panel_update_images "$CURRENT_DB_TYPE"; then
+    rm -f "$UPDATE_COMPOSE_CANDIDATE"
+    UPDATE_COMPOSE_CANDIDATE=""
+    echo "❌ 镜像拉取失败，现有服务保持运行"
+    return 1
   fi
 
-  echo "🚀 启动更新后的服务..."
-  if [[ "$CURRENT_DB_TYPE" == "postgres" ]]; then
-    $DOCKER_CMD up -d postgres
-    wait_for_postgres_healthy
-    $DOCKER_CMD up -d backend frontend
-  else
-    $DOCKER_CMD up -d backend frontend
+  if ! activate_panel_update_files; then
+    rollback_panel_update "$CURRENT_DB_TYPE" || true
+    return 1
   fi
 
-  # 等待服务启动
-  echo "⏳ 等待服务启动..."
-
-  if ! wait_for_backend_healthy; then
-    echo "🛑 更新终止"
+  echo "🚀 原地重建更新后的服务..."
+  if ! start_panel_after_update "$CURRENT_DB_TYPE"; then
+    echo "🛑 新版本启动失败"
+    if rollback_panel_update "$CURRENT_DB_TYPE"; then
+      echo "✅ 已恢复更新前版本"
+    else
+      echo "❌ 自动回滚失败，请从 $UPDATE_BACKUP_DIR 手动恢复"
+    fi
     return 1
   fi
 

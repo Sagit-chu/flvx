@@ -46,7 +46,8 @@ func RenderTable(plan NodePlan) string {
 		}
 		targetHost := strings.Trim(strings.TrimSpace(rule.TargetHost), "[]")
 		for _, protocol := range normalizedProtocols(rule.Protocols) {
-			b.WriteString(fmt.Sprintf("    ct original proto-dst %d %s daddr %s %s dport %d counter comment %q\n",
+			b.WriteString(fmt.Sprintf("    meta l4proto %s ct original proto-dst %d %s daddr %s %s dport %d counter comment %q\n",
+				protocol,
 				rule.InPort,
 				family,
 				targetHost,
@@ -54,7 +55,8 @@ func RenderTable(plan NodePlan) string {
 				rule.TargetPort,
 				counterComment(rule.ForwardID, CounterDirectionToTarget, protocol),
 			))
-			b.WriteString(fmt.Sprintf("    ct original proto-dst %d %s saddr %s %s sport %d counter comment %q\n",
+			b.WriteString(fmt.Sprintf("    meta l4proto %s ct original proto-dst %d %s saddr %s %s sport %d counter comment %q\n",
+				protocol,
 				rule.InPort,
 				family,
 				targetHost,

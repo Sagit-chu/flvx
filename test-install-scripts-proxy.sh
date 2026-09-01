@@ -558,6 +558,7 @@ test_update_panel_asks_for_proxy_config() (
   load_script_without_main "$ROOT_DIR/panel_install.sh"
 
   local ask_called="0"
+  local calls=""
 
   ask_proxy_config() {
     ask_called="1"
@@ -570,6 +571,15 @@ test_update_panel_asks_for_proxy_config() (
     DOCKER_CMD="true"
   }
 
+  resolve_panel_deployment() {
+    calls+=" resolve"
+    PANEL_DEPLOY_DIR=$(mktemp -d)
+  }
+
+  validate_panel_update_environment() {
+    calls+=" validate-current"
+  }
+
   get_current_db_type() {
     echo "sqlite"
   }
@@ -578,13 +588,33 @@ test_update_panel_asks_for_proxy_config() (
     echo "v-test"
   }
 
-  upsert_env_var() { :; }
+  download_panel_update_compose() {
+    calls+=" download"
+    UPDATE_COMPOSE_CANDIDATE="candidate"
+  }
+
+  validate_panel_update_compose() {
+    calls+=" validate-new"
+  }
+
+  create_panel_update_backup() {
+    calls+=" backup"
+    UPDATE_BACKUP_DIR="backup"
+  }
+
+  pull_panel_update_images() {
+    calls+=" pull"
+  }
+
+  activate_panel_update_files() {
+    calls+=" activate"
+  }
+
+  start_panel_after_update() {
+    calls+=" start"
+  }
+
   check_ipv6_support() { return 1; }
-  configure_docker_ipv6() { :; }
-  docker() { return 0; }
-  wait_for_backend_healthy() { return 0; }
-  sleep() { :; }
-  curl() { :; }
 
   update_panel >/dev/null
 
@@ -593,6 +623,75 @@ test_update_panel_asks_for_proxy_config() (
     "https://github.com/${REPO}/releases/download/v-test/docker-compose-v4.yml" \
     "$DOCKER_COMPOSEV4_URL" \
     "update_panel should honor the prompted proxy choice"
+  assert_equals \
+    " resolve validate-current download validate-new backup pull activate start" \
+    "$calls" \
+    "update_panel should validate, back up, and pull before activating the update"
+)
+
+test_resolve_panel_deployment_uses_container_labels() (
+  set -euo pipefail
+  load_script_without_main "$ROOT_DIR/panel_install.sh"
+
+  local expected_dir
+  expected_dir=$(mktemp -d)
+  expected_dir=$(cd "$expected_dir" && pwd -P)
+  printf 'JWT_SECRET=test\nBACKEND_PORT=6365\nFRONTEND_PORT=6366\nDB_TYPE=sqlite\n' > "$expected_dir/.env"
+  printf 'services: {}\n' > "$expected_dir/docker-compose.yml"
+
+  unset PANEL_DEPLOY_DIR COMPOSE_PROJECT_NAME
+  docker() {
+    if [[ "$1" == "inspect" && "$2" == "-f" ]]; then
+      case "$3" in
+        *working_dir*) printf '%s\n' "$expected_dir" ;;
+        *) printf '%s\n' "flvx-panel" ;;
+      esac
+    fi
+  }
+
+  resolve_panel_deployment >/dev/null
+
+  assert_equals "$expected_dir" "$PANEL_DEPLOY_DIR" "update should discover the Compose working directory from container labels"
+  assert_equals "flvx-panel" "$COMPOSE_PROJECT_NAME" "update should preserve the existing Compose project name"
+  assert_equals "$expected_dir" "$(pwd -P)" "update should run from the discovered deployment directory"
+)
+
+test_validate_panel_update_environment_rejects_empty_required_values() (
+  set -euo pipefail
+  load_script_without_main "$ROOT_DIR/panel_install.sh"
+
+  local deploy_dir rc="0"
+  deploy_dir=$(mktemp -d)
+  printf 'JWT_SECRET=\nBACKEND_PORT=6365\nFRONTEND_PORT=6366\nDB_TYPE=sqlite\n' > "$deploy_dir/.env"
+  printf 'services: {}\n' > "$deploy_dir/docker-compose.yml"
+  cd "$deploy_dir"
+  DOCKER_CMD="true"
+
+  validate_panel_update_environment >/dev/null || rc="$?"
+
+  assert_equals "1" "$rc" "update should reject an empty JWT secret before touching the running service"
+)
+
+test_backup_sqlite_for_update_pauses_copies_and_unpauses() (
+  set -euo pipefail
+  load_script_without_main "$ROOT_DIR/panel_install.sh"
+
+  local destination calls log_path
+  destination=$(mktemp -d)/sqlite
+  log_path=$(mktemp)
+  PANEL_BACKEND_CONTAINER="flux-panel-backend"
+  docker() {
+    if [[ "$1" == "inspect" ]]; then
+      printf 'true\n'
+      return 0
+    fi
+    printf ' %s' "$1" >> "$log_path"
+  }
+
+  backup_sqlite_for_update "$destination" >/dev/null
+  calls=$(cat "$log_path")
+
+  assert_equals " pause cp unpause" "$calls" "SQLite backup should pause writes, copy the database volume, then resume the backend"
 )
 
 test_panel_install_script_accepts_proxy_url_env_without_prompt() (
@@ -663,6 +762,9 @@ test_install_script_accepts_proxy_url_env_without_prompt
 test_panel_install_script_can_disable_proxy
 test_panel_install_script_recomputes_compose_urls_after_prompt
 test_update_panel_asks_for_proxy_config
+test_resolve_panel_deployment_uses_container_labels
+test_validate_panel_update_environment_rejects_empty_required_values
+test_backup_sqlite_for_update_pauses_copies_and_unpauses
 test_panel_install_script_uses_default_proxy
 test_panel_install_script_accepts_proxy_url_env_without_prompt
 test_panel_install_script_defaults_proxy_on_eof
