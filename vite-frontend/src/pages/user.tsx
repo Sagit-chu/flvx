@@ -71,23 +71,22 @@ import {
   SearchIcon,
 } from "@/components/icons";
 import { PageLoadingState } from "@/components/page-state";
+import { TrafficLimitField } from "@/components/traffic-limit-field";
 import { useLocalStorageState } from "@/hooks/use-local-storage-state";
 import { removeItemsById, replaceItemById } from "@/utils/list-state";
+import {
+  formatTraffic,
+  formatFlowLimit,
+  flowLimitBytes,
+  flowLimitMiB,
+  parseTrafficInput,
+  preferredTrafficUnit,
+  TRAFFIC_UNIT_MIB,
+  type TrafficUnit,
+} from "@/utils/traffic";
 
 // 工具函数
-const formatFlow = (value: number, unit: string = "bytes"): string => {
-  if (unit === "gb") {
-    return `${value} GB`;
-  } else {
-    if (value === 0) return "0 B";
-    if (value < 1024) return `${value} B`;
-    if (value < 1024 * 1024) return `${(value / 1024).toFixed(2)} KB`;
-    if (value < 1024 * 1024 * 1024)
-      return `${(value / (1024 * 1024)).toFixed(2)} MB`;
-
-    return `${(value / (1024 * 1024 * 1024)).toFixed(2)} GB`;
-  }
-};
+const formatFlow = formatTraffic;
 
 const formatQuotaLimit = (value?: number): string => {
   const limit = Number(value ?? 0);
@@ -96,7 +95,14 @@ const formatQuotaLimit = (value?: number): string => {
     return "不限";
   }
 
-  return `${limit} GB`;
+  return formatTraffic(limit * 1024 ** 3);
+};
+
+const trafficInputFor = (flowGB: number, flowMiB?: number) => {
+  const mib = flowLimitMiB(flowGB, flowMiB);
+  const unit = preferredTrafficUnit(mib);
+
+  return { value: String(mib / TRAFFIC_UNIT_MIB[unit]), unit };
 };
 
 const formatDate = (timestamp: number): string => {
@@ -148,6 +154,7 @@ const normalizeUserItem = (item: Partial<User>): User => {
     user: String(item.user ?? ""),
     status: Number(item.status ?? 0),
     flow: Number(item.flow ?? 0),
+    flowMiB: Number(item.flowMiB ?? 0),
     num: Number(item.num ?? 0),
     expTime: item.expTime,
     flowResetTime: item.flowResetTime ?? 0,
@@ -172,6 +179,7 @@ const normalizeUserTunnelItem = (item: Partial<UserTunnel>): UserTunnel => {
     tunnelName: String(item.tunnelName ?? ""),
     status: Number(item.status ?? 0),
     flow: Number(item.flow ?? 0),
+    flowMiB: Number(item.flowMiB ?? 0),
     num: Number(item.num ?? 0),
     expTime: Number(item.expTime ?? 0),
     flowResetTime: Number(item.flowResetTime ?? 0),
@@ -223,6 +231,8 @@ export default function UserPage() {
     maxConn: 0,
   });
   const [userFormLoading, setUserFormLoading] = useState(false);
+  const [userFlowInput, setUserFlowInput] = useState("1000");
+  const [userFlowUnit, setUserFlowUnit] = useState<TrafficUnit>("GB");
   const [quotaResetLoading, setQuotaResetLoading] = useState(false);
 
   const editingUser = useMemo(
@@ -263,6 +273,8 @@ export default function UserPage() {
     onClose: onEditTunnelModalClose,
   } = useDisclosure();
   const [editTunnelForm, setEditTunnelForm] = useState<UserTunnel | null>(null);
+  const [tunnelFlowInput, setTunnelFlowInput] = useState("");
+  const [tunnelFlowUnit, setTunnelFlowUnit] = useState<TrafficUnit>("GB");
   const [editTunnelLoading, setEditTunnelLoading] = useState(false);
 
   // 删除确认相关状态
@@ -506,6 +518,8 @@ export default function UserPage() {
 
   const handleAdd = () => {
     setIsEdit(false);
+    setUserFlowInput("1000");
+    setUserFlowUnit("GB");
     setUserForm({
       user: "",
       pwd: "",
@@ -524,6 +538,10 @@ export default function UserPage() {
 
   const handleEdit = async (user: User) => {
     setIsEdit(true);
+    const trafficInput = trafficInputFor(user.flow, user.flowMiB);
+
+    setUserFlowInput(trafficInput.value);
+    setUserFlowUnit(trafficInput.unit);
     let currentGroupIds: number[] = [];
 
     try {
@@ -591,10 +609,21 @@ export default function UserPage() {
       return;
     }
 
+    const flowMiB = parseTrafficInput(userFlowInput, userFlowUnit);
+
+    if (flowMiB === null) {
+      toast.error("请输入有效的流量限制，最小单位为 1 MB");
+
+      return;
+    }
+
     setUserFormLoading(true);
     try {
       const submitData: any = {
         ...userForm,
+        flow: Math.ceil(flowMiB / 1024),
+        flowMiB:
+          userFlowInput === "99999" && userFlowUnit === "GB" ? 0 : flowMiB,
         expTime: userForm.expTime.getTime(),
         groupIds: userForm.groupIds ?? [],
       };
@@ -756,6 +785,10 @@ export default function UserPage() {
   };
 
   const handleEditTunnel = (userTunnel: UserTunnel) => {
+    const trafficInput = trafficInputFor(userTunnel.flow, userTunnel.flowMiB);
+
+    setTunnelFlowInput(trafficInput.value);
+    setTunnelFlowUnit(trafficInput.unit);
     setEditTunnelForm({
       ...userTunnel,
       speedId: normalizeSpeedId(userTunnel.speedId),
@@ -767,12 +800,24 @@ export default function UserPage() {
   const handleUpdateTunnel = async () => {
     if (!editTunnelForm) return;
 
+    const flowMiB = parseTrafficInput(tunnelFlowInput, tunnelFlowUnit);
+
+    if (flowMiB === null) {
+      toast.error("请输入有效的流量限制，最小单位为 1 MB");
+
+      return;
+    }
+    const flow = Math.ceil(flowMiB / 1024);
+    const storedFlowMiB =
+      tunnelFlowInput === "99999" && tunnelFlowUnit === "GB" ? 0 : flowMiB;
+
     setEditTunnelLoading(true);
     try {
       const speedLimitAutoCleared = isMissingSpeedLimit(editTunnelForm.speedId);
       const response = await updateUserTunnel({
         id: editTunnelForm.id,
-        flow: editTunnelForm.flow,
+        flow,
+        flowMiB: storedFlowMiB,
         num: editTunnelForm.num,
         expTime: editTunnelForm.expTime,
         flowResetTime: editTunnelForm.flowResetTime,
@@ -792,6 +837,8 @@ export default function UserPage() {
         if (currentUser) {
           const nextTunnel = normalizeUserTunnelItem({
             ...editTunnelForm,
+            flow,
+            flowMiB: storedFlowMiB,
             speedId: normalizeSpeedId(editTunnelForm.speedId),
             speedLimitName:
               normalizeSpeedId(editTunnelForm.speedId) !== null
@@ -1148,7 +1195,7 @@ export default function UserPage() {
                         <div className="flex items-center gap-1 text-xs">
                           <span className="text-default-500">限制:</span>
                           <span className="text-default-700 font-medium whitespace-nowrap">
-                            {formatFlow(user.flow, "gb")}
+                            {formatFlowLimit(user.flow, user.flowMiB)}
                           </span>
                         </div>
                       </div>
@@ -1258,9 +1305,9 @@ export default function UserPage() {
               : null;
             const usedFlow = calculateUserTotalUsedFlow(user);
             const flowPercent =
-              user.flow > 0
+              user.flow > 0 && !(user.flow === 99999 && !user.flowMiB)
                 ? Math.min(
-                    (usedFlow / (user.flow * 1024 * 1024 * 1024)) * 100,
+                    (usedFlow / flowLimitBytes(user.flow, user.flowMiB)) * 100,
                     100,
                   )
                 : 0;
@@ -1316,7 +1363,7 @@ export default function UserPage() {
                         <div className="flex justify-between text-sm">
                           <span className="text-default-600">流量限制</span>
                           <span className="font-medium text-xs">
-                            {formatFlow(user.flow, "gb")}
+                            {formatFlowLimit(user.flow, user.flowMiB)}
                           </span>
                         </div>
                         <div className="flex justify-between text-sm">
@@ -1504,20 +1551,14 @@ export default function UserPage() {
                   setUserForm((prev) => ({ ...prev, pwd: e.target.value }))
                 }
               />
-              <Input
+              <TrafficLimitField
                 isRequired
-                label="流量限制(GB)"
-                max="99999"
-                min="1"
-                type="number"
-                value={userForm.flow.toString()}
-                onChange={(e) => {
-                  const value = Math.min(
-                    Math.max(Number(e.target.value) || 0, 1),
-                    99999,
-                  );
-
-                  setUserForm((prev) => ({ ...prev, flow: value }));
+                label="流量限制"
+                unit={userFlowUnit}
+                value={userFlowInput}
+                onChange={(value, unit) => {
+                  setUserFlowInput(value);
+                  setUserFlowUnit(unit);
                 }}
               />
               <Input
@@ -1963,7 +2004,10 @@ export default function UserPage() {
                             <div className="flex justify-between text-small">
                               <span className="text-gray-600">限制:</span>
                               <span className="font-medium">
-                                {formatFlow(userTunnel.flow, "gb")}
+                                {formatFlowLimit(
+                                  userTunnel.flow,
+                                  userTunnel.flowMiB,
+                                )}
                               </span>
                             </div>
                             <div className="flex justify-between text-small">
@@ -2083,21 +2127,14 @@ export default function UserPage() {
             {editTunnelForm && (
               <>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <Input
-                    label="流量限制(GB)"
-                    max="99999"
-                    min="1"
-                    type="number"
-                    value={editTunnelForm.flow.toString()}
-                    onChange={(e) => {
-                      const value = Math.min(
-                        Math.max(Number(e.target.value) || 0, 1),
-                        99999,
-                      );
-
-                      setEditTunnelForm((prev) =>
-                        prev ? { ...prev, flow: value } : null,
-                      );
+                  <TrafficLimitField
+                    isRequired
+                    label="流量限制"
+                    unit={tunnelFlowUnit}
+                    value={tunnelFlowInput}
+                    onChange={(value, unit) => {
+                      setTunnelFlowInput(value);
+                      setTunnelFlowUnit(unit);
                     }}
                   />
 

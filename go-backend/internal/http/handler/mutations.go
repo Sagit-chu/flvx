@@ -57,7 +57,11 @@ func (h *Handler) userCreate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	status := asInt(req["status"], 1)
-	flow := asInt64(req["flow"], 100)
+	flow, flowMiB, flowErr := parseTrafficLimit(req, 100)
+	if flowErr != nil {
+		response.WriteJSON(w, response.ErrDefault(flowErr.Error()))
+		return
+	}
 	num := asInt(req["num"], 10)
 	expTime := asInt64(req["expTime"], time.Now().Add(365*24*time.Hour).UnixMilli())
 	flowResetTime := asInt64(req["flowResetTime"], 1)
@@ -76,7 +80,7 @@ func (h *Handler) userCreate(w http.ResponseWriter, r *http.Request) {
 		response.WriteJSON(w, response.Err(-2, err.Error()))
 		return
 	}
-	userID, err := h.repo.CreateUser(username, hashedPassword, roleID, expTime, flow, flowResetTime, num, status, maxConn, now)
+	userID, err := h.repo.CreateUser(username, hashedPassword, roleID, expTime, flow, flowResetTime, num, status, maxConn, now, flowMiB)
 	if err != nil {
 		response.WriteJSON(w, response.Err(-2, err.Error()))
 		return
@@ -164,7 +168,16 @@ func (h *Handler) userUpdate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	flow := asInt64(req["flow"], 100)
+	flow, flowMiB, flowErr := parseTrafficLimit(req, 100)
+	if flowErr != nil {
+		response.WriteJSON(w, response.ErrDefault(flowErr.Error()))
+		return
+	}
+	if _, supplied := req["flowMiB"]; !supplied {
+		if current, err := h.repo.GetUserByID(id); err == nil && current != nil && current.Flow == flow {
+			flowMiB = current.FlowMiB
+		}
+	}
 	num := asInt(req["num"], 10)
 	expTime := asInt64(req["expTime"], time.Now().Add(365*24*time.Hour).UnixMilli())
 	flowResetTime := asInt64(req["flowResetTime"], 1)
@@ -176,7 +189,7 @@ func (h *Handler) userUpdate(w http.ResponseWriter, r *http.Request) {
 
 	pwd := asString(req["pwd"])
 	if strings.TrimSpace(pwd) == "" {
-		if err := h.repo.UpdateUserWithoutPassword(id, username, flow, num, expTime, flowResetTime, status, maxConn, now); err != nil {
+		if err := h.repo.UpdateUserWithoutPassword(id, username, flow, num, expTime, flowResetTime, status, maxConn, now, flowMiB); err != nil {
 			response.WriteJSON(w, response.Err(-2, err.Error()))
 			return
 		}
@@ -186,13 +199,13 @@ func (h *Handler) userUpdate(w http.ResponseWriter, r *http.Request) {
 			response.WriteJSON(w, response.Err(-2, err.Error()))
 			return
 		}
-		if err := h.repo.UpdateUserWithPassword(id, username, hashedPassword, flow, num, expTime, flowResetTime, status, maxConn, now); err != nil {
+		if err := h.repo.UpdateUserWithPassword(id, username, hashedPassword, flow, num, expTime, flowResetTime, status, maxConn, now, flowMiB); err != nil {
 			response.WriteJSON(w, response.Err(-2, err.Error()))
 			return
 		}
 	}
 
-	h.repo.PropagateUserFlowToTunnels(id, flow, num, expTime, flowResetTime)
+	h.repo.PropagateUserFlowToTunnels(id, flow, num, expTime, flowResetTime, flowMiB)
 	if hasDailyQuota || hasMonthlyQuota {
 		dailyQuotaGB := asInt64(req["dailyQuotaGB"], 0)
 		monthlyQuotaGB := asInt64(req["monthlyQuotaGB"], 0)
@@ -1991,14 +2004,32 @@ func (h *Handler) userTunnelUpdate(w http.ResponseWriter, r *http.Request) {
 		response.WriteJSON(w, response.Err(-2, oldErr.Error()))
 		return
 	}
+	oldTunnel, oldTunnelErr := h.repo.GetUserTunnelByID(id)
+	if oldTunnelErr != nil {
+		response.WriteJSON(w, response.Err(-2, oldTunnelErr.Error()))
+		return
+	}
+	if oldTunnel == nil {
+		response.WriteJSON(w, response.ErrDefault("隧道权限不存在"))
+		return
+	}
+	flow, flowMiB, flowErr := parseTrafficLimit(req, 0)
+	if flowErr != nil {
+		response.WriteJSON(w, response.ErrDefault(flowErr.Error()))
+		return
+	}
+	if _, supplied := req["flowMiB"]; !supplied && oldTunnel.Flow == flow {
+		flowMiB = oldTunnel.FlowMiB
+	}
 
 	if err := h.repo.UpdateUserTunnel(id,
-		asInt64(req["flow"], 0),
+		flow,
 		asInt(req["num"], 0),
 		asInt64(req["expTime"], time.Now().Add(365*24*time.Hour).UnixMilli()),
 		asInt64(req["flowResetTime"], 1),
 		nullableInt(speedID),
 		asInt(req["status"], 1),
+		flowMiB,
 	); err != nil {
 		response.WriteJSON(w, response.Err(-2, err.Error()))
 		return
@@ -2013,6 +2044,7 @@ func (h *Handler) userTunnelUpdate(w http.ResponseWriter, r *http.Request) {
 			oldFlowReset,
 			oldSpeedID,
 			oldStatus,
+			oldTunnel.FlowMiB,
 		)
 		if rollbackErr != nil {
 			response.WriteJSON(w, response.Err(-2, fmt.Sprintf("下发失败且回滚失败: %v; 回滚错误: %v", syncErr, rollbackErr)))
@@ -4781,6 +4813,14 @@ func (h *Handler) upsertUserTunnel(req map[string]interface{}) error {
 	}
 
 	reqFlow := asInt64(req["flow"], -1)
+	var reqFlowMiB int64
+	if _, hasFlowMiB := req["flowMiB"]; hasFlowMiB {
+		var flowErr error
+		reqFlow, reqFlowMiB, flowErr = parseTrafficLimit(req, 0)
+		if flowErr != nil {
+			return flowErr
+		}
+	}
 	reqNum := asInt(req["num"], -1)
 	reqExpTime := asInt64(req["expTime"], -1)
 	reqFlowReset := asInt64(req["flowResetTime"], -1)
@@ -4792,6 +4832,9 @@ func (h *Handler) upsertUserTunnel(req map[string]interface{}) error {
 			if uErr == nil {
 				if reqFlow < 0 {
 					reqFlow = uFlow
+					if user, err := h.repo.GetUserByID(userID); err == nil && user != nil {
+						reqFlowMiB = user.FlowMiB
+					}
 				}
 				if reqNum < 0 {
 					reqNum = uNum
@@ -4820,7 +4863,7 @@ func (h *Handler) upsertUserTunnel(req map[string]interface{}) error {
 			reqStatus = 1
 		}
 
-		if err := h.repo.InsertUserTunnel(userID, tunnelID, nullableInt(speedID), reqNum, reqFlow, reqFlowReset, reqExpTime, reqStatus); err != nil {
+		if err := h.repo.InsertUserTunnel(userID, tunnelID, nullableInt(speedID), reqNum, reqFlow, reqFlowReset, reqExpTime, reqStatus, reqFlowMiB); err != nil {
 			return err
 		}
 
@@ -4844,8 +4887,20 @@ func (h *Handler) upsertUserTunnel(req map[string]interface{}) error {
 	}
 
 	newFlow := currentFlow
+	oldTunnel, err := h.repo.GetUserTunnelByID(existingID)
+	if err != nil {
+		return err
+	}
+	if oldTunnel == nil {
+		return fmt.Errorf("隧道权限不存在")
+	}
+	newFlowMiB := oldTunnel.FlowMiB
 	if reqFlow >= 0 {
 		newFlow = reqFlow
+		newFlowMiB = reqFlowMiB
+		if _, supplied := req["flowMiB"]; !supplied && reqFlow == currentFlow {
+			newFlowMiB = oldTunnel.FlowMiB
+		}
 	}
 
 	newNum := int(currentNum)
@@ -4875,7 +4930,7 @@ func (h *Handler) upsertUserTunnel(req map[string]interface{}) error {
 		newSpeedID = sql.NullInt64{Valid: false}
 	}
 
-	if err := h.repo.UpdateUserTunnelFields(existingID, newSpeedID, newFlow, newNum, newExpTime, newFlowReset, newStatus); err != nil {
+	if err := h.repo.UpdateUserTunnelFields(existingID, newSpeedID, newFlow, newNum, newExpTime, newFlowReset, newStatus, newFlowMiB); err != nil {
 		return err
 	}
 
@@ -4888,6 +4943,7 @@ func (h *Handler) upsertUserTunnel(req map[string]interface{}) error {
 			currentExpTime,
 			currentFlowReset,
 			currentStatus,
+			oldTunnel.FlowMiB,
 		)
 		if rollbackErr != nil {
 			return fmt.Errorf("下发失败且回滚失败: %v; 回滚错误: %w", syncErr, rollbackErr)

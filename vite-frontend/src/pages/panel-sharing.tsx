@@ -5,6 +5,15 @@ import { Button } from "@/shadcn-bridge/heroui/button";
 import { Card, CardBody, CardHeader } from "@/shadcn-bridge/heroui/card";
 import { Tabs, Tab } from "@/shadcn-bridge/heroui/tabs";
 import { Input } from "@/shadcn-bridge/heroui/input";
+import { TrafficLimitField } from "@/components/traffic-limit-field";
+import {
+  formatTraffic,
+  MIB,
+  parseTrafficInput,
+  preferredTrafficUnit,
+  TRAFFIC_UNIT_MIB,
+  type TrafficUnit,
+} from "@/utils/traffic";
 import {
   Modal,
   ModalContent,
@@ -82,6 +91,8 @@ interface RemoteUsageNode {
   syncError?: string;
 }
 
+const MAX_SAFE_BANDWIDTH_MIB = Math.floor(Number.MAX_SAFE_INTEGER / MIB);
+
 export default function PanelSharingPage() {
   const [selectedTab, setSelectedTab] = useState("my-shares");
   const [shares, setShares] = useState<PeerShare[]>([]);
@@ -108,6 +119,7 @@ export default function PanelSharingPage() {
     allowedDomains: "",
     allowedIps: "",
   });
+  const [shareUnit, setShareUnit] = useState<TrafficUnit>("GB");
 
   const [importForm, setImportForm] = useState({
     remoteUrl: "",
@@ -124,6 +136,9 @@ export default function PanelSharingPage() {
     allowedDomains: "",
     allowedIps: "",
   });
+  const [editUnit, setEditUnit] = useState<TrafficUnit>("GB");
+  const [editOriginalMaxBandwidth, setEditOriginalMaxBandwidth] = useState(0);
+  const [editBandwidthChanged, setEditBandwidthChanged] = useState(false);
 
   const loadShares = useCallback(async () => {
     setLoading(true);
@@ -212,8 +227,17 @@ export default function PanelSharingPage() {
 
       return;
     }
-    if (shareForm.maxBandwidth < 0) {
-      toast.error("流量上限不能为负数");
+    const limitMiB =
+      shareForm.maxBandwidth === 0
+        ? 0
+        : parseTrafficInput(String(shareForm.maxBandwidth), shareUnit);
+
+    if (
+      limitMiB === null ||
+      limitMiB > MAX_SAFE_BANDWIDTH_MIB ||
+      shareForm.maxBandwidth < 0
+    ) {
+      toast.error("请输入有效的流量上限，0 表示不限流量");
 
       return;
     }
@@ -223,7 +247,7 @@ export default function PanelSharingPage() {
       const res = await createPeerShare({
         name: shareForm.name,
         nodeId,
-        maxBandwidth: Math.max(0, shareForm.maxBandwidth) * 1024 * 1024 * 1024,
+        maxBandwidth: limitMiB * MIB,
         expiryTime: shareForm.expiryDays === 0 ? 0 : expiryTime,
         portRangeStart: shareForm.portRangeStart,
         portRangeEnd: shareForm.portRangeEnd,
@@ -274,13 +298,16 @@ export default function PanelSharingPage() {
   };
 
   const openEditShare = (share: PeerShare) => {
+    const mib = share.maxBandwidth / MIB;
+    const unit = preferredTrafficUnit(mib);
+
+    setEditUnit(unit);
+    setEditOriginalMaxBandwidth(share.maxBandwidth);
+    setEditBandwidthChanged(false);
     setEditForm({
       id: share.id,
       name: share.name,
-      maxBandwidth:
-        share.maxBandwidth > 0
-          ? Math.round(share.maxBandwidth / (1024 * 1024 * 1024))
-          : 0,
+      maxBandwidth: share.maxBandwidth > 0 ? mib / TRAFFIC_UNIT_MIB[unit] : 0,
       expiryTime: share.expiryTime,
       portRangeStart: share.portRangeStart,
       portRangeEnd: share.portRangeEnd,
@@ -296,8 +323,18 @@ export default function PanelSharingPage() {
 
       return;
     }
-    if (editForm.maxBandwidth < 0) {
-      toast.error("流量上限不能为负数");
+    const limitMiB =
+      editForm.maxBandwidth === 0
+        ? 0
+        : parseTrafficInput(String(editForm.maxBandwidth), editUnit);
+
+    if (
+      editBandwidthChanged &&
+      (limitMiB === null ||
+        limitMiB > MAX_SAFE_BANDWIDTH_MIB ||
+        editForm.maxBandwidth < 0)
+    ) {
+      toast.error("请输入有效的流量上限，0 表示不限流量");
 
       return;
     }
@@ -305,7 +342,9 @@ export default function PanelSharingPage() {
       const res = await updatePeerShare({
         id: editForm.id,
         name: editForm.name,
-        maxBandwidth: Math.max(0, editForm.maxBandwidth) * 1024 * 1024 * 1024,
+        maxBandwidth: editBandwidthChanged
+          ? (limitMiB as number) * MIB
+          : editOriginalMaxBandwidth,
         expiryTime: editForm.expiryTime,
         portRangeStart: editForm.portRangeStart,
         portRangeEnd: editForm.portRangeEnd,
@@ -362,17 +401,7 @@ export default function PanelSharingPage() {
     toast.success("Token已复制");
   };
 
-  const formatFlowGB = (bytes: number) => {
-    if (!Number.isFinite(bytes) || bytes <= 0) {
-      return "0 B";
-    }
-    if (bytes < 1024) return bytes + " B";
-    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(2) + " KB";
-    if (bytes < 1024 * 1024 * 1024)
-      return (bytes / (1024 * 1024)).toFixed(2) + " MB";
-
-    return (bytes / (1024 * 1024 * 1024)).toFixed(2) + " GB";
-  };
+  const formatFlowGB = formatTraffic;
 
   const formatChainType = (chainType: number, hopInx: number) => {
     if (chainType === 1) {
@@ -741,17 +770,18 @@ export default function PanelSharingPage() {
                 })
               }
             />
-            <Input
+            <TrafficLimitField
               description="0 表示不限流量"
-              label="流量上限 (GB)"
-              type="number"
+              label="流量上限"
+              unit={shareUnit}
               value={shareForm.maxBandwidth.toString()}
-              onChange={(e) =>
-                setShareForm({
-                  ...shareForm,
-                  maxBandwidth: parseInt(e.target.value, 10) || 0,
-                })
-              }
+              onChange={(value, unit) => {
+                setShareForm((prev) => ({
+                  ...prev,
+                  maxBandwidth: Number(value) || 0,
+                }));
+                setShareUnit(unit);
+              }}
             />
             <Input
               description="限制使用此Token的来源面板域名，多个域名用逗号分隔，留空不限制"
@@ -826,17 +856,19 @@ export default function PanelSharingPage() {
                 }
               />
             </div>
-            <Input
+            <TrafficLimitField
               description="0 表示不限流量"
-              label="流量上限 (GB)"
-              type="number"
+              label="流量上限"
+              unit={editUnit}
               value={editForm.maxBandwidth.toString()}
-              onChange={(e) =>
-                setEditForm({
-                  ...editForm,
-                  maxBandwidth: parseInt(e.target.value, 10) || 0,
-                })
-              }
+              onChange={(value, unit) => {
+                setEditForm((prev) => ({
+                  ...prev,
+                  maxBandwidth: Number(value) || 0,
+                }));
+                setEditUnit(unit);
+                setEditBandwidthChanged(true);
+              }}
             />
             <Input
               description="留空或清除表示永久有效"

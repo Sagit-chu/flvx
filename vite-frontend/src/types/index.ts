@@ -12,6 +12,7 @@ export interface User {
   pwd?: string;
   status: number; // 1-正常, 0-禁用
   flow: number; // 流量限制(GB)
+  flowMiB?: number; // 精确流量限制(MiB)，0 表示沿用旧版 GB 字段
   num: number; // 转发数量
   expTime?: number; // 过期时间戳
   flowResetTime?: number; // 流量重置日期(1-31号)
@@ -56,6 +57,7 @@ export interface UserTunnel {
   tunnelName: string;
   status: number; // 1-正常, 0-禁用
   flow: number; // 流量限制(GB)
+  flowMiB?: number;
   num: number; // 转发数量
   expTime: number; // 过期时间戳
   flowResetTime: number;

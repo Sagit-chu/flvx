@@ -19,6 +19,7 @@ export interface UserApiItem {
   name?: string;
   status: number;
   flow: number;
+  flowMiB?: number;
   num: number;
   expTime?: number;
   flowResetTime?: number;
@@ -106,6 +107,7 @@ export interface UserTunnelPermissionApiItem {
   tunnelName: string;
   status: number;
   flow: number;
+  flowMiB?: number;
   num: number;
   expTime: number;
   flowResetTime: number;
@@ -387,6 +389,7 @@ export interface UserTunnelAssignPayload {
   id?: number;
   tunnelId?: number;
   flow?: number;
+  flowMiB?: number;
   num?: number;
   expTime?: number;
   flowResetTime?: number;

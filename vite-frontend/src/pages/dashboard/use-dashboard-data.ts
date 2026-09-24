@@ -14,6 +14,7 @@ import { getAdminFlag } from "@/utils/session";
 
 export interface DashboardUserInfo {
   flow: number;
+  flowMiB?: number;
   inFlow: number;
   outFlow: number;
   num: number;
@@ -26,6 +27,7 @@ export interface DashboardUserTunnel {
   tunnelId: number;
   tunnelName: string;
   flow: number;
+  flowMiB?: number;
   inFlow: number;
   outFlow: number;
   num: number;
