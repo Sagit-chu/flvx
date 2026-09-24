@@ -25,6 +25,11 @@ import { MetricCard } from "@/pages/dashboard/components/metric-card";
 import { getSessionName } from "@/utils/session";
 import { safeLogout } from "@/utils/logout";
 import {
+  formatTraffic,
+  formatFlowLimit,
+  flowLimitBytes,
+} from "@/utils/traffic";
+import {
   formatNodeRenewalTime,
   getNodeRenewalCycleLabel,
   getNodeRenewalSnapshot,
@@ -70,24 +75,7 @@ export default function DashboardPage() {
   const [addressModalTitle, setAddressModalTitle] = useState("");
   const [addressList, setAddressList] = useState<AddressItem[]>([]);
 
-  const formatFlow = (value: number, unit: string = "bytes"): string => {
-    // 99999 表示无限制
-    if (value === 99999) {
-      return "无限制";
-    }
-
-    if (unit === "gb") {
-      return value + " GB";
-    } else {
-      if (value === 0) return "0 B";
-      if (value < 1024) return value + " B";
-      if (value < 1024 * 1024) return (value / 1024).toFixed(2) + " KB";
-      if (value < 1024 * 1024 * 1024)
-        return (value / (1024 * 1024)).toFixed(2) + " MB";
-
-      return (value / (1024 * 1024 * 1024)).toFixed(2) + " GB";
-    }
-  };
+  const formatFlow = formatTraffic;
 
   const formatNumber = (value: number): string => {
     // 99999 表示无限制
@@ -279,10 +267,10 @@ export default function DashboardPage() {
   const calculateUsagePercentage = (type: "flow" | "forwards"): number => {
     if (type === "flow") {
       const totalUsed = calculateUserTotalUsedFlow();
-      const totalLimit = (userInfo.flow || 0) * 1024 * 1024 * 1024;
+      const totalLimit = flowLimitBytes(userInfo.flow || 0, userInfo.flowMiB);
 
       // 无限制时返回0%
-      if (userInfo.flow === 99999) return 0;
+      if (userInfo.flow === 99999 && !userInfo.flowMiB) return 0;
 
       return totalLimit > 0 ? Math.min((totalUsed / totalLimit) * 100, 100) : 0;
     } else if (type === "forwards") {
@@ -351,10 +339,10 @@ export default function DashboardPage() {
 
   const calculateTunnelFlowPercentage = (tunnel: UserTunnel): number => {
     const totalUsed = calculateTunnelUsedFlow(tunnel);
-    const totalLimit = (tunnel.flow || 0) * 1024 * 1024 * 1024;
+    const totalLimit = flowLimitBytes(tunnel.flow || 0, tunnel.flowMiB);
 
     // 无限制时返回0%
-    if (tunnel.flow === 99999) return 0;
+    if (tunnel.flow === 99999 && !tunnel.flowMiB) return 0;
 
     return totalLimit > 0 ? Math.min((totalUsed / totalLimit) * 100, 100) : 0;
   };
@@ -741,7 +729,7 @@ export default function DashboardPage() {
           }
           iconClassName="bg-blue-100 dark:bg-blue-500/20"
           title="总流量"
-          value={formatFlow(userInfo.flow, "gb")}
+          value={formatFlowLimit(userInfo.flow, userInfo.flowMiB)}
         />
 
         <MetricCard
@@ -750,11 +738,11 @@ export default function DashboardPage() {
               {renderProgressBar(
                 calculateUsagePercentage("flow"),
                 "sm",
-                userInfo.flow === 99999,
+                userInfo.flow === 99999 && !userInfo.flowMiB,
               )}
               <div className="flex items-center justify-between mt-1">
                 <p className="text-xs text-default-500 truncate">
-                  {userInfo.flow === 99999
+                  {userInfo.flow === 99999 && !userInfo.flowMiB
                     ? "无限制"
                     : `${calculateUsagePercentage("flow").toFixed(1)}%`}
                 </p>
@@ -981,7 +969,7 @@ export default function DashboardPage() {
                             流量配额
                           </p>
                           <p className="font-semibold text-foreground">
-                            {formatFlow(tunnel.flow, "gb")}
+                            {formatFlowLimit(tunnel.flow, tunnel.flowMiB)}
                           </p>
                         </div>
                         <div>
@@ -995,7 +983,7 @@ export default function DashboardPage() {
                             {renderProgressBar(
                               calculateTunnelFlowPercentage(tunnel),
                               "sm",
-                              tunnel.flow === 99999,
+                              tunnel.flow === 99999 && !tunnel.flowMiB,
                             )}
                           </div>
                         </div>

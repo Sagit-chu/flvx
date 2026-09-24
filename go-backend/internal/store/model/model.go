@@ -16,6 +16,7 @@ type User struct {
 	RoleID            int           `gorm:"column:role_id;not null"`
 	ExpTime           int64         `gorm:"column:exp_time;not null"`
 	Flow              int64         `gorm:"not null"`
+	FlowMiB           int64         `gorm:"column:flow_mib;not null;default:0"`
 	InFlow            int64         `gorm:"column:in_flow;not null;default:0"`
 	OutFlow           int64         `gorm:"column:out_flow;not null;default:0"`
 	FlowResetTime     int64         `gorm:"column:flow_reset_time;not null"`
@@ -230,6 +231,7 @@ type UserTunnel struct {
 	SpeedID       sql.NullInt64 `gorm:"column:speed_id"`
 	Num           int           `gorm:"not null"`
 	Flow          int64         `gorm:"not null"`
+	FlowMiB       int64         `gorm:"column:flow_mib;not null;default:0"`
 	InFlow        int64         `gorm:"column:in_flow;not null;default:0"`
 	OutFlow       int64         `gorm:"column:out_flow;not null;default:0"`
 	FlowResetTime int64         `gorm:"column:flow_reset_time;not null"`
@@ -417,6 +419,7 @@ type UserBackup struct {
 	RoleID          int    `json:"roleId"`
 	ExpTime         int64  `json:"expTime"`
 	Flow            int64  `json:"flow"`
+	FlowMiB         int64  `json:"flowMiB,omitempty"`
 	InFlow          int64  `json:"inFlow"`
 	OutFlow         int64  `json:"outFlow"`
 	FlowResetTime   int64  `json:"flowResetTime"`
@@ -523,6 +526,7 @@ type UserTunnelBackup struct {
 	SpeedID       int64 `json:"speedId,omitempty"`
 	Num           int   `json:"num"`
 	Flow          int64 `json:"flow"`
+	FlowMiB       int64 `json:"flowMiB,omitempty"`
 	InFlow        int64 `json:"inFlow"`
 	OutFlow       int64 `json:"outFlow"`
 	FlowResetTime int64 `json:"flowResetTime"`
@@ -706,6 +710,7 @@ type UserTunnelDetail struct {
 	Status        int
 	TunnelFlow    int
 	Flow          int64
+	FlowMiB       int64 `gorm:"column:flow_mib"`
 	InFlow        int64
 	OutFlow       int64
 	Num           int

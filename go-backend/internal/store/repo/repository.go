@@ -669,7 +669,7 @@ func (r *Repository) GetUserPackageTunnels(userID int64) ([]model.UserTunnelDeta
 	}
 	var items []model.UserTunnelDetail
 	err := r.db.Model(&model.UserTunnel{}).
-		Select("user_tunnel.id, user_tunnel.user_id, user_tunnel.tunnel_id, tunnel.name AS tunnel_name, user_tunnel.status, tunnel.flow AS tunnel_flow, user_tunnel.flow, user_tunnel.in_flow, user_tunnel.out_flow, user_tunnel.num, user_tunnel.flow_reset_time, user_tunnel.exp_time, user_tunnel.speed_id, speed_limit.name AS speed_limit, speed_limit.speed").
+		Select("user_tunnel.id, user_tunnel.user_id, user_tunnel.tunnel_id, tunnel.name AS tunnel_name, user_tunnel.status, tunnel.flow AS tunnel_flow, user_tunnel.flow, user_tunnel.flow_mib, user_tunnel.in_flow, user_tunnel.out_flow, user_tunnel.num, user_tunnel.flow_reset_time, user_tunnel.exp_time, user_tunnel.speed_id, speed_limit.name AS speed_limit, speed_limit.speed").
 		Joins("LEFT JOIN tunnel ON tunnel.id = user_tunnel.tunnel_id").
 		Joins("LEFT JOIN speed_limit ON speed_limit.id = user_tunnel.speed_id").
 		Where("user_tunnel.user_id = ?", userID).
@@ -924,7 +924,7 @@ func (r *Repository) ListUsers() ([]map[string]interface{}, error) {
 		item := map[string]interface{}{
 			"id": u.ID, "user": u.User, "name": u.User,
 			"roleId": u.RoleID, "status": u.Status,
-			"flow": u.Flow, "num": u.Num, "expTime": u.ExpTime,
+			"flow": u.Flow, "flowMiB": u.FlowMiB, "num": u.Num, "expTime": u.ExpTime,
 			"flowResetTime": u.FlowResetTime, "createdTime": u.CreatedTime,
 			"updatedTime": nullableInt64(u.UpdatedTime),
 			"inFlow":      u.InFlow, "outFlow": u.OutFlow,
@@ -2094,7 +2094,7 @@ func (r *Repository) exportUsers() ([]model.UserBackup, error) {
 	for _, u := range users {
 		b := model.UserBackup{
 			ID: u.ID, User: u.User, Pwd: u.Pwd, RoleID: u.RoleID,
-			ExpTime: u.ExpTime, Flow: u.Flow, InFlow: u.InFlow, OutFlow: u.OutFlow,
+			ExpTime: u.ExpTime, Flow: u.Flow, FlowMiB: u.FlowMiB, InFlow: u.InFlow, OutFlow: u.OutFlow,
 			FlowResetTime: u.FlowResetTime, Num: u.Num,
 			CreatedTime: u.CreatedTime, Status: u.Status,
 		}
@@ -2270,7 +2270,7 @@ func (r *Repository) exportUserTunnels() ([]model.UserTunnelBackup, error) {
 	for _, ut := range uts {
 		b := model.UserTunnelBackup{
 			ID: ut.ID, UserID: ut.UserID, TunnelID: ut.TunnelID,
-			Num: ut.Num, Flow: ut.Flow, InFlow: ut.InFlow, OutFlow: ut.OutFlow,
+			Num: ut.Num, Flow: ut.Flow, FlowMiB: ut.FlowMiB, InFlow: ut.InFlow, OutFlow: ut.OutFlow,
 			FlowResetTime: ut.FlowResetTime, ExpTime: ut.ExpTime, Status: ut.Status,
 		}
 		if ut.SpeedID.Valid {
@@ -2467,6 +2467,7 @@ func importUsers(tx *gorm.DB, users []model.UserBackup, now int64) (int, error) 
 			RoleID:            u.RoleID,
 			ExpTime:           u.ExpTime,
 			Flow:              u.Flow,
+			FlowMiB:           u.FlowMiB,
 			InFlow:            u.InFlow,
 			OutFlow:           u.OutFlow,
 			FlowResetTime:     u.FlowResetTime,
@@ -2479,7 +2480,7 @@ func importUsers(tx *gorm.DB, users []model.UserBackup, now int64) (int, error) 
 		err = tx.Clauses(clause.OnConflict{
 			Columns: []clause.Column{{Name: "id"}},
 			DoUpdates: clause.AssignmentColumns([]string{
-				"user", "pwd", "role_id", "exp_time", "flow", "in_flow", "out_flow",
+				"user", "pwd", "role_id", "exp_time", "flow", "flow_mib", "in_flow", "out_flow",
 				"flow_reset_time", "num", "updated_time", "status", "password_changed_at",
 			}),
 		}).Create(&item).Error
@@ -2717,6 +2718,7 @@ func importUserTunnels(tx *gorm.DB, userTunnels []model.UserTunnelBackup, _ int6
 			SpeedID:       sql.NullInt64{Int64: ut.SpeedID, Valid: ut.SpeedID > 0},
 			Num:           ut.Num,
 			Flow:          ut.Flow,
+			FlowMiB:       ut.FlowMiB,
 			InFlow:        ut.InFlow,
 			OutFlow:       ut.OutFlow,
 			FlowResetTime: ut.FlowResetTime,
@@ -2726,7 +2728,7 @@ func importUserTunnels(tx *gorm.DB, userTunnels []model.UserTunnelBackup, _ int6
 		err := tx.Clauses(clause.OnConflict{
 			Columns: []clause.Column{{Name: "id"}},
 			DoUpdates: clause.AssignmentColumns([]string{
-				"user_id", "tunnel_id", "speed_id", "num", "flow", "in_flow", "out_flow",
+				"user_id", "tunnel_id", "speed_id", "num", "flow", "flow_mib", "in_flow", "out_flow",
 				"flow_reset_time", "exp_time", "status",
 			}),
 		}).Create(&item).Error

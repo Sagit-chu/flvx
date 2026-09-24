@@ -27,6 +27,7 @@ import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 
 import { AnimatedPage } from "@/components/animated-page";
+import { formatTraffic } from "@/utils/traffic";
 import { BatchActionResultModal } from "@/components/batch-action-result-modal";
 import { Card, CardBody, CardHeader } from "@/shadcn-bridge/heroui/card";
 import { Button } from "@/shadcn-bridge/heroui/button";
@@ -2704,13 +2705,7 @@ export default function ForwardPage() {
 
   // 格式化流量
   const formatFlow = (value: number): string => {
-    if (value === 0) return "0 B";
-    if (value < 1024) return value + " B";
-    if (value < 1024 * 1024) return (value / 1024).toFixed(2) + " KB";
-    if (value < 1024 * 1024 * 1024)
-      return (value / (1024 * 1024)).toFixed(2) + " MB";
-
-    return (value / (1024 * 1024 * 1024)).toFixed(2) + " GB";
+    return formatTraffic(value);
   };
 
   // 显示地址列表弹窗

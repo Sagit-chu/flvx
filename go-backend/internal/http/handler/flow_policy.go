@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"log"
+	"math"
 	"strconv"
 	"strings"
 	"time"
@@ -12,12 +13,27 @@ import (
 )
 
 const bytesPerGB int64 = 1024 * 1024 * 1024
+const bytesPerMiB int64 = 1024 * 1024
+
+func flowLimitBytes(flowGB, flowMiB int64) int64 {
+	if flowMiB > 0 {
+		if flowMiB > math.MaxInt64/bytesPerMiB {
+			return math.MaxInt64
+		}
+		return flowMiB * bytesPerMiB
+	}
+	if flowGB > math.MaxInt64/bytesPerGB {
+		return math.MaxInt64
+	}
+	return flowGB * bytesPerGB
+}
 
 type userTunnelPolicy struct {
 	ID       int64
 	UserID   int64
 	TunnelID int64
 	Flow     int64
+	FlowMiB  int64
 	InFlow   int64
 	OutFlow  int64
 	ExpTime  int64
@@ -358,7 +374,7 @@ func (h *Handler) ensureUserTunnelForwardAllowed(userID int64, tunnelID int64, n
 		return errors.New("账号已过期")
 	}
 
-	flowLimit := user.Flow * bytesPerGB
+	flowLimit := flowLimitBytes(user.Flow, user.FlowMiB)
 	current := user.InFlow + user.OutFlow
 	if flowLimit < current {
 		return errors.New("流量已超额，禁止开启转发")
@@ -400,7 +416,7 @@ func (h *Handler) ensureUserTunnelForwardAllowed(userID int64, tunnelID int64, n
 		return errors.New("该隧道已过期")
 	}
 
-	utFlowLimit := policy.Flow * bytesPerGB
+	utFlowLimit := flowLimitBytes(policy.Flow, policy.FlowMiB)
 	utCurrent := policy.InFlow + policy.OutFlow
 	if utCurrent >= utFlowLimit {
 		return errors.New("该隧道流量已超额，禁止开启转发")
@@ -425,7 +441,7 @@ func (h *Handler) shouldPauseUser(userID int64, now int64) bool {
 		return false
 	}
 
-	flowLimit := user.Flow * bytesPerGB
+	flowLimit := flowLimitBytes(user.Flow, user.FlowMiB)
 	current := user.InFlow + user.OutFlow
 	if flowLimit < current {
 		return true
@@ -441,7 +457,7 @@ func shouldPauseUserTunnel(policy *userTunnelPolicy, now int64) bool {
 		return false
 	}
 
-	flowLimit := policy.Flow * bytesPerGB
+	flowLimit := flowLimitBytes(policy.Flow, policy.FlowMiB)
 	current := policy.InFlow + policy.OutFlow
 	if current >= flowLimit {
 		return true
@@ -465,7 +481,7 @@ func (h *Handler) getUserTunnelPolicy(userTunnelID int64) (*userTunnelPolicy, er
 	}
 	return &userTunnelPolicy{
 		ID: ut.ID, UserID: ut.UserID, TunnelID: ut.TunnelID,
-		Flow: ut.Flow, InFlow: ut.InFlow, OutFlow: ut.OutFlow,
+		Flow: ut.Flow, FlowMiB: ut.FlowMiB, InFlow: ut.InFlow, OutFlow: ut.OutFlow,
 		ExpTime: ut.ExpTime, Status: ut.Status, Num: ut.Num,
 	}, nil
 }

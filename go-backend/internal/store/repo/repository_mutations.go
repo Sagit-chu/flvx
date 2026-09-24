@@ -37,7 +37,14 @@ func (r *Repository) UserExistsExcluding(username string, excludeID int64) (bool
 	return cnt > 0, err
 }
 
-func (r *Repository) CreateUser(username, pwdHash string, roleID int, expTime, flow, flowResetTime int64, num, status, maxConn int, now int64) (int64, error) {
+func optionalFlowMiB(values []int64) int64 {
+	if len(values) > 0 {
+		return values[0]
+	}
+	return 0
+}
+
+func (r *Repository) CreateUser(username, pwdHash string, roleID int, expTime, flow, flowResetTime int64, num, status, maxConn int, now int64, flowMiB ...int64) (int64, error) {
 	if r == nil || r.db == nil {
 		return 0, errors.New("repository not initialized")
 	}
@@ -47,6 +54,7 @@ func (r *Repository) CreateUser(username, pwdHash string, roleID int, expTime, f
 		RoleID:            roleID,
 		ExpTime:           expTime,
 		Flow:              flow,
+		FlowMiB:           optionalFlowMiB(flowMiB),
 		InFlow:            0,
 		OutFlow:           0,
 		FlowResetTime:     flowResetTime,
@@ -75,7 +83,7 @@ func (r *Repository) GetUserRoleID(userID int64) (int, error) {
 	return user.RoleID, nil
 }
 
-func (r *Repository) UpdateUserWithPassword(id int64, username, pwdHash string, flow int64, num int, expTime, flowResetTime int64, status, maxConn int, now int64) error {
+func (r *Repository) UpdateUserWithPassword(id int64, username, pwdHash string, flow int64, num int, expTime, flowResetTime int64, status, maxConn int, now int64, flowMiB ...int64) error {
 	if r == nil || r.db == nil {
 		return errors.New("repository not initialized")
 	}
@@ -85,6 +93,7 @@ func (r *Repository) UpdateUserWithPassword(id int64, username, pwdHash string, 
 			"user":                username,
 			"pwd":                 pwdHash,
 			"flow":                flow,
+			"flow_mib":            optionalFlowMiB(flowMiB),
 			"num":                 num,
 			"exp_time":            expTime,
 			"flow_reset_time":     flowResetTime,
@@ -95,7 +104,7 @@ func (r *Repository) UpdateUserWithPassword(id int64, username, pwdHash string, 
 		}).Error
 }
 
-func (r *Repository) UpdateUserWithoutPassword(id int64, username string, flow int64, num int, expTime, flowResetTime int64, status, maxConn int, now int64) error {
+func (r *Repository) UpdateUserWithoutPassword(id int64, username string, flow int64, num int, expTime, flowResetTime int64, status, maxConn int, now int64, flowMiB ...int64) error {
 	if r == nil || r.db == nil {
 		return errors.New("repository not initialized")
 	}
@@ -104,6 +113,7 @@ func (r *Repository) UpdateUserWithoutPassword(id int64, username string, flow i
 		Updates(map[string]interface{}{
 			"user":            username,
 			"flow":            flow,
+			"flow_mib":        optionalFlowMiB(flowMiB),
 			"num":             num,
 			"exp_time":        expTime,
 			"flow_reset_time": flowResetTime,
@@ -126,7 +136,7 @@ func (r *Repository) UpdateUserPassword(userID int64, pwdHash string, now int64)
 		}).Error
 }
 
-func (r *Repository) PropagateUserFlowToTunnels(userID int64, flow int64, num int, expTime, flowResetTime int64) {
+func (r *Repository) PropagateUserFlowToTunnels(userID int64, flow int64, num int, expTime, flowResetTime int64, flowMiB ...int64) {
 	if r == nil || r.db == nil {
 		return
 	}
@@ -134,6 +144,7 @@ func (r *Repository) PropagateUserFlowToTunnels(userID int64, flow int64, num in
 		Where("user_id = ?", userID).
 		Updates(map[string]interface{}{
 			"flow":            flow,
+			"flow_mib":        optionalFlowMiB(flowMiB),
 			"num":             num,
 			"exp_time":        expTime,
 			"flow_reset_time": flowResetTime,
@@ -650,7 +661,7 @@ func (r *Repository) DeleteUserTunnel(id int64) error {
 	return r.db.Where("id = ?", id).Delete(&model.UserTunnel{}).Error
 }
 
-func (r *Repository) UpdateUserTunnel(id int64, flow int64, num int, expTime, flowResetTime int64, speedID interface{}, status int) error {
+func (r *Repository) UpdateUserTunnel(id int64, flow int64, num int, expTime, flowResetTime int64, speedID interface{}, status int, flowMiB ...int64) error {
 	if r == nil || r.db == nil {
 		return errors.New("repository not initialized")
 	}
@@ -658,6 +669,7 @@ func (r *Repository) UpdateUserTunnel(id int64, flow int64, num int, expTime, fl
 		Where("id = ?", id).
 		Updates(map[string]interface{}{
 			"flow":            flow,
+			"flow_mib":        optionalFlowMiB(flowMiB),
 			"num":             num,
 			"exp_time":        expTime,
 			"flow_reset_time": flowResetTime,
@@ -692,7 +704,7 @@ func (r *Repository) GetExistingUserTunnel(userID, tunnelID int64) (id int64, fl
 	return ut.ID, ut.Flow, int64(ut.Num), ut.ExpTime, ut.FlowResetTime, ut.SpeedID, ut.Status, nil
 }
 
-func (r *Repository) InsertUserTunnel(userID, tunnelID int64, speedID interface{}, num int, flow, flowResetTime, expTime int64, status int) error {
+func (r *Repository) InsertUserTunnel(userID, tunnelID int64, speedID interface{}, num int, flow, flowResetTime, expTime int64, status int, flowMiB ...int64) error {
 	if r == nil || r.db == nil {
 		return errors.New("repository not initialized")
 	}
@@ -702,6 +714,7 @@ func (r *Repository) InsertUserTunnel(userID, tunnelID int64, speedID interface{
 		SpeedID:       nullInt64FromInterface(speedID),
 		Num:           num,
 		Flow:          flow,
+		FlowMiB:       optionalFlowMiB(flowMiB),
 		InFlow:        0,
 		OutFlow:       0,
 		FlowResetTime: flowResetTime,
@@ -711,7 +724,7 @@ func (r *Repository) InsertUserTunnel(userID, tunnelID int64, speedID interface{
 	return r.db.Create(&ut).Error
 }
 
-func (r *Repository) UpdateUserTunnelFields(id int64, speedID interface{}, flow int64, num int, expTime, flowResetTime int64, status int) error {
+func (r *Repository) UpdateUserTunnelFields(id int64, speedID interface{}, flow int64, num int, expTime, flowResetTime int64, status int, flowMiB ...int64) error {
 	if r == nil || r.db == nil {
 		return errors.New("repository not initialized")
 	}
@@ -720,6 +733,7 @@ func (r *Repository) UpdateUserTunnelFields(id int64, speedID interface{}, flow 
 		Updates(map[string]interface{}{
 			"speed_id":        nullInt64FromInterface(speedID),
 			"flow":            flow,
+			"flow_mib":        optionalFlowMiB(flowMiB),
 			"num":             num,
 			"exp_time":        expTime,
 			"flow_reset_time": flowResetTime,
@@ -1293,7 +1307,7 @@ func (r *Repository) EnsureUserTunnelGrant(userID, tunnelID int64) (int64, bool,
 		return 0, false, err
 	}
 	var user model.User
-	if err := r.db.Select("flow, num, exp_time, flow_reset_time").Where("id = ?", userID).First(&user).Error; err != nil {
+	if err := r.db.Select("flow, flow_mib, num, exp_time, flow_reset_time").Where("id = ?", userID).First(&user).Error; err != nil {
 		return 0, false, err
 	}
 	flow := user.Flow
@@ -1305,6 +1319,7 @@ func (r *Repository) EnsureUserTunnelGrant(userID, tunnelID int64) (int64, bool,
 		TunnelID:      tunnelID,
 		Num:           num,
 		Flow:          flow,
+		FlowMiB:       user.FlowMiB,
 		InFlow:        0,
 		OutFlow:       0,
 		FlowResetTime: flowReset,

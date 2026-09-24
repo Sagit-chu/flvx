@@ -36,6 +36,7 @@ import {
 } from "lucide-react";
 import toast from "react-hot-toast";
 
+import { formatTraffic } from "@/utils/traffic";
 import {
   getMonitorTunnels,
   getTunnelMetrics,
@@ -390,12 +391,7 @@ const TrafficChartCard = React.memo(function TrafficChartCard({
   const yFormatter = (value: unknown) => {
     const n = Number(value);
 
-    if (!Number.isFinite(n) || n <= 0) return "0 B";
-    const k = 1024;
-    const sizes = ["B", "KB", "MB", "GB", "TB"];
-    const i = Math.floor(Math.log(n) / Math.log(k));
-
-    return `${parseFloat((n / Math.pow(k, i)).toFixed(2))} ${sizes[i]}`;
+    return formatTraffic(n);
   };
 
   return (

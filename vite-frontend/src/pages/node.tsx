@@ -20,6 +20,7 @@ import { CSS } from "@dnd-kit/utilities";
 import { LayoutGrid, List } from "lucide-react";
 
 import { SearchBar } from "@/components/search-bar";
+import { formatTraffic } from "@/utils/traffic";
 import { AnimatedPage } from "@/components/animated-page";
 import {
   Table,
@@ -734,15 +735,7 @@ export default function NodePage() {
   // 格式化流量
 
   const formatFlow = (bytes: number): string => {
-    if (!Number.isFinite(bytes) || bytes <= 0) {
-      return "0 B";
-    }
-    if (bytes < 1024) return `${bytes} B`;
-    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(2)} KB`;
-    if (bytes < 1024 * 1024 * 1024)
-      return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
-
-    return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
+    return formatTraffic(bytes);
   };
 
   const formatChainType = (chainType: number, hopInx: number) => {
