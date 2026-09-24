@@ -1931,13 +1931,15 @@ export function MonitorView({ nodeMap, viewMode = "grid" }: MonitorViewProps) {
 
       <Modal
         isOpen={resultsModalOpen}
+        scrollBehavior="inside"
+        size="xl"
         onClose={() => {
           setResultsModalOpen(false);
           setResultsMonitorId(null);
         }}
       >
         <ModalContent>
-          <ModalHeader className="flex flex-row items-center justify-between gap-3">
+          <ModalHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="min-w-0">
               <div className="text-base font-semibold truncate">
                 监控记录
@@ -1965,7 +1967,7 @@ export function MonitorView({ nodeMap, viewMode = "grid" }: MonitorViewProps) {
               ) : null}
             </div>
             {resultsMonitorId != null ? (
-              <div className="flex items-center gap-2 shrink-0">
+              <div className="flex shrink-0 items-center gap-2">
                 <Select
                   className="w-28"
                   selectedKeys={[String(resultsLimit)]}
@@ -2011,7 +2013,7 @@ export function MonitorView({ nodeMap, viewMode = "grid" }: MonitorViewProps) {
             ) : modalResults.length > 0 ? (
               <Table
                 aria-label="监控记录"
-                className="w-full overflow-x-auto"
+                className="min-w-[32rem]"
                 classNames={{
                   wrapper:
                     "bg-transparent p-0 shadow-none border-none overflow-auto rounded-2xl",
