@@ -28,6 +28,7 @@ import { isLoggedIn } from "@/utils/auth";
 import { siteConfig, updateSiteConfig } from "@/config/site";
 import { useH5Mode } from "@/hooks/useH5Mode";
 import { SESSION_UPDATED_EVENT } from "@/utils/session";
+import { useThemeContext } from "@/themes/context";
 
 const ProtectedRoute = ({
   children,
@@ -79,6 +80,7 @@ const LoginRoute = () => {
 function App() {
   const location = useLocation();
   const navigate = useNavigate();
+  const { effectiveMode } = useThemeContext();
 
   // 全局登录状态监听，当检测到未登录且不在首页时，跳转到首页
   useEffect(() => {
@@ -98,7 +100,10 @@ function App() {
   // 处理自定义背景图片
   useEffect(() => {
     const updateBg = () => {
-      const customBg = siteConfig.app_bg_image;
+      const customBg =
+        (effectiveMode === "dark"
+          ? siteConfig.app_bg_image_dark
+          : siteConfig.app_bg_image_light) || siteConfig.app_bg_image;
 
       if (customBg) {
         if (customBg === "theme") {
@@ -149,7 +154,7 @@ function App() {
     return () => {
       window.removeEventListener("site-config-updated", updateBg);
     };
-  }, []);
+  }, [effectiveMode]);
 
   // 立即设置页面标题（使用已从缓存读取的配置）
   useEffect(() => {

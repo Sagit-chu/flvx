@@ -90,6 +90,8 @@ interface ConfigItem {
   dependsValue?: string; // 依赖的配置项值
 }
 
+type BgImageKey = "app_bg_image" | "app_bg_image_light" | "app_bg_image_dark";
+
 const BRAND_PREVIEW_KEYS = ["app_logo", "app_favicon"] as const;
 
 type BrandPreviewKey = (typeof BRAND_PREVIEW_KEYS)[number];
@@ -107,9 +109,9 @@ const toBrandAssetKind = (key: BrandPreviewKey): BrandAssetKind => {
 const CONFIG_ITEMS: ConfigItem[] = [
   {
     key: "app_bg_image",
-    label: "自定义背景",
+    label: "背景壁纸",
     description:
-      "上传自定义背景图片（建议使用深色/浅色均可看清的图片，或使用半透明模糊效果）",
+      "默认背景用于未单独设置壁纸的模式。可分别上传亮色和暗色壁纸，保存后随外观模式自动切换。",
     type: "bg_image",
   },
   {
@@ -263,6 +265,9 @@ const getInitialConfigs = (): Record<string, string> => {
     "panel_domain",
     "app_logo",
     "app_favicon",
+    "app_bg_image",
+    "app_bg_image_light",
+    "app_bg_image_dark",
     "github_proxy_enabled",
     "github_proxy_url",
     "allow_local_remote_addr",
@@ -312,8 +317,12 @@ export default function ConfigPage() {
 
   const logoFileInputRef = useRef<HTMLInputElement>(null);
   const faviconFileInputRef = useRef<HTMLInputElement>(null);
-  const bgImageFileInputRef = useRef<HTMLInputElement>(null);
-  const [bgImageUploading, setBgImageUploading] = useState(false);
+  const bgImageFileInputRefs = useRef<
+    Partial<Record<BgImageKey, HTMLInputElement>>
+  >({});
+  const [bgImageUploading, setBgImageUploading] = useState<BgImageKey | null>(
+    null,
+  );
 
   const [announcement, setAnnouncement] = useState<AnnouncementData>({
     content: "",
@@ -689,7 +698,14 @@ export default function ConfigPage() {
 
         if (
           changedKeys.some((key) =>
-            ["app_name", "app_logo", "app_favicon"].includes(key),
+            [
+              "app_name",
+              "app_logo",
+              "app_favicon",
+              "app_bg_image",
+              "app_bg_image_light",
+              "app_bg_image_dark",
+            ].includes(key),
           )
         ) {
           await updateSiteConfig(configs);
@@ -800,6 +816,7 @@ export default function ConfigPage() {
 
   const handleBgImageUpload = async (
     e: React.ChangeEvent<HTMLInputElement>,
+    key: BgImageKey,
   ) => {
     const file = e.target.files?.[0];
 
@@ -811,7 +828,7 @@ export default function ConfigPage() {
       return;
     }
 
-    setBgImageUploading(true);
+    setBgImageUploading(key);
     try {
       const compressedImage = await new Promise<string>((resolve, reject) => {
         const reader = new FileReader();
@@ -861,18 +878,19 @@ export default function ConfigPage() {
         reader.readAsDataURL(file);
       });
 
-      handleConfigChange("app_bg_image", compressedImage);
-      toast.success("自定义背景上传成功");
+      handleConfigChange(key, compressedImage);
+      toast.success("壁纸上传成功，保存配置后生效");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "图片处理失败");
     } finally {
-      setBgImageUploading(false);
+      setBgImageUploading(null);
       e.target.value = "";
     }
   };
 
-  const renderBgImageUploader = () => {
-    const bgImage = configs["app_bg_image"] || "";
+  const renderBgImageUploader = (key: BgImageKey, label: string) => {
+    const bgImage = configs[key] || "";
+    const isDefault = key === "app_bg_image";
     const isImage =
       bgImage.startsWith("http") ||
       bgImage.startsWith("data:") ||
@@ -882,47 +900,64 @@ export default function ConfigPage() {
     const isSolidColor = bgImage && !isImage && !isTheme;
 
     return (
-      <div className="flex flex-col gap-4 w-full">
+      <div className="flex flex-col gap-3 w-full rounded-xl border border-divider p-4">
+        <div>
+          <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
+            {label}
+          </p>
+          {!isDefault && !bgImage && (
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+              未单独设置，使用默认背景
+            </p>
+          )}
+        </div>
         <div className="flex flex-wrap items-center gap-4">
           <input
-            ref={bgImageFileInputRef}
+            ref={(node) => {
+              if (node) bgImageFileInputRefs.current[key] = node;
+            }}
             accept="image/*"
             className="hidden"
             type="file"
-            onChange={handleBgImageUpload}
+            onChange={(event) => void handleBgImageUpload(event, key)}
           />
           <Button
             color="primary"
-            isLoading={bgImageUploading}
+            isDisabled={bgImageUploading !== null && bgImageUploading !== key}
+            isLoading={bgImageUploading === key}
             variant="flat"
-            onPress={() => bgImageFileInputRef.current?.click()}
+            onPress={() => bgImageFileInputRefs.current[key]?.click()}
           >
             上传图片
           </Button>
-          <Button
-            color="secondary"
-            isDisabled={bgImageUploading || isTheme}
-            variant="flat"
-            onPress={() => handleConfigChange("app_bg_image", "theme")}
-          >
-            自适应纯色 (跟随深色模式)
-          </Button>
-          <Button
-            color="default"
-            isDisabled={bgImageUploading || bgImage === "#ffffff"}
-            variant="flat"
-            onPress={() => handleConfigChange("app_bg_image", "#ffffff")}
-          >
-            白色纯色
-          </Button>
+          {isDefault && (
+            <Button
+              color="secondary"
+              isDisabled={bgImageUploading !== null || isTheme}
+              variant="flat"
+              onPress={() => handleConfigChange(key, "theme")}
+            >
+              自适应纯色 (跟随深色模式)
+            </Button>
+          )}
+          {isDefault && (
+            <Button
+              color="default"
+              isDisabled={bgImageUploading !== null || bgImage === "#ffffff"}
+              variant="flat"
+              onPress={() => handleConfigChange(key, "#ffffff")}
+            >
+              白色纯色
+            </Button>
+          )}
           {bgImage && (
             <Button
               color="danger"
-              isDisabled={bgImageUploading}
+              isDisabled={bgImageUploading !== null}
               variant="flat"
-              onPress={() => handleConfigChange("app_bg_image", "")}
+              onPress={() => handleConfigChange(key, "")}
             >
-              恢复默认
+              {isDefault ? "恢复内置背景" : "清除专属壁纸"}
             </Button>
           )}
         </div>
@@ -930,7 +965,7 @@ export default function ConfigPage() {
         {bgImage && isImage && (
           <div className="relative rounded-xl overflow-hidden border border-divider">
             <img
-              alt="背景预览"
+              alt={`${label}预览`}
               className="w-full max-h-48 object-cover opacity-80"
               src={bgImage}
             />
@@ -1118,7 +1153,15 @@ export default function ConfigPage() {
 
     switch (item.type) {
       case "bg_image":
-        return renderBgImageUploader();
+        return (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <div className="lg:col-span-2">
+              {renderBgImageUploader("app_bg_image", "默认背景")}
+            </div>
+            {renderBgImageUploader("app_bg_image_light", "☀️ 亮色模式壁纸")}
+            {renderBgImageUploader("app_bg_image_dark", "🌙 暗色模式壁纸")}
+          </div>
+        );
 
       case "input": {
         if (isBrandPreviewKey(item.key)) {

@@ -7,6 +7,18 @@ on:
     branches: ['**']
 
 jobs:
+  install-scripts:
+    name: Test Installer Scripts (systemd and Alpine OpenRC)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run installer regression tests
+        run: bash test-install-scripts-proxy.sh
+
+      - name: Test Alpine bootstrap and OpenRC lifecycle
+        run: docker run --rm -v "$PWD:/workspace:ro" alpine:3.22 sh /workspace/test-install-scripts-alpine.sh
+
   frontend:
     name: Build Frontend
     runs-on: ubuntu-latest

@@ -12,6 +12,8 @@ func TestConfigPolicy(t *testing.T) {
 		{name: "app_logo is public", key: "app_logo", want: ConfigAccessPublic},
 		{name: "app_favicon is public", key: "app_favicon", want: ConfigAccessPublic},
 		{name: "app_bg_image is public", key: "app_bg_image", want: ConfigAccessPublic},
+		{name: "app_bg_image_light is public", key: "app_bg_image_light", want: ConfigAccessPublic},
+		{name: "app_bg_image_dark is public", key: "app_bg_image_dark", want: ConfigAccessPublic},
 		{name: "cloudflare_site_key is public", key: "cloudflare_site_key", want: ConfigAccessPublic},
 		{name: "is_commercial is public", key: "is_commercial", want: ConfigAccessPublic},
 		{name: "hide_footer_brand is public", key: "hide_footer_brand", want: ConfigAccessPublic},
@@ -31,7 +33,7 @@ func TestConfigPolicy(t *testing.T) {
 }
 
 func TestConfigPolicyHelpers(t *testing.T) {
-	publicKeys := []string{"app_name", "app_logo", "app_favicon", "app_bg_image", "cloudflare_site_key", "is_commercial", "hide_footer_brand"}
+	publicKeys := []string{"app_name", "app_logo", "app_favicon", "app_bg_image", "app_bg_image_light", "app_bg_image_dark", "cloudflare_site_key", "is_commercial", "hide_footer_brand"}
 	for _, key := range publicKeys {
 		if !IsPublicConfigKey(key) {
 			t.Fatalf("expected %q to be public", key)
