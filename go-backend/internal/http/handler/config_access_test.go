@@ -19,6 +19,8 @@ func TestPublicConfigGetAllowsBrandKeys(t *testing.T) {
 	seedConfigValue(t, r, "app_logo", "logo-data")
 	seedConfigValue(t, r, "app_favicon", "favicon-data")
 	seedConfigValue(t, r, "app_bg_image", "bg-data")
+	seedConfigValue(t, r, "app_bg_image_light", "light-bg-data")
+	seedConfigValue(t, r, "app_bg_image_dark", "dark-bg-data")
 	seedConfigValue(t, r, "cloudflare_site_key", "site-key")
 
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/public/config/get", bytes.NewBufferString(`{"name":"app_name"}`))
@@ -28,6 +30,16 @@ func TestPublicConfigGetAllowsBrandKeys(t *testing.T) {
 	router.ServeHTTP(resp, req)
 
 	assertHandlerCode(t, resp, 0)
+	for name, want := range map[string]string{
+		"app_bg_image_light": "light-bg-data",
+		"app_bg_image_dark":  "dark-bg-data",
+	} {
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/public/config/get", bytes.NewBufferString(`{"name":"`+name+`"}`))
+		req.Header.Set("Content-Type", "application/json")
+		resp := httptest.NewRecorder()
+		router.ServeHTTP(resp, req)
+		assertHandlerConfigValue(t, resp, name, want)
+	}
 }
 
 func TestPublicBrandConfigFallsBackWithoutCommercialLicense(t *testing.T) {
