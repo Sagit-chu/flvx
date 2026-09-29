@@ -1,6 +1,8 @@
 package loader
 
 import (
+	"fmt"
+
 	"github.com/go-gost/core/logger"
 	"github.com/go-gost/x/config"
 	"github.com/go-gost/x/config/parsing"
@@ -28,6 +30,34 @@ var (
 
 func Load(cfg *config.Config) error {
 	return defaultLoader.Load(cfg)
+}
+
+// Reload replaces the runtime and commits the config only after it starts.
+// The caller must hold config.LockMutation, including while parsing cfg, so the
+// rollback snapshot includes every previously acknowledged runtime command.
+// Failed loads can partially replace registries and bind listeners; always
+// rebuild the last successful snapshot before returning an error.
+func Reload(cfg *config.Config, run func(*config.Config) error) error {
+	previous := config.Global()
+	if err := apply(cfg, run); err != nil {
+		// A failed partial load may have left both old and new listeners behind.
+		for name := range registry.ServiceRegistry().GetAll() {
+			registry.ServiceRegistry().Unregister(name)
+		}
+		if rollbackErr := apply(previous, run); rollbackErr != nil {
+			return fmt.Errorf("reload failed: %w; restore previous config failed: %v", err, rollbackErr)
+		}
+		return fmt.Errorf("reload failed (previous config restored): %w", err)
+	}
+	config.Set(cfg)
+	return nil
+}
+
+func apply(cfg *config.Config, run func(*config.Config) error) error {
+	if err := Load(cfg); err != nil {
+		return err
+	}
+	return run(cfg)
 }
 
 type loader struct{}
@@ -217,12 +247,19 @@ func register(cfg *config.Config) error {
 		registry.ServiceRegistry().Unregister(name)
 	}
 	for _, svcCfg := range cfg.Services {
+		if svcCfg == nil {
+			return fmt.Errorf("service config is nil")
+		}
+		if paused, _ := svcCfg.Metadata["paused"].(bool); paused {
+			continue
+		}
 		svc, err := service_parser.ParseService(svcCfg)
 		if err != nil {
 			return err
 		}
 		if svc != nil {
 			if err := registry.ServiceRegistry().Register(svcCfg.Name, svc); err != nil {
+				svc.Close()
 				return err
 			}
 		}

@@ -224,18 +224,14 @@ func TestFederationShareListIncludesRemoteUsedPorts(t *testing.T) {
 }
 
 func TestFederationShareDeleteCleansUpRuntimes(t *testing.T) {
-	r, err := repo.Open(filepath.Join(t.TempDir(), "panel.db"))
-	if err != nil {
-		t.Fatalf("open sqlite: %v", err)
-	}
-	t.Cleanup(func() { _ = r.Close() })
-
-	h := New(r, "test-jwt-secret")
+	agent := newCleanupAgent(t)
+	r := agent.h.repo
+	h := agent.h
 	now := time.Now().UnixMilli()
 
 	if err := r.CreatePeerShare(&repo.PeerShare{
 		Name:           "delete-cleanup-share",
-		NodeID:         99,
+		NodeID:         1,
 		Token:          "delete-cleanup-token",
 		MaxBandwidth:   4096,
 		PortRangeStart: 40000,
@@ -257,8 +253,8 @@ func TestFederationShareDeleteCleansUpRuntimes(t *testing.T) {
 		VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?),
 		      (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`,
-		share.ID, 99, "dc-r1", "dc-rk1", "dc-b1", "exit", "", "fed_svc_dc1", "tls", "round", 40001, "", 1, 1, now, now,
-		share.ID, 99, "dc-r2", "dc-rk2", "dc-b2", "middle", "fed_chain_dc2", "fed_svc_dc2", "tls", "round", 40002, "", 1, 1, now, now,
+		share.ID, 1, "dc-r1", "dc-rk1", "dc-b1", "exit", "", "fed_svc_dc1", "tls", "round", 40001, "", 1, 1, now, now,
+		share.ID, 1, "dc-r2", "dc-rk2", "dc-b2", "middle", "fed_chain_dc2", "fed_svc_dc2", "tls", "round", 40002, "", 1, 1, now, now,
 	).Error; err != nil {
 		t.Fatalf("insert peer_share_runtime rows: %v", err)
 	}

@@ -115,3 +115,39 @@ func TestMutationQueueExecutesCommandsInArrivalOrder(t *testing.T) {
 	}
 	close(second.release)
 }
+
+func TestMutationCommandWaitsForRuntimeTransaction(t *testing.T) {
+	original := config.Global()
+	defer config.Set(original)
+	name := "reload_transaction_service"
+	svc := &blockingCommandService{started: make(chan struct{}), release: make(chan struct{})}
+	close(svc.release)
+	if err := registry.ServiceRegistry().Register(name, svc); err != nil {
+		t.Fatal(err)
+	}
+	defer registry.ServiceRegistry().Unregister(name)
+	config.Set(&config.Config{Services: []*config.ServiceConfig{{Name: name}}})
+	reporter := NewWebSocketReporter("", "transaction-test-secret")
+	defer reporter.Stop()
+	unlock := config.LockMutation()
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		reporter.routeCommand(CommandMessage{Type: "DeleteService", Data: map[string]any{"services": []string{name}}})
+	}()
+	select {
+	case <-svc.started:
+		unlock()
+		t.Fatal("command interleaved with runtime transaction")
+	case <-time.After(50 * time.Millisecond):
+	}
+	unlock()
+	select {
+	case <-done:
+	case <-time.After(2 * time.Second):
+		t.Fatal("command did not resume after transaction")
+	}
+	if registry.ServiceRegistry().Get(name) != nil {
+		t.Fatal("service was not removed")
+	}
+}

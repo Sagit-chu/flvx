@@ -10,11 +10,8 @@ import (
 )
 
 func TestProcessFlowItemTracksPeerShareFlowAndEnforcesLimit(t *testing.T) {
-	r, err := repo.Open(filepath.Join(t.TempDir(), "panel.db"))
-	if err != nil {
-		t.Fatalf("open repo: %v", err)
-	}
-	defer r.Close()
+	a := newCleanupAgent(t)
+	r := a.h.repo
 
 	now := time.Now().UnixMilli()
 	if err := r.CreatePeerShare(&repo.PeerShare{
@@ -43,7 +40,7 @@ func TestProcessFlowItemTracksPeerShareFlowAndEnforcesLimit(t *testing.T) {
 		t.Fatalf("insert peer_share_runtime: %v", err)
 	}
 
-	h := &Handler{repo: r}
+	h := a.h
 	h.processFlowItem(1, flowItem{N: "fed_svc_17", U: 1200, D: 900})
 
 	updatedShare, err := r.GetPeerShare(share.ID)
@@ -120,6 +117,9 @@ func TestProcessFlowItemTracksPeerShareFlowForFederationPortForward(t *testing.T
 	}
 
 	h := &Handler{repo: r}
+	if err := r.DB().Exec("INSERT INTO forward_port(forward_id, node_id, port) VALUES(20, 1, 30001)").Error; err != nil {
+		t.Fatal(err)
+	}
 	h.processFlowItem(1, flowItem{N: "20_2_10", U: 120, D: 80})
 
 	updatedShare, err := r.GetPeerShare(share.ID)

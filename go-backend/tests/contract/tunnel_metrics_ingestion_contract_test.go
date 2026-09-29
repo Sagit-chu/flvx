@@ -58,6 +58,9 @@ func TestFlowUploadInsertsTunnelMetrics(t *testing.T) {
 	if err := repo.DB().Create(forward).Error; err != nil {
 		t.Fatalf("seed forward: %v", err)
 	}
+	if err := repo.DB().Create(&model.ForwardPort{ForwardID: forward.ID, NodeID: node.ID, Port: 10000}).Error; err != nil {
+		t.Fatalf("seed forward node ownership: %v", err)
+	}
 
 	serviceName := jsonNumber(forward.ID) + "_123_0"
 	body, _ := json.Marshal([]map[string]interface{}{{

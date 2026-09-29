@@ -398,15 +398,80 @@ func (h *Handler) consumeNodePendingUpgradeRedeploy(nodeID int64) bool {
 }
 
 func (h *Handler) onNodeOnline(nodeID int64) {
+	if h == nil || h.repo == nil || h.wsServer == nil {
+		return
+	}
+	if node, err := h.getNodeRecord(nodeID); err == nil && (node == nil || node.Status != 1) {
+		return // The next connection will resume any pending reconciliation.
+	}
 	if !h.startNodeOnlineRedeploy(nodeID, time.Now()) {
 		return
 	}
 	defer h.finishNodeOnlineRedeploy(nodeID)
 
-	// Reconcile node runtime on the first reconnect, but suppress rapid flapping
-	// so websocket churn does not trigger repeated full redeploy storms.
-	if !h.redeployNodeRuntimeAfterUpgrade(nodeID) {
-		h.markNodePendingUpgradeRedeploy(nodeID)
+	// A fresh agent needs a full restore. Shared failures remain persisted and
+	// are retried by maintenance without restarting acknowledged services.
+	h.reconcileSharedNodeRuntime(nodeID)
+	if !h.redeployLocalNodeRuntime(nodeID) {
+		h.scheduleNodeLocalRuntimeRetry(nodeID)
+	} else {
+		h.clearNodeLocalRuntimeRetry(nodeID)
+	}
+}
+
+// Local retries are separate from reconnect reconciliation: a failed local
+// forward must not cause every shared listener to be replayed every 30 seconds.
+func (h *Handler) scheduleNodeLocalRuntimeRetry(nodeID int64) {
+	h.upgradeMu.Lock()
+	defer h.upgradeMu.Unlock()
+	if h.nodeLocalRuntimeRetryQueued == nil {
+		h.nodeLocalRuntimeRetryQueued = make(map[int64]struct{})
+	}
+	if _, queued := h.nodeLocalRuntimeRetryQueued[nodeID]; queued {
+		return
+	}
+	h.nodeLocalRuntimeRetryQueued[nodeID] = struct{}{}
+	time.AfterFunc(nodeOnlineRedeployCooldown, func() {
+		h.upgradeMu.Lock()
+		_, queued := h.nodeLocalRuntimeRetryQueued[nodeID]
+		delete(h.nodeLocalRuntimeRetryQueued, nodeID)
+		h.upgradeMu.Unlock()
+		if !queued {
+			return
+		}
+		h.retryNodeLocalRuntime(nodeID)
+	})
+}
+
+func (h *Handler) clearNodeLocalRuntimeRetry(nodeID int64) {
+	h.upgradeMu.Lock()
+	delete(h.nodeLocalRuntimeRetryQueued, nodeID)
+	h.upgradeMu.Unlock()
+}
+
+func (h *Handler) retryNodeLocalRuntime(nodeID int64) {
+	if h == nil || h.repo == nil || h.wsServer == nil {
+		return
+	}
+	if node, err := h.getNodeRecord(nodeID); err == nil && (node == nil || node.Status != 1) {
+		return
+	}
+	h.upgradeMu.Lock()
+	if _, inFlight := h.nodeOnlineRedeploying[nodeID]; inFlight {
+		h.upgradeMu.Unlock()
+		h.scheduleNodeLocalRuntimeRetry(nodeID)
+		return
+	}
+	if h.nodeOnlineRedeploying == nil {
+		h.nodeOnlineRedeploying = make(map[int64]struct{})
+	}
+	h.nodeOnlineRedeploying[nodeID] = struct{}{}
+	h.upgradeMu.Unlock()
+	defer h.finishNodeOnlineRedeploy(nodeID)
+	if !h.redeployLocalNodeRuntime(nodeID) {
+		h.scheduleNodeLocalRuntimeRetry(nodeID)
+	} else {
+		h.clearNodeLocalRuntimeRetry(nodeID)
 	}
 }
 
@@ -503,6 +568,25 @@ func (h *Handler) finishNodeOnlineRedeploy(nodeID int64) {
 }
 
 func (h *Handler) redeployNodeRuntimeAfterUpgrade(nodeID int64) bool {
+	sharedOK := h.reconcileSharedNodeRuntime(nodeID)
+	localOK := h.redeployLocalNodeRuntime(nodeID)
+	return sharedOK && localOK
+}
+
+func (h *Handler) reconcileSharedNodeRuntime(nodeID int64) bool {
+	succeeded := true
+	if err := h.reconcilePeerShareResourcesOnNode(nodeID); err != nil {
+		fmt.Printf("reconnect shared resource reconciliation failed on node %d: %v\n", nodeID, err)
+		succeeded = false
+	}
+	if err := h.reconcilePeerShareRoleRuntimesOnNode(nodeID); err != nil {
+		fmt.Printf("reconnect shared role reconciliation failed on node %d: %v\n", nodeID, err)
+		succeeded = false
+	}
+	return succeeded
+}
+
+func (h *Handler) redeployLocalNodeRuntime(nodeID int64) bool {
 	tunnelIDs, err := h.repo.ListActiveTunnelIDsByNode(nodeID)
 	if err != nil {
 		fmt.Printf("post-upgrade redeploy: list tunnels for node %d failed: %v\n", nodeID, err)
@@ -567,6 +651,7 @@ func (h *Handler) retryFailedRedeploys(nodeID int64, tunnelFailed map[int64]stru
 		return true
 	}
 
+	permanentFailure := false
 	const maxRetries = 3
 	baseDelay := time.Second
 
@@ -580,7 +665,8 @@ func (h *Handler) retryFailedRedeploys(nodeID int64, tunnelFailed map[int64]stru
 				delete(tunnelFailed, tunnelID)
 				fmt.Printf("post-upgrade redeploy retry: tunnel %d succeeded on node %d (attempt %d)\n", tunnelID, nodeID, attempt)
 			} else if !isRetryableError(err) {
-				delete(tunnelFailed, tunnelID) // Non-retryable, don't retry again
+				permanentFailure = true
+				delete(tunnelFailed, tunnelID) // Preserve failure while avoiding immediate retries.
 			} else {
 				fmt.Printf("post-upgrade redeploy retry: tunnel %d still failing on node %d (attempt %d): %v\n", tunnelID, nodeID, attempt, err)
 			}
@@ -596,7 +682,7 @@ func (h *Handler) retryFailedRedeploys(nodeID int64, tunnelFailed map[int64]stru
 			if err := h.syncForwardServices(ff.forward, "UpdateService", true); err == nil {
 				fmt.Printf("post-upgrade redeploy retry: forward %d succeeded on node %d (attempt %d)\n", ff.id, nodeID, attempt)
 			} else if !isRetryableError(err) {
-				// Non-retryable, drop it
+				permanentFailure = true // Keep reconciliation pending for a later reconnect.
 			} else {
 				stillFailed = append(stillFailed, ff)
 				fmt.Printf("post-upgrade redeploy retry: forward %d still failing on node %d (attempt %d): %v\n", ff.id, nodeID, attempt, err)
@@ -606,7 +692,7 @@ func (h *Handler) retryFailedRedeploys(nodeID int64, tunnelFailed map[int64]stru
 
 		if len(tunnelFailed) == 0 && len(failedForwards) == 0 {
 			fmt.Printf("post-upgrade redeploy retry: all items recovered on node %d\n", nodeID)
-			return true
+			return !permanentFailure
 		}
 	}
 

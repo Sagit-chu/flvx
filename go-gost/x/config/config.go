@@ -23,9 +23,19 @@ func init() {
 }
 
 var (
-	global    = &Config{}
-	globalMux sync.RWMutex
+	global      = &Config{}
+	globalMux   sync.RWMutex
+	mutationMux sync.Mutex
 )
+
+// LockMutation serializes complete runtime/config transactions across panel
+// commands, management API requests, startup and reload. It is separate from
+// globalMux so callers may safely use Global, Set and OnUpdate while holding it.
+// Lock before reading/parsing the config and hold through persistence/rollback.
+func LockMutation() func() {
+	mutationMux.Lock()
+	return mutationMux.Unlock
+}
 
 func Global() *Config {
 	globalMux.RLock()

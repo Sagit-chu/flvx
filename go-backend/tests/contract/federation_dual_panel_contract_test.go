@@ -743,7 +743,7 @@ func TestFederationRuntimeCommandPortRangeEnforcement(t *testing.T) {
 	if err := json.NewDecoder(res.Body).Decode(&out); err != nil {
 		t.Fatalf("decode response: %v", err)
 	}
-	if out.Code != 0 {
-		t.Fatalf("expected code 0 for reload command, got %d (msg: %s)", out.Code, out.Msg)
+	if out.Code == 0 {
+		t.Fatal("a shared-node token must not reload the entire provider node")
 	}
 }

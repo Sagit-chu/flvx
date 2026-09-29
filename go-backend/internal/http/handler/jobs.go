@@ -21,7 +21,7 @@ func (h *Handler) StartBackgroundJobs() {
 	ctx, cancel := context.WithCancel(context.Background())
 	h.jobsCancel = cancel
 	h.jobsStarted = true
-	h.jobsWG.Add(8)
+	h.jobsWG.Add(9)
 	h.jobsMu.Unlock()
 
 	go h.runHourlyStatsLoop(ctx)
@@ -32,6 +32,49 @@ func (h *Handler) StartBackgroundJobs() {
 	go h.runTunnelQualityProber(ctx)
 	go h.runValidateLicenseJob(ctx)
 	go h.runNftablesTrafficCollectLoop(ctx)
+	go h.runFederationCleanupRetryLoop(ctx)
+}
+
+func (h *Handler) runFederationCleanupRetryLoop(ctx context.Context) {
+	defer h.jobsWG.Done()
+	ticker := time.NewTicker(30 * time.Second)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		default:
+		}
+		if err := h.retryPendingFederationRuntimeCleanup(); err != nil {
+			log.Printf("federation cleanup remains pending: %v", err)
+		}
+		h.retryPendingPeerShareOperations()
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+		}
+	}
+}
+
+func (h *Handler) retryPendingPeerShareOperations() {
+	nodeIDs, err := h.repo.ListPendingPeerShareNodeIDs()
+	if err != nil {
+		log.Printf("peer share pending operation lookup failed: %v", err)
+		return
+	}
+	for _, nodeID := range nodeIDs {
+		node, err := h.repo.GetNodeByID(nodeID)
+		if err != nil || node == nil || node.Status != 1 {
+			continue
+		}
+		if err := h.retryPendingPeerShareResourcesOnNode(nodeID); err != nil {
+			log.Printf("peer share resource retry failed node_id=%d err=%v", nodeID, err)
+		}
+		if err := h.retryPendingPeerShareRoleRuntimesOnNode(nodeID); err != nil {
+			log.Printf("peer share role retry failed node_id=%d err=%v", nodeID, err)
+		}
+	}
 }
 
 func (h *Handler) runValidateLicenseJob(ctx context.Context) {

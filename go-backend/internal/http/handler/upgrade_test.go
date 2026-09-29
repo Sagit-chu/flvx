@@ -12,7 +12,7 @@ func TestStartNodeOnlineRedeploySkipsRecentReconnects(t *testing.T) {
 		nodeOnlineRedeployQueued: map[int64]struct{}{},
 		nodeOnlineRedeploying:    map[int64]struct{}{},
 	}
-	now := time.Unix(1_777_176_720, 0)
+	now := time.Now()
 
 	if !h.startNodeOnlineRedeploy(54, now) {
 		t.Fatalf("expected first reconnect to redeploy")
@@ -34,7 +34,7 @@ func TestStartNodeOnlineRedeployAllowsPendingUpgradeDuringCooldown(t *testing.T)
 		nodeOnlineRedeployQueued: map[int64]struct{}{},
 		nodeOnlineRedeploying:    map[int64]struct{}{},
 	}
-	now := time.Unix(1_777_176_720, 0)
+	now := time.Now()
 
 	if !h.startNodeOnlineRedeploy(54, now) {
 		t.Fatalf("expected first reconnect to redeploy")
@@ -57,7 +57,7 @@ func TestStartNodeOnlineRedeployQueuesCooldownReconnect(t *testing.T) {
 		nodeOnlineRedeployQueued: map[int64]struct{}{},
 		nodeOnlineRedeploying:    map[int64]struct{}{},
 	}
-	now := time.Unix(1_777_176_720, 0)
+	now := time.Now()
 
 	if !h.startNodeOnlineRedeploy(54, now) {
 		t.Fatalf("expected first reconnect to redeploy")
@@ -67,7 +67,10 @@ func TestStartNodeOnlineRedeployQueuesCooldownReconnect(t *testing.T) {
 	if h.startNodeOnlineRedeploy(54, now.Add(5*time.Second)) {
 		t.Fatalf("expected cooldown reconnect to skip immediate redeploy")
 	}
-	if _, queued := h.nodeOnlineRedeployQueued[54]; !queued {
+	h.upgradeMu.Lock()
+	_, queued := h.nodeOnlineRedeployQueued[54]
+	h.upgradeMu.Unlock()
+	if !queued {
 		t.Fatalf("expected cooldown reconnect to queue a follow-up redeploy")
 	}
 }
@@ -79,7 +82,7 @@ func TestStartNodeOnlineRedeployKeepsPendingUpgradeWhileInFlight(t *testing.T) {
 		nodeOnlineRedeployQueued: map[int64]struct{}{},
 		nodeOnlineRedeploying:    map[int64]struct{}{},
 	}
-	now := time.Unix(1_777_176_720, 0)
+	now := time.Now()
 
 	if !h.startNodeOnlineRedeploy(54, now) {
 		t.Fatalf("expected first reconnect to redeploy")
@@ -96,7 +99,7 @@ func TestStartNodeOnlineRedeployKeepsPendingUpgradeWhileInFlight(t *testing.T) {
 }
 
 func TestNextNodeOnlineRedeployFireAtDefersExpiredInFlightReconnect(t *testing.T) {
-	now := time.Unix(1_777_176_720, 0)
+	now := time.Now()
 	last := now.Add(-nodeOnlineRedeployCooldown - 5*time.Second)
 
 	fireAt, start := nextNodeOnlineRedeployFireAt(last, now, false, true)

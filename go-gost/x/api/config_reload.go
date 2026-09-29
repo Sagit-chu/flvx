@@ -37,9 +37,12 @@ func reloadConfig(ctx *gin.Context) {
 		return
 	}
 
-	config.Set(cfg)
-
-	if err := loader.Load(cfg); err != nil {
+	if err := loader.Reload(cfg, func(*config.Config) error {
+		for _, svc := range registry.ServiceRegistry().GetAll() {
+			go svc.Serve()
+		}
+		return nil
+	}); err != nil {
 		writeError(ctx, NewError(http.StatusBadRequest, ErrCodeInvalid, err.Error()))
 		return
 	}
@@ -50,13 +53,6 @@ func reloadConfig(ctx *gin.Context) {
 		}
 	}
 	xservice.GetGlobalTrafficManager().RetainServices(activeServices)
-
-	for _, svc := range registry.ServiceRegistry().GetAll() {
-		svc := svc
-		go func() {
-			svc.Serve()
-		}()
-	}
 
 	ctx.JSON(http.StatusOK, Response{
 		Msg: "OK",

@@ -179,6 +179,7 @@ type WebSocketReporter struct {
 	tcpPingSem        chan struct{}     // 限制诊断探测并发，避免离线目标耗尽连接
 	readCommandSem    chan struct{}     // 限制只读命令并发，避免诊断请求耗尽资源
 	mutationQueue     chan CommandMessage
+	workers           sync.WaitGroup
 }
 
 var wsDial = func(dialer *websocket.Dialer, rawURL string) (*websocket.Conn, *http.Response, error) {
@@ -238,8 +239,15 @@ func (w *WebSocketReporter) releaseTCPPingSlot() {
 
 // Start 启动WebSocket报告器
 func (w *WebSocketReporter) Start() {
-	go w.runMutationCommands()
-	go w.run()
+	w.workers.Add(2)
+	go func() {
+		defer w.workers.Done()
+		w.runMutationCommands()
+	}()
+	go func() {
+		defer w.workers.Done()
+		w.run()
+	}()
 }
 
 // Stop 停止WebSocket报告器
@@ -250,6 +258,7 @@ func (w *WebSocketReporter) Stop() {
 		w.conn.Close()
 	}
 	w.connMutex.Unlock()
+	w.workers.Wait()
 }
 
 // backoffWithJitter 返回带随机抖动的退避时间（±25%）
@@ -339,10 +348,10 @@ func (w *WebSocketReporter) connect() error {
 
 	candidates := buildWebSocketCandidates(w.addr, w.secret, w.version, cfg.Http, cfg.Tls, cfg.Socks, w.preferredWSScheme)
 
-	dialer := websocket.DefaultDialer
+	dialer := *websocket.DefaultDialer
 	dialer.HandshakeTimeout = 10 * time.Second
 
-	conn, usedURL, err := dialWebSocketWithFallback(dialer, candidates)
+	conn, usedURL, err := dialWebSocketWithFallback(&dialer, candidates)
 	if err != nil {
 		return err
 	}
@@ -528,7 +537,11 @@ func (w *WebSocketReporter) handleConnection() {
 	}()
 
 	// 启动消息接收goroutine
-	go w.receiveMessages()
+	w.workers.Add(1)
+	go func() {
+		defer w.workers.Done()
+		w.receiveMessages()
+	}()
 
 	// 指标上报 ticker
 	metricTicker := time.NewTicker(w.pingInterval)
@@ -887,6 +900,14 @@ func isMutationCommand(commandType string) bool {
 
 // routeCommand 路由命令到对应的处理函数
 func (w *WebSocketReporter) routeCommand(cmd CommandMessage) {
+	if isMutationCommand(cmd.Type) {
+		unlock := config.LockMutation()
+		defer unlock()
+		if w.ctx.Err() != nil {
+			w.sendCommandFailure(cmd, "Agent is shutting down")
+			return
+		}
+	}
 	jsonBytes, errs := json.Marshal(cmd)
 	if errs != nil {
 		fmt.Println("Error marshaling JSON:", errs)

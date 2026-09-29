@@ -3,6 +3,7 @@ package service
 import (
 	"net"
 	"net/http"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-gost/core/auth"
@@ -67,7 +68,11 @@ func NewService(network, addr string, opts ...Option) (service.Service, error) {
 
 	return &server{
 		s: &http.Server{
-			Handler: r,
+			Handler:           r,
+			ReadHeaderTimeout: 5 * time.Second,
+			ReadTimeout:       15 * time.Second,
+			WriteTimeout:      30 * time.Second,
+			IdleTimeout:       60 * time.Second,
 		},
 		ln:     ln,
 		cclose: make(chan struct{}),
@@ -83,7 +88,11 @@ func (s *server) Addr() net.Addr {
 }
 
 func (s *server) Close() error {
-	return s.s.Close()
+	// Close can race the goroutine entering Serve during a failed startup.
+	// http.Server.Close alone does not own the listener until Serve starts.
+	err := s.s.Close()
+	s.ln.Close()
+	return err
 }
 
 func (s *server) IsClosed() bool {

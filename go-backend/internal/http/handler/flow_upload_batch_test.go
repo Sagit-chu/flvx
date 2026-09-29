@@ -14,6 +14,8 @@ func TestBuildFlowUploadBatchAggregatesForwardQuotaPeerShareAndCleanupTargets(t 
 	metas := map[int64]repo.FlowUploadForwardMeta{
 		20: {
 			ForwardID:    20,
+			UserID:       2,
+			UserTunnelID: 10,
 			TunnelID:     1,
 			TrafficRatio: 2,
 			TunnelFlow:   3,

@@ -84,7 +84,9 @@ func (s *metricService) Addr() net.Addr {
 }
 
 func (s *metricService) Close() error {
-	return s.s.Close()
+	err := s.s.Close()
+	s.ln.Close()
+	return err
 }
 
 func (s *metricService) IsClosed() bool {

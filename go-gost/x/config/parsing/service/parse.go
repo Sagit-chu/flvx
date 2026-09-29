@@ -255,6 +255,15 @@ func ParseService(cfg *config.ServiceConfig) (service.Service, error) {
 		return nil, err
 	}
 
+	// Listener initialization binds the port. If handler/TLS/forwarder parsing
+	// fails, release it so a reload rollback can restore the previous listener.
+	configured := false
+	defer func() {
+		if !configured {
+			ln.Close()
+		}
+	}()
+
 	handlerLogger := serviceLogger.WithFields(map[string]any{
 		"kind": "handler",
 	})
@@ -379,6 +388,7 @@ func ParseService(cfg *config.ServiceConfig) (service.Service, error) {
 	)
 
 	serviceLogger.Infof("listening on %s/%s", s.Addr().String(), s.Addr().Network())
+	configured = true
 	return s, nil
 }
 

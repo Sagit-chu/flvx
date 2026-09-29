@@ -1,10 +1,14 @@
 package service
 
 import (
+	"bytes"
 	"context"
 	"errors"
+	"github.com/go-gost/x/config"
 	"io"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -146,5 +150,33 @@ func TestPostJSONWithFallbackRemembersDetectedURL(t *testing.T) {
 	}
 	if !strings.HasPrefix(calls[0], "http://") {
 		t.Fatalf("expected remembered http url first, got %s", calls[0])
+	}
+}
+
+func TestConfigReportDoesNotPersistStaleRuntime(t *testing.T) {
+	previous, path := config.Global(), config.PersistPath()
+	defer config.Set(previous)
+	defer config.SetPersistPath(path)
+	config.Set(&config.Config{Services: []*config.ServiceConfig{{Name: "old-runtime"}}})
+	filename := filepath.Join(t.TempDir(), "gost.json")
+	candidate := []byte(`{"services":[{"name":"new-on-disk"}]}`)
+	if err := os.WriteFile(filename, candidate, 0600); err != nil {
+		t.Fatal(err)
+	}
+	config.SetPersistPath(filename)
+	config.EnablePersist()
+	report, err := getConfigData()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Contains(report, []byte("old-runtime")) {
+		t.Fatalf("unexpected report: %s", report)
+	}
+	saved, err := os.ReadFile(filename)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(saved, candidate) {
+		t.Fatalf("report overwrote candidate config: %s", saved)
 	}
 }

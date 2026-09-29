@@ -23,6 +23,7 @@ type flowUploadBatch struct {
 	orphanServices        map[string]struct{}
 	peerShareForwardItems map[string]flowItem
 	peerShareRuntimeItems map[int64]flowItem
+	peerShareUsage        map[int64]int64
 }
 
 func (h *Handler) buildFlowUploadBatch(items []flowItem, metas map[int64]repo.FlowUploadForwardMeta) flowUploadBatch {
@@ -65,6 +66,9 @@ func (h *Handler) buildFlowUploadBatch(items []flowItem, metas map[int64]repo.Fl
 			batch.orphanServices[serviceName] = struct{}{}
 			continue
 		}
+		// Local accounting uses database ownership, not foreign IDs embedded in
+		// a service name (including stale user-tunnel IDs after reassignment).
+		userID, userTunnelID = meta.UserID, meta.UserTunnelID
 
 		raw := batch.forwardTraffic[forwardID]
 		raw.bytesIn += item.D
@@ -120,8 +124,12 @@ func (h *Handler) applyFlowUploadBatch(nodeID int64, batch flowUploadBatch, now 
 		}
 		h.enforceFlowPolicies(target.UserID, target.UserTunnelID)
 	}
-	for serviceName := range batch.orphanServices {
-		h.sendDeleteOrphanedForwardService(nodeID, serviceName)
+	if len(batch.orphanServices) > 0 {
+		serviceNames := make([]string, 0, len(batch.orphanServices))
+		for serviceName := range batch.orphanServices {
+			serviceNames = append(serviceNames, serviceName)
+		}
+		h.sendDeleteOrphanedForwardServices(nodeID, serviceNames)
 	}
 	for serviceName, item := range batch.peerShareForwardItems {
 		forwardID, _, _, ok := parseFlowServiceIDs(serviceName)
@@ -130,7 +138,10 @@ func (h *Handler) applyFlowUploadBatch(nodeID int64, batch flowUploadBatch, now 
 		}
 	}
 	for runtimeID, item := range batch.peerShareRuntimeItems {
-		h.processPeerShareFlow(runtimeID, item)
+		h.processPeerShareFlow(nodeID, runtimeID, item)
+	}
+	for shareID, delta := range batch.peerShareUsage {
+		h.addPeerShareFlow(nodeID, shareID, delta)
 	}
 }
 

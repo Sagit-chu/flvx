@@ -39,8 +39,9 @@ type Handler struct {
 	healthCheck     *health.Checker
 	nftablesManager nftablesRuntimeManager
 
-	captchaMu     sync.Mutex
-	captchaTokens map[string]int64
+	peerResourceMu sync.Mutex
+	captchaMu      sync.Mutex
+	captchaTokens  map[string]int64
 
 	jobsMu              sync.Mutex
 	jobsCancel          context.CancelFunc
@@ -49,12 +50,13 @@ type Handler struct {
 	fingerprintMu       sync.Mutex
 	licenseValidationMu sync.Mutex
 
-	upgradeMu                sync.Mutex
-	systemUpgradeMu          sync.Mutex
-	pendingUpgradeRedeploy   map[int64]struct{}
-	nodeOnlineRedeployAt     map[int64]time.Time
-	nodeOnlineRedeployQueued map[int64]struct{}
-	nodeOnlineRedeploying    map[int64]struct{}
+	upgradeMu                   sync.Mutex
+	systemUpgradeMu             sync.Mutex
+	pendingUpgradeRedeploy      map[int64]struct{}
+	nodeOnlineRedeployAt        map[int64]time.Time
+	nodeOnlineRedeployQueued    map[int64]struct{}
+	nodeOnlineRedeploying       map[int64]struct{}
+	nodeLocalRuntimeRetryQueued map[int64]struct{}
 
 	qualityProber *tunnelQualityProber
 	bestExit      *bestExitManager
@@ -876,7 +878,7 @@ func (h *Handler) flowUpload(w http.ResponseWriter, r *http.Request) {
 				log.Printf("flow upload metadata lookup failed node_id=%d err=%v", node.ID, metaErr)
 				metas = map[int64]repo.FlowUploadForwardMeta{}
 			}
-			batch := h.buildFlowUploadBatch(items, metas)
+			batch := h.buildNodeFlowUploadBatch(node.ID, items, metas)
 			h.recordTunnelMetricsFromForwardBatch(node.ID, batch.forwardTraffic, metas, now.UnixMilli())
 			h.applyFlowUploadBatch(node.ID, batch, now)
 		}

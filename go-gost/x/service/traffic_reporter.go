@@ -370,43 +370,43 @@ type getConfigResponse struct {
 
 // getConfigData 获取配置数据（避免循环依赖）
 func getConfigData() ([]byte, error) {
-	config.OnUpdate(func(c *config.Config) error {
-		for _, svc := range c.Services {
-			if svc == nil {
-				continue
+	// Reporting is read-only: enriching a detached snapshot must not persist
+	// stale state over a config currently being reloaded or acknowledged.
+	cfg := config.Global()
+	for _, svc := range cfg.Services {
+		if svc == nil {
+			continue
+		}
+		s := registry.ServiceRegistry().Get(svc.Name)
+		ss, ok := s.(serviceStatus)
+		if ok && ss != nil {
+			status := ss.Status()
+			svc.Status = &config.ServiceStatus{
+				CreateTime: status.CreateTime().Unix(),
+				State:      string(status.State()),
 			}
-			s := registry.ServiceRegistry().Get(svc.Name)
-			ss, ok := s.(serviceStatus)
-			if ok && ss != nil {
-				status := ss.Status()
-				svc.Status = &config.ServiceStatus{
-					CreateTime: status.CreateTime().Unix(),
-					State:      string(status.State()),
+			if st := status.Stats(); st != nil {
+				svc.Status.Stats = &config.ServiceStats{
+					TotalConns:   st.Get(stats.KindTotalConns),
+					CurrentConns: st.Get(stats.KindCurrentConns),
+					TotalErrs:    st.Get(stats.KindTotalErrs),
+					InputBytes:   st.Get(stats.KindInputBytes),
+					OutputBytes:  st.Get(stats.KindOutputBytes),
 				}
-				if st := status.Stats(); st != nil {
-					svc.Status.Stats = &config.ServiceStats{
-						TotalConns:   st.Get(stats.KindTotalConns),
-						CurrentConns: st.Get(stats.KindCurrentConns),
-						TotalErrs:    st.Get(stats.KindTotalErrs),
-						InputBytes:   st.Get(stats.KindInputBytes),
-						OutputBytes:  st.Get(stats.KindOutputBytes),
-					}
-				}
-				for _, ev := range status.Events() {
-					if !ev.Time.IsZero() {
-						svc.Status.Events = append(svc.Status.Events, config.ServiceEvent{
-							Time: ev.Time.Unix(),
-							Msg:  ev.Message,
-						})
-					}
+			}
+			for _, ev := range status.Events() {
+				if !ev.Time.IsZero() {
+					svc.Status.Events = append(svc.Status.Events, config.ServiceEvent{
+						Time: ev.Time.Unix(),
+						Msg:  ev.Message,
+					})
 				}
 			}
 		}
-		return nil
-	})
+	}
 
 	var resp getConfigResponse
-	resp.Config = config.Global()
+	resp.Config = cfg
 
 	buf := &bytes.Buffer{}
 	resp.Config.Write(buf, "json")

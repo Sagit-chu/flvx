@@ -52,7 +52,7 @@ func Register(r *gin.Engine, opts *Options) {
 	router.StaticFS("/docs", http.FS(swaggerDoc))
 
 	config := router.Group("/config")
-	config.Use(mwBasicAuth(opts.Auther))
+	config.Use(mwBasicAuth(opts.Auther), configTransaction())
 
 	config.GET("", getConfig)
 	config.POST("", saveConfig)

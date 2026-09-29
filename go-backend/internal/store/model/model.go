@@ -354,23 +354,24 @@ type PeerShare struct {
 func (PeerShare) TableName() string { return "peer_share" }
 
 type PeerShareRuntime struct {
-	ID            int64  `gorm:"primaryKey;autoIncrement"`
-	ShareID       int64  `gorm:"column:share_id;not null;index:idx_peer_share_runtime_share_node_status"`
-	NodeID        int64  `gorm:"column:node_id;not null;index:idx_peer_share_runtime_share_node_status"`
-	ReservationID string `gorm:"column:reservation_id;type:text;not null;uniqueIndex"`
-	ResourceKey   string `gorm:"column:resource_key;type:text;not null;uniqueIndex"`
-	BindingID     string `gorm:"column:binding_id;type:text;not null;default:'';index:idx_peer_share_runtime_binding_id"`
-	Role          string `gorm:"type:text;not null;default:''"`
-	ChainName     string `gorm:"column:chain_name;type:text;not null;default:''"`
-	ServiceName   string `gorm:"column:service_name;type:text;not null;default:''"`
-	Protocol      string `gorm:"type:text;not null;default:'tls'"`
-	Strategy      string `gorm:"type:text;not null;default:'round'"`
-	Port          int    `gorm:"not null;default:0"`
-	Target        string `gorm:"type:text;not null;default:''"`
-	Applied       int    `gorm:"not null;default:0"`
-	Status        int    `gorm:"not null;default:1;index:idx_peer_share_runtime_share_node_status"`
-	CreatedTime   int64  `gorm:"column:created_time;not null"`
-	UpdatedTime   int64  `gorm:"column:updated_time;not null"`
+	ID             int64  `gorm:"primaryKey;autoIncrement"`
+	ShareID        int64  `gorm:"column:share_id;not null;index:idx_peer_share_runtime_share_node_status"`
+	NodeID         int64  `gorm:"column:node_id;not null;index:idx_peer_share_runtime_share_node_status"`
+	ReservationID  string `gorm:"column:reservation_id;type:text;not null;uniqueIndex"`
+	ResourceKey    string `gorm:"column:resource_key;type:text;not null;uniqueIndex"`
+	BindingID      string `gorm:"column:binding_id;type:text;not null;default:'';index:idx_peer_share_runtime_binding_id"`
+	Role           string `gorm:"type:text;not null;default:''"`
+	ChainName      string `gorm:"column:chain_name;type:text;not null;default:''"`
+	ServiceName    string `gorm:"column:service_name;type:text;not null;default:''"`
+	Protocol       string `gorm:"type:text;not null;default:'tls'"`
+	Strategy       string `gorm:"type:text;not null;default:'round'"`
+	Port           int    `gorm:"not null;default:0"`
+	Target         string `gorm:"type:text;not null;default:''"`
+	Applied        int    `gorm:"not null;default:0"`
+	ReleasePending int    `gorm:"column:release_pending;not null;default:0"`
+	Status         int    `gorm:"not null;default:1;index:idx_peer_share_runtime_share_node_status"`
+	CreatedTime    int64  `gorm:"column:created_time;not null"`
+	UpdatedTime    int64  `gorm:"column:updated_time;not null"`
 }
 
 func (PeerShareRuntime) TableName() string { return "peer_share_runtime" }
@@ -816,3 +817,23 @@ type TunnelQuality struct {
 }
 
 func (TunnelQuality) TableName() string { return "tunnel_quality" }
+
+// PeerShareResource is the durable desired state for a namespaced peer command.
+// Rows are retained as tombstones until deletion has been acknowledged.
+type PeerShareResource struct {
+	ID                  int64  `gorm:"primaryKey;autoIncrement"`
+	ShareID             int64  `gorm:"column:share_id;not null;uniqueIndex:idx_peer_share_resource_key"`
+	NodeID              int64  `gorm:"column:node_id;not null;index"`
+	Kind                string `gorm:"type:text;not null;uniqueIndex:idx_peer_share_resource_key"`
+	OriginalName        string `gorm:"column:original_name;type:text;not null;uniqueIndex:idx_peer_share_resource_key"`
+	RuntimeName         string `gorm:"column:runtime_name;type:text;not null;index"`
+	LegacyNames         string `gorm:"column:legacy_names;type:text;not null;default:''"`
+	LegacyServiceBase   string `gorm:"column:legacy_service_base;type:text;not null;default:''"`
+	ReleaseLegacyFamily bool   `gorm:"column:release_legacy_family;not null;default:false"`
+	Config              string `gorm:"type:text;not null;default:''"`
+	DesiredState        string `gorm:"column:desired_state;type:text;not null;default:'active'"`
+	Applied             int    `gorm:"not null;default:0"`
+	UpdatedTime         int64  `gorm:"column:updated_time;not null"`
+}
+
+func (PeerShareResource) TableName() string { return "peer_share_resource" }

@@ -125,11 +125,13 @@ func main() {
 
 	distro := socket.DetectDistro()
 	fullVersion := fmt.Sprintf("%s (%s/%s)", version, distro, runtime.GOARCH)
-	wsReporter := socket.StartWebSocketReporterWithConfig(config.Addr, config.Secret, config.Http, config.Tls, config.Socks, fullVersion)
-	defer wsReporter.Stop()
 	service.SetHTTPReportURL(config.Addr, config.Secret)
 
-	p := &program{}
+	p := &program{
+		startReporter: func() reporter {
+			return socket.StartWebSocketReporterWithConfig(config.Addr, config.Secret, config.Http, config.Tls, config.Socks, fullVersion)
+		},
+	}
 	if err := svc.Run(p); err != nil {
 		logger.Default().Fatal(err)
 	}
