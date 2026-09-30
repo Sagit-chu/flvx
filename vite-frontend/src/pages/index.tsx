@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 import { Turnstile } from "@marsidev/react-turnstile";
@@ -10,8 +10,17 @@ import { Button } from "@/shadcn-bridge/heroui/button";
 import { siteConfig } from "@/config/site";
 import { VersionFooter } from "@/components/version-footer";
 import { BrandLogo } from "@/components/brand-logo";
-import { login, LoginData, checkCaptcha, getPublicConfigByName } from "@/api";
+import {
+  login,
+  LoginData,
+  checkCaptcha,
+  getPublicConfigByName,
+  getPasskeyStatus,
+  beginPasskeyLogin,
+  finishPasskeyLogin,
+} from "@/api";
 import { writeLoginSession } from "@/utils/session";
+import { getPasskey } from "@/utils/passkey";
 import { useWebViewMode } from "@/hooks/useWebViewMode";
 
 interface LoginForm {
@@ -30,8 +39,55 @@ export default function IndexPage() {
   const [errors, setErrors] = useState<Partial<LoginForm>>({});
   const [showCaptcha, setShowCaptcha] = useState(false);
   const [siteKey, setSiteKey] = useState("");
+  const [passkeyEnabled, setPasskeyEnabled] = useState(false);
   const navigate = useNavigate();
   const isWebView = useWebViewMode();
+
+  useEffect(() => {
+    if (
+      window.isSecureContext &&
+      typeof window.PublicKeyCredential !== "undefined"
+    ) {
+      getPasskeyStatus()
+        .then((res) => setPasskeyEnabled(res.code === 0 && res.data.enabled))
+        .catch(() => setPasskeyEnabled(false));
+    }
+  }, []);
+
+  const handlePasskeyLogin = async () => {
+    if (!form.username.trim()) {
+      toast.error("请输入用户名");
+
+      return;
+    }
+    setLoading(true);
+    try {
+      const begin = await beginPasskeyLogin(form.username.trim());
+
+      if (begin.code !== 0) {
+        toast.error(begin.msg || "无法使用通行证密钥登录");
+
+        return;
+      }
+      const credential = await getPasskey(begin.data.options);
+      const result = await finishPasskeyLogin(begin.data.sessionId, credential);
+
+      if (result.code !== 0) {
+        toast.error(result.msg || "通行证密钥登录失败");
+
+        return;
+      }
+      writeLoginSession(result.data);
+      toast.success("登录成功");
+      navigate(
+        result.data.requirePasswordChange ? "/change-password" : "/dashboard",
+      );
+    } catch {
+      toast.error("通行证密钥登录已取消或失败");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // 验证表单
   const validateForm = (): boolean => {
@@ -221,6 +277,16 @@ export default function IndexPage() {
                       : "Signing in..."
                     : "Sign In"}
                 </Button>
+                {passkeyEnabled && (
+                  <Button
+                    className="h-12 rounded-xl"
+                    disabled={loading}
+                    variant="bordered"
+                    onPress={handlePasskeyLogin}
+                  >
+                    使用通行证密钥登录
+                  </Button>
+                )}
               </div>
             </CardBody>
           </Card>

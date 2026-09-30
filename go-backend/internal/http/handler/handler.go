@@ -42,6 +42,8 @@ type Handler struct {
 	peerResourceMu sync.Mutex
 	captchaMu      sync.Mutex
 	captchaTokens  map[string]int64
+	passkeyMu      sync.Mutex
+	passkeyPending map[string]passkeyCeremony
 
 	jobsMu              sync.Mutex
 	jobsCancel          context.CancelFunc
@@ -116,6 +118,7 @@ func New(repo *repo.Repository, jwtSecret string) *Handler {
 		healthCheck:              nil,
 		nftablesManager:          runtimenft.NewManager(nil),
 		captchaTokens:            make(map[string]int64),
+		passkeyPending:           make(map[string]passkeyCeremony),
 		pendingUpgradeRedeploy:   make(map[int64]struct{}),
 		nodeOnlineRedeployAt:     make(map[int64]time.Time),
 		nodeOnlineRedeployQueued: make(map[int64]struct{}),
@@ -157,6 +160,13 @@ func (h *Handler) GetUserAuthState(userID int64) (*auth.UserAuthState, error) {
 
 func (h *Handler) Register(mux *http.ServeMux) {
 	mux.HandleFunc("/api/v1/user/login", h.login)
+	mux.HandleFunc("/api/v1/user/passkey/status", h.passkeyStatus)
+	mux.HandleFunc("/api/v1/user/passkey/login/begin", h.passkeyLoginBegin)
+	mux.HandleFunc("/api/v1/user/passkey/login/finish", h.passkeyLoginFinish)
+	mux.HandleFunc("/api/v1/user/passkey/register/begin", h.passkeyRegisterBegin)
+	mux.HandleFunc("/api/v1/user/passkey/register/finish", h.passkeyRegisterFinish)
+	mux.HandleFunc("/api/v1/user/passkey/list", h.passkeyList)
+	mux.HandleFunc("/api/v1/user/passkey/delete", h.passkeyDelete)
 	mux.HandleFunc("/api/v1/user/list", h.userList)
 	mux.HandleFunc("/api/v1/user/create", h.userCreate)
 	mux.HandleFunc("/api/v1/user/update", h.userUpdate)

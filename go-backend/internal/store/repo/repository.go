@@ -288,6 +288,7 @@ func autoMigrateAll(db *gorm.DB) error {
 
 	models := []interface{}{
 		&model.User{},
+		&model.Passkey{},
 		&model.UserQuota{},
 		&model.Forward{},
 		&model.ForwardPort{},

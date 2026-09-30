@@ -13,6 +13,7 @@ services:
       DB_PATH: /app/data/gost.db
       DATABASE_URL: ${DATABASE_URL:-}
       JWT_SECRET: ${JWT_SECRET}
+      FLVX_WEBAUTHN_ORIGIN: ${FLVX_WEBAUTHN_ORIGIN:-}
       SERVER_ADDR: :6365
       TZ: Asia/Shanghai
       FLUX_VERSION: ${FLUX_VERSION:-dev}

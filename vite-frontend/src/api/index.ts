@@ -70,6 +70,44 @@ export interface LoginResponse {
 export const login = (data: LoginData) =>
   Network.post<LoginResponse>("/user/login", data);
 
+export interface PasskeyOptions {
+  sessionId: string;
+  options: { publicKey: Record<string, unknown> };
+}
+
+export interface PasskeyItem {
+  id: string;
+  name: string;
+  createdAt: number;
+  lastUsedAt: number;
+}
+
+export const getPasskeyStatus = () =>
+  Network.post<{ enabled: boolean }>("/user/passkey/status");
+export const beginPasskeyLogin = (username: string) =>
+  Network.post<PasskeyOptions>("/user/passkey/login/begin", { username });
+export const finishPasskeyLogin = (sessionId: string, credential: unknown) =>
+  Network.post<LoginResponse>("/user/passkey/login/finish", {
+    sessionId,
+    credential,
+  });
+export const beginPasskeyRegistration = (password: string) =>
+  Network.post<PasskeyOptions>("/user/passkey/register/begin", { password });
+export const finishPasskeyRegistration = (
+  sessionId: string,
+  credential: unknown,
+  name: string,
+) =>
+  Network.post("/user/passkey/register/finish", {
+    sessionId,
+    credential,
+    name,
+  });
+export const listPasskeys = () =>
+  Network.post<PasskeyItem[]>("/user/passkey/list");
+export const deletePasskey = (id: string, password: string) =>
+  Network.post("/user/passkey/delete", { id, password });
+
 // 用户CRUD操作 - 全部使用POST请求
 export const createUser = (data: UserMutationPayload) =>
   Network.post("/user/create", data);

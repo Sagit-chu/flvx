@@ -19,6 +19,7 @@ import { VersionFooter } from "@/components/version-footer";
 import { updatePassword } from "@/api";
 import { safeLogout } from "@/utils/logout";
 import { getAdminFlag, getSessionName } from "@/utils/session";
+import { PasskeyManager } from "@/components/passkey-manager";
 interface PasswordForm {
   newUsername: string;
   currentPassword: string;
@@ -241,6 +242,7 @@ export default function ProfilePage() {
         </Card>
 
         {/* 功能网格 */}
+        <PasskeyManager />
         <Card>
           <CardBody className="p-4">
             <div className="grid grid-cols-3 gap-3">
