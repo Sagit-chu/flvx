@@ -84,8 +84,8 @@ export interface PasskeyItem {
 
 export const getPasskeyStatus = () =>
   Network.post<{ enabled: boolean }>("/user/passkey/status");
-export const beginPasskeyLogin = (username: string) =>
-  Network.post<PasskeyOptions>("/user/passkey/login/begin", { username });
+export const beginPasskeyLogin = () =>
+  Network.post<PasskeyOptions>("/user/passkey/login/begin", {});
 export const finishPasskeyLogin = (sessionId: string, credential: unknown) =>
   Network.post<LoginResponse>("/user/passkey/login/finish", {
     sessionId,

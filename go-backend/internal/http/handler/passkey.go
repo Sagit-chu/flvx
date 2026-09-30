@@ -60,7 +60,7 @@ func passkeyConfig() (*webauthn.WebAuthn, string) {
 		RPID:                   host,
 		RPDisplayName:          "FLVX",
 		RPOrigins:              []string{origin},
-		AuthenticatorSelection: protocol.AuthenticatorSelection{UserVerification: protocol.VerificationRequired, ResidentKey: protocol.ResidentKeyRequirementPreferred},
+		AuthenticatorSelection: protocol.AuthenticatorSelection{UserVerification: protocol.VerificationRequired, ResidentKey: protocol.ResidentKeyRequirementRequired},
 		Timeouts: webauthn.TimeoutsConfig{
 			Login:        webauthn.TimeoutConfig{Enforce: true, Timeout: passkeyTTL},
 			Registration: webauthn.TimeoutConfig{Enforce: true, Timeout: passkeyTTL},
@@ -110,6 +110,17 @@ func (h *Handler) takePasskeyCeremony(id, kind, origin string, userID int64) (we
 		return webauthn.SessionData{}, false
 	}
 	return c.session, true
+}
+
+func (h *Handler) takePasskeyLoginCeremony(id, origin string) (passkeyCeremony, bool) {
+	h.passkeyMu.Lock()
+	c, ok := h.passkeyPending[id]
+	delete(h.passkeyPending, id)
+	h.passkeyMu.Unlock()
+	if !ok || c.kind != "login-discoverable" || c.origin != origin || time.Now().After(c.session.Expires) {
+		return passkeyCeremony{}, false
+	}
+	return c, true
 }
 
 func (h *Handler) loadPasskeyUser(userID int64) (passkeyUser, error) {
@@ -178,7 +189,7 @@ func (h *Handler) passkeyRegisterBegin(w http.ResponseWriter, r *http.Request) {
 		response.WriteJSON(w, response.ErrDefault("无法读取通行证密钥"))
 		return
 	}
-	options, session, err := wa.BeginRegistration(u)
+	options, session, err := wa.BeginRegistration(u, webauthn.WithResidentKeyRequirement(protocol.ResidentKeyRequirementRequired))
 	if err != nil {
 		response.WriteJSON(w, response.ErrDefault("无法创建通行证密钥挑战"))
 		return
@@ -278,26 +289,16 @@ func (h *Handler) passkeyLoginBegin(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		Username string `json:"username"`
 	}
-	if !passkeyBody(r, &req) {
+	if !passkeyBody(r, &req) || strings.TrimSpace(req.Username) != "" {
 		response.WriteJSON(w, response.ErrDefault("请求参数错误"))
 		return
 	}
-	user, err := h.repo.GetUserByUsername(strings.TrimSpace(req.Username))
-	if err != nil || user == nil || user.Status != 1 {
-		response.WriteJSON(w, response.ErrDefault("无法使用通行证密钥登录"))
-		return
-	}
-	u, err := h.loadPasskeyUser(user.ID)
-	if err != nil || len(u.credentials) == 0 {
-		response.WriteJSON(w, response.ErrDefault("无法使用通行证密钥登录"))
-		return
-	}
-	options, session, err := wa.BeginLogin(u, webauthn.WithUserVerification(protocol.VerificationRequired))
+	options, session, err := wa.BeginDiscoverableLogin(webauthn.WithUserVerification(protocol.VerificationRequired))
 	if err != nil {
 		response.WriteJSON(w, response.ErrDefault("无法创建通行证密钥挑战"))
 		return
 	}
-	id, ok := h.putPasskeyCeremony(passkeyCeremony{userID: user.ID, kind: "login", origin: origin, session: *session})
+	id, ok := h.putPasskeyCeremony(passkeyCeremony{kind: "login-discoverable", origin: origin, session: *session})
 	if !ok {
 		response.WriteJSON(w, response.ErrDefault("无法创建通行证密钥挑战"))
 		return
@@ -320,22 +321,35 @@ func (h *Handler) passkeyLoginFinish(w http.ResponseWriter, r *http.Request) {
 		response.WriteJSON(w, response.ErrDefault("请求参数错误"))
 		return
 	}
-	// Login sessions carry the user ID; the caller cannot choose a different account at finish.
-	h.passkeyMu.Lock()
-	pending := h.passkeyPending[req.SessionID]
-	h.passkeyMu.Unlock()
-	session, ok := h.takePasskeyCeremony(req.SessionID, "login", origin, pending.userID)
+	pending, ok := h.takePasskeyLoginCeremony(req.SessionID, origin)
 	if !ok {
 		response.WriteJSON(w, response.ErrDefault("通行证密钥挑战已过期"))
 		return
 	}
-	u, err := h.loadPasskeyUser(pending.userID)
-	if err != nil {
-		response.WriteJSON(w, response.ErrDefault("账号不可用"))
-		return
+	resolved, credential, err := wa.FinishPasskeyLogin(func(rawID, userHandle []byte) (webauthn.User, error) {
+		// The credential ID determines ownership. A supplied userHandle cannot select another account.
+		if len(rawID) == 0 || len(userHandle) != 8 {
+			return nil, errInvalidPasskey
+		}
+		row, lookupErr := h.repo.GetPasskeyByID(base64.RawURLEncoding.EncodeToString(rawID))
+		if lookupErr != nil || row == nil {
+			return nil, errInvalidPasskey
+		}
+		owner, loadErr := h.loadPasskeyUser(row.UserID)
+		if loadErr != nil || !bytes.Equal(userHandle, owner.WebAuthnID()) {
+			return nil, errInvalidPasskey
+		}
+		return owner, nil
+	}, pending.session, credentialRequest(r, req.Credential))
+	var u passkeyUser
+	if err == nil {
+		var valid bool
+		u, valid = resolved.(passkeyUser)
+		if !valid {
+			err = errInvalidPasskey
+		}
 	}
-	credential, err := wa.FinishLogin(u, session, credentialRequest(r, req.Credential))
-	if err != nil || credential.Authenticator.CloneWarning {
+	if err != nil || credential == nil || credential.Authenticator.CloneWarning {
 		response.WriteJSON(w, response.ErrDefault("通行证密钥验证失败"))
 		return
 	}

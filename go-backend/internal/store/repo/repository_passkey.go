@@ -22,6 +22,17 @@ func (r *Repository) GetPasskey(userID int64, id string) (*model.Passkey, error)
 	return &key, err
 }
 
+// Credential IDs are unique across all users. Resolve the owner from the stored
+// credential before checking the untrusted user handle in a discoverable login.
+func (r *Repository) GetPasskeyByID(id string) (*model.Passkey, error) {
+	var key model.Passkey
+	err := r.db.Where("id = ?", id).Take(&key).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, nil
+	}
+	return &key, err
+}
+
 func (r *Repository) CreatePasskey(key *model.Passkey) error {
 	return r.db.Create(key).Error
 }
