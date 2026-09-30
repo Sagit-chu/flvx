@@ -55,14 +55,9 @@ export default function IndexPage() {
   }, []);
 
   const handlePasskeyLogin = async () => {
-    if (!form.username.trim()) {
-      toast.error("请输入用户名");
-
-      return;
-    }
     setLoading(true);
     try {
-      const begin = await beginPasskeyLogin(form.username.trim());
+      const begin = await beginPasskeyLogin();
 
       if (begin.code !== 0) {
         toast.error(begin.msg || "无法使用通行证密钥登录");
@@ -282,9 +277,9 @@ export default function IndexPage() {
                     className="h-12 rounded-xl"
                     disabled={loading}
                     variant="bordered"
-                    onPress={handlePasskeyLogin}
+                    onPress={() => void handlePasskeyLogin()}
                   >
-                    使用通行证密钥登录
+                    选择通行证密钥登录
                   </Button>
                 )}
               </div>
