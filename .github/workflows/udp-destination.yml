@@ -47,7 +47,9 @@ jobs:
 
       - name: Build destination regression executable
         working-directory: go-gost/x
-        run: go test -c -race -o "$RUNNER_TEMP/udp-destination.test" ./listener/udp
+        run: |
+          go test -c -race -o "$RUNNER_TEMP/udp-destination.test" ./listener/udp
+          go test -c -race -o "$RUNNER_TEMP/udp-packet.test" ./internal/net/udp
 
       - name: Test multiple destinations in isolated network namespace
         run: |
@@ -57,9 +59,16 @@ jobs:
             ip -6 addr add fd00:1::1/128 dev lo nodad
             ip -6 addr add fd00:2::1/128 dev lo nodad
             ip -6 addr add fd00:3::1/128 dev lo nodad
-            FLUX_TEST_IPV6_ADDRS=fd00:1::1,fd00:2::1,fd00:3::1 \
-              exec "$1" -test.v -test.timeout=60s -test.count=5
-          ' sh "$RUNNER_TEMP/udp-destination.test"
+            ip link add mc-tx type veth peer name mc-rx
+            ip link set mc-tx addrgenmode none up
+            ip link set mc-rx addrgenmode none up
+            ip -6 addr add fe80::1/64 dev mc-tx nodad
+            ip -6 addr add fe80::2/64 dev mc-rx nodad
+            export FLUX_TEST_IPV6_ADDRS=fd00:1::1,fd00:2::1,fd00:3::1
+            export FLUX_TEST_MULTICAST_RX=mc-rx FLUX_TEST_MULTICAST_TX=mc-tx
+            "$1" -test.v -test.timeout=60s -test.count=5
+            exec "$2" -test.v -test.timeout=60s -test.count=5
+          ' sh "$RUNNER_TEMP/udp-destination.test" "$RUNNER_TEMP/udp-packet.test"
 
       - name: Build Linux agent
         working-directory: go-gost

@@ -25,6 +25,9 @@ these requests could share a session despite having different destinations.
 - IPv4 keeps the original destination (`ipi_addr`) separate from the local
   reply address (`ipi_spec_dst`), so broadcast requests receive unicast replies
   rather than attempting to send with a broadcast source address.
+- IPv6 multicast destinations remain part of session identity, but replies
+  leave the source unspecified and retain the received interface index so the
+  kernel can select a valid local unicast source.
 - The destination metadata travels through existing metrics, statistics,
   admission and traffic-limiter wrappers. The exposed remote address remains
   the real client address.
@@ -63,6 +66,8 @@ admission and traffic-limit wrappers. A separate IPv6 case binds the client to
 `::1` and checks the exact remote IP and port for every destination. Broadcast
 tests exercise both IPv4 and dual-stack listeners, retaining the broadcast
 destination while checking that replies use a local unicast address.
+An IPv6 multicast regression sends across an isolated veth pair and checks the
+multicast session destination and the unicast reply, including interface zones.
 
 Run the standard suites on Linux:
 
@@ -78,14 +83,22 @@ The following commands require Linux, root access for `unshare`, and `iproute2`:
 ```sh
 cd go-gost/x
 go test -c -race -o /tmp/flvx-udp-destination.test ./listener/udp
+go test -c -race -o /tmp/flvx-udp-packet.test ./internal/net/udp
 sudo unshare --net -- sh -eu -c '
   sysctl -qw net.ipv6.conf.all.disable_ipv6=0
   ip link set lo up
   ip -6 addr add fd00:1::1/128 dev lo nodad
   ip -6 addr add fd00:2::1/128 dev lo nodad
   ip -6 addr add fd00:3::1/128 dev lo nodad
-  FLUX_TEST_IPV6_ADDRS=fd00:1::1,fd00:2::1,fd00:3::1 \
-    exec /tmp/flvx-udp-destination.test -test.v -test.timeout=60s -test.count=5
+  ip link add mc-tx type veth peer name mc-rx
+  ip link set mc-tx addrgenmode none up
+  ip link set mc-rx addrgenmode none up
+  ip -6 addr add fe80::1/64 dev mc-tx nodad
+  ip -6 addr add fe80::2/64 dev mc-rx nodad
+  export FLUX_TEST_IPV6_ADDRS=fd00:1::1,fd00:2::1,fd00:3::1
+  export FLUX_TEST_MULTICAST_RX=mc-rx FLUX_TEST_MULTICAST_TX=mc-tx
+  /tmp/flvx-udp-destination.test -test.v -test.timeout=60s -test.count=5
+  exec /tmp/flvx-udp-packet.test -test.v -test.timeout=60s -test.count=5
 '
 ```
 

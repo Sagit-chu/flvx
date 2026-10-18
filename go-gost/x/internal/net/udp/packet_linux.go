@@ -82,7 +82,11 @@ func (c *destinationConn) ReadFrom(b []byte) (int, net.Addr, error) {
 			return 0, nil, err
 		}
 		dst, ifIndex = cm.Dst, cm.IfIndex
-		control = (&ipv6.ControlMessage{Src: dst, IfIndex: ifIndex}).Marshal()
+		source := dst
+		if dst.IsMulticast() {
+			source = nil
+		}
+		control = (&ipv6.ControlMessage{Src: source, IfIndex: ifIndex}).Marshal()
 	}
 	if len(dst) == 0 || dst.IsUnspecified() {
 		return 0, nil, errors.New("UDP destination address missing")
