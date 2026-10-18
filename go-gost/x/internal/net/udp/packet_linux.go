@@ -97,7 +97,7 @@ func (c *destinationConn) ReadFrom(b []byte) (int, net.Addr, error) {
 			local.Zone = iface.Name
 		}
 	}
-	return n, &packetAddr{Addr: remote, local: local, control: control}, nil
+	return n, &packetAddr{Addr: remote, local: local, control: control, ifIndex: ifIndex}, nil
 }
 
 func (c *destinationConn) WriteTo(b []byte, addr net.Addr) (int, error) {

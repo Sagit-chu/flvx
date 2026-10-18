@@ -56,6 +56,7 @@ jobs:
           sudo unshare --net -- sh -eu -c '
             sysctl -qw net.ipv6.conf.all.disable_ipv6=0
             ip link set lo up
+            ip addr add 198.18.0.1/32 dev lo
             ip -6 addr add fd00:1::1/128 dev lo nodad
             ip -6 addr add fd00:2::1/128 dev lo nodad
             ip -6 addr add fd00:3::1/128 dev lo nodad
@@ -66,6 +67,8 @@ jobs:
               ip -6 addr add fe80::1/64 dev "mc-tx$suffix" nodad
               ip -6 addr add fe80::2/64 dev "mc-rx$suffix" nodad
             done
+            ip addr add 198.18.1.1/24 dev mc-tx
+            ip addr add 198.18.2.1/24 dev mc-tx2
             export FLUX_TEST_IPV6_ADDRS=fd00:1::1,fd00:2::1,fd00:3::1
             export FLUX_TEST_MULTICAST_RX=mc-rx FLUX_TEST_MULTICAST_TX=mc-tx
             export FLUX_TEST_MULTICAST_RX2=mc-rx2 FLUX_TEST_MULTICAST_TX2=mc-tx2

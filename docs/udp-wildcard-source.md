@@ -31,8 +31,10 @@ these requests could share a session despite having different destinations.
 - The destination metadata travels through existing metrics, statistics,
   admission and traffic-limiter wrappers. The exposed remote address remains
   the real client address.
-- Sessions are keyed by both the local destination endpoint and the remote
-  client endpoint. An accepted session reports its actual local destination.
+- Sessions are keyed by the local destination endpoint, remote client endpoint
+  and received interface index. Identical IPv4 broadcast or multicast endpoints
+  on different interfaces therefore retain separate reply control information.
+  An accepted session reports its actual local destination.
   Link-local IPv6 unicast and link-local or interface-local multicast
   destinations retain their interface zone, keeping identical multicast groups
   on different interfaces separate even when the client uses the same
@@ -75,6 +77,9 @@ multicast session destination and the unicast reply, including interface zones.
 A two-interface case uses one fixed ULA client endpoint to contact the same
 link-local or interface-local multicast group on both interfaces and checks
 distinct sessions and their individual reply-interface metadata.
+IPv4 and dual-stack cases likewise use a single fixed client endpoint to send
+to one multicast group or the limited broadcast address on two interfaces,
+checking separate sessions and their reply-interface indices.
 
 Run the standard suites on Linux:
 
@@ -94,6 +99,7 @@ go test -c -race -o /tmp/flvx-udp-packet.test ./internal/net/udp
 sudo unshare --net -- sh -eu -c '
   sysctl -qw net.ipv6.conf.all.disable_ipv6=0
   ip link set lo up
+  ip addr add 198.18.0.1/32 dev lo
   ip -6 addr add fd00:1::1/128 dev lo nodad
   ip -6 addr add fd00:2::1/128 dev lo nodad
   ip -6 addr add fd00:3::1/128 dev lo nodad
@@ -104,6 +110,8 @@ sudo unshare --net -- sh -eu -c '
     ip -6 addr add fe80::1/64 dev "mc-tx$suffix" nodad
     ip -6 addr add fe80::2/64 dev "mc-rx$suffix" nodad
   done
+  ip addr add 198.18.1.1/24 dev mc-tx
+  ip addr add 198.18.2.1/24 dev mc-tx2
   export FLUX_TEST_IPV6_ADDRS=fd00:1::1,fd00:2::1,fd00:3::1
   export FLUX_TEST_MULTICAST_RX=mc-rx FLUX_TEST_MULTICAST_TX=mc-tx
   export FLUX_TEST_MULTICAST_RX2=mc-rx2 FLUX_TEST_MULTICAST_TX2=mc-tx2

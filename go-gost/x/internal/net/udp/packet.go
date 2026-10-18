@@ -8,4 +8,5 @@ type packetAddr struct {
 	net.Addr
 	local   *net.UDPAddr
 	control []byte
+	ifIndex int
 }

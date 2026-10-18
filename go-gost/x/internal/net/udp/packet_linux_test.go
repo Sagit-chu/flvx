@@ -1,6 +1,7 @@
 package udp
 
 import (
+	"encoding/binary"
 	"fmt"
 	"io"
 	"net"
@@ -8,7 +9,9 @@ import (
 	"testing"
 	"time"
 
+	"golang.org/x/net/ipv4"
 	"golang.org/x/net/ipv6"
+	"golang.org/x/sys/unix"
 
 	xlogger "github.com/go-gost/x/logger"
 )
@@ -95,6 +98,107 @@ func TestMulticastDestinationRepliesFromUnicast(t *testing.T) {
 
 func TestLinkLocalMulticastSessionsRetainZones(t *testing.T) {
 	testScopedMulticastSessions(t, "ff02::114", false)
+}
+
+func TestIPv4DestinationSessionsRetainInterfaces(t *testing.T) {
+	ifNames := []string{os.Getenv("FLUX_TEST_MULTICAST_TX"), os.Getenv("FLUX_TEST_MULTICAST_TX2")}
+	if ifNames[0] == "" || ifNames[1] == "" {
+		t.Skip("requires two isolated IPv4 multicast interfaces")
+	}
+	for _, network := range []string{"udp4", "udp"} {
+		for _, destination := range []string{"239.255.0.114", "255.255.255.255"} {
+			t.Run(network+"/"+destination, func(t *testing.T) {
+				bind := net.IPv4zero
+				if network == "udp" {
+					bind = net.IPv6unspecified
+				}
+				server, err := net.ListenUDP(network, &net.UDPAddr{IP: bind})
+				if err != nil {
+					t.Fatal(err)
+				}
+				defer server.Close()
+				pc, err := PreserveDestination(server)
+				if err != nil {
+					t.Fatal(err)
+				}
+				client, err := net.ListenUDP("udp4", &net.UDPAddr{IP: net.ParseIP("198.18.0.1")})
+				if err != nil {
+					t.Fatal(err)
+				}
+				defer client.Close()
+				raw, err := client.SyscallConn()
+				if err != nil {
+					t.Fatal(err)
+				}
+				var sockErr error
+				if err := raw.Control(func(fd uintptr) {
+					sockErr = unix.SetsockoptInt(int(fd), unix.SOL_SOCKET, unix.SO_BROADCAST, 1)
+				}); err != nil {
+					t.Fatal(err)
+				}
+				if sockErr != nil {
+					t.Fatal(sockErr)
+				}
+				target := &net.UDPAddr{IP: net.ParseIP(destination), Port: server.LocalAddr().(*net.UDPAddr).Port}
+				for _, name := range ifNames {
+					iface, err := net.InterfaceByName(name)
+					if err != nil {
+						t.Fatal(err)
+					}
+					if target.IP.IsMulticast() {
+						if err := ipv4.NewPacketConn(server).JoinGroup(iface, target); err != nil {
+							t.Fatal(err)
+						}
+					}
+					if _, err := ipv4.NewPacketConn(client).WriteTo([]byte(name), &ipv4.ControlMessage{
+						Src: client.LocalAddr().(*net.UDPAddr).IP, IfIndex: iface.Index,
+					}, target); err != nil {
+						t.Fatal(err)
+					}
+				}
+				server.SetReadDeadline(time.Now().Add(3 * time.Second))
+				ln := NewListener(pc, &ListenConfig{
+					Backlog: 2, ReadQueueSize: 2, ReadBufferSize: 128, TTL: 10 * time.Second, Keepalive: true,
+					Logger: xlogger.NewLogger(xlogger.OutputOption(io.Discard)),
+				})
+				defer ln.Close()
+				seen := make(map[string]bool)
+				for range ifNames {
+					c, err := ln.Accept()
+					if err != nil {
+						t.Fatalf("interface did not get a separate session: %v", err)
+					}
+					defer c.Close()
+					var buf [128]byte
+					n, err := c.Read(buf[:])
+					if err != nil {
+						t.Fatal(err)
+					}
+					name := string(buf[:n])
+					if (name != ifNames[0] && name != ifNames[1]) || seen[name] ||
+						c.LocalAddr().String() != target.String() || c.RemoteAddr().String() != client.LocalAddr().String() {
+						t.Fatalf("unexpected interface session: data=%q local=%s peer=%s", buf[:n], c.LocalAddr(), c.RemoteAddr())
+					}
+					iface, err := net.InterfaceByName(name)
+					if err != nil {
+						t.Fatal(err)
+					}
+					messages, err := unix.ParseSocketControlMessage(c.(*conn).packet.control)
+					if err != nil || len(messages) != 1 {
+						t.Fatalf("invalid reply control: %v", err)
+					}
+					var info unix.Inet4Pktinfo
+					if _, err := binary.Decode(messages[0].Data, binary.NativeEndian, &info); err != nil {
+						t.Fatal(err)
+					}
+					if int(info.Ifindex) != iface.Index {
+						t.Fatalf("reply interface = %d, want %d", info.Ifindex, iface.Index)
+					}
+					seen[name] = true
+				}
+			})
+		}
+	}
 }
 
 func TestInterfaceLocalMulticastSessionsRetainZones(t *testing.T) {

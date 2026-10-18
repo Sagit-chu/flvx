@@ -3,6 +3,7 @@ package udp
 import (
 	"errors"
 	"net"
+	"strconv"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -119,6 +120,9 @@ func (ln *listener) getConn(raddr net.Addr) *conn {
 		laddr, peer = received.local, received.Addr
 	}
 	key := laddr.String() + "|" + peer.String()
+	if packet != nil {
+		key += "|" + strconv.Itoa(packet.ifIndex)
+	}
 	c, ok := ln.connPool.Get(key)
 	if ok && !c.isClosed() {
 		return c
@@ -188,7 +192,7 @@ func (c *conn) WriteTo(b []byte, addr net.Addr) (n int, err error) {
 		defer c.Close()
 	}
 	if c.packet != nil {
-		addr = &packetAddr{Addr: addr, local: c.packet.local, control: c.packet.control}
+		addr = &packetAddr{Addr: addr, local: c.packet.local, control: c.packet.control, ifIndex: c.packet.ifIndex}
 	}
 	return c.PacketConn.WriteTo(b, addr)
 }
