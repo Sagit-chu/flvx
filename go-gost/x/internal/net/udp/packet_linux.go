@@ -92,7 +92,7 @@ func (c *destinationConn) ReadFrom(b []byte) (int, net.Addr, error) {
 		return 0, nil, errors.New("UDP destination address missing")
 	}
 	local := &net.UDPAddr{IP: append(net.IP(nil), dst...), Port: c.LocalAddr().(*net.UDPAddr).Port}
-	if dst.IsLinkLocalUnicast() {
+	if dst.IsLinkLocalUnicast() || dst.IsLinkLocalMulticast() {
 		if iface, lookupErr := net.InterfaceByIndex(ifIndex); lookupErr == nil {
 			local.Zone = iface.Name
 		}

@@ -60,7 +60,7 @@ func TestMulticastDestinationRepliesFromUnicast(t *testing.T) {
 		}
 		defer c.Close()
 		local, peer := c.LocalAddr().(*net.UDPAddr), c.RemoteAddr().(*net.UDPAddr)
-		if !local.IP.Equal(group) || local.Port != port || !peer.IP.Equal(net.ParseIP("fe80::1")) ||
+		if !local.IP.Equal(group) || local.Port != port || local.Zone != rxName || !peer.IP.Equal(net.ParseIP("fe80::1")) ||
 			peer.Port != client.LocalAddr().(*net.UDPAddr).Port || peer.Zone != rxName {
 			serverResult <- fmt.Errorf("unexpected multicast session: local=%s peer=%s", local, peer)
 			return
@@ -90,5 +90,98 @@ func TestMulticastDestinationRepliesFromUnicast(t *testing.T) {
 	}
 	if !from.IP.Equal(net.ParseIP("fe80::2")) || from.Port != port || from.Zone != txName || string(buf[:n]) != "multicast" {
 		t.Fatalf("unexpected multicast reply %q from %s", buf[:n], from)
+	}
+}
+
+func TestLinkLocalMulticastSessionsRetainZones(t *testing.T) {
+	rxNames := []string{os.Getenv("FLUX_TEST_MULTICAST_RX"), os.Getenv("FLUX_TEST_MULTICAST_RX2")}
+	txNames := []string{os.Getenv("FLUX_TEST_MULTICAST_TX"), os.Getenv("FLUX_TEST_MULTICAST_TX2")}
+	for i := range rxNames {
+		if rxNames[i] == "" || txNames[i] == "" {
+			t.Skip("requires two isolated multicast veth pairs")
+		}
+	}
+	group := net.ParseIP("ff02::114")
+	server, err := net.ListenUDP("udp6", &net.UDPAddr{IP: net.IPv6unspecified})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer server.Close()
+	clientIP := net.ParseIP("fd00:1::1")
+	client, err := net.ListenUDP("udp6", &net.UDPAddr{IP: clientIP})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer client.Close()
+	pc, err := PreserveDestination(server)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for i, rxName := range rxNames {
+		rx, err := net.InterfaceByName(rxName)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := ipv6.NewPacketConn(server).JoinGroup(rx, &net.UDPAddr{IP: group}); err != nil {
+			t.Fatal(err)
+		}
+		tx, err := net.InterfaceByName(txNames[i])
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := ipv6.NewPacketConn(client).SetMulticastInterface(tx); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := client.WriteToUDP([]byte(rxName), &net.UDPAddr{
+			IP: group, Port: server.LocalAddr().(*net.UDPAddr).Port, Zone: txNames[i],
+		}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	server.SetReadDeadline(time.Now().Add(3 * time.Second))
+	ln := NewListener(pc, &ListenConfig{
+		Backlog: 2, ReadQueueSize: 2, ReadBufferSize: 128, TTL: 10 * time.Second, Keepalive: true,
+		Logger: xlogger.NewLogger(xlogger.OutputOption(io.Discard)),
+	})
+	defer ln.Close()
+	first, err := ln.Accept()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer first.Close()
+	second, err := ln.Accept()
+	if err != nil {
+		t.Fatalf("second interface did not get a separate session: %v", err)
+	}
+	defer second.Close()
+	if first == second {
+		t.Fatal("interface-scoped multicast sessions were shared")
+	}
+	seen := make(map[string]bool)
+	for _, c := range []net.Conn{first, second} {
+		var buf [128]byte
+		n, err := c.Read(buf[:])
+		if err != nil {
+			t.Fatal(err)
+		}
+		zone := string(buf[:n])
+		local, peer := c.LocalAddr().(*net.UDPAddr), c.RemoteAddr().(*net.UDPAddr)
+		if (zone != rxNames[0] && zone != rxNames[1]) || seen[zone] || !local.IP.Equal(group) ||
+			local.Port != server.LocalAddr().(*net.UDPAddr).Port || local.Zone != zone ||
+			!peer.IP.Equal(clientIP) || peer.Port != client.LocalAddr().(*net.UDPAddr).Port || peer.Zone != "" {
+			t.Fatalf("unexpected scoped session: data=%q local=%s peer=%s", buf[:n], local, peer)
+		}
+		var reply ipv6.ControlMessage
+		if err := reply.Parse(c.(*conn).packet.control); err != nil {
+			t.Fatal(err)
+		}
+		iface, err := net.InterfaceByName(zone)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if reply.IfIndex != iface.Index {
+			t.Fatalf("reply interface = %d, want %d", reply.IfIndex, iface.Index)
+		}
+		seen[zone] = true
 	}
 }

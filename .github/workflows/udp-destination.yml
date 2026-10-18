@@ -59,13 +59,16 @@ jobs:
             ip -6 addr add fd00:1::1/128 dev lo nodad
             ip -6 addr add fd00:2::1/128 dev lo nodad
             ip -6 addr add fd00:3::1/128 dev lo nodad
-            ip link add mc-tx type veth peer name mc-rx
-            ip link set mc-tx addrgenmode none up
-            ip link set mc-rx addrgenmode none up
-            ip -6 addr add fe80::1/64 dev mc-tx nodad
-            ip -6 addr add fe80::2/64 dev mc-rx nodad
+            for suffix in "" 2; do
+              ip link add "mc-tx$suffix" type veth peer name "mc-rx$suffix"
+              ip link set "mc-tx$suffix" addrgenmode none up
+              ip link set "mc-rx$suffix" addrgenmode none up
+              ip -6 addr add fe80::1/64 dev "mc-tx$suffix" nodad
+              ip -6 addr add fe80::2/64 dev "mc-rx$suffix" nodad
+            done
             export FLUX_TEST_IPV6_ADDRS=fd00:1::1,fd00:2::1,fd00:3::1
             export FLUX_TEST_MULTICAST_RX=mc-rx FLUX_TEST_MULTICAST_TX=mc-tx
+            export FLUX_TEST_MULTICAST_RX2=mc-rx2 FLUX_TEST_MULTICAST_TX2=mc-tx2
             "$1" -test.v -test.timeout=60s -test.count=5
             exec "$2" -test.v -test.timeout=60s -test.count=5
           ' sh "$RUNNER_TEMP/udp-destination.test" "$RUNNER_TEMP/udp-packet.test"

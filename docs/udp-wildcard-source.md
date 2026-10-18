@@ -33,6 +33,9 @@ these requests could share a session despite having different destinations.
   the real client address.
 - Sessions are keyed by both the local destination endpoint and the remote
   client endpoint. An accepted session reports its actual local destination.
+  Link-local IPv6 unicast and multicast destinations retain their interface
+  zone, keeping identical multicast groups on different interfaces separate
+  even when the client uses the same non-link-local IP and source port.
 - Explicitly bound UDP sockets retain their existing behavior. Non-Linux
   platforms retain their existing implementation. No configuration keys or
   panel API changes are required.
@@ -68,6 +71,9 @@ tests exercise both IPv4 and dual-stack listeners, retaining the broadcast
 destination while checking that replies use a local unicast address.
 An IPv6 multicast regression sends across an isolated veth pair and checks the
 multicast session destination and the unicast reply, including interface zones.
+A two-interface case uses one fixed ULA client endpoint to contact the same
+link-local multicast group on both interfaces and checks distinct sessions and
+their individual reply-interface metadata.
 
 Run the standard suites on Linux:
 
@@ -90,13 +96,16 @@ sudo unshare --net -- sh -eu -c '
   ip -6 addr add fd00:1::1/128 dev lo nodad
   ip -6 addr add fd00:2::1/128 dev lo nodad
   ip -6 addr add fd00:3::1/128 dev lo nodad
-  ip link add mc-tx type veth peer name mc-rx
-  ip link set mc-tx addrgenmode none up
-  ip link set mc-rx addrgenmode none up
-  ip -6 addr add fe80::1/64 dev mc-tx nodad
-  ip -6 addr add fe80::2/64 dev mc-rx nodad
+  for suffix in "" 2; do
+    ip link add "mc-tx$suffix" type veth peer name "mc-rx$suffix"
+    ip link set "mc-tx$suffix" addrgenmode none up
+    ip link set "mc-rx$suffix" addrgenmode none up
+    ip -6 addr add fe80::1/64 dev "mc-tx$suffix" nodad
+    ip -6 addr add fe80::2/64 dev "mc-rx$suffix" nodad
+  done
   export FLUX_TEST_IPV6_ADDRS=fd00:1::1,fd00:2::1,fd00:3::1
   export FLUX_TEST_MULTICAST_RX=mc-rx FLUX_TEST_MULTICAST_TX=mc-tx
+  export FLUX_TEST_MULTICAST_RX2=mc-rx2 FLUX_TEST_MULTICAST_TX2=mc-tx2
   /tmp/flvx-udp-destination.test -test.v -test.timeout=60s -test.count=5
   exec /tmp/flvx-udp-packet.test -test.v -test.timeout=60s -test.count=5
 '
