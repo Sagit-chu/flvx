@@ -33,9 +33,10 @@ these requests could share a session despite having different destinations.
   the real client address.
 - Sessions are keyed by both the local destination endpoint and the remote
   client endpoint. An accepted session reports its actual local destination.
-  Link-local IPv6 unicast and multicast destinations retain their interface
-  zone, keeping identical multicast groups on different interfaces separate
-  even when the client uses the same non-link-local IP and source port.
+  Link-local IPv6 unicast and link-local or interface-local multicast
+  destinations retain their interface zone, keeping identical multicast groups
+  on different interfaces separate even when the client uses the same
+  non-link-local IP and source port.
 - Explicitly bound UDP sockets retain their existing behavior. Non-Linux
   platforms retain their existing implementation. No configuration keys or
   panel API changes are required.
@@ -72,8 +73,8 @@ destination while checking that replies use a local unicast address.
 An IPv6 multicast regression sends across an isolated veth pair and checks the
 multicast session destination and the unicast reply, including interface zones.
 A two-interface case uses one fixed ULA client endpoint to contact the same
-link-local multicast group on both interfaces and checks distinct sessions and
-their individual reply-interface metadata.
+link-local or interface-local multicast group on both interfaces and checks
+distinct sessions and their individual reply-interface metadata.
 
 Run the standard suites on Linux:
 

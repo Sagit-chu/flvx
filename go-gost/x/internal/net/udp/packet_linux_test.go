@@ -94,6 +94,15 @@ func TestMulticastDestinationRepliesFromUnicast(t *testing.T) {
 }
 
 func TestLinkLocalMulticastSessionsRetainZones(t *testing.T) {
+	testScopedMulticastSessions(t, "ff02::114", false)
+}
+
+func TestInterfaceLocalMulticastSessionsRetainZones(t *testing.T) {
+	testScopedMulticastSessions(t, "ff01::114", true)
+}
+
+func testScopedMulticastSessions(t *testing.T, destination string, interfaceLocal bool) {
+	t.Helper()
 	rxNames := []string{os.Getenv("FLUX_TEST_MULTICAST_RX"), os.Getenv("FLUX_TEST_MULTICAST_RX2")}
 	txNames := []string{os.Getenv("FLUX_TEST_MULTICAST_TX"), os.Getenv("FLUX_TEST_MULTICAST_TX2")}
 	for i := range rxNames {
@@ -101,7 +110,11 @@ func TestLinkLocalMulticastSessionsRetainZones(t *testing.T) {
 			t.Skip("requires two isolated multicast veth pairs")
 		}
 	}
-	group := net.ParseIP("ff02::114")
+	if interfaceLocal {
+		// Interface-local multicast is looped back on the sending interface.
+		rxNames = txNames
+	}
+	group := net.ParseIP(destination)
 	server, err := net.ListenUDP("udp6", &net.UDPAddr{IP: net.IPv6unspecified})
 	if err != nil {
 		t.Fatal(err)
