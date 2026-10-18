@@ -1,0 +1,70 @@
+name: UDP Destination Regression
+
+on:
+  push:
+    branches: ['main', 'fix/udp-wildcard-source', 'pr/udp-wildcard-source']
+  pull_request:
+    paths:
+      - 'go-gost/**'
+      - '.github/workflows/udp-destination.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: udp-destination-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  linux:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.25.4'
+          cache-dependency-path: |
+            go-gost/go.sum
+            go-gost/x/go.sum
+
+      - name: Test agent module
+        working-directory: go-gost
+        run: go test ./...
+
+      - name: Test protocol module
+        working-directory: go-gost/x
+        run: go test ./...
+
+      - name: Check UDP races
+        working-directory: go-gost/x
+        run: go test -race ./internal/net/udp ./listener/udp
+
+      - name: Vet UDP implementation
+        working-directory: go-gost/x
+        run: go vet ./internal/net/udp ./listener/udp
+
+      - name: Build destination regression executable
+        working-directory: go-gost/x
+        run: go test -c -race -o "$RUNNER_TEMP/udp-destination.test" ./listener/udp
+
+      - name: Test multiple destinations in isolated network namespace
+        run: |
+          sudo unshare --net -- sh -eu -c '
+            sysctl -qw net.ipv6.conf.all.disable_ipv6=0
+            ip link set lo up
+            ip -6 addr add fd00:1::1/128 dev lo nodad
+            ip -6 addr add fd00:2::1/128 dev lo nodad
+            ip -6 addr add fd00:3::1/128 dev lo nodad
+            FLUX_TEST_IPV6_ADDRS=fd00:1::1,fd00:2::1,fd00:3::1 \
+              exec "$1" -test.v -test.timeout=60s -test.count=5
+          ' sh "$RUNNER_TEMP/udp-destination.test"
+
+      - name: Build Linux agent
+        working-directory: go-gost
+        env:
+          CGO_ENABLED: '0'
+          GOOS: linux
+          GOARCH: amd64
+        run: go build -trimpath -o "$RUNNER_TEMP/flux-agent" .

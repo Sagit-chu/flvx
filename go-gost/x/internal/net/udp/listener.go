@@ -73,6 +73,7 @@ func (ln *listener) listenLoop() {
 
 		n, raddr, err := ln.conn.ReadFrom(b)
 		if err != nil {
+			bufpool.Put(b)
 			ln.errChan <- err
 			close(ln.errChan)
 			return
@@ -110,15 +111,24 @@ func (ln *listener) Close() error {
 }
 
 func (ln *listener) getConn(raddr net.Addr) *conn {
-	c, ok := ln.connPool.Get(raddr.String())
+	laddr := ln.Addr()
+	peer := raddr
+	var packet *packetAddr
+	if received, ok := raddr.(*packetAddr); ok {
+		packet = received
+		laddr, peer = received.local, received.Addr
+	}
+	key := laddr.String() + "|" + peer.String()
+	c, ok := ln.connPool.Get(key)
 	if ok && !c.isClosed() {
 		return c
 	}
 
-	c = newConn(ln.conn, ln.Addr(), raddr, ln.config.ReadQueueSize, ln.config.Keepalive)
+	c = newConn(ln.conn, laddr, peer, ln.config.ReadQueueSize, ln.config.Keepalive)
+	c.packet = packet
 	select {
 	case ln.cqueue <- c:
-		ln.connPool.Set(raddr.String(), c)
+		ln.connPool.Set(key, c)
 		return c
 	default:
 		c.Close()
@@ -132,6 +142,7 @@ type conn struct {
 	net.PacketConn
 	localAddr  net.Addr
 	remoteAddr net.Addr
+	packet     *packetAddr
 	rc         chan []byte // data receive queue
 	idle       int32       // indicate the connection is idle
 	closed     chan struct{}
@@ -175,6 +186,9 @@ func (c *conn) Read(b []byte) (n int, err error) {
 func (c *conn) WriteTo(b []byte, addr net.Addr) (n int, err error) {
 	if !c.keepalive {
 		defer c.Close()
+	}
+	if c.packet != nil {
+		addr = &packetAddr{Addr: addr, local: c.packet.local, control: c.packet.control}
 	}
 	return c.PacketConn.WriteTo(b, addr)
 }
