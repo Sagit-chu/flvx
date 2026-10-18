@@ -57,6 +57,7 @@ jobs:
             sysctl -qw net.ipv6.conf.all.disable_ipv6=0
             ip link set lo up
             ip addr add 198.18.0.1/32 dev lo
+            ip addr add 169.254.1.2/32 dev lo
             ip -6 addr add fd00:1::1/128 dev lo nodad
             ip -6 addr add fd00:2::1/128 dev lo nodad
             ip -6 addr add fd00:3::1/128 dev lo nodad
@@ -70,6 +71,7 @@ jobs:
             ip addr add 198.18.1.1/24 dev mc-tx
             ip addr add 198.18.2.1/24 dev mc-tx2
             export FLUX_TEST_IPV6_ADDRS=fd00:1::1,fd00:2::1,fd00:3::1
+            export FLUX_TEST_IPV4_LINK_LOCAL=169.254.1.2
             export FLUX_TEST_MULTICAST_RX=mc-rx FLUX_TEST_MULTICAST_TX=mc-tx
             export FLUX_TEST_MULTICAST_RX2=mc-rx2 FLUX_TEST_MULTICAST_TX2=mc-tx2
             "$1" -test.v -test.timeout=60s -test.count=5

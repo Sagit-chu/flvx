@@ -39,6 +39,8 @@ these requests could share a session despite having different destinations.
   destinations retain their interface zone, keeping identical multicast groups
   on different interfaces separate even when the client uses the same
   non-link-local IP and source port.
+  IPv4 destinations, including link-local unicast and multicast, never receive
+  an IPv6 zone; their interface isolation uses the separate index in the key.
 - Explicitly bound UDP sockets retain their existing behavior. Non-Linux
   platforms retain their existing implementation. No configuration keys or
   panel API changes are required.
@@ -80,6 +82,8 @@ distinct sessions and their individual reply-interface metadata.
 IPv4 and dual-stack cases likewise use a single fixed client endpoint to send
 to one multicast group or the limited broadcast address on two interfaces,
 checking separate sessions and their reply-interface indices.
+Link-local IPv4 unicast and multicast regressions also check that accepted
+local endpoints have no IPv6 zone, on both IPv4 and dual-stack listeners.
 
 Run the standard suites on Linux:
 
@@ -100,6 +104,7 @@ sudo unshare --net -- sh -eu -c '
   sysctl -qw net.ipv6.conf.all.disable_ipv6=0
   ip link set lo up
   ip addr add 198.18.0.1/32 dev lo
+  ip addr add 169.254.1.2/32 dev lo
   ip -6 addr add fd00:1::1/128 dev lo nodad
   ip -6 addr add fd00:2::1/128 dev lo nodad
   ip -6 addr add fd00:3::1/128 dev lo nodad
@@ -113,6 +118,7 @@ sudo unshare --net -- sh -eu -c '
   ip addr add 198.18.1.1/24 dev mc-tx
   ip addr add 198.18.2.1/24 dev mc-tx2
   export FLUX_TEST_IPV6_ADDRS=fd00:1::1,fd00:2::1,fd00:3::1
+  export FLUX_TEST_IPV4_LINK_LOCAL=169.254.1.2
   export FLUX_TEST_MULTICAST_RX=mc-rx FLUX_TEST_MULTICAST_TX=mc-tx
   export FLUX_TEST_MULTICAST_RX2=mc-rx2 FLUX_TEST_MULTICAST_TX2=mc-tx2
   /tmp/flvx-udp-destination.test -test.v -test.timeout=60s -test.count=5

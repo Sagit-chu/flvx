@@ -106,7 +106,7 @@ func TestIPv4DestinationSessionsRetainInterfaces(t *testing.T) {
 		t.Skip("requires two isolated IPv4 multicast interfaces")
 	}
 	for _, network := range []string{"udp4", "udp"} {
-		for _, destination := range []string{"239.255.0.114", "255.255.255.255"} {
+		for _, destination := range []string{"239.255.0.114", "224.0.0.114", "255.255.255.255"} {
 			t.Run(network+"/"+destination, func(t *testing.T) {
 				bind := net.IPv4zero
 				if network == "udp" {

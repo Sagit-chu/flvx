@@ -41,6 +41,10 @@ func (l *countedTraffic) Out(ctx context.Context, key string, opts ...corelimite
 }
 
 func TestDestinationPreservedThroughWrappers(t *testing.T) {
+	v4 := []string{"127.0.0.1", "127.0.0.2"}
+	if address := os.Getenv("FLUX_TEST_IPV4_LINK_LOCAL"); address != "" {
+		v4 = append(v4, address)
+	}
 	v6 := strings.FieldsFunc(os.Getenv("FLUX_TEST_IPV6_ADDRS"), func(r rune) bool { return r == ',' })
 	if len(v6) == 0 {
 		v6 = []string{"::1"}
@@ -50,8 +54,8 @@ func TestDestinationPreservedThroughWrappers(t *testing.T) {
 		targets    []string
 		clientBind string
 	}{
-		{"ipv4-wildcard", "0.0.0.0:0", []string{"127.0.0.1", "127.0.0.2"}, ""},
-		{"dual-stack-wildcard", "[::]:0", append([]string{"127.0.0.1", "127.0.0.2"}, v6...), ""},
+		{"ipv4-wildcard", "0.0.0.0:0", v4, ""},
+		{"dual-stack-wildcard", "[::]:0", append(v4, v6...), ""},
 		{"fixed-ipv6-source", "[::]:0", v6, "::1"},
 		{"explicit-ipv4", "127.0.0.1:0", []string{"127.0.0.1"}, ""},
 		{"explicit-ipv6", "[::1]:0", []string{"::1"}, ""},
@@ -69,7 +73,7 @@ func TestDestinationPreservedThroughWrappers(t *testing.T) {
 				corelistener.TrafficLimiterOption(lim),
 				corelistener.AdmissionOption(xadmission.NewAdmission(
 					xadmission.WhitelistOption(true),
-					xadmission.MatchersOption([]string{"127.0.0.0/8", "::1", "fd00::/8"}),
+					xadmission.MatchersOption([]string{"127.0.0.0/8", "169.254.0.0/16", "::1", "fd00::/8"}),
 					xadmission.LoggerOption(log),
 				)),
 			)
@@ -111,6 +115,10 @@ func TestDestinationPreservedThroughWrappers(t *testing.T) {
 								return
 							}
 							local := c.LocalAddr().(*net.UDPAddr)
+							if local.IP.To4() != nil && local.Zone != "" {
+								errors <- fmt.Errorf("IPv4 destination has a zone: %s", local)
+								return
+							}
 							if !local.IP.Equal(net.ParseIP(tc.targets[target])) {
 								errors <- fmt.Errorf("local destination = %s, want %s", local.IP, tc.targets[target])
 								return
