@@ -1,4 +1,5 @@
-FROM golang:1.25-bookworm AS builder
+# CVE-2026-111943: crypto/x509 is linked into paneld; rebuild with the fixed Go release.
+FROM golang:1.26.10-bookworm AS builder
 WORKDIR /src
 
 COPY go.mod go.sum ./

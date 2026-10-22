@@ -1,5 +1,6 @@
 # 多阶段构建 - 构建阶段
-FROM --platform=$BUILDPLATFORM node:22-alpine AS builder
+# CVE-2026-111497: use the patched Node.js Brotli decoder during builds.
+FROM --platform=$BUILDPLATFORM node:22.23.4-alpine AS builder
 
 WORKDIR /app
 
