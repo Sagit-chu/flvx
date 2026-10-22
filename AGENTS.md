@@ -40,7 +40,8 @@ FLVX — traffic forwarding panel: Go admin API + Vite/React UI + Go agent.
 - **Backend DB**: handlers use Repository methods, never `repo.DB()` directly.
 - **GORM models**: always define `TableName()` (GORM pluralizes by default).
 - **GORM tags**: no `type:jsonb` or `type:serial` (SQLite incompatible).
-- **Go versions**: `go.mod` says 1.25.0 for all three modules; CI builds with 1.23.
+- **Go versions**: all three modules require Go 1.26.10 or newer (CVE-2026-111943); CI reads the module's `go.mod`. Do not use Go 1.27.0–1.27.2, which also lack this fix.
+- **Node.js versions**: `.node-version` pins 22.23.4 for CI; local builds also support patched 24.22.1+ and 26.12.1+ (CVE-2026-111497).
 
 ## Anti-patterns
 
