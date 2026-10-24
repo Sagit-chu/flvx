@@ -31,7 +31,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20.19.0'
+          node-version-file: '.node-version'
 
       - name: Install pnpm
         run: npm install -g pnpm@10.28.1
@@ -54,7 +54,7 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.23'
+          go-version-file: 'go-backend/go.mod'
           cache-dependency-path: go-backend/go.sum
 
       - name: Download dependencies
@@ -89,7 +89,7 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.23'
+          go-version-file: 'go-backend/go.mod'
           cache-dependency-path: go-backend/go.sum
 
       - name: Download dependencies
@@ -112,7 +112,7 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.23'
+          go-version-file: 'go-gost/go.mod'
           cache-dependency-path: go-gost/go.sum
 
       - name: Download dependencies
