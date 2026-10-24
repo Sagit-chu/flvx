@@ -1977,10 +1977,7 @@ export default function NodePage() {
                             isLoading={node.upgradeLoading}
                             size="sm"
                             variant="flat"
-                            onPress={() => {
-                              setUpgradeTargetNodeId(node.id);
-                              openUpgradeModal("single");
-                            }}
+                            onPress={() => openUpgradeModal("single", node.id)}
                           >
                             升级
                           </Button>
