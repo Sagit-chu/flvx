@@ -4,6 +4,8 @@ The Linux UDP listener preserves the destination address of each incoming
 datagram so that replies use the correct local source. This change was developed
 against FLVX `3.0.1-rc4`, commit
 `d9303032cad09b33cd0b7c91704fd671fbfdd078`.
+It also includes the `3.0.1-rc5` runtime update at
+`c794586cc7773e5f967783895d3071538442bbf7`.
 
 ## Problem
 
@@ -52,7 +54,7 @@ uplinks; this patch does not fix SSH/TCP routing or packet loss before ingress.
 
 ## Build
 
-Use Go 1.25.4 or a compatible newer toolchain. From the repository root:
+Use Go 1.26.10 or a compatible newer toolchain. From the repository root:
 
 ```sh
 cd go-gost
