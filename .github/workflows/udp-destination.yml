@@ -1,0 +1,87 @@
+name: UDP Destination Regression
+
+on:
+  push:
+    branches: ['main', 'fix/udp-wildcard-source', 'pr/udp-wildcard-source']
+  pull_request:
+    paths:
+      - 'go-gost/**'
+      - '.github/workflows/udp-destination.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: udp-destination-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  linux:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: 'go-gost/go.mod'
+          cache-dependency-path: |
+            go-gost/go.sum
+            go-gost/x/go.sum
+
+      - name: Test agent module
+        working-directory: go-gost
+        run: go test ./...
+
+      - name: Test protocol module
+        working-directory: go-gost/x
+        run: go test ./...
+
+      - name: Check UDP races
+        working-directory: go-gost/x
+        run: go test -race ./internal/net/udp ./listener/udp
+
+      - name: Vet UDP implementation
+        working-directory: go-gost/x
+        run: go vet ./internal/net/udp ./listener/udp
+
+      - name: Build destination regression executable
+        working-directory: go-gost/x
+        run: |
+          go test -c -race -o "$RUNNER_TEMP/udp-destination.test" ./listener/udp
+          go test -c -race -o "$RUNNER_TEMP/udp-packet.test" ./internal/net/udp
+
+      - name: Test multiple destinations in isolated network namespace
+        run: |
+          sudo unshare --net -- sh -eu -c '
+            sysctl -qw net.ipv6.conf.all.disable_ipv6=0
+            ip link set lo up
+            ip addr add 198.18.0.1/32 dev lo
+            ip addr add 169.254.1.2/32 dev lo
+            ip -6 addr add fd00:1::1/128 dev lo nodad
+            ip -6 addr add fd00:2::1/128 dev lo nodad
+            ip -6 addr add fd00:3::1/128 dev lo nodad
+            for suffix in "" 2; do
+              ip link add "mc-tx$suffix" type veth peer name "mc-rx$suffix"
+              ip link set "mc-tx$suffix" addrgenmode none up
+              ip link set "mc-rx$suffix" addrgenmode none up
+              ip -6 addr add fe80::1/64 dev "mc-tx$suffix" nodad
+              ip -6 addr add fe80::2/64 dev "mc-rx$suffix" nodad
+            done
+            ip addr add 198.18.1.1/24 dev mc-tx
+            ip addr add 198.18.2.1/24 dev mc-tx2
+            export FLUX_TEST_IPV6_ADDRS=fd00:1::1,fd00:2::1,fd00:3::1
+            export FLUX_TEST_IPV4_LINK_LOCAL=169.254.1.2
+            export FLUX_TEST_MULTICAST_RX=mc-rx FLUX_TEST_MULTICAST_TX=mc-tx
+            export FLUX_TEST_MULTICAST_RX2=mc-rx2 FLUX_TEST_MULTICAST_TX2=mc-tx2
+            "$1" -test.v -test.timeout=60s -test.count=5
+            exec "$2" -test.v -test.timeout=60s -test.count=5
+          ' sh "$RUNNER_TEMP/udp-destination.test" "$RUNNER_TEMP/udp-packet.test"
+
+      - name: Build Linux agent
+        working-directory: go-gost
+        env:
+          CGO_ENABLED: '0'
+          GOOS: linux
+          GOARCH: amd64
+        run: go build -trimpath -o "$RUNNER_TEMP/flux-agent" .
