@@ -3,6 +3,7 @@ package handler
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log"
 	"math"
 	"strconv"
@@ -391,6 +392,48 @@ func (h *Handler) getUserTunnelPolicy(userTunnelID int64) (*userTunnelPolicy, er
 		Flow: ut.Flow, FlowMiB: ut.FlowMiB, InFlow: ut.InFlow, OutFlow: ut.OutFlow,
 		ExpTime: ut.ExpTime, Status: ut.Status, Num: ut.Num,
 	}, nil
+}
+
+// disableUserAccess retains unconfirmed forwards as active so a repeated disable
+// can retry them. Login and tunnel access remain disabled when a node is offline.
+func (h *Handler) disableUserAccess(userID int64, now int64) error {
+	permissionErr := h.repo.DisableUserTunnels(userID)
+	forwards, err := h.listActiveForwardsByUser(userID)
+	if err != nil {
+		return errors.Join(permissionErr, err)
+	}
+	errs := []error{permissionErr}
+	for i := range forwards {
+		forward := &forwards[i]
+		nftMode, entryNodeIDs, pauseErr := h.tunnelUsesNftables(forward.TunnelID)
+		if pauseErr == nil {
+			if nftMode {
+				// Exclude the rule from the desired plan before marking its pause
+				// confirmed. A failed SSH apply must remain eligible for retry.
+				pauseErr = h.syncNftablesNode(entryNodeIDs[0], forward.ID)
+				if pauseErr != nil {
+					pauseErr = h.nodeCommandError(entryNodeIDs[0], pauseErr)
+				}
+			} else {
+				// Missing services are already stopped. Self-healing would recreate
+				// services on every entry and could restart one already paused.
+				pauseErr = h.controlForwardServicesWithOptions(forward, "PauseService", forwardServiceControlOptions{
+					tolerateNotFound: true,
+					tolerateOffline:  false,
+					allowSelfHeal:    false,
+					continueOnError:  true,
+				})
+			}
+		}
+		if pauseErr != nil {
+			errs = append(errs, fmt.Errorf("转发 %d 暂停失败: %w", forward.ID, pauseErr))
+			continue
+		}
+		if err := h.repo.UpdateForwardStatus(forward.ID, 0, now); err != nil {
+			errs = append(errs, err)
+		}
+	}
+	return errors.Join(errs...)
 }
 
 func (h *Handler) pauseUserForwards(userID int64, now int64) {
