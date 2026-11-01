@@ -205,6 +205,15 @@ func (h *Handler) userUpdate(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	if status != 1 {
+		// Revoke access before optional quota/group updates can fail or return.
+		if err := h.disableUserAccess(id, now); err != nil {
+			result := response.Err(-2, fmt.Sprintf("账号已禁用，以下权限或节点暂停未确认；其他转发已继续处理，请排查后重试禁用：\n%v", err))
+			result.Data = map[string]interface{}{"userDisabled": true}
+			response.WriteJSON(w, result)
+			return
+		}
+	}
 	h.repo.PropagateUserFlowToTunnels(id, flow, num, expTime, flowResetTime, flowMiB)
 	if hasDailyQuota || hasMonthlyQuota {
 		dailyQuotaGB := asInt64(req["dailyQuotaGB"], 0)
@@ -241,6 +250,13 @@ func (h *Handler) userUpdate(w http.ResponseWriter, r *http.Request) {
 			for _, gid := range affected {
 				_ = h.syncPermissionsByUserGroup(gid)
 			}
+		}
+	}
+	if status != 1 {
+		// Group changes may have created additional tunnel grants.
+		if err := h.repo.DisableUserTunnels(id); err != nil {
+			response.WriteJSON(w, response.Err(-2, err.Error()))
+			return
 		}
 	}
 	if oldUser.MaxConn != maxConn {

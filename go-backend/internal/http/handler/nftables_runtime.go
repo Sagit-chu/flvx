@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"slices"
 	"strings"
 	"time"
 
@@ -150,7 +151,7 @@ func (h *Handler) validateNftablesTunnelStateTx(tx *gorm.DB, entryNodeIDs []int6
 	return nil
 }
 
-func (h *Handler) buildNftablesNodePlan(nodeID int64) (runtimenft.NodePlan, *model.NodeSSHConfig, error) {
+func (h *Handler) buildNftablesNodePlan(nodeID int64, excludedForwardIDs ...int64) (runtimenft.NodePlan, *model.NodeSSHConfig, error) {
 	cfg, err := h.repo.GetNodeSSHConfig(nodeID)
 	if err != nil {
 		return runtimenft.NodePlan{}, nil, err
@@ -162,6 +163,9 @@ func (h *Handler) buildNftablesNodePlan(nodeID int64) (runtimenft.NodePlan, *mod
 	plan := runtimenft.NodePlan{NodeID: nodeID, Rules: make([]runtimenft.Rule, 0, len(forwards))}
 	for i := range forwards {
 		forward := &forwards[i]
+		if slices.Contains(excludedForwardIDs, forward.ID) {
+			continue
+		}
 		tunnel, err := h.getTunnelRecord(forward.TunnelID)
 		if err != nil || tunnel == nil || tunnel.Status != 1 {
 			continue
@@ -201,11 +205,11 @@ func (h *Handler) buildNftablesNodePlan(nodeID int64) (runtimenft.NodePlan, *mod
 	return plan, cfg, nil
 }
 
-func (h *Handler) syncNftablesNode(nodeID int64) error {
+func (h *Handler) syncNftablesNode(nodeID int64, excludedForwardIDs ...int64) error {
 	if h == nil || h.repo == nil {
 		return errors.New("handler not initialized")
 	}
-	plan, cfgModel, err := h.buildNftablesNodePlan(nodeID)
+	plan, cfgModel, err := h.buildNftablesNodePlan(nodeID, excludedForwardIDs...)
 	if err != nil {
 		return err
 	}

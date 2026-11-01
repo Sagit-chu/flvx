@@ -151,6 +151,13 @@ func (r *Repository) PropagateUserFlowToTunnels(userID int64, flow int64, num in
 		}).Error
 }
 
+func (r *Repository) DisableUserTunnels(userID int64) error {
+	if r == nil || r.db == nil {
+		return errors.New("repository not initialized")
+	}
+	return r.db.Model(&model.UserTunnel{}).Where("user_id = ?", userID).Update("status", 0).Error
+}
+
 func (r *Repository) DeleteUserCascade(userID int64) error {
 	if r == nil || r.db == nil {
 		return errors.New("repository not initialized")
