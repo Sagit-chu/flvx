@@ -15,7 +15,8 @@ import (
 )
 
 type Router struct {
-	options chain.RouterOptions
+	options      chain.RouterOptions
+	requireChain bool
 }
 
 func NewRouter(opts ...chain.RouterOption) *Router {
@@ -32,6 +33,13 @@ func NewRouter(opts ...chain.RouterOption) *Router {
 	if r.options.Logger == nil {
 		r.options.Logger = logger.Default().WithFields(map[string]any{"kind": "router"})
 	}
+	return r
+}
+
+// WithRequiredChain disables direct fallback when an explicitly required chain
+// is absent or selects no route. Configure it before serving requests.
+func (r *Router) WithRequiredChain() *Router {
+	r.requireChain = true
 	return r
 }
 
@@ -117,6 +125,10 @@ func (r *Router) dial(ctx context.Context, network, address string, log logger.L
 			route = r.options.Chain.Route(ctx, network, ipAddr, chain.WithHostRouteOption(address))
 		}
 
+		if r.requireChain && (route == nil || len(route.Nodes()) == 0) {
+			return nil, ErrEmptyRoute
+		}
+
 		if buf == nil {
 			buf = &bytes.Buffer{}
 		}
@@ -164,6 +176,9 @@ func (r *Router) Bind(ctx context.Context, network, address string, opts ...chai
 			defer cancel()
 		}
 
+		if r.requireChain && r.options.Chain == nil {
+			return nil, ErrEmptyRoute
+		}
 		var route chain.Route
 		if r.options.Chain != nil {
 			route = r.options.Chain.Route(ctx, network, address)

@@ -145,18 +145,20 @@ func TestPeerShareReleaseOfflineKeepsPortAndReconnectDeletes(t *testing.T) {
 }
 
 func TestPeerShareApplyPersistsBeforeCommand(t *testing.T) {
-	agent := newCleanupAgent(t)
-	runtime := roleRuntimeFixture(t, agent, "exit")
-	callback := "test:fail-role-desired-write"
-	if err := agent.h.repo.DB().Callback().Update().Before("gorm:update").Register(callback, func(tx *gorm.DB) {
-		if tx.Statement.Table == "peer_share_runtime" {
-			tx.AddError(errors.New("desired-state write failed"))
+	var failDesiredWrite atomic.Bool
+	agent := newCleanupAgent(t, func(r *repo.Repository) {
+		if err := r.DB().Callback().Update().Before("gorm:update").Register("test:fail-role-desired-write", func(tx *gorm.DB) {
+			if failDesiredWrite.Load() && tx.Statement.Table == "peer_share_runtime" {
+				tx.AddError(errors.New("desired-state write failed"))
+			}
+		}); err != nil {
+			t.Fatal(err)
 		}
-	}); err != nil {
-		t.Fatal(err)
-	}
-	// This database is test-local; keep the callback registered through the
-	// websocket teardown so callback mutation cannot race node status writes.
+	})
+	runtime := roleRuntimeFixture(t, agent, "exit")
+	failDesiredWrite.Store(true)
+	// Only the atomic flag changes while the WebSocket is running; GORM's
+	// callback registry stays immutable through node-status teardown writes.
 	if code := roleRuntimeRequest(t, agent.h, `{"reservationId":"role-reservation","role":"exit"}`, false); code == 0 {
 		t.Fatal("failed ownership persistence reported success")
 	}

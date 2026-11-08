@@ -926,7 +926,19 @@ export default function TunnelPage() {
         : await createTunnel(data);
 
       if (response.code === 0) {
-        toast.success(isEdit ? "更新成功" : "创建成功");
+        if (
+          response.data &&
+          typeof response.data === "object" &&
+          "runtimeStatus" in response.data &&
+          response.data.runtimeStatus === "pending"
+        ) {
+          toast(response.msg || "配置已保存，部分节点运行时待同步", {
+            icon: "⚠️",
+            duration: 6000,
+          });
+        } else {
+          toast.success(isEdit ? "更新成功" : "创建成功");
+        }
         setModalOpen(false);
         await refreshTunnelList(false);
       } else {

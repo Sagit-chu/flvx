@@ -272,6 +272,7 @@ func (r *Repository) GetTunnelRecord(tunnelID int64) (*model.TunnelRecord, error
 		return nil, err
 	}
 	tr := model.TunnelRecord{
+		RelayAuthMode:   t.RelayAuthMode,
 		ID:              t.ID,
 		Type:            t.Type,
 		Status:          t.Status,

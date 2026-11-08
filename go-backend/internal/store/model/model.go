@@ -175,6 +175,7 @@ type StatisticsFlow struct {
 func (StatisticsFlow) TableName() string { return "statistics_flow" }
 
 type Tunnel struct {
+	RelayAuthMode   string         `gorm:"column:relay_auth_mode;type:varchar(20);not null;default:legacy"`
 	ID              int64          `gorm:"primaryKey;autoIncrement"`
 	Name            string         `gorm:"type:varchar(100);not null"`
 	TrafficRatio    float64        `gorm:"column:traffic_ratio;not null;default:1.0"`
@@ -354,24 +355,26 @@ type PeerShare struct {
 func (PeerShare) TableName() string { return "peer_share" }
 
 type PeerShareRuntime struct {
-	ID             int64  `gorm:"primaryKey;autoIncrement"`
-	ShareID        int64  `gorm:"column:share_id;not null;index:idx_peer_share_runtime_share_node_status"`
-	NodeID         int64  `gorm:"column:node_id;not null;index:idx_peer_share_runtime_share_node_status"`
-	ReservationID  string `gorm:"column:reservation_id;type:text;not null;uniqueIndex"`
-	ResourceKey    string `gorm:"column:resource_key;type:text;not null;uniqueIndex"`
-	BindingID      string `gorm:"column:binding_id;type:text;not null;default:'';index:idx_peer_share_runtime_binding_id"`
-	Role           string `gorm:"type:text;not null;default:''"`
-	ChainName      string `gorm:"column:chain_name;type:text;not null;default:''"`
-	ServiceName    string `gorm:"column:service_name;type:text;not null;default:''"`
-	Protocol       string `gorm:"type:text;not null;default:'tls'"`
-	Strategy       string `gorm:"type:text;not null;default:'round'"`
-	Port           int    `gorm:"not null;default:0"`
-	Target         string `gorm:"type:text;not null;default:''"`
-	Applied        int    `gorm:"not null;default:0"`
-	ReleasePending int    `gorm:"column:release_pending;not null;default:0"`
-	Status         int    `gorm:"not null;default:1;index:idx_peer_share_runtime_share_node_status"`
-	CreatedTime    int64  `gorm:"column:created_time;not null"`
-	UpdatedTime    int64  `gorm:"column:updated_time;not null"`
+	RelayAuthVersion int    `gorm:"column:relay_auth_version;not null;default:0" json:"-"`
+	RelayAuth        string `gorm:"column:relay_auth;type:text;not null;default:''" json:"-"`
+	ID               int64  `gorm:"primaryKey;autoIncrement"`
+	ShareID          int64  `gorm:"column:share_id;not null;index:idx_peer_share_runtime_share_node_status"`
+	NodeID           int64  `gorm:"column:node_id;not null;index:idx_peer_share_runtime_share_node_status"`
+	ReservationID    string `gorm:"column:reservation_id;type:text;not null;uniqueIndex"`
+	ResourceKey      string `gorm:"column:resource_key;type:text;not null;uniqueIndex"`
+	BindingID        string `gorm:"column:binding_id;type:text;not null;default:'';index:idx_peer_share_runtime_binding_id"`
+	Role             string `gorm:"type:text;not null;default:''"`
+	ChainName        string `gorm:"column:chain_name;type:text;not null;default:''"`
+	ServiceName      string `gorm:"column:service_name;type:text;not null;default:''"`
+	Protocol         string `gorm:"type:text;not null;default:'tls'"`
+	Strategy         string `gorm:"type:text;not null;default:'round'"`
+	Port             int    `gorm:"not null;default:0"`
+	Target           string `gorm:"type:text;not null;default:''" json:"-"`
+	Applied          int    `gorm:"not null;default:0"`
+	ReleasePending   int    `gorm:"column:release_pending;not null;default:0"`
+	Status           int    `gorm:"not null;default:1;index:idx_peer_share_runtime_share_node_status"`
+	CreatedTime      int64  `gorm:"column:created_time;not null"`
+	UpdatedTime      int64  `gorm:"column:updated_time;not null"`
 }
 
 func (PeerShareRuntime) TableName() string { return "peer_share_runtime" }
@@ -464,6 +467,7 @@ type NodeBackup struct {
 }
 
 type TunnelBackup struct {
+	RelayAuthMode   string              `json:"relayAuthMode,omitempty"`
 	ID              int64               `json:"id"`
 	Name            string              `json:"name"`
 	TrafficRatio    float64             `json:"trafficRatio"`
@@ -621,6 +625,7 @@ type ForwardRecord struct {
 
 // TunnelRecord is a minimal tunnel view used by control plane.
 type TunnelRecord struct {
+	RelayAuthMode   string
 	ID              int64
 	Type            int
 	Status          int

@@ -327,10 +327,15 @@ func ParseService(cfg *config.ServiceConfig) (service.Service, error) {
 		)
 	}
 
+	handlerRouter := xchain.NewRouter(routerOpts...)
+	if mdutil.GetBool(metadata.NewMetadata(cfg.Handler.Metadata), "chain.strict") {
+		handlerRouter.WithRequiredChain()
+	}
+
 	var h handler.Handler
 	if rf := registry.HandlerRegistry().Get(cfg.Handler.Type); rf != nil {
 		h = rf(
-			handler.RouterOption(xchain.NewRouter(routerOpts...)),
+			handler.RouterOption(handlerRouter),
 			handler.AutherOption(auther),
 			handler.AuthOption(auth_parser.Info(cfg.Handler.Auth)),
 			handler.BypassOption(xbypass.BypassGroup(bypass_parser.List(cfg.Bypass, cfg.Bypasses...)...)),

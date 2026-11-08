@@ -1,0 +1,510 @@
+package contract_test
+
+import (
+	"bytes"
+	"encoding/json"
+	"fmt"
+	"go-backend/internal/auth"
+	"net/http"
+	"net/http/httptest"
+	"strings"
+	"sync"
+	"testing"
+	"time"
+)
+
+func TestTunnelInsertMiddleHopRecordedRuntimeContract(t *testing.T) {
+	secret := "contract-jwt-secret"
+	router, r := setupContractRouter(t, secret)
+	server := httptest.NewServer(router)
+	defer server.Close()
+
+	adminToken, err := auth.GenerateToken(1, "admin_user", 0, secret)
+	if err != nil {
+		t.Fatalf("generate admin token: %v", err)
+	}
+
+	now := time.Now().UnixMilli()
+	if err := r.DB().Exec(`
+		INSERT INTO user(id, user, pwd, role_id, exp_time, flow, in_flow, out_flow, flow_reset_time, num, created_time, updated_time, status)
+		VALUES(2, 'issue281_transition_user', 'pwd', 1, 2727251700000, 99999, 0, 0, 1, 99999, ?, ?, 1)
+	`, now, now).Error; err != nil {
+		t.Fatalf("insert user: %v", err)
+	}
+
+	if err := r.DB().Exec(`
+		INSERT INTO tunnel(name, traffic_ratio, type, protocol, flow, created_time, updated_time, status, in_ip, inx)
+		VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+	`, "issue281-transition-tunnel", 1.0, 2, "tls", 99999, now, now, 1, nil, 0).Error; err != nil {
+		t.Fatalf("insert tunnel: %v", err)
+	}
+	tunnelID := mustLastInsertID(t, r, "issue281-transition-tunnel")
+
+	insertNode := func(name, secretValue, ip, portRange string, inx int) int64 {
+		if err := r.DB().Exec(`
+			INSERT INTO node(name, secret, server_ip, server_ip_v4, server_ip_v6, port, interface_name, version, http, tls, socks, created_time, updated_time, status, tcp_listen_addr, udp_listen_addr, inx)
+			VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		`, name, secretValue, ip, ip, "", portRange, "", "v1", 1, 1, 1, now, now, 1, "[::]", "[::]", inx).Error; err != nil {
+			t.Fatalf("insert node %s: %v", name, err)
+		}
+		return mustLastInsertID(t, r, name)
+	}
+
+	entryA := insertNode("issue281-transition-entry-a", "issue281-transition-entry-a-secret", "10.52.0.1", "54000-54010", 0)
+	entryB := insertNode("issue281-transition-entry-b", "issue281-transition-entry-b-secret", "10.52.0.2", "54000-54010", 1)
+	entryC := insertNode("issue281-transition-entry-c", "issue281-transition-entry-c-secret", "10.52.0.3", "54000-54010", 2)
+	exitNodeID := insertNode("issue281-transition-exit", "issue281-transition-exit-secret", "10.52.0.4", "57000-57010", 3)
+
+	if err := r.DB().Exec(`
+		INSERT INTO chain_tunnel(tunnel_id, chain_type, node_id, port, strategy, inx, protocol)
+		VALUES(?, 1, ?, 54001, 'round', 1, 'tls')
+	`, tunnelID, entryA).Error; err != nil {
+		t.Fatalf("insert initial entry chain_tunnel: %v", err)
+	}
+	if err := r.DB().Exec(`
+		INSERT INTO chain_tunnel(tunnel_id, chain_type, node_id, port, strategy, inx, protocol)
+		VALUES(?, 3, ?, 57001, 'round', 1, 'tls')
+	`, tunnelID, exitNodeID).Error; err != nil {
+		t.Fatalf("insert exit chain_tunnel: %v", err)
+	}
+
+	if err := r.DB().Exec(`
+		INSERT INTO user_tunnel(id, user_id, tunnel_id, speed_id, num, flow, in_flow, out_flow, flow_reset_time, exp_time, status)
+		VALUES(282, 2, ?, NULL, 999, 99999, 0, 0, 1, 2727251700000, 1)
+	`, tunnelID).Error; err != nil {
+		t.Fatalf("insert user_tunnel: %v", err)
+	}
+
+	if err := r.DB().Exec(`
+		INSERT INTO forward(user_id, user_name, name, tunnel_id, remote_addr, strategy, in_flow, out_flow, created_time, updated_time, status, inx)
+		VALUES(2, 'issue281_transition_user', 'issue281-transition-forward', ?, '1.1.1.1:443', 'fifo', 0, 0, ?, ?, 1, 0)
+	`, tunnelID, now, now).Error; err != nil {
+		t.Fatalf("insert forward: %v", err)
+	}
+	forwardID := mustLastInsertID(t, r, "issue281-transition-forward")
+
+	if err := r.DB().Exec(`INSERT INTO forward_port(forward_id, node_id, port) VALUES(?, ?, ?)`, forwardID, entryA, 54001).Error; err != nil {
+		t.Fatalf("insert forward_port: %v", err)
+	}
+
+	// This mock records control-plane commands only; it does not forward traffic.
+	type command struct {
+		node, kind string
+		data       json.RawMessage
+	}
+	var mu sync.Mutex
+	var commands []command
+	for _, n := range []struct {
+		name, secret string
+		id           int64
+	}{
+		{"A", "issue281-transition-entry-a-secret", entryA},
+		{"B", "issue281-transition-entry-b-secret", entryB},
+		{"C", "issue281-transition-entry-c-secret", entryC},
+		{"D", "issue281-transition-exit-secret", exitNodeID},
+	} {
+		name := n.name
+		stop := startMockNodeSessionWithCommandRecorder(t, server.URL, n.secret, func(kind string, data json.RawMessage) (bool, string) {
+			mu.Lock()
+			defer mu.Unlock()
+			commands = append(commands, command{name, kind, append(json.RawMessage(nil), data...)})
+			return false, ""
+		})
+		defer stop()
+		waitNodeStatus(t, r, n.id, 1)
+	}
+	// Let initial mock-node reconnect reconciliation finish before the topology edit.
+	time.Sleep(time.Second)
+	node := func(id int64) map[string]interface{} {
+		return map[string]interface{}{"nodeId": id, "protocol": "tls", "strategy": "round"}
+	}
+	update := func(hops [][]map[string]interface{}) {
+		mu.Lock()
+		commands = nil
+		mu.Unlock()
+		payload := map[string]interface{}{"id": tunnelID, "name": "issue281-transition-tunnel", "type": 2, "flow": 99999, "trafficRatio": 1.0, "status": 1,
+			"inNodeId": []map[string]interface{}{node(entryA)}, "chainNodes": hops,
+			"outNodeId": []map[string]interface{}{{"nodeId": exitNodeID, "protocol": "tls", "strategy": "round", "port": 57001}}}
+		raw, _ := json.Marshal(payload)
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/tunnel/update", bytes.NewReader(raw))
+		req.Header.Set("Authorization", adminToken)
+		req.Header.Set("Content-Type", "application/json")
+		res := httptest.NewRecorder()
+		router.ServeHTTP(res, req)
+		assertCode(t, res, 0)
+	}
+	check := func(edges map[string]int64) {
+		mu.Lock()
+		defer mu.Unlock()
+		expectedChain := fmt.Sprintf("chains_%d", tunnelID)
+		got := map[string]bool{}
+		services := map[string]bool{}
+		lastChains := map[string]int{}
+		lastServices := map[string]int{}
+		for i, c := range commands {
+			if c.kind == "UpdateChains" || c.kind == "AddChains" {
+				lastChains[c.node] = i
+			}
+			if c.kind == "UpdateService" || c.kind == "AddService" {
+				lastServices[c.node] = i
+			}
+		}
+		for i, c := range commands {
+			if c.kind == "DeleteChains" {
+				t.Fatalf("unexpected chain deletion on %s: %s", c.node, c.data)
+			}
+			if c.kind == "UpdateChains" || c.kind == "AddChains" {
+				if lastChains[c.node] != i {
+					continue
+				}
+				var raw map[string]interface{}
+				if err := json.Unmarshal(c.data, &raw); err != nil {
+					t.Fatal(err)
+				}
+				if nested, ok := raw["data"].(map[string]interface{}); ok {
+					raw = nested
+				}
+				target, ok := edges[c.node]
+				if !ok {
+					t.Fatalf("unexpected chain owner %s", c.node)
+				}
+				port := mustQueryInt(t, r, `SELECT port FROM chain_tunnel WHERE tunnel_id = ? AND node_id = ? LIMIT 1`, tunnelID, target)
+				ip := map[int64]string{entryB: "10.52.0.2", entryC: "10.52.0.3", exitNodeID: "10.52.0.4"}[target]
+				hops := raw["hops"].([]interface{})
+				nodes := hops[0].(map[string]interface{})["nodes"].([]interface{})
+				addr := nodes[0].(map[string]interface{})["addr"]
+				if len(hops) != 1 || len(nodes) != 1 || addr != fmt.Sprintf("%s:%d", ip, port) {
+					t.Fatalf("bad edge %s: %s", c.node, c.data)
+				}
+				got[c.node] = true
+				t.Logf("%s -> %s via %s", c.node, ip, addr)
+			}
+			if strings.EqualFold(c.kind, "UpdateService") || strings.EqualFold(c.kind, "AddService") {
+				if lastServices[c.node] != i {
+					continue
+				}
+				var ss []map[string]interface{}
+				if err := json.Unmarshal(c.data, &ss); err != nil {
+					t.Fatal(err)
+				}
+				for _, s := range ss {
+					if s["name"] != fmt.Sprintf("tunnel_%d", tunnelID) {
+						continue
+					}
+					h := s["handler"].(map[string]interface{})
+					if c.node == "B" || c.node == "C" {
+						if h["chain"] != expectedChain {
+							t.Fatalf("missing chain on %s: %s", c.node, c.data)
+						}
+					}
+					if c.node == "D" && h["chain"] != nil {
+						t.Fatalf("exit has unexpected chain")
+					}
+					services[c.node] = true
+				}
+			}
+		}
+		for owner := range edges {
+			if !got[owner] {
+				t.Errorf("no chain update for %s", owner)
+			}
+			if owner != "A" && !services[owner] {
+				t.Errorf("no relay service for %s", owner)
+			}
+		}
+		if !services["D"] {
+			t.Error("no exit relay service")
+		}
+	}
+	update([][]map[string]interface{}{{node(entryB)}})
+	check(map[string]int64{"A": entryB, "B": exitNodeID})
+	update([][]map[string]interface{}{{node(entryB)}, {node(entryC)}})
+	check(map[string]int64{"A": entryB, "B": entryC, "C": exitNodeID})
+	// A remains the entry and the user's forward remains bound there.
+	after, _ := mustQueryInt64Int(t, r, `SELECT node_id,port FROM forward_port WHERE forward_id = ? LIMIT 1`, forwardID)
+	if after != entryA {
+		t.Fatalf("forward entry changed: %d", after)
+	}
+}
+
+func TestTunnelRedeployEditMissingChainWindowInvestigation(t *testing.T) {
+	t.Skip("Pre-repair characterization; preserved in plans/evidence/070-tunnel-insert-middle-hop-investigation.go.txt. Replaced by TestTunnelRedeployPreservesLiveRoutes and TestTunnelEditWaitsForRedeploy.")
+	secret := "contract-jwt-secret"
+	router, r := setupContractRouter(t, secret)
+	server := httptest.NewServer(router)
+	defer server.Close()
+
+	adminToken, err := auth.GenerateToken(1, "admin_user", 0, secret)
+	if err != nil {
+		t.Fatalf("generate admin token: %v", err)
+	}
+
+	now := time.Now().UnixMilli()
+	if err := r.DB().Exec(`
+		INSERT INTO user(id, user, pwd, role_id, exp_time, flow, in_flow, out_flow, flow_reset_time, num, created_time, updated_time, status)
+		VALUES(2, 'issue281_transition_user', 'pwd', 1, 2727251700000, 99999, 0, 0, 1, 99999, ?, ?, 1)
+	`, now, now).Error; err != nil {
+		t.Fatalf("insert user: %v", err)
+	}
+
+	if err := r.DB().Exec(`
+		INSERT INTO tunnel(name, traffic_ratio, type, protocol, flow, created_time, updated_time, status, in_ip, inx)
+		VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+	`, "issue281-transition-tunnel", 1.0, 2, "tls", 99999, now, now, 1, nil, 0).Error; err != nil {
+		t.Fatalf("insert tunnel: %v", err)
+	}
+	tunnelID := mustLastInsertID(t, r, "issue281-transition-tunnel")
+
+	insertNode := func(name, secretValue, ip, portRange string, inx int) int64 {
+		if err := r.DB().Exec(`
+			INSERT INTO node(name, secret, server_ip, server_ip_v4, server_ip_v6, port, interface_name, version, http, tls, socks, created_time, updated_time, status, tcp_listen_addr, udp_listen_addr, inx)
+			VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		`, name, secretValue, ip, ip, "", portRange, "", "v1", 1, 1, 1, now, now, 1, "[::]", "[::]", inx).Error; err != nil {
+			t.Fatalf("insert node %s: %v", name, err)
+		}
+		return mustLastInsertID(t, r, name)
+	}
+
+	entryA := insertNode("issue281-transition-entry-a", "issue281-transition-entry-a-secret", "10.52.0.1", "54000-54010", 0)
+	entryB := insertNode("issue281-transition-entry-b", "issue281-transition-entry-b-secret", "10.52.0.2", "54000-54010", 1)
+	entryC := insertNode("issue281-transition-entry-c", "issue281-transition-entry-c-secret", "10.52.0.3", "54000-54010", 2)
+	exitNodeID := insertNode("issue281-transition-exit", "issue281-transition-exit-secret", "10.52.0.4", "57000-57010", 3)
+
+	if err := r.DB().Exec(`
+		INSERT INTO chain_tunnel(tunnel_id, chain_type, node_id, port, strategy, inx, protocol)
+		VALUES(?, 1, ?, 54001, 'round', 1, 'tls')
+	`, tunnelID, entryA).Error; err != nil {
+		t.Fatalf("insert initial entry chain_tunnel: %v", err)
+	}
+	if err := r.DB().Exec(`
+		INSERT INTO chain_tunnel(tunnel_id, chain_type, node_id, port, strategy, inx, protocol)
+		VALUES(?, 3, ?, 57001, 'round', 1, 'tls')
+	`, tunnelID, exitNodeID).Error; err != nil {
+		t.Fatalf("insert exit chain_tunnel: %v", err)
+	}
+
+	if err := r.DB().Exec(`
+		INSERT INTO user_tunnel(id, user_id, tunnel_id, speed_id, num, flow, in_flow, out_flow, flow_reset_time, exp_time, status)
+		VALUES(282, 2, ?, NULL, 999, 99999, 0, 0, 1, 2727251700000, 1)
+	`, tunnelID).Error; err != nil {
+		t.Fatalf("insert user_tunnel: %v", err)
+	}
+
+	if err := r.DB().Exec(`
+		INSERT INTO forward(user_id, user_name, name, tunnel_id, remote_addr, strategy, in_flow, out_flow, created_time, updated_time, status, inx)
+		VALUES(2, 'issue281_transition_user', 'issue281-transition-forward', ?, '1.1.1.1:443', 'fifo', 0, 0, ?, ?, 1, 0)
+	`, tunnelID, now, now).Error; err != nil {
+		t.Fatalf("insert forward: %v", err)
+	}
+	forwardID := mustLastInsertID(t, r, "issue281-transition-forward")
+
+	if err := r.DB().Exec(`INSERT INTO forward_port(forward_id, node_id, port) VALUES(?, ?, ?)`, forwardID, entryA, 54001).Error; err != nil {
+		t.Fatalf("insert forward_port: %v", err)
+	}
+
+	// This mock records control-plane commands only; it does not forward traffic.
+	type command struct {
+		node, kind string
+		data       json.RawMessage
+	}
+	var mu sync.Mutex
+	var commands []command
+	armed := false
+	chainPresent, servicePresent := map[string]bool{}, map[string]bool{}
+	atDeleteService, releaseDeleteService, editReachedA := make(chan struct{}), make(chan struct{}), make(chan struct{}, 1)
+	var gateOnce, releaseOnce sync.Once
+	release := func() { releaseOnce.Do(func() { close(releaseDeleteService) }) }
+	defer release()
+
+	for _, n := range []struct {
+		name, secret string
+		id           int64
+	}{
+		{"A", "issue281-transition-entry-a-secret", entryA},
+		{"B", "issue281-transition-entry-b-secret", entryB},
+		{"C", "issue281-transition-entry-c-secret", entryC},
+		{"D", "issue281-transition-exit-secret", exitNodeID},
+	} {
+		name := n.name
+		stop := startMockNodeSessionWithCommandRecorder(t, server.URL, n.secret, func(kind string, data json.RawMessage) (bool, string) {
+			mu.Lock()
+			active := armed
+			shouldGate := active && name == "B" && kind == "DeleteService"
+			if active && name == "A" && kind == "UpdateChains" {
+				select {
+				case editReachedA <- struct{}{}:
+				default:
+				}
+			}
+			mu.Unlock()
+			if shouldGate {
+				gateOnce.Do(func() { close(atDeleteService); <-releaseDeleteService })
+			}
+			mu.Lock()
+			defer mu.Unlock()
+			if kind == "DeleteChains" {
+				chainPresent[name] = false
+			}
+			if kind == "AddChains" || kind == "UpdateChains" {
+				chainPresent[name] = true
+			}
+			if kind == "DeleteService" {
+				servicePresent[name] = false
+			}
+			if kind == "AddService" || kind == "UpdateService" {
+				servicePresent[name] = true
+			}
+			commands = append(commands, command{name, kind, append(json.RawMessage(nil), data...)})
+			return false, ""
+		})
+		defer stop()
+		waitNodeStatus(t, r, n.id, 1)
+	}
+	// Let initial mock-node reconnect reconciliation finish before the topology edit.
+	time.Sleep(time.Second)
+	node := func(id int64) map[string]interface{} {
+		return map[string]interface{}{"nodeId": id, "protocol": "tls", "strategy": "round"}
+	}
+	update := func(hops [][]map[string]interface{}) {
+		mu.Lock()
+		commands = nil
+		mu.Unlock()
+		payload := map[string]interface{}{"id": tunnelID, "name": "issue281-transition-tunnel", "type": 2, "flow": 99999, "trafficRatio": 1.0, "status": 1,
+			"inNodeId": []map[string]interface{}{node(entryA)}, "chainNodes": hops,
+			"outNodeId": []map[string]interface{}{{"nodeId": exitNodeID, "protocol": "tls", "strategy": "round", "port": 57001}}}
+		raw, _ := json.Marshal(payload)
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/tunnel/update", bytes.NewReader(raw))
+		req.Header.Set("Authorization", adminToken)
+		req.Header.Set("Content-Type", "application/json")
+		res := httptest.NewRecorder()
+		router.ServeHTTP(res, req)
+		assertCode(t, res, 0)
+	}
+	check := func(edges map[string]int64) {
+		mu.Lock()
+		defer mu.Unlock()
+		expectedChain := fmt.Sprintf("chains_%d", tunnelID)
+		got := map[string]bool{}
+		services := map[string]bool{}
+		lastChains := map[string]int{}
+		lastServices := map[string]int{}
+		for i, c := range commands {
+			if c.kind == "UpdateChains" || c.kind == "AddChains" {
+				lastChains[c.node] = i
+			}
+			if c.kind == "UpdateService" || c.kind == "AddService" {
+				lastServices[c.node] = i
+			}
+		}
+		for i, c := range commands {
+			if c.kind == "DeleteChains" {
+				t.Fatalf("unexpected chain deletion on %s: %s", c.node, c.data)
+			}
+			if c.kind == "UpdateChains" || c.kind == "AddChains" {
+				if lastChains[c.node] != i {
+					continue
+				}
+				var raw map[string]interface{}
+				if err := json.Unmarshal(c.data, &raw); err != nil {
+					t.Fatal(err)
+				}
+				if nested, ok := raw["data"].(map[string]interface{}); ok {
+					raw = nested
+				}
+				target, ok := edges[c.node]
+				if !ok {
+					t.Fatalf("unexpected chain owner %s", c.node)
+				}
+				port := mustQueryInt(t, r, `SELECT port FROM chain_tunnel WHERE tunnel_id = ? AND node_id = ? LIMIT 1`, tunnelID, target)
+				ip := map[int64]string{entryB: "10.52.0.2", entryC: "10.52.0.3", exitNodeID: "10.52.0.4"}[target]
+				hops := raw["hops"].([]interface{})
+				nodes := hops[0].(map[string]interface{})["nodes"].([]interface{})
+				addr := nodes[0].(map[string]interface{})["addr"]
+				if len(hops) != 1 || len(nodes) != 1 || addr != fmt.Sprintf("%s:%d", ip, port) {
+					t.Fatalf("bad edge %s: %s", c.node, c.data)
+				}
+				got[c.node] = true
+				t.Logf("%s -> %s via %s", c.node, ip, addr)
+			}
+			if strings.EqualFold(c.kind, "UpdateService") || strings.EqualFold(c.kind, "AddService") {
+				if lastServices[c.node] != i {
+					continue
+				}
+				var ss []map[string]interface{}
+				if err := json.Unmarshal(c.data, &ss); err != nil {
+					t.Fatal(err)
+				}
+				for _, s := range ss {
+					if s["name"] != fmt.Sprintf("tunnel_%d", tunnelID) {
+						continue
+					}
+					h := s["handler"].(map[string]interface{})
+					if c.node == "B" || c.node == "C" {
+						if h["chain"] != expectedChain {
+							t.Fatalf("missing chain on %s: %s", c.node, c.data)
+						}
+					}
+					if c.node == "D" && h["chain"] != nil {
+						t.Fatalf("exit has unexpected chain")
+					}
+					services[c.node] = true
+				}
+			}
+		}
+		for owner := range edges {
+			if !got[owner] {
+				t.Errorf("no chain update for %s", owner)
+			}
+			if owner != "A" && !services[owner] {
+				t.Errorf("no relay service for %s", owner)
+			}
+		}
+		if !services["D"] {
+			t.Error("no exit relay service")
+		}
+	}
+	update([][]map[string]interface{}{{node(entryB)}})
+	check(map[string]int64{"A": entryB, "B": exitNodeID})
+
+	mu.Lock()
+	armed = true
+	mu.Unlock()
+	redeployDone := make(chan struct{})
+	go func() {
+		defer close(redeployDone)
+		raw, _ := json.Marshal(map[string]interface{}{"ids": []int64{tunnelID}})
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/tunnel/batch-redeploy", bytes.NewReader(raw))
+		req.Header.Set("Authorization", adminToken)
+		req.Header.Set("Content-Type", "application/json")
+		res := httptest.NewRecorder()
+		router.ServeHTTP(res, req)
+		t.Logf("redeploy response: %s", res.Body.String())
+	}()
+	await := func(ch <-chan struct{}, label string) {
+		t.Helper()
+		select {
+		case <-ch:
+		case <-time.After(10 * time.Second):
+			release()
+			t.Fatalf("timeout waiting for %s", label)
+		}
+	}
+	await(atDeleteService, "B DeleteService gate")
+	editDone := make(chan struct{})
+	go func() { defer close(editDone); update([][]map[string]interface{}{{node(entryB)}, {node(entryC)}}) }()
+	await(editReachedA, "edit UpdateChains on A")
+	mu.Lock()
+	missing, live := !chainPresent["B"], servicePresent["B"]
+	mu.Unlock()
+	if !missing || !live {
+		release()
+		t.Fatalf("expected B live service with missing chain during overlap, missing=%v live=%v", missing, live)
+	}
+	t.Log("Deterministic overlap confirmed: edit reached A while redeploy had deleted B chain but had not deleted B relay service")
+	release()
+	await(editDone, "edit completion")
+	await(redeployDone, "redeploy completion")
+	mu.Lock()
+	defer mu.Unlock()
+	t.Logf("final mock runtime chain presence: A=%v B=%v C=%v; services B=%v C=%v D=%v", chainPresent["A"], chainPresent["B"], chainPresent["C"], servicePresent["B"], servicePresent["C"], servicePresent["D"])
+}

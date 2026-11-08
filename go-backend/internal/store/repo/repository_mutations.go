@@ -584,6 +584,13 @@ func (r *Repository) pickNodePortTx(tx *gorm.DB, nodeID int64, allocated map[int
 		}
 	}
 
+	pendingPorts, err := r.PendingTunnelCleanupPortsTx(tx, nodeID, excludeTunnelID)
+	if err != nil {
+		return 0, err
+	}
+	for _, port := range pendingPorts {
+		used[port] = struct{}{}
+	}
 	var available []int
 	for _, candidate := range candidates {
 		if candidate <= 0 {
@@ -629,6 +636,9 @@ func (r *Repository) DeleteTunnelCascade(tunnelID int64) error {
 		return errors.New("repository not initialized")
 	}
 	return r.db.Transaction(func(tx *gorm.DB) error {
+		if err := r.queueDeletedTunnelRuntimeTx(tx, tunnelID); err != nil {
+			return err
+		}
 		forwardIDs := tx.Model(&model.Forward{}).Select("id").Where("tunnel_id = ?", tunnelID)
 		if err := tx.Where("forward_id IN (?)", forwardIDs).Delete(&model.ForwardPort{}).Error; err != nil {
 			return err
@@ -643,6 +653,9 @@ func (r *Repository) DeleteTunnelCascade(tunnelID int64) error {
 			return err
 		}
 		if err := tx.Where("tunnel_id = ?", tunnelID).Delete(&model.FederationTunnelBinding{}).Error; err != nil {
+			return err
+		}
+		if err := tx.Where("tunnel_id = ?", tunnelID).Delete(&model.RelayEndpointAuth{}).Error; err != nil {
 			return err
 		}
 		return tx.Where("id = ?", tunnelID).Delete(&model.Tunnel{}).Error
@@ -903,6 +916,13 @@ func (r *Repository) GetUsedPortsOnNodeAsMap(nodeID int64) (map[int]bool, error)
 	}
 	for _, p := range chainPorts {
 		used[p] = true
+	}
+	pendingPorts, err := r.PendingTunnelCleanupPortsTx(nil, nodeID, 0)
+	if err != nil {
+		return nil, err
+	}
+	for _, port := range pendingPorts {
+		used[port] = true
 	}
 	return used, nil
 }

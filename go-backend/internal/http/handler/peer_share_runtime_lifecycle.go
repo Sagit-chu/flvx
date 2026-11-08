@@ -29,11 +29,18 @@ func (h *Handler) applyPeerShareRoleRuntime(runtime *repo.PeerShareRuntime) erro
 	if err != nil {
 		return err
 	}
+	credentials, err := decodeRuntimeRelayAuth(runtime)
+	if err != nil {
+		return err
+	}
 	var targets []federationRuntimeTarget
 	if strings.TrimSpace(runtime.Target) != "" {
 		if err := json.Unmarshal([]byte(runtime.Target), &targets); err != nil {
 			return err
 		}
+	}
+	if err := validateFederationRelayAuth(runtime.RelayAuth, credentials, targets); err != nil {
+		return err
 	}
 	var chain map[string]interface{}
 	if runtime.Role == "middle" {
@@ -42,7 +49,7 @@ func (h *Handler) applyPeerShareRoleRuntime(runtime *repo.PeerShareRuntime) erro
 			return err
 		}
 	}
-	service := buildFederationServiceConfig(runtime.ServiceName, fmt.Sprintf("%s:%d", node.TCPListenAddr, runtime.Port), runtime.Protocol, runtime.Role, runtime.ChainName, len(targets), node.InterfaceName)
+	service := buildFederationServiceConfig(runtime.ServiceName, fmt.Sprintf("%s:%d", node.TCPListenAddr, runtime.Port), runtime.Protocol, runtime.Role, runtime.ChainName, len(targets), node.InterfaceName, credentials)
 	runtime.Applied = 0
 	runtime.UpdatedTime = time.Now().UnixMilli()
 	if err := h.repo.UpdatePeerShareRuntime(runtime); err != nil {

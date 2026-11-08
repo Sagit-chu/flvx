@@ -299,6 +299,8 @@ func autoMigrateAll(db *gorm.DB) error {
 		&model.SpeedLimit{},
 		&model.StatisticsFlow{},
 		&model.Tunnel{},
+		&model.RelayEndpointAuth{},
+		&model.TunnelRuntimeCleanup{},
 		&model.ChainTunnel{},
 		&model.UserTunnel{},
 		&model.TunnelGroup{},
@@ -1252,7 +1254,8 @@ func (r *Repository) ListTunnels() ([]map[string]interface{}, error) {
 		tunnelMap[t.ID] = map[string]interface{}{
 			"id": t.ID, "inx": t.Inx, "name": t.Name,
 			"type": t.Type, "flow": t.Flow, "trafficRatio": t.TrafficRatio,
-			"status": t.Status, "createdTime": t.CreatedTime,
+			"relayAuthMode": t.RelayAuthMode,
+			"status":        t.Status, "createdTime": t.CreatedTime,
 			"inIp":            nullableString(t.InIP),
 			"ipPreference":    t.IPPreference,
 			"probeTargetHost": t.ProbeTargetHost,
@@ -1616,8 +1619,10 @@ func (r *Repository) UpdatePeerShareRuntime(item *model.PeerShareRuntime) error 
 		return errors.New("runtime item is nil")
 	}
 	return r.db.Model(&model.PeerShareRuntime{}).Where("id = ?", item.ID).Updates(map[string]interface{}{
-		"reservation_id": item.ReservationID,
-		"binding_id":     item.BindingID, "role": item.Role,
+		"reservation_id":     item.ReservationID,
+		"relay_auth":         item.RelayAuth,
+		"relay_auth_version": item.RelayAuthVersion,
+		"binding_id":         item.BindingID, "role": item.Role,
 		"chain_name": item.ChainName, "service_name": item.ServiceName,
 		"protocol": item.Protocol, "strategy": item.Strategy,
 		"port": item.Port, "target": item.Target,
@@ -2161,7 +2166,8 @@ func (r *Repository) exportTunnels() ([]model.TunnelBackup, error) {
 	out := make([]model.TunnelBackup, 0, len(tunnels))
 	for _, t := range tunnels {
 		b := model.TunnelBackup{
-			ID: t.ID, Name: t.Name, TrafficRatio: t.TrafficRatio,
+			RelayAuthMode: t.RelayAuthMode,
+			ID:            t.ID, Name: t.Name, TrafficRatio: t.TrafficRatio,
 			Type: t.Type, Protocol: t.Protocol, Flow: t.Flow,
 			CreatedTime: t.CreatedTime, UpdatedTime: t.UpdatedTime,
 			Status: t.Status, Inx: t.Inx, IPPreference: t.IPPreference,
@@ -2595,6 +2601,18 @@ func importNodes(tx *gorm.DB, nodes []model.NodeBackup, now int64) (int, error) 
 func importTunnels(tx *gorm.DB, tunnels []model.TunnelBackup, now int64) (int, error) {
 	count := 0
 	for _, t := range tunnels {
+		if t.RelayAuthMode != "" && t.RelayAuthMode != "legacy" {
+			return count, errors.New("authenticated relay tunnels require a full database restore; configuration backup has no private relay credentials")
+		}
+		var existing model.Tunnel
+		lookupErr := tx.First(&existing, t.ID).Error
+		if lookupErr != nil && !errors.Is(lookupErr, gorm.ErrRecordNotFound) {
+			return count, lookupErr
+		}
+		if lookupErr == nil && existing.RelayAuthMode == "required" {
+			return count, errors.New("configuration import cannot replace an authenticated relay tunnel")
+		}
+
 		item := model.Tunnel{
 			ID:              t.ID,
 			Name:            t.Name,

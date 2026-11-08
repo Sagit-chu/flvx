@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -495,19 +496,22 @@ func TestPeerResourcePendingRetryLeavesAppliedSiblingAlone(t *testing.T) {
 }
 
 func TestPeerResourceLegacyReleaseAcknowledgmentIsAtomic(t *testing.T) {
-	a := newCleanupAgent(t)
+	var failCompletion atomic.Bool
+	a := newCleanupAgent(t, func(r *repo.Repository) {
+		if err := r.DB().Callback().Update().Before("gorm:update").Register("fail-runtime-release", func(tx *gorm.DB) {
+			if failCompletion.Load() && tx.Statement.Table == "peer_share_runtime" {
+				tx.AddError(errors.New("simulated completion failure"))
+			}
+		}); err != nil {
+			t.Fatal(err)
+		}
+	})
 	shareID := a.addRuntime(t, "70_1_0", 1, 1, 1, time.Now())
 	share, err := a.h.repo.GetPeerShare(shareID)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := a.h.repo.DB().Callback().Update().Before("gorm:update").Register("fail-runtime-release", func(tx *gorm.DB) {
-		if tx.Statement.Table == "peer_share_runtime" {
-			tx.AddError(errors.New("simulated completion failure"))
-		}
-	}); err != nil {
-		t.Fatal(err)
-	}
+	failCompletion.Store(true)
 	got := resourceTestCommand(t, a.h, share, "DeleteService", map[string]interface{}{"services": []string{"70_1_0", "70_1_0_tcp", "70_1_0_udp"}})
 	if got.Code == 0 {
 		t.Fatal("completion database failure reported success")
@@ -525,9 +529,7 @@ func TestPeerResourceLegacyReleaseAcknowledgmentIsAtomic(t *testing.T) {
 	if !proof || !pending {
 		t.Fatalf("failure lost ownership or retry marker: %+v", items)
 	}
-	if err := a.h.repo.DB().Callback().Update().Remove("fail-runtime-release"); err != nil {
-		t.Fatal(err)
-	}
+	failCompletion.Store(false)
 	if err := a.h.retryPendingPeerShareResourcesOnNode(1); err != nil {
 		t.Fatal(err)
 	}

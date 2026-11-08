@@ -228,7 +228,7 @@ func TestPrepareTunnelCreateStateAllowsOfflineRemoteMiddleNode(t *testing.T) {
 }
 
 func TestBuildFederationServiceConfig_MiddleRoleWithMultipleTargets_SetsRetries(t *testing.T) {
-	service := buildFederationServiceConfig("svc-middle", ":40000", "tls", "middle", "chain-next", 3, "")
+	service := buildFederationServiceConfig("svc-middle", ":40000", "tls", "middle", "chain-next", 3, "", nil)
 	handler := service["handler"].(map[string]interface{})
 	if handler["chain"] != "chain-next" {
 		t.Fatalf("expected chain 'chain-next', got %v", handler["chain"])
@@ -239,7 +239,7 @@ func TestBuildFederationServiceConfig_MiddleRoleWithMultipleTargets_SetsRetries(
 }
 
 func TestBuildFederationServiceConfig_MiddleRoleWithSingleTarget_NoRetries(t *testing.T) {
-	service := buildFederationServiceConfig("svc-middle", ":40000", "tls", "middle", "chain-next", 1, "")
+	service := buildFederationServiceConfig("svc-middle", ":40000", "tls", "middle", "chain-next", 1, "", nil)
 	handler := service["handler"].(map[string]interface{})
 	if handler["chain"] != "chain-next" {
 		t.Fatalf("expected chain 'chain-next', got %v", handler["chain"])
@@ -250,7 +250,7 @@ func TestBuildFederationServiceConfig_MiddleRoleWithSingleTarget_NoRetries(t *te
 }
 
 func TestBuildFederationServiceConfig_ExitRole_NoRetriesRegardlessOfTargets(t *testing.T) {
-	service := buildFederationServiceConfig("svc-exit", ":40000", "tls", "exit", "", 3, "eth0")
+	service := buildFederationServiceConfig("svc-exit", ":40000", "tls", "exit", "", 3, "eth0", nil)
 	handler := service["handler"].(map[string]interface{})
 	if _, hasChain := handler["chain"]; hasChain {
 		t.Fatalf("expected no chain for exit role, got %v", handler["chain"])
@@ -265,7 +265,7 @@ func TestBuildFederationServiceConfig_ExitRole_NoRetriesRegardlessOfTargets(t *t
 }
 
 func TestBuildFederationServiceConfig_TLSTunnelProtocol_SetsNodelay(t *testing.T) {
-	service := buildFederationServiceConfig("svc-tls", ":40000", "tls", "middle", "chain-next", 2, "")
+	service := buildFederationServiceConfig("svc-tls", ":40000", "tls", "middle", "chain-next", 2, "", nil)
 	handler := service["handler"].(map[string]interface{})
 	meta := handler["metadata"].(map[string]interface{})
 	if meta["nodelay"] != true {
@@ -274,10 +274,14 @@ func TestBuildFederationServiceConfig_TLSTunnelProtocol_SetsNodelay(t *testing.T
 }
 
 func TestBuildFederationServiceConfig_NonTLSProtocol_NoNodelay(t *testing.T) {
-	service := buildFederationServiceConfig("svc-tcp", ":40000", "tcp", "middle", "chain-next", 2, "")
+	service := buildFederationServiceConfig("svc-tcp", ":40000", "tcp", "middle", "chain-next", 2, "", nil)
 	handler := service["handler"].(map[string]interface{})
-	if _, hasMeta := handler["metadata"]; hasMeta {
-		t.Fatalf("expected no metadata for non-TLS protocol, got %v", handler["metadata"])
+	metadata, _ := handler["metadata"].(map[string]interface{})
+	if _, hasNodelay := metadata["nodelay"]; hasNodelay {
+		t.Fatal("non-TLS protocol must not set nodelay")
+	}
+	if metadata["chain.strict"] != true {
+		t.Fatal("middle relay must require its configured chain")
 	}
 }
 

@@ -371,6 +371,8 @@ func summarizeTunnelDeleteRuleFailures(failures []batchFailureDetail) string {
 }
 
 func (h *Handler) processTunnelDeleteWithForwards(tunnelID int64, action string, targetTunnelID int64) (tunnelDeleteWithForwardsResult, []batchFailureDetail, error) {
+	unlock := h.lockTunnelLifecycle(tunnelID, targetTunnelID)
+	defer unlock()
 	preview, err := h.buildTunnelDeletePreview(tunnelID)
 	if err != nil {
 		return tunnelDeleteWithForwardsResult{}, nil, err
@@ -431,9 +433,14 @@ func (h *Handler) processTunnelDeleteReplaceAction(tunnelID, targetTunnelID int6
 	}
 
 	if err := h.deleteTunnelAndCleanup(tunnelID); err != nil {
-		h.rollbackTunnelForwardMigrationPlans(plans)
-		_ = h.redeployTunnelAndForwards(tunnelID)
-		return tunnelDeleteWithForwardsResult{}, nil, err
+		var pending *tunnelDeletionCleanupPendingError
+		if errors.As(err, &pending) {
+			warnings = append(warnings, err.Error())
+		} else {
+			h.rollbackTunnelForwardMigrationPlans(plans)
+			_ = h.redeployTunnelAndForwardsLocked(tunnelID)
+			return tunnelDeleteWithForwardsResult{}, nil, err
+		}
 	}
 
 	result.MigratedCount = len(plans)
@@ -639,8 +646,9 @@ func (h *Handler) rollbackTunnelForwardMigrationPlans(plans []tunnelForwardMigra
 }
 
 func (h *Handler) deleteTunnelAndCleanup(tunnelID int64) error {
-	h.cleanupTunnelRuntime(tunnelID)
-	h.cleanupFederationRuntime(tunnelID)
+	if err := h.cleanupFederationRuntime(tunnelID); err != nil {
+		return err
+	}
 	if err := h.deleteTunnelByID(tunnelID); err != nil {
 		return err
 	}

@@ -411,6 +411,9 @@ func (h *Handler) onNodeOnline(nodeID int64) {
 
 	// A fresh agent needs a full restore. Shared failures remain persisted and
 	// are retried by maintenance without restarting acknowledged services.
+	if err := h.retryPendingTunnelRuntimeCleanupOnNode(nodeID); err != nil {
+		fmt.Printf("reconnect obsolete tunnel cleanup remains pending: %v\n", err)
+	}
 	h.reconcileSharedNodeRuntime(nodeID)
 	if !h.redeployLocalNodeRuntime(nodeID) {
 		h.scheduleNodeLocalRuntimeRetry(nodeID)
@@ -568,9 +571,10 @@ func (h *Handler) finishNodeOnlineRedeploy(nodeID int64) {
 }
 
 func (h *Handler) redeployNodeRuntimeAfterUpgrade(nodeID int64) bool {
+	cleanupOK := h.retryPendingTunnelRuntimeCleanupOnNode(nodeID) == nil
 	sharedOK := h.reconcileSharedNodeRuntime(nodeID)
 	localOK := h.redeployLocalNodeRuntime(nodeID)
-	return sharedOK && localOK
+	return cleanupOK && sharedOK && localOK
 }
 
 func (h *Handler) reconcileSharedNodeRuntime(nodeID int64) bool {

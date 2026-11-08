@@ -48,6 +48,9 @@ func (h *Handler) runFederationCleanupRetryLoop(ctx context.Context) {
 		if err := h.retryPendingFederationRuntimeCleanup(); err != nil {
 			log.Printf("federation cleanup remains pending: %v", err)
 		}
+		if err := h.retryPendingTunnelRuntimeCleanup(); err != nil {
+			log.Printf("tunnel runtime cleanup remains pending: %v", err)
+		}
 		h.retryPendingPeerShareOperations()
 		select {
 		case <-ctx.Done():
