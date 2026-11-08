@@ -42,7 +42,7 @@ func (h *Handler) queueObsoleteTunnelRuntimeTx(tx *gorm.DB, tunnelID int64, oldR
 			continue
 		}
 		for _, current := range newRows {
-			if current.NodeID == old.NodeID && tunnelRuntimeNeedsService(current) && current.Port != old.Port {
+			if current.NodeID == old.NodeID && tunnelRuntimeNeedsService(current) && (current.Port != old.Port || current.ChainType != old.ChainType) {
 				items = append(items, model.TunnelRuntimeCleanup{TunnelID: tunnelID, NodeID: old.NodeID, Kind: "service", Port: old.Port})
 			}
 		}
@@ -78,17 +78,17 @@ func (h *Handler) retryTunnelRuntimeCleanupLocked(tunnelID int64) error {
 	liveServices := map[int64]bool{}
 	for _, item := range items {
 		desired := false
-		desiredPort := 0
 		for _, row := range rows {
 			if row.NodeID == item.NodeID && ((item.Kind == "service" && tunnelRuntimeNeedsService(row)) || (item.Kind == "chain" && tunnelRuntimeNeedsChain(row))) {
 				desired = true
-				desiredPort = row.Port
 				break
 			}
 		}
-		if desired && item.Kind == "service" && desiredPort != item.Port {
-			// Same service name, changed port: keep the old reservation until an
-			// acknowledged upsert proves that the old listener has been replaced.
+		if desired && item.Kind == "service" {
+			// Desired state does not prove that the old receiver was replaced.
+			// Keep this barrier (even at the same port) and protect its old
+			// chain until acknowledgeTunnelServiceReplacements observes ACK.
+			liveServices[item.NodeID] = true
 			continue
 		}
 		if !desired {

@@ -1973,6 +1973,7 @@ func (h *Handler) redeployTunnelAndForwardsLocked(tunnelID int64) error {
 		}
 		_, services, applyErr := h.applyTunnelRuntimeUpsert(state)
 		applyErr = errors.Join(applyErr, h.acknowledgeTunnelServiceReplacements(tunnelID, services))
+		applyErr = errors.Join(applyErr, h.retryTunnelRuntimeCleanupLocked(tunnelID))
 		if applyErr != nil {
 			return applyErr
 		}

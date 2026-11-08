@@ -62,3 +62,7 @@ Public-seam regressions:
 - `TestDeletedTunnelCleanupSurvivesHandlerReplacement` deletes desired state despite a rejected listener deletion, verifies old-port reservation, then replaces the Handler and reconnects node sessions. Persisted ownership permits cleanup/retry and releases the port only after ACK. Subsequent retry does not remove the replacement tunnel.
 
 The full repository, handler and contract suites passed (2.965s, 12.463s, 16.974s) before the final reconnect-specific test and forward-port reservation check. Focused race validation results are reported with the integration checkpoint.
+
+### Receiver role-transition acknowledgment barrier
+
+Final review on rebased baseline `7f01774` found that middle→exit on the same node could remove the old chain after a rejected/timed-out receiver replacement. `TestMiddleToExitKeepsChainUntilReceiverReplacementAcknowledged` reproduced this in all four combinations of same/changed receiver port and timeout/hard rejection (`deletes=1 unsafe=true`). The fix queues a service-replacement barrier on receiver role changes, including same-port changes. A still-desired service record is retained and protects chain cleanup until successful service upsert acknowledgment; redeploy drains obsolete chains after that acknowledgment. Focused green result: PASS, 0.764s. Red evidence: `/tmp/flvx-role-transition-red.log`; race validation is reported in the final integration checkpoint.
