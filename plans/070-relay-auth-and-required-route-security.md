@@ -1,6 +1,6 @@
 # Relay authentication and required-route security repair
 
-Status: two-axis review completed against approved base 3549fe5; review-driven lifecycle corrections are in progress before authorized PR, merge and release. The owner confirmed both test seams.
+Status: implementation, two-axis review and local integrated validation complete. Remote CI must pass before the authorized merge and release. Approved initial review base: 3549fe5; upstream rc7 is preserved.
 Base inspected: 3549fe5 (existing checkout); existing investigation tests are preserved.
 Workflow: installed Matt Pocock skills 1.3.2, diagnosing-bugs → TDD → code-review. The owner subsequently authorized PR submission, merge and the next release tag after review.
 
@@ -143,3 +143,17 @@ configuration. Preserve the full security-aware database and deploy compatible
 panel/agent versions together. Any rollback or old-tunnel migration needs an
 explicit maintenance plan and validation of the live receiver, not only API
 policy fields.
+
+## Final lifecycle guarantees and limits
+
+Creation reserves prepared topology and local ports before waiting for remote
+acknowledgments. Create/update report saved-but-pending outcomes explicitly,
+including a frontend warning. Obsolete runtime ownership persists until cleanup
+is acknowledged, even after desired topology or tunnel deletion. Unconfirmed
+receiver ports remain reserved. Re-added resources and middle-to-exit role
+changes cannot lose a required chain before receiver replacement acknowledgment.
+
+This still does not provide distributed atomic topology cutover. During pending
+application, old paths or established connections can remain. Upgrade agents,
+resynchronize their configurations, and verify required-route policy is active
+before claiming the deployed protection.

@@ -55,3 +55,19 @@ cleanup records are being added in the existing database so retries can identify
 old endpoints even after desired topology changes. Records are removed only after
 acknowledgment and are canceled if current desired topology needs the resource
 again. This is targeted cleanup recovery, not distributed transaction rollback.
+
+## Final follow-up
+
+Final code commit: 89a1a7b, integrated on rc7 (46bfb86).
+All reported correctness/completion gaps were corrected. Durable cleanup keeps
+port reservations, survives topology/tunnel deletion, and is retried through
+existing maintenance and reconnect paths. Re-adding a receiver cannot cause a
+delayed deletion, and changing its port does not free the old port before ACK.
+The additional middle-to-exit role transition preserves the old chain until
+receiver replacement is acknowledged, for both same and changed ports.
+
+Standards: no hard violations remain; one fixture-duplication smell is deferred.
+Spec: no remaining release blocker found in the reviewed scope.
+The final full backend race run passed (excluding the documented external
+Cloudflare test). Frontend build/typecheck, GOST x race/vet, agent tests/build/vet
+and backend build/vet passed. Publication remains conditional on remote CI.
