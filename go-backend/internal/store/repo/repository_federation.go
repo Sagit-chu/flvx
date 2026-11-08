@@ -202,6 +202,13 @@ func (r *Repository) ListUsedPortsOnNode(nodeID int64) ([]int, error) {
 		}
 	}
 
+	pendingPorts, err := r.PendingTunnelCleanupPortsTx(nil, nodeID, 0)
+	if err != nil {
+		return nil, err
+	}
+	for _, port := range pendingPorts {
+		used[port] = struct{}{}
+	}
 	result := make([]int, 0, len(used))
 	for p := range used {
 		result = append(result, p)

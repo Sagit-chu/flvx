@@ -305,11 +305,17 @@ func TestFederationRemoteUsageListSyncErrorFallback(t *testing.T) {
 
 	h := New(r, "test-jwt-secret")
 	now := time.Now().UnixMilli()
+	// Model an unavailable provider entirely on loopback instead of relying on
+	// external DNS or network restrictions to produce the sync error.
+	provider := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		http.Error(w, "provider unavailable", http.StatusServiceUnavailable)
+	}))
+	defer provider.Close()
 
 	if err := r.DB().Exec(`
 		INSERT INTO node(name, secret, server_ip, server_ip_v4, server_ip_v6, port, interface_name, version, http, tls, socks, created_time, updated_time, status, tcp_listen_addr, udp_listen_addr, inx, is_remote, remote_url, remote_token, remote_config)
 		VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-	`, "sync-error-node", "sync-error-secret", "10.50.60.70", "10.50.60.70", "", "32000-32010", "", "v1", 1, 1, 1, now, now, 1, "[::]", "[::]", 0, 1, "http://unreachable.invalid:9999", "bad-token", `{"shareId":42,"maxBandwidth":5368709120,"currentFlow":999999,"portRangeStart":32000,"portRangeEnd":32010}`).Error; err != nil {
+	`, "sync-error-node", "sync-error-secret", "10.50.60.70", "10.50.60.70", "", "32000-32010", "", "v1", 1, 1, 1, now, now, 1, "[::]", "[::]", 0, 1, provider.URL, "bad-token", `{"shareId":42,"maxBandwidth":5368709120,"currentFlow":999999,"portRangeStart":32000,"portRangeEnd":32010}`).Error; err != nil {
 		t.Fatalf("insert remote node: %v", err)
 	}
 
@@ -348,7 +354,7 @@ func TestFederationRemoteUsageListSyncErrorFallback(t *testing.T) {
 
 	syncErr, _ := first["syncError"].(string)
 	if syncErr == "" {
-		t.Fatalf("expected non-empty syncError field on unreachable provider")
+		t.Fatalf("expected non-empty syncError field on unavailable provider")
 	}
 }
 
@@ -858,11 +864,15 @@ func TestFederationRemoteUsageList(t *testing.T) {
 
 	h := New(r, "test-jwt-secret")
 	now := time.Now().UnixMilli()
+	provider := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		http.Error(w, "provider unavailable", http.StatusServiceUnavailable)
+	}))
+	defer provider.Close()
 
 	if err := r.DB().Exec(`
 		INSERT INTO node(name, secret, server_ip, server_ip_v4, server_ip_v6, port, interface_name, version, http, tls, socks, created_time, updated_time, status, tcp_listen_addr, udp_listen_addr, inx, is_remote, remote_url, remote_token, remote_config)
 		VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-	`, "remote-consumer-node", "remote-consumer-secret", "10.30.40.50", "10.30.40.50", "", "31000-31010", "", "v1", 1, 1, 1, now, now, 1, "[::]", "[::]", 0, 1, "http://peer.example", "peer-token", `{"shareId":88,"maxBandwidth":2147483648,"currentFlow":1073741824,"portRangeStart":31000,"portRangeEnd":31010}`).Error; err != nil {
+	`, "remote-consumer-node", "remote-consumer-secret", "10.30.40.50", "10.30.40.50", "", "31000-31010", "", "v1", 1, 1, 1, now, now, 1, "[::]", "[::]", 0, 1, provider.URL, "peer-token", `{"shareId":88,"maxBandwidth":2147483648,"currentFlow":1073741824,"portRangeStart":31000,"portRangeEnd":31010}`).Error; err != nil {
 		t.Fatalf("insert remote node: %v", err)
 	}
 	nodeID := mustLastInsertID(t, r, "remote-consumer-node")
@@ -882,8 +892,8 @@ func TestFederationRemoteUsageList(t *testing.T) {
 		VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?),
 		      (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`,
-		tunnelAID, nodeID, 2, 1, "http://peer.example", "rk-a", "rb-a", 31001, 1, now, now,
-		tunnelBID, nodeID, 3, 0, "http://peer.example", "rk-b", "rb-b", 31002, 1, now, now,
+		tunnelAID, nodeID, 2, 1, provider.URL, "rk-a", "rb-a", 31001, 1, now, now,
+		tunnelBID, nodeID, 3, 0, provider.URL, "rk-b", "rb-b", 31002, 1, now, now,
 	).Error; err != nil {
 		t.Fatalf("insert federation bindings: %v", err)
 	}

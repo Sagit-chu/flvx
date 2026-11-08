@@ -17,6 +17,7 @@ import (
 
 	"go-backend/internal/http/client"
 	"go-backend/internal/http/response"
+	"go-backend/internal/relaysecurity"
 	"go-backend/internal/store/repo"
 )
 
@@ -68,18 +69,20 @@ type federationRuntimeReservePortRequest struct {
 }
 
 type federationRuntimeTarget struct {
-	Host     string `json:"host"`
-	Port     int    `json:"port"`
-	Protocol string `json:"protocol"`
+	RelayAuth *relaysecurity.Credentials `json:"relayAuth,omitempty"`
+	Host      string                     `json:"host"`
+	Port      int                        `json:"port"`
+	Protocol  string                     `json:"protocol"`
 }
 
 type federationRuntimeApplyRoleRequest struct {
-	ReservationID string                    `json:"reservationId"`
-	ResourceKey   string                    `json:"resourceKey"`
-	Role          string                    `json:"role"`
-	Protocol      string                    `json:"protocol"`
-	Strategy      string                    `json:"strategy"`
-	Targets       []federationRuntimeTarget `json:"targets"`
+	RelayAuth     *relaysecurity.Credentials `json:"relayAuth,omitempty"`
+	ReservationID string                     `json:"reservationId"`
+	ResourceKey   string                     `json:"resourceKey"`
+	Role          string                     `json:"role"`
+	Protocol      string                     `json:"protocol"`
+	Strategy      string                     `json:"strategy"`
+	Targets       []federationRuntimeTarget  `json:"targets"`
 }
 
 type federationRuntimeReleaseRoleRequest struct {
@@ -115,6 +118,13 @@ func buildFederationMiddleChainConfig(chainName string, runtimeID int64, protoco
 		connector := map[string]interface{}{
 			"type": "relay",
 		}
+		if target.RelayAuth != nil {
+			if err := target.RelayAuth.Validate(); err != nil {
+				return nil, err
+			}
+			connector["auth"] = target.RelayAuth.Config()
+		}
+
 		if isTCPTunnelProtocol(targetProtocol) {
 			connector["metadata"] = map[string]interface{}{
 				"nodelay":               true,
@@ -221,7 +231,7 @@ type remoteUsageNodeItem struct {
 	SyncError        string                   `json:"syncError,omitempty"`
 }
 
-func buildFederationServiceConfig(serviceName, addr, protocol, role, chainName string, targetCount int, interfaceName string) map[string]interface{} {
+func buildFederationServiceConfig(serviceName, addr, protocol, role, chainName string, targetCount int, interfaceName string, credentials *relaysecurity.Credentials) map[string]interface{} {
 	service := map[string]interface{}{
 		"name": serviceName,
 		"addr": addr,
@@ -230,6 +240,10 @@ func buildFederationServiceConfig(serviceName, addr, protocol, role, chainName s
 		},
 		"listener": buildTunnelListenerConfig(protocol),
 	}
+	if credentials != nil {
+		service["handler"].(map[string]interface{})["auth"] = credentials.Config()
+	}
+
 	if isTCPTunnelProtocol(protocol) {
 		service["handler"].(map[string]interface{})["metadata"] = map[string]interface{}{
 			"nodelay":               true,
@@ -243,6 +257,13 @@ func buildFederationServiceConfig(serviceName, addr, protocol, role, chainName s
 		}
 	}
 	if role == "middle" {
+		handler := service["handler"].(map[string]interface{})
+		md, _ := handler["metadata"].(map[string]interface{})
+		if md == nil {
+			md = map[string]interface{}{}
+			handler["metadata"] = md
+		}
+		md["chain.strict"] = true
 		service["handler"].(map[string]interface{})["chain"] = chainName
 		if targetCount > 1 {
 			service["handler"].(map[string]interface{})["retries"] = targetCount - 1
@@ -915,17 +936,18 @@ func (h *Handler) federationConnect(w http.ResponseWriter, r *http.Request) {
 	}
 
 	response.WriteJSON(w, response.OK(map[string]interface{}{
-		"shareId":        share.ID,
-		"shareName":      share.Name,
-		"nodeId":         share.NodeID,
-		"nodeName":       nodeInfo.Name,
-		"serverIp":       nodeInfo.ServerIP,
-		"status":         nodeInfo.Status,
-		"maxBandwidth":   share.MaxBandwidth,
-		"currentFlow":    share.CurrentFlow,
-		"expiryTime":     share.ExpiryTime,
-		"portRangeStart": share.PortRangeStart,
-		"portRangeEnd":   share.PortRangeEnd,
+		"shareId":          share.ID,
+		"relayAuthVersion": relaysecurity.Version,
+		"shareName":        share.Name,
+		"nodeId":           share.NodeID,
+		"nodeName":         nodeInfo.Name,
+		"serverIp":         nodeInfo.ServerIP,
+		"status":           nodeInfo.Status,
+		"maxBandwidth":     share.MaxBandwidth,
+		"currentFlow":      share.CurrentFlow,
+		"expiryTime":       share.ExpiryTime,
+		"portRangeStart":   share.PortRangeStart,
+		"portRangeEnd":     share.PortRangeEnd,
 	}))
 }
 
@@ -1079,9 +1101,10 @@ func (h *Handler) federationRuntimeReservePort(w http.ResponseWriter, r *http.Re
 	}
 	if existing != nil && existing.Status == 1 {
 		response.WriteJSON(w, response.OK(map[string]interface{}{
-			"reservationId": existing.ReservationID,
-			"allocatedPort": existing.Port,
-			"bindingId":     existing.BindingID,
+			"reservationId":    existing.ReservationID,
+			"allocatedPort":    existing.Port,
+			"relayAuthVersion": relaysecurity.Version,
+			"bindingId":        existing.BindingID,
 		}))
 		return
 	}
@@ -1103,6 +1126,8 @@ func (h *Handler) federationRuntimeReservePort(w http.ResponseWriter, r *http.Re
 		existing.ServiceName = ""
 		existing.Strategy = "round"
 		existing.Target = ""
+		existing.RelayAuth = ""
+		existing.RelayAuthVersion = 0
 		existing.Applied = 0
 		existing.Status = 1
 		existing.UpdatedTime = now
@@ -1111,9 +1136,10 @@ func (h *Handler) federationRuntimeReservePort(w http.ResponseWriter, r *http.Re
 			return
 		}
 		response.WriteJSON(w, response.OK(map[string]interface{}{
-			"reservationId": existing.ReservationID,
-			"allocatedPort": existing.Port,
-			"bindingId":     existing.BindingID,
+			"reservationId":    existing.ReservationID,
+			"allocatedPort":    existing.Port,
+			"relayAuthVersion": relaysecurity.Version,
+			"bindingId":        existing.BindingID,
 		}))
 		return
 	}
@@ -1142,9 +1168,10 @@ func (h *Handler) federationRuntimeReservePort(w http.ResponseWriter, r *http.Re
 	}
 
 	response.WriteJSON(w, response.OK(map[string]interface{}{
-		"reservationId": runtime.ReservationID,
-		"allocatedPort": runtime.Port,
-		"bindingId":     runtime.BindingID,
+		"reservationId":    runtime.ReservationID,
+		"allocatedPort":    runtime.Port,
+		"relayAuthVersion": relaysecurity.Version,
+		"bindingId":        runtime.BindingID,
 	}))
 }
 
@@ -1211,6 +1238,20 @@ func (h *Handler) federationRuntimeApplyRole(w http.ResponseWriter, r *http.Requ
 		response.WriteJSON(w, response.ErrDefault("Reserved port is outside share range"))
 		return
 	}
+	if _, err := decodeRuntimeRelayAuth(runtime); err != nil {
+		response.WriteJSON(w, response.ErrDefault(err.Error()))
+		return
+	}
+	if err := validateFederationRelayAuth(runtime.RelayAuth, req.RelayAuth, req.Targets); err != nil {
+		response.WriteJSON(w, response.ErrDefault(err.Error()))
+		return
+	}
+	if req.RelayAuth != nil {
+		encoded, _ := json.Marshal(req.RelayAuth)
+		runtime.RelayAuth = string(encoded)
+		runtime.RelayAuthVersion = relaysecurity.Version
+	}
+
 	if strings.TrimSpace(runtime.BindingID) == "" {
 		runtime.BindingID = randomToken(24)
 	}
@@ -1230,9 +1271,10 @@ func (h *Handler) federationRuntimeApplyRole(w http.ResponseWriter, r *http.Requ
 	}
 
 	response.WriteJSON(w, response.OK(map[string]interface{}{
-		"bindingId":     runtime.BindingID,
-		"reservationId": runtime.ReservationID,
-		"allocatedPort": runtime.Port,
+		"relayAuthVersion": relayAuthVersion(req.RelayAuth),
+		"bindingId":        runtime.BindingID,
+		"reservationId":    runtime.ReservationID,
+		"allocatedPort":    runtime.Port,
 	}))
 }
 

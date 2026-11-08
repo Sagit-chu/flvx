@@ -1972,7 +1972,12 @@ func buildForwardServiceConfigs(baseName string, forward *forwardRecord, tunnel 
 			service["listener"].(map[string]interface{})["metadata"] = listenerMetadata
 		}
 		if tunnel != nil && tunnel.Type == 2 {
-			service["handler"].(map[string]interface{})["chain"] = fmt.Sprintf("chains_%d", forward.TunnelID)
+			handlerConfig := service["handler"].(map[string]interface{})
+			handlerConfig["chain"] = fmt.Sprintf("chains_%d", forward.TunnelID)
+			if handlerConfig["metadata"] == nil {
+				handlerConfig["metadata"] = map[string]interface{}{}
+			}
+			handlerConfig["metadata"].(map[string]interface{})["chain.strict"] = true
 		}
 		if tunnel != nil && tunnel.Type == 1 && strings.TrimSpace(node.InterfaceName) != "" {
 			serviceMetadata := ensureServiceMetadata(service)

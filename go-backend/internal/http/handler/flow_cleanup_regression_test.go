@@ -37,7 +37,7 @@ type cleanupAgent struct {
 	commands []cleanupAgentCommand
 }
 
-func newCleanupAgent(t *testing.T) *cleanupAgent {
+func newCleanupAgent(t *testing.T, setup ...func(*repo.Repository)) *cleanupAgent {
 	t.Helper()
 	r, err := repo.Open(filepath.Join(t.TempDir(), "cleanup.db"))
 	if err != nil {
@@ -47,6 +47,11 @@ func newCleanupAgent(t *testing.T) *cleanupAgent {
 	const secret = "cleanup-regression-node"
 	if err := r.DB().Create(&model.Node{ID: 1, Name: "relay", Secret: secret, ServerIP: "127.0.0.1", Port: "30000", Status: 1}).Error; err != nil {
 		t.Fatal(err)
+	}
+	// Register test-local database callbacks before WebSocket goroutines can
+	// execute them. Keep registries immutable until the fixture is closed.
+	for _, configure := range setup {
+		configure(r)
 	}
 	server := ws.NewServer(r, "test-jwt-secret")
 	online := make(chan struct{})

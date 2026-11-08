@@ -3,6 +3,7 @@ package client
 import (
 	"encoding/json"
 	"fmt"
+	"go-backend/internal/relaysecurity"
 	"io"
 	"net/http"
 	"strings"
@@ -14,17 +15,18 @@ type FederationClient struct {
 }
 
 type RemoteNodeInfo struct {
-	ShareID        int64  `json:"shareId"`
-	ShareName      string `json:"shareName"`
-	NodeID         int64  `json:"nodeId"`
-	NodeName       string `json:"nodeName"`
-	ServerIP       string `json:"serverIp"`
-	Status         int    `json:"status"`
-	MaxBandwidth   int64  `json:"maxBandwidth"`
-	CurrentFlow    int64  `json:"currentFlow"`
-	ExpiryTime     int64  `json:"expiryTime"`
-	PortRangeStart int    `json:"portRangeStart"`
-	PortRangeEnd   int    `json:"portRangeEnd"`
+	RelayAuthVersion int    `json:"relayAuthVersion"`
+	ShareID          int64  `json:"shareId"`
+	ShareName        string `json:"shareName"`
+	NodeID           int64  `json:"nodeId"`
+	NodeName         string `json:"nodeName"`
+	ServerIP         string `json:"serverIp"`
+	Status           int    `json:"status"`
+	MaxBandwidth     int64  `json:"maxBandwidth"`
+	CurrentFlow      int64  `json:"currentFlow"`
+	ExpiryTime       int64  `json:"expiryTime"`
+	PortRangeStart   int    `json:"portRangeStart"`
+	PortRangeEnd     int    `json:"portRangeEnd"`
 }
 
 type RemoteTunnelResponse struct {
@@ -38,30 +40,34 @@ type RuntimeReservePortRequest struct {
 }
 
 type RuntimeReservePortResponse struct {
-	ReservationID string `json:"reservationId"`
-	BindingID     string `json:"bindingId"`
-	AllocatedPort int    `json:"allocatedPort"`
+	RelayAuthVersion int    `json:"relayAuthVersion"`
+	ReservationID    string `json:"reservationId"`
+	BindingID        string `json:"bindingId"`
+	AllocatedPort    int    `json:"allocatedPort"`
 }
 
 type RuntimeTarget struct {
-	Host     string `json:"host"`
-	Port     int    `json:"port"`
-	Protocol string `json:"protocol"`
+	RelayAuth *relaysecurity.Credentials `json:"relayAuth,omitempty"`
+	Host      string                     `json:"host"`
+	Port      int                        `json:"port"`
+	Protocol  string                     `json:"protocol"`
 }
 
 type RuntimeApplyRoleRequest struct {
-	ReservationID string          `json:"reservationId"`
-	ResourceKey   string          `json:"resourceKey"`
-	Role          string          `json:"role"`
-	Protocol      string          `json:"protocol"`
-	Strategy      string          `json:"strategy"`
-	Targets       []RuntimeTarget `json:"targets"`
+	RelayAuth     *relaysecurity.Credentials `json:"relayAuth,omitempty"`
+	ReservationID string                     `json:"reservationId"`
+	ResourceKey   string                     `json:"resourceKey"`
+	Role          string                     `json:"role"`
+	Protocol      string                     `json:"protocol"`
+	Strategy      string                     `json:"strategy"`
+	Targets       []RuntimeTarget            `json:"targets"`
 }
 
 type RuntimeApplyRoleResponse struct {
-	BindingID     string `json:"bindingId"`
-	ReservationID string `json:"reservationId"`
-	AllocatedPort int    `json:"allocatedPort"`
+	RelayAuthVersion int    `json:"relayAuthVersion"`
+	BindingID        string `json:"bindingId"`
+	ReservationID    string `json:"reservationId"`
+	AllocatedPort    int    `json:"allocatedPort"`
 }
 
 type RuntimeReleaseRoleRequest struct {
@@ -247,6 +253,9 @@ func (c *FederationClient) ApplyRole(url, token, localDomain string, reqData Run
 	defer resp.Body.Close()
 
 	if resp.StatusCode != 200 {
+		if reqData.RelayAuth != nil {
+			return nil, fmt.Errorf("remote authenticated relay apply failed: HTTP %d", resp.StatusCode)
+		}
 		body, _ := io.ReadAll(resp.Body)
 		return nil, fmt.Errorf("remote error %d: %s", resp.StatusCode, string(body))
 	}
@@ -260,7 +269,14 @@ func (c *FederationClient) ApplyRole(url, token, localDomain string, reqData Run
 		return nil, err
 	}
 	if res.Code != 0 {
+		if reqData.RelayAuth != nil {
+			return nil, fmt.Errorf("remote authenticated relay apply failed: code %d", res.Code)
+		}
 		return nil, fmt.Errorf("remote api error: %s", res.Msg)
+	}
+
+	if reqData.RelayAuth != nil && res.Data.RelayAuthVersion != relaysecurity.Version {
+		return nil, fmt.Errorf("remote did not acknowledge required relay authentication")
 	}
 
 	return &res.Data, nil
