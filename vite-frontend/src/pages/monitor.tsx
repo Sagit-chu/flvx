@@ -1,6 +1,7 @@
 import type { MonitorNodeApiItem } from "@/api/types";
+import type { RealtimeNodeMetric } from "@/pages/node/monitor-view";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import toast from "react-hot-toast";
 import {
   RefreshCw,
@@ -44,73 +45,117 @@ export default function MonitorPage() {
   const [viewMode, setViewMode] = useState<"list" | "grid">("list");
   const [activeTab, setActiveTab] = useState<MonitorTab>("nodes");
 
-  const [realtimeNodeStatus, setRealtimeNodeStatus] = useState<
-    Record<number, "online" | "offline">
-  >({});
+  const realtimeNodeStatusRef = useRef(new Map<number, { status: number }>());
+  const nodesRequestIdRef = useRef(0);
   const [realtimeNodeMetrics, setRealtimeNodeMetrics] = useState<
-    Record<number, any>
+    Record<number, RealtimeNodeMetric>
   >({});
 
-  const handleRealtimeMessage = useCallback((message: any) => {
-    const nodeId = Number(message?.id ?? 0);
-
-    if (!nodeId || Number.isNaN(nodeId)) return;
-
-    const type = String(message?.type ?? "");
-    const payload = message?.data;
-
-    if (type === "status") {
-      const status = Number(payload);
-
-      setRealtimeNodeStatus((prev) => ({
-        ...prev,
-        [nodeId]: status === 1 ? "online" : "offline",
-      }));
-
-      return;
-    }
-
-    if (type === "metric") {
-      let raw = payload;
-
-      if (typeof raw === "string") {
-        try {
-          raw = JSON.parse(raw);
-        } catch {
-          return;
-        }
-      }
-      if (!raw || typeof raw !== "object") return;
-      const metric = raw as any;
-
-      setRealtimeNodeMetrics((prev) => ({
-        ...prev,
-        [nodeId]: {
-          cpuUsage: Number(metric.cpuUsage ?? metric.cpu_usage ?? 0),
-          netInSpeed: Number(metric.netInSpeed ?? metric.net_in_speed ?? 0),
-          netOutSpeed: Number(metric.netOutSpeed ?? metric.net_out_speed ?? 0),
-          tcpConns: Number(metric.tcpConns ?? metric.tcp_conns ?? 0),
-          udpConns: Number(metric.udpConns ?? metric.udp_conns ?? 0),
-        },
-      }));
-    }
+  const updateNodeStatus = useCallback((nodeId: number, status: number) => {
+    realtimeNodeStatusRef.current.set(nodeId, { status });
+    setNodes((prev) =>
+      prev.map((node) =>
+        Number(node.id) === nodeId ? { ...node, status } : node,
+      ),
+    );
   }, []);
 
-  useNodeRealtime({
+  const handleRealtimeMessage = useCallback(
+    (message: any) => {
+      const nodeId = Number(message?.id ?? 0);
+
+      if (!nodeId || Number.isNaN(nodeId)) return;
+
+      const type = String(message?.type ?? "");
+      const payload = message?.data;
+
+      if (type === "status") {
+        updateNodeStatus(nodeId, Number(payload) === 1 ? 1 : 0);
+
+        return;
+      }
+
+      if (type === "info") {
+        updateNodeStatus(nodeId, 1);
+
+        return;
+      }
+
+      if (type === "metric") {
+        let raw = payload;
+
+        if (typeof raw === "string") {
+          try {
+            raw = JSON.parse(raw);
+          } catch {
+            return;
+          }
+        }
+        if (!raw || typeof raw !== "object") return;
+        const metric = raw as Record<string, unknown>;
+        const receivedAt = Date.now();
+        const incomingUptime = Number(metric.uptime ?? 0);
+
+        setRealtimeNodeMetrics((prev) => ({
+          ...prev,
+          [nodeId]: {
+            receivedAt,
+            cpuUsage: Number(metric.cpuUsage ?? metric.cpu_usage ?? 0),
+            memoryUsage: Number(metric.memoryUsage ?? metric.memory_usage ?? 0),
+            diskUsage: Number(metric.diskUsage ?? metric.disk_usage ?? 0),
+            netInBytes: Number(metric.netInBytes ?? metric.bytes_received ?? 0),
+            netOutBytes: Number(
+              metric.netOutBytes ?? metric.bytes_transmitted ?? 0,
+            ),
+            netInSpeed: Number(metric.netInSpeed ?? metric.net_in_speed ?? 0),
+            netOutSpeed: Number(
+              metric.netOutSpeed ?? metric.net_out_speed ?? 0,
+            ),
+            load1: Number(metric.load1 ?? 0),
+            load5: Number(metric.load5 ?? 0),
+            load15: Number(metric.load15 ?? 0),
+            tcpConns: Number(metric.tcpConns ?? metric.tcp_conns ?? 0),
+            udpConns: Number(metric.udpConns ?? metric.udp_conns ?? 0),
+            uptime: incomingUptime || prev[nodeId]?.uptime || 0,
+          },
+        }));
+        updateNodeStatus(nodeId, 1);
+      }
+    },
+    [updateNodeStatus],
+  );
+
+  const { wsConnected, wsConnecting } = useNodeRealtime({
     onMessage: handleRealtimeMessage,
     enabled: true,
   });
 
   const loadNodes = useCallback(async (options?: { silent?: boolean }) => {
     const silent = options?.silent ?? false;
+    const requestId = ++nodesRequestIdRef.current;
+    const statusAtRequest = new Map(realtimeNodeStatusRef.current);
 
     if (!silent) setNodesLoading(true);
     try {
       const response = await getMonitorNodes();
 
+      // A newer refresh or poll owns the page state, even if it finishes first.
+      if (requestId !== nodesRequestIdRef.current) return;
+
       if (response.code === 0 && Array.isArray(response.data)) {
         setNodesError(null);
-        setNodes(response.data);
+        // A fresh snapshot repairs missed WS events. Events received while the
+        // request was in flight are newer than that snapshot and must win.
+        setNodes(
+          response.data.map((node) => {
+            const nodeId = Number(node.id);
+            const latest = realtimeNodeStatusRef.current.get(nodeId);
+
+            return latest && latest !== statusAtRequest.get(nodeId)
+              ? { ...node, status: latest.status }
+              : node;
+          }),
+        );
 
         return;
       }
@@ -124,14 +169,21 @@ export default function MonitorPage() {
 
       if (!silent) toast.error(response.msg || "加载节点失败");
     } catch {
-      if (!silent) toast.error("加载节点失败");
+      if (requestId === nodesRequestIdRef.current && !silent) {
+        toast.error("加载节点失败");
+      }
     } finally {
-      if (!silent) setNodesLoading(false);
+      // A silent poll may supersede a foreground refresh that showed loading.
+      if (requestId === nodesRequestIdRef.current) setNodesLoading(false);
     }
   }, []);
 
   useEffect(() => {
     void loadNodes();
+
+    return () => {
+      nodesRequestIdRef.current += 1;
+    };
   }, [loadNodes]);
 
   useEffect(() => {
@@ -148,14 +200,12 @@ export default function MonitorPage() {
       .map((n) => ({
         id: Number(n.id),
         name: String(n.name ?? ""),
-        connectionStatus:
-          realtimeNodeStatus[Number(n.id)] ||
-          (n.status === 1 ? "online" : "offline"),
+        connectionStatus: n.status === 1 ? "online" : "offline",
         version: n.version,
       }));
 
     return new Map<number, MonitorNode>(list.map((n) => [n.id, n]));
-  }, [nodes, realtimeNodeStatus]);
+  }, [nodes]);
 
   const aggregateMetrics = useMemo(() => {
     let totalCpu = 0;
@@ -326,7 +376,13 @@ export default function MonitorPage() {
       </div>
 
       {activeTab === "nodes" ? (
-        <MonitorView nodeMap={nodeMap} viewMode={viewMode} />
+        <MonitorView
+          nodeMap={nodeMap}
+          realtimeNodeMetrics={realtimeNodeMetrics}
+          viewMode={viewMode}
+          wsConnected={wsConnected}
+          wsConnecting={wsConnecting}
+        />
       ) : (
         <TunnelMonitorView viewMode={viewMode} />
       )}
