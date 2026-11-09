@@ -12,9 +12,17 @@ import (
 
 	"go-backend/internal/app"
 	"go-backend/internal/config"
+	"go-backend/internal/panelupgrade"
 )
 
 func main() {
+	if len(os.Args) == 3 && os.Args[1] == "panel-upgrade-helper" {
+		if panelupgrade.RunHelper(os.Args[2]) != nil {
+			log.Print("panel upgrade helper stopped; inspect durable job status")
+			os.Exit(1)
+		}
+		return
+	}
 	cfg := config.FromEnv()
 	if cfg.JWTSecret == "" {
 		log.Println("warning: JWT_SECRET is empty")

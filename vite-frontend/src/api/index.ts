@@ -44,6 +44,7 @@ import type {
   StorageSummaryApiData,
   SystemUpgradeCheckApiData,
   SystemUpgradeRunApiData,
+  SystemUpgradeStatusApiData,
   SystemUpgradeVersionApiData,
 } from "./types";
 
@@ -316,6 +317,13 @@ export const checkSystemUpgrade = (channel: ReleaseChannel = "stable") =>
   Network.post<SystemUpgradeCheckApiData>("/system/check-updates", {
     channel,
   });
+
+export const getSystemUpgradeStatus = (jobId?: string) =>
+  Network.post<SystemUpgradeStatusApiData>(
+    "/system/upgrade/status",
+    jobId ? { jobId } : {},
+    { timeout: 10000 },
+  );
 
 export const runSystemUpgrade = (
   version?: string,

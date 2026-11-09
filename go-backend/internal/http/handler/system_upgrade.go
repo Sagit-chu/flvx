@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"go-backend/internal/http/response"
+	"go-backend/internal/panelupgrade"
 )
 
 const (
@@ -75,6 +76,7 @@ type systemUpgradeCheckData struct {
 }
 
 type systemUpgradeRunData struct {
+	JobID           string `json:"jobId"`
 	Version         string `json:"version"`
 	Channel         string `json:"channel"`
 	ComposeAsset    string `json:"composeAsset"`
@@ -118,17 +120,7 @@ func validateBackendContainerName(value string) error {
 	return nil
 }
 
-func validateUpgradeVersion(value string) error {
-	if strings.TrimSpace(value) == "" {
-		return fmt.Errorf("upgrade version is empty")
-	}
-	for _, r := range value {
-		if r < 0x20 || r == 0x7f {
-			return fmt.Errorf("unsafe upgrade version: contains control character")
-		}
-	}
-	return nil
-}
+func validateUpgradeVersion(value string) error { return panelupgrade.ValidateVersion(value) }
 
 func (e *systemUpgradeExecutor) composePath() string {
 	return filepath.Join(e.deployDir, "docker-compose.yml")
@@ -136,6 +128,8 @@ func (e *systemUpgradeExecutor) composePath() string {
 func (e *systemUpgradeExecutor) envPath() string { return filepath.Join(e.deployDir, ".env") }
 
 func (e *systemUpgradeExecutor) capability(ctx context.Context) systemUpgradeCapabilityData {
+	ctx, cancel := context.WithTimeout(ctx, 15*time.Second)
+	defer cancel()
 	reasons := make([]string, 0)
 	if !filepath.IsAbs(e.deployDir) {
 		reasons = append(reasons, "部署目录必须是绝对路径")
@@ -143,8 +137,8 @@ func (e *systemUpgradeExecutor) capability(ctx context.Context) systemUpgradeCap
 	if err := validateBackendContainerName(e.backendContainer); err != nil {
 		reasons = append(reasons, err.Error())
 	}
-	if out, err := exec.CommandContext(ctx, "docker", "--version").CombinedOutput(); err != nil {
-		reasons = append(reasons, fmt.Sprintf("docker CLI不可用: %v: %s", err, strings.TrimSpace(string(out))))
+	if err := exec.CommandContext(ctx, "docker", "--version").Run(); err != nil {
+		reasons = append(reasons, "docker CLI不可用")
 	}
 	if info, err := os.Stat(dockerSocketPath); err != nil {
 		reasons = append(reasons, "docker socket不可用: "+err.Error())
@@ -161,10 +155,10 @@ func (e *systemUpgradeExecutor) capability(ctx context.Context) systemUpgradeCap
 	} else if info.IsDir() {
 		reasons = append(reasons, "部署.env不是文件")
 	}
-	if out, err := exec.CommandContext(ctx, "docker", "compose", "version").CombinedOutput(); err != nil {
-		reasons = append(reasons, fmt.Sprintf("docker compose不可用: %v: %s", err, strings.TrimSpace(string(out))))
+	if err := exec.CommandContext(ctx, "docker", "compose", "version").Run(); err != nil {
+		reasons = append(reasons, "docker compose不可用")
 	}
-	if _, err := e.currentBackendImage(ctx); err != nil {
+	if _, err := (panelupgrade.Manager{Dir: e.deployDir, Backend: e.backendContainer}).Identity(ctx); err != nil {
 		reasons = append(reasons, err.Error())
 	}
 
@@ -181,144 +175,6 @@ func (e *systemUpgradeExecutor) selectComposeAsset(current []byte) string {
 		return "docker-compose-v6.yml"
 	}
 	return "docker-compose-v4.yml"
-}
-
-func (e *systemUpgradeExecutor) helperScript() string {
-	return `set -eu
-LOGFILE="$PANEL_DEPLOY_DIR/upgrade.log"
-log() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*" | tee -a "$LOGFILE"; }
-
-cd "$PANEL_DEPLOY_DIR"
-echo "" > "$LOGFILE"
-log "开始面板升级"
-log "工作目录: $(pwd)"
-
-if [ ! -f docker-compose.yml ]; then
-  log "错误: docker-compose.yml 不存在"
-  exit 1
-fi
-if [ ! -f .env ]; then
-  log "错误: .env 不存在"
-  exit 1
-fi
-
-log "拉取新镜像..."
-if ! docker compose pull backend frontend >> "$LOGFILE" 2>&1; then
-  log "错误: 拉取镜像失败"
-  exit 1
-fi
-
-log "等待旧容器释放资源..."
-sleep 3
-
-log "重启服务（force-recreate）..."
-if ! docker compose up -d --force-recreate --remove-orphans backend frontend >> "$LOGFILE" 2>&1; then
-  log "错误: 重启服务失败"
-  exit 1
-fi
-
-log "升级完成"
-`
-}
-
-func (e *systemUpgradeExecutor) buildHelperRunArgs(imageID, helperName string) ([]string, error) {
-	if err := validateBackendContainerName(e.backendContainer); err != nil {
-		return nil, err
-	}
-	return []string{
-		"run", "-d", "--rm", "--name", helperName,
-		"--volumes-from", e.backendContainer,
-		"-v", dockerSocketPath + ":" + dockerSocketPath,
-		"-e", panelDeployDirEnv + "=" + e.deployDir,
-		"--entrypoint", "/bin/sh", imageID,
-		"-c", e.helperScript(),
-	}, nil
-}
-
-func (e *systemUpgradeExecutor) updateEnvVersion(envPath, version string) error {
-	if err := validateUpgradeVersion(version); err != nil {
-		return err
-	}
-	mode, err := fileModeOrDefault(envPath, 0o600)
-	if err != nil {
-		return err
-	}
-	data, err := os.ReadFile(envPath)
-	if err != nil {
-		return err
-	}
-	lines := strings.Split(string(data), "\n")
-	replaced := false
-	for i, line := range lines {
-		if strings.HasPrefix(line, "FLUX_VERSION=") {
-			lines[i] = "FLUX_VERSION=" + version
-			replaced = true
-		}
-	}
-	if !replaced {
-		trimmed := strings.TrimRight(strings.Join(lines, "\n"), "\n")
-		if trimmed == "" {
-			trimmed = "FLUX_VERSION=" + version
-		} else {
-			trimmed += "\nFLUX_VERSION=" + version
-		}
-		return writeFileWithMode(envPath, []byte(trimmed+"\n"), mode)
-	}
-	content := strings.TrimRight(strings.Join(lines, "\n"), "\n") + "\n"
-	return writeFileWithMode(envPath, []byte(content), mode)
-}
-
-func (e *systemUpgradeExecutor) backupFile(path string) (string, error) {
-	mode, err := fileModeOrDefault(path, 0o600)
-	if err != nil {
-		return "", err
-	}
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return "", err
-	}
-	backupPath := path + ".upgrade.bak"
-	if err := writeFileWithMode(backupPath, data, mode); err != nil {
-		return "", err
-	}
-	return backupPath, nil
-}
-
-func (e *systemUpgradeExecutor) restoreBackup(path string) error {
-	backupPath := path + ".upgrade.bak"
-	mode, err := fileModeOrDefault(backupPath, 0o600)
-	if err != nil {
-		return err
-	}
-	data, err := os.ReadFile(backupPath)
-	if err != nil {
-		return err
-	}
-	return writeFileWithMode(path, data, mode)
-}
-
-func (e *systemUpgradeExecutor) restoreUpgradeBackups(paths ...string) error {
-	var errs []string
-	for _, path := range paths {
-		if err := e.restoreBackup(path); err != nil {
-			errs = append(errs, fmt.Sprintf("%s: %v", path, err))
-		}
-	}
-	if len(errs) > 0 {
-		return fmt.Errorf("%s", strings.Join(errs, "; "))
-	}
-	return nil
-}
-
-func (e *systemUpgradeExecutor) replaceCompose(path string, data []byte) error {
-	if len(bytes.TrimSpace(data)) == 0 {
-		return fmt.Errorf("compose asset is empty")
-	}
-	mode, err := fileModeOrDefault(path, 0o644)
-	if err != nil {
-		return err
-	}
-	return writeFileWithMode(path, data, mode)
 }
 
 func (h *Handler) buildSystemUpgradeDownloadURL(version, filename string) string {
@@ -383,55 +239,6 @@ func (h *Handler) resolveSystemUpgradeLatestReleaseByChannel(channel string) (st
 	return "", fmt.Errorf("未找到%s版本号", releaseChannelLabel(normalizedChannel))
 }
 
-func fileModeOrDefault(path string, fallback os.FileMode) (os.FileMode, error) {
-	info, err := os.Stat(path)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return fallback, nil
-		}
-		return 0, err
-	}
-	return info.Mode().Perm(), nil
-}
-
-func writeFileWithMode(path string, data []byte, mode os.FileMode) error {
-	if err := os.WriteFile(path, data, mode); err != nil {
-		return err
-	}
-	return os.Chmod(path, mode)
-}
-
-func (e *systemUpgradeExecutor) currentBackendImage(ctx context.Context) (string, error) {
-	if err := validateBackendContainerName(e.backendContainer); err != nil {
-		return "", err
-	}
-	out, err := exec.CommandContext(ctx, "docker", "inspect", "-f", "{{.Image}}", e.backendContainer).CombinedOutput()
-	if err != nil {
-		return "", fmt.Errorf("inspect backend image failed: %v: %s", err, strings.TrimSpace(string(out)))
-	}
-	imageID := strings.TrimSpace(string(out))
-	if imageID == "" {
-		return "", fmt.Errorf("backend image id is empty")
-	}
-	return imageID, nil
-}
-
-func (e *systemUpgradeExecutor) startHelper(ctx context.Context, imageID, helperName string) (string, error) {
-	args, err := e.buildHelperRunArgs(imageID, helperName)
-	if err != nil {
-		return "", err
-	}
-	out, err := exec.CommandContext(ctx, "docker", args...).CombinedOutput()
-	if err != nil {
-		return "", fmt.Errorf("start helper failed: %v: %s", err, strings.TrimSpace(string(out)))
-	}
-	containerID := strings.TrimSpace(string(out))
-	if containerID == "" {
-		containerID = helperName
-	}
-	return containerID, nil
-}
-
 func (h *Handler) downloadReleaseAsset(version, filename string) ([]byte, error) {
 	url := h.buildSystemUpgradeDownloadURL(version, filename)
 	client := &http.Client{Timeout: 60 * time.Second}
@@ -485,16 +292,26 @@ func releasesForChannel(releases []githubRelease, channel string) []systemUpgrad
 
 func decodeSystemUpgradeRequest(r *http.Request, req *systemUpgradeRequest) error {
 	defer r.Body.Close()
-	body, err := io.ReadAll(r.Body)
+	body, err := io.ReadAll(io.LimitReader(r.Body, 4097))
 	if err != nil {
 		return err
+	}
+	if len(body) > 4096 {
+		return fmt.Errorf("request too large")
 	}
 	if len(bytes.TrimSpace(body)) == 0 {
 		return nil
 	}
 	decoder := json.NewDecoder(bytes.NewReader(body))
 	decoder.DisallowUnknownFields()
-	return decoder.Decode(req)
+	if err := decoder.Decode(req); err != nil {
+		return err
+	}
+	var extra any
+	if decoder.Decode(&extra) != io.EOF {
+		return fmt.Errorf("unexpected trailing JSON")
+	}
+	return nil
 }
 
 func systemUpgradeVersionResponse(current, channel, latest string, lookupErr error, capability systemUpgradeCapabilityData) systemUpgradeVersionData {
@@ -595,63 +412,63 @@ func (h *Handler) systemUpgrade(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	imageID, err := exec.currentBackendImage(r.Context())
-	if err != nil {
-		response.WriteJSON(w, response.Err(-2, err.Error()))
+
+	if err := validateUpgradeVersion(version); err != nil {
+		response.WriteJSON(w, response.ErrDefault("版本号格式无效"))
 		return
 	}
-
-	composePath := exec.composePath()
-	envPath := exec.envPath()
-	composeData, err := os.ReadFile(composePath)
+	composeData, err := os.ReadFile(exec.composePath())
 	if err != nil {
-		response.WriteJSON(w, response.Err(-2, "读取compose失败: "+err.Error()))
+		response.WriteJSON(w, response.ErrDefault("读取部署配置失败"))
 		return
 	}
 	composeAsset := exec.selectComposeAsset(composeData)
 	newCompose, err := h.downloadReleaseAsset(version, composeAsset)
 	if err != nil {
-		response.WriteJSON(w, response.Err(-2, err.Error()))
+		response.WriteJSON(w, response.ErrDefault("下载目标 Compose 失败"))
 		return
 	}
-	if _, err := exec.backupFile(composePath); err != nil {
-		response.WriteJSON(w, response.Err(-2, "备份compose失败: "+err.Error()))
-		return
-	}
-	if _, err := exec.backupFile(envPath); err != nil {
-		response.WriteJSON(w, response.Err(-2, "备份.env失败: "+err.Error()))
-		return
-	}
-	if err := exec.replaceCompose(composePath, newCompose); err != nil {
-		if restoreErr := exec.restoreUpgradeBackups(composePath, envPath); restoreErr != nil {
-			err = fmt.Errorf("%v; 回滚失败: %v", err, restoreErr)
-		}
-		response.WriteJSON(w, response.Err(-2, "替换compose失败: "+err.Error()))
-		return
-	}
-	if err := exec.updateEnvVersion(envPath, version); err != nil {
-		if restoreErr := exec.restoreUpgradeBackups(composePath, envPath); restoreErr != nil {
-			err = fmt.Errorf("%v; 回滚失败: %v", err, restoreErr)
-		}
-		response.WriteJSON(w, response.Err(-2, "更新版本配置失败: "+err.Error()))
-		return
-	}
-	helperName := fmt.Sprintf("flvx-upgrade-helper-%d", time.Now().Unix())
-	helperContainer, err := exec.startHelper(r.Context(), imageID, helperName)
+	// A detached helper must not be canceled when the browser disconnects.
+	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
+	defer cancel()
+	job, imageID, err := (panelupgrade.Manager{Dir: exec.deployDir, Backend: exec.backendContainer}).Start(ctx, version, newCompose)
 	if err != nil {
-		if restoreErr := exec.restoreUpgradeBackups(composePath, envPath); restoreErr != nil {
-			err = fmt.Errorf("%v; 回滚失败: %v", err, restoreErr)
-		}
-		response.WriteJSON(w, response.Err(-2, err.Error()))
+		response.WriteJSON(w, response.ErrDefault(err.Error()))
 		return
 	}
+	response.WriteJSON(w, response.OK(systemUpgradeRunData{JobID: job.ID, Version: version, Channel: channel, ComposeAsset: composeAsset, HelperContainer: job.HelperContainer, BackendImageID: imageID, Message: systemUpgradeMessage}))
+}
 
-	response.WriteJSON(w, response.OK(systemUpgradeRunData{
-		Version:         version,
-		Channel:         channel,
-		ComposeAsset:    composeAsset,
-		HelperContainer: helperContainer,
-		BackendImageID:  imageID,
-		Message:         systemUpgradeMessage,
-	}))
+func (h *Handler) systemUpgradeStatus(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		response.WriteJSON(w, response.ErrDefault("请求失败"))
+		return
+	}
+	var req struct {
+		JobID string `json:"jobId"`
+	}
+	defer r.Body.Close()
+	decoder := json.NewDecoder(io.LimitReader(r.Body, 4097))
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&req); err != nil && err != io.EOF {
+		response.WriteJSON(w, response.ErrDefault("请求参数错误"))
+		return
+	}
+	var extra any
+	if decoder.Decode(&extra) != io.EOF {
+		response.WriteJSON(w, response.ErrDefault("请求参数错误"))
+		return
+	}
+	e := newSystemUpgradeExecutor()
+	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+	defer cancel()
+	job, err := (panelupgrade.Manager{Dir: e.deployDir, Backend: e.backendContainer}).Status(ctx, req.JobID)
+	if err != nil {
+		response.WriteJSON(w, response.ErrDefault("无法读取升级任务状态"))
+		return
+	}
+	response.WriteJSON(w, response.OK(struct {
+		CurrentVersion string            `json:"currentVersion"`
+		Job            *panelupgrade.Job `json:"job"`
+	}{currentPanelVersion(), job}))
 }
