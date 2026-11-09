@@ -14,7 +14,6 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"os/exec"
 	"runtime"
 	"runtime/debug"
 	"strconv"
@@ -158,6 +157,11 @@ const (
 )
 
 type WebSocketReporter struct {
+	// Per-reporter upgrade dependencies keep staging and process launch isolated.
+	upgradeBinaryPath   string
+	startUpgradeRestart func(string, string) error
+	detectAgentManager  func() (agentServiceManager, error)
+
 	url               string
 	addr              string // 保存服务器地址
 	secret            string // 保存密钥
@@ -1377,6 +1381,23 @@ func (w *WebSocketReporter) sendUpgradeProgress(stage string, percent int, messa
 	w.sendResponse(response)
 }
 
+// parseUpgradeChecksum accepts one bare SHA256 or one GNU sha256sum record.
+// A manifest cannot safely identify the requested binary by its first record.
+func parseUpgradeChecksum(body []byte) (string, error) {
+	record := strings.TrimSpace(string(body))
+	if len(record) < 64 || strings.ContainsAny(record, "\r\n\x00") {
+		return "", fmt.Errorf("校验文件格式无效: 需要单条 SHA256 记录")
+	}
+	digest := record[:64]
+	if _, err := hex.DecodeString(digest); err != nil {
+		return "", fmt.Errorf("校验文件格式无效: SHA256 必须为 64 位十六进制")
+	}
+	if len(record) != 64 && (len(record) < 67 || record[64] != ' ' || (record[65] != ' ' && record[65] != '*') || strings.TrimSpace(record[66:]) == "") {
+		return "", fmt.Errorf("校验文件格式无效: 需要单条 GNU SHA256 记录")
+	}
+	return digest, nil
+}
+
 func (w *WebSocketReporter) handleUpgradeAgent(data interface{}) error {
 	jsonData, err := json.Marshal(data)
 	if err != nil {
@@ -1394,6 +1415,10 @@ func (w *WebSocketReporter) handleUpgradeAgent(data interface{}) error {
 		return fmt.Errorf("下载地址不能为空")
 	}
 
+	if strings.TrimSpace(req.ChecksumURL) == "" {
+		return fmt.Errorf("校验文件地址不能为空")
+	}
+
 	// 替换架构占位符
 	downloadURL := strings.ReplaceAll(req.DownloadURL, "{ARCH}", runtime.GOARCH)
 	checksumURL := strings.ReplaceAll(req.ChecksumURL, "{ARCH}", runtime.GOARCH)
@@ -1402,9 +1427,11 @@ func (w *WebSocketReporter) handleUpgradeAgent(data interface{}) error {
 	fmt.Printf("📦 开始下载升级包: %s\n", downloadURL)
 
 	// 下载新版本二进制
-	const binaryPath = "/etc/flux_agent/flux_agent"
+	binaryPath := w.upgradeBinaryPath
+	if binaryPath == "" {
+		binaryPath = "/etc/flux_agent/flux_agent"
+	}
 	tmpPath := binaryPath + ".new"
-	backupPath := binaryPath + ".old"
 
 	resp, err := http.Get(downloadURL)
 	if err != nil {
@@ -1421,6 +1448,14 @@ func (w *WebSocketReporter) handleUpgradeAgent(data interface{}) error {
 		return fmt.Errorf("创建临时文件失败: %v", err)
 	}
 
+	// The restart process owns the staged file only after launch succeeds.
+	restartStarted := false
+	defer func() {
+		if !restartStarted {
+			_ = os.Remove(tmpPath)
+		}
+	}()
+
 	// 带进度的下载
 	totalSize := resp.ContentLength
 	var downloaded int64
@@ -1433,7 +1468,6 @@ func (w *WebSocketReporter) handleUpgradeAgent(data interface{}) error {
 		if n > 0 {
 			if _, wErr := outFile.Write(buf[:n]); wErr != nil {
 				outFile.Close()
-				os.Remove(tmpPath)
 				return fmt.Errorf("写入升级包失败: %v", wErr)
 			}
 			hasher.Write(buf[:n])
@@ -1451,104 +1485,97 @@ func (w *WebSocketReporter) handleUpgradeAgent(data interface{}) error {
 				break
 			}
 			outFile.Close()
-			os.Remove(tmpPath)
 			return fmt.Errorf("读取升级包失败: %v", readErr)
 		}
 	}
-	outFile.Close()
+	if err := outFile.Close(); err != nil {
+		return fmt.Errorf("关闭升级包失败: %w", err)
+	}
 
 	if downloaded == 0 {
-		os.Remove(tmpPath)
 		return fmt.Errorf("下载的升级包为空")
 	}
 
 	w.sendUpgradeProgress("downloading", 100, fmt.Sprintf("下载完成 (%d bytes)", downloaded))
 
-	// Checksum 校验
-	if checksumURL != "" {
-		w.sendUpgradeProgress("verifying", 0, "校验文件完整性...")
-		checksumResp, err := http.Get(checksumURL)
-		if err == nil {
-			defer checksumResp.Body.Close()
-			if checksumResp.StatusCode == http.StatusOK {
-				checksumBody, err := io.ReadAll(checksumResp.Body)
-				if err == nil {
-					// 格式: "<hash>  <filename>" 或 "<hash>"
-					expectedHash := strings.TrimSpace(strings.Split(string(checksumBody), " ")[0])
-					actualHash := hex.EncodeToString(hasher.Sum(nil))
-					if !strings.EqualFold(expectedHash, actualHash) {
-						os.Remove(tmpPath)
-						return fmt.Errorf("校验失败: 期望 %s, 实际 %s", expectedHash, actualHash)
-					}
-					fmt.Printf("✅ Checksum 校验通过: %s\n", actualHash)
-				}
-			}
-		}
-		w.sendUpgradeProgress("verifying", 100, "校验通过")
+	// Every checksum failure must abort before installation.
+	w.sendUpgradeProgress("verifying", 0, "校验文件完整性...")
+	checksumResp, err := http.Get(checksumURL)
+	if err != nil {
+		return fmt.Errorf("下载校验文件失败: %w", err)
 	}
+	defer checksumResp.Body.Close()
+	if checksumResp.StatusCode != http.StatusOK {
+		return fmt.Errorf("下载校验文件失败, HTTP状态码: %d", checksumResp.StatusCode)
+	}
+	const maxChecksumBytes = 4096
+	checksumBody, err := io.ReadAll(io.LimitReader(checksumResp.Body, maxChecksumBytes+1))
+	if err != nil {
+		return fmt.Errorf("读取校验文件失败: %w", err)
+	}
+	if len(checksumBody) > maxChecksumBytes {
+		return fmt.Errorf("校验文件过大: 最大 %d bytes", maxChecksumBytes)
+	}
+	expectedHash, err := parseUpgradeChecksum(checksumBody)
+	if err != nil {
+		return err
+	}
+	actualHash := hex.EncodeToString(hasher.Sum(nil))
+	if !strings.EqualFold(expectedHash, actualHash) {
+		return fmt.Errorf("校验失败: 期望 %s, 实际 %s", expectedHash, actualHash)
+	}
+	w.sendUpgradeProgress("verifying", 100, "校验通过")
 
 	if err := os.Chmod(tmpPath, 0755); err != nil {
-		os.Remove(tmpPath)
 		return fmt.Errorf("设置执行权限失败: %v", err)
 	}
 
-	// 备份旧版本
-	w.sendUpgradeProgress("installing", 50, "备份旧版本...")
-	if _, err := os.Stat(binaryPath); err == nil {
-		// 复制旧文件作为备份（不用 rename，因为可能正在运行）
-		oldData, err := os.ReadFile(binaryPath)
-		if err == nil {
-			_ = os.WriteFile(backupPath, oldData, 0755)
-			fmt.Println("📦 旧版本已备份到", backupPath)
-		}
+	// Resolve the manager before mutating an existing rollback backup.
+	startRestart, err := w.agentRestartLauncher(true)
+	if err != nil {
+		return err
 	}
-
+	w.sendUpgradeProgress("installing", 50, "备份旧版本...")
+	if err := backupAgentBinary(binaryPath); err != nil {
+		return fmt.Errorf("备份旧版本失败: %w", err)
+	}
 	w.sendUpgradeProgress("installing", 80, "准备重启...")
-	fmt.Printf("✅ 升级包下载完成 (%d bytes), 准备重启...\n", downloaded)
-
-	// 执行重启脚本
-	// 使用 systemd-run 在独立的 transient unit 中运行重启脚本，
-	// 避免 systemctl stop 杀死 flux_agent cgroup 内所有进程（包括此脚本自身）导致 mv 未执行。
-	script := buildAgentRestartScript(tmpPath, binaryPath)
-	cmd := exec.Command("systemd-run", "--quiet", "/bin/sh", "-c", script)
-	if err := cmd.Start(); err != nil {
-		os.Remove(tmpPath)
+	if err := startRestart(tmpPath, binaryPath); err != nil {
 		return fmt.Errorf("启动重启脚本失败: %v", err)
 	}
 
+	restartStarted = true
 	w.sendUpgradeProgress("installing", 100, "重启中...")
 	fmt.Println("🔄 重启脚本已启动, Agent 将在 1 秒后重启...")
 	return nil
 }
 
 func (w *WebSocketReporter) handleRollbackAgent(data interface{}) error {
-	const binaryPath = "/etc/flux_agent/flux_agent"
-	backupPath := binaryPath + ".old"
-
-	// 检查备份文件是否存在
-	if _, err := os.Stat(backupPath); os.IsNotExist(err) {
-		return fmt.Errorf("没有可用的备份文件，无法回退")
+	binaryPath := w.upgradeBinaryPath
+	if binaryPath == "" {
+		binaryPath = "/etc/flux_agent/flux_agent"
 	}
-
-	fmt.Println("🔄 开始回退到旧版本...")
-
-	// 执行回退脚本（同升级逻辑，使用 systemd-run 避免 cgroup 问题）
-	script := fmt.Sprintf("sleep 1 && systemctl stop flux_agent && cp %s %s && systemctl start flux_agent", backupPath, binaryPath)
-	cmd := exec.Command("systemd-run", "--quiet", "/bin/sh", "-c", script)
-	if err := cmd.Start(); err != nil {
-		return fmt.Errorf("启动回退脚本失败: %v", err)
+	startRestart, err := w.agentRestartLauncher(false)
+	if err != nil {
+		return err
 	}
-
+	if info, err := os.Stat(binaryPath); err != nil || !info.Mode().IsRegular() {
+		return fmt.Errorf("回退目标不是可用的普通文件: %s", binaryPath)
+	}
+	staged, err := stageAgentCopy(binaryPath+".old", binaryPath)
+	if err != nil {
+		return fmt.Errorf("准备回退备份失败: %w", err)
+	}
+	if err := startRestart(staged, binaryPath); err != nil {
+		_ = os.Remove(staged)
+		return fmt.Errorf("启动回退脚本失败: %w", err)
+	}
 	fmt.Println("🔄 回退脚本已启动, Agent 将在 1 秒后重启...")
 	return nil
 }
 
 func buildAgentRestartScript(tmpPath, binaryPath string) string {
-	return fmt.Sprintf(
-		"sleep 1 && systemctl stop flux_agent && legacy_service='' && for service_file in /etc/systemd/system/gost.service /lib/systemd/system/gost.service /usr/lib/systemd/system/gost.service; do if [ -f \"$service_file\" ] && grep -Fq \"WorkingDirectory=/etc/gost\" \"$service_file\" && (grep -Fq \"ExecStart=/etc/gost/gost\" \"$service_file\" || (grep -Fq \"ExecStart=/usr/local/bin/gost\" \"$service_file\" && [ -f /etc/gost/config.json ] && [ -f /etc/gost/gost.json ])); then legacy_service=\"$service_file\"; break; fi; done && if [ -n \"$legacy_service\" ]; then (systemctl stop gost 2>/dev/null || true) && (systemctl disable gost 2>/dev/null || true) && rm -f /usr/local/bin/gost /etc/gost/gost \"$legacy_service\" && (systemctl daemon-reload 2>/dev/null || true); fi && mv %s %s && systemctl start flux_agent",
-		tmpPath,
-		binaryPath,
-	)
+	return buildManagedAgentRestartScript(agentServiceManager{kind: "systemd", control: "systemctl"}, tmpPath, binaryPath, true)
 }
 
 // updateLocalConfigJSON 将 http/tls/socks 写入工作目录下的 config.json
