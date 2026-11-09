@@ -419,7 +419,7 @@ func prepareSQLiteLegacyColumns(db *gorm.DB) error {
 	}
 
 	if m.HasTable(&model.Tunnel{}) {
-		for _, field := range []string{"Inx", "IPPreference", "ProbeTargetHost", "ProbeTargetPort"} {
+		for _, field := range []string{"Inx", "IPPreference", "ProbeTargetHost", "ProbeTargetPort", "RelayAuthMode"} {
 			if m.HasColumn(&model.Tunnel{}, field) {
 				continue
 			}
