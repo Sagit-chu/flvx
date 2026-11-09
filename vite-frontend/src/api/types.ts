@@ -550,7 +550,36 @@ export interface SystemUpgradeCheckApiData extends SystemUpgradeVersionApiData {
   releases: SystemUpgradeReleaseApiItem[];
 }
 
+export type SystemUpgradeStage =
+  | "preparing"
+  | "pulling"
+  | "applying"
+  | "restarting"
+  | "verifying"
+  | "succeeded"
+  | "failed"
+  | "recovery_required";
+
+export interface SystemUpgradeJob {
+  id: string;
+  targetVersion: string;
+  stage: SystemUpgradeStage;
+  active: boolean;
+  requiresRecovery: boolean;
+  message: string;
+  startedAt: number;
+  updatedAt: number;
+  helperContainer?: string;
+  backupDir?: string;
+}
+
+export interface SystemUpgradeStatusApiData {
+  currentVersion: string;
+  job: SystemUpgradeJob | null;
+}
+
 export interface SystemUpgradeRunApiData {
+  jobId: string;
   version: string;
   channel: "stable" | "dev";
   composeAsset: string;

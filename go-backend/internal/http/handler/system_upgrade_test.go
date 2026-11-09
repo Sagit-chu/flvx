@@ -8,7 +8,6 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
-	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -128,146 +127,9 @@ func TestSelectComposeAssetFallsBackToIPv4Template(t *testing.T) {
 	}
 }
 
-func TestUpdateEnvVersionReplacesExistingValue(t *testing.T) {
-	dir := t.TempDir()
-	envPath := filepath.Join(dir, ".env")
-	if err := os.WriteFile(envPath, []byte("FLUX_VERSION=2.1.8\nJWT_SECRET=test\n"), 0o644); err != nil {
-		t.Fatalf("WriteFile() error = %v", err)
-	}
-
-	exec := &systemUpgradeExecutor{deployDir: dir, backendContainer: "flux-panel-backend"}
-	if err := exec.updateEnvVersion(envPath, "2.1.9"); err != nil {
-		t.Fatalf("updateEnvVersion() error = %v", err)
-	}
-
-	data, err := os.ReadFile(envPath)
-	if err != nil {
-		t.Fatalf("ReadFile() error = %v", err)
-	}
-
-	want := "FLUX_VERSION=2.1.9\nJWT_SECRET=test\n"
-	if string(data) != want {
-		t.Fatalf("env content = %q, want %q", string(data), want)
-	}
-}
-
-func TestUpdateEnvVersionAppendsMissingValue(t *testing.T) {
-	dir := t.TempDir()
-	envPath := filepath.Join(dir, ".env")
-	if err := os.WriteFile(envPath, []byte("JWT_SECRET=test\n"), 0o644); err != nil {
-		t.Fatalf("WriteFile() error = %v", err)
-	}
-
-	exec := &systemUpgradeExecutor{deployDir: dir, backendContainer: "flux-panel-backend"}
-	if err := exec.updateEnvVersion(envPath, "2.1.9"); err != nil {
-		t.Fatalf("updateEnvVersion() error = %v", err)
-	}
-
-	data, err := os.ReadFile(envPath)
-	if err != nil {
-		t.Fatalf("ReadFile() error = %v", err)
-	}
-
-	want := "JWT_SECRET=test\nFLUX_VERSION=2.1.9\n"
-	if string(data) != want {
-		t.Fatalf("env content = %q, want %q", string(data), want)
-	}
-}
-
-func TestUpdateEnvVersionRejectsUnsafeValue(t *testing.T) {
-	for _, version := range []string{"", "2.1.9\nJWT_SECRET=bad", "2.1.9\rbad", "2.1.9\x00bad", "2.1.9\x1fbad"} {
-		t.Run(version, func(t *testing.T) {
-			dir := t.TempDir()
-			envPath := filepath.Join(dir, ".env")
-			original := []byte("JWT_SECRET=test\n")
-			if err := os.WriteFile(envPath, original, 0o644); err != nil {
-				t.Fatalf("WriteFile() error = %v", err)
-			}
-
-			exec := &systemUpgradeExecutor{deployDir: dir, backendContainer: "flux-panel-backend"}
-			if err := exec.updateEnvVersion(envPath, version); err == nil {
-				t.Fatal("expected unsafe version to fail validation")
-			}
-
-			data, err := os.ReadFile(envPath)
-			if err != nil {
-				t.Fatalf("ReadFile() error = %v", err)
-			}
-			if string(data) != string(original) {
-				t.Fatalf("env content changed to %q, want %q", string(data), string(original))
-			}
-		})
-	}
-}
-
-func TestUpdateEnvVersionAcceptsVersionLabels(t *testing.T) {
-	for _, version := range []string{"2.1.9", "2.1.9-beta14", "v-test"} {
-		t.Run(version, func(t *testing.T) {
-			dir := t.TempDir()
-			envPath := filepath.Join(dir, ".env")
-			if err := os.WriteFile(envPath, []byte("JWT_SECRET=test\n"), 0o644); err != nil {
-				t.Fatalf("WriteFile() error = %v", err)
-			}
-
-			exec := &systemUpgradeExecutor{deployDir: dir, backendContainer: "flux-panel-backend"}
-			if err := exec.updateEnvVersion(envPath, version); err != nil {
-				t.Fatalf("updateEnvVersion() error = %v", err)
-			}
-		})
-	}
-}
-
-func TestUpdateEnvVersionPreservesFileMode(t *testing.T) {
-	dir := t.TempDir()
-	envPath := filepath.Join(dir, ".env")
-	if err := os.WriteFile(envPath, []byte("FLUX_VERSION=2.1.8\nJWT_SECRET=test\n"), 0o600); err != nil {
-		t.Fatalf("WriteFile() error = %v", err)
-	}
-
-	exec := &systemUpgradeExecutor{deployDir: dir, backendContainer: "flux-panel-backend"}
-	if err := exec.updateEnvVersion(envPath, "2.1.9"); err != nil {
-		t.Fatalf("updateEnvVersion() error = %v", err)
-	}
-
-	info, err := os.Stat(envPath)
-	if err != nil {
-		t.Fatalf("Stat() error = %v", err)
-	}
-	if got := info.Mode().Perm(); got != 0o600 {
-		t.Fatalf("env mode = %o, want 0600", got)
-	}
-}
-
 func TestValidateBackendContainerNameRejectsUnsafeValue(t *testing.T) {
 	if err := validateBackendContainerName("flux-panel-backend;rm -rf /"); err == nil {
 		t.Fatal("expected unsafe container name to fail validation")
-	}
-}
-
-func TestBuildHelperRunArgsUsesDetachedContainer(t *testing.T) {
-	exec := &systemUpgradeExecutor{deployDir: "/opt/flvx-panel", backendContainer: "flux-panel-backend"}
-	args, err := exec.buildHelperRunArgs("sha256:abc", "flvx-upgrade-helper")
-	if err != nil {
-		t.Fatalf("buildHelperRunArgs() error = %v", err)
-	}
-	want := []string{
-		"run", "-d", "--rm", "--name", "flvx-upgrade-helper",
-		"--volumes-from", "flux-panel-backend",
-		"-v", "/var/run/docker.sock:/var/run/docker.sock",
-		"-e", "PANEL_DEPLOY_DIR=/opt/flvx-panel",
-		"--entrypoint", "/bin/sh", "sha256:abc",
-		"-c", exec.helperScript(),
-	}
-
-	if !reflect.DeepEqual(args, want) {
-		t.Fatalf("buildHelperRunArgs() = %#v, want %#v", args, want)
-	}
-}
-
-func TestBuildHelperRunArgsRejectsUnsafeBackendContainer(t *testing.T) {
-	exec := &systemUpgradeExecutor{deployDir: "/opt/flvx-panel", backendContainer: "flux-panel-backend;rm -rf /"}
-	if _, err := exec.buildHelperRunArgs("sha256:abc", "flvx-upgrade-helper"); err == nil {
-		t.Fatal("expected unsafe backend container name to fail validation")
 	}
 }
 
@@ -347,64 +209,6 @@ func TestSystemUpgradeFailsFastBeforeMutatingFiles(t *testing.T) {
 	}
 	if string(envData) != "FLUX_VERSION=2.1.8\nJWT_SECRET=test\n" {
 		t.Fatalf("env mutated unexpectedly: %q", string(envData))
-	}
-}
-
-func TestUpgradeBackupUsesStablePathAndRestoreRestoresOriginal(t *testing.T) {
-	dir := t.TempDir()
-	path := filepath.Join(dir, "docker-compose.yml")
-	if err := os.WriteFile(path, []byte("original"), 0o644); err != nil {
-		t.Fatalf("WriteFile() error = %v", err)
-	}
-
-	exec := &systemUpgradeExecutor{deployDir: dir, backendContainer: "flux-panel-backend"}
-	backupPath, err := exec.backupFile(path)
-	if err != nil {
-		t.Fatalf("backupFile() error = %v", err)
-	}
-	if backupPath != path+".upgrade.bak" {
-		t.Fatalf("backup path = %q, want %q", backupPath, path+".upgrade.bak")
-	}
-	if err := os.WriteFile(path, []byte("mutated"), 0o644); err != nil {
-		t.Fatalf("WriteFile() error = %v", err)
-	}
-
-	if err := exec.restoreBackup(path); err != nil {
-		t.Fatalf("restoreBackup() error = %v", err)
-	}
-	data, err := os.ReadFile(path)
-	if err != nil {
-		t.Fatalf("ReadFile() error = %v", err)
-	}
-	if string(data) != "original" {
-		t.Fatalf("restored content = %q, want original", string(data))
-	}
-}
-
-func TestRestoreBackupPreservesOriginalFileMode(t *testing.T) {
-	dir := t.TempDir()
-	path := filepath.Join(dir, ".env")
-	if err := os.WriteFile(path, []byte("FLUX_VERSION=2.1.8\nJWT_SECRET=test\n"), 0o600); err != nil {
-		t.Fatalf("WriteFile() error = %v", err)
-	}
-
-	exec := &systemUpgradeExecutor{deployDir: dir, backendContainer: "flux-panel-backend"}
-	if _, err := exec.backupFile(path); err != nil {
-		t.Fatalf("backupFile() error = %v", err)
-	}
-	if err := os.Remove(path); err != nil {
-		t.Fatalf("Remove() error = %v", err)
-	}
-	if err := exec.restoreBackup(path); err != nil {
-		t.Fatalf("restoreBackup() error = %v", err)
-	}
-
-	info, err := os.Stat(path)
-	if err != nil {
-		t.Fatalf("Stat() error = %v", err)
-	}
-	if got := info.Mode().Perm(); got != 0o600 {
-		t.Fatalf("restored mode = %o, want 0600", got)
 	}
 }
 

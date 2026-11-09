@@ -63,6 +63,11 @@ jobs:
       - name: Build
         run: go build -v ./...
 
+      - name: Test panel upgrade lifecycle and permissions
+        run: |
+          go test ./internal/panelupgrade -count=1
+          go test ./internal/http/handler ./tests/contract -run 'SystemUpgrade|SelectComposeAsset|DownloadReleaseAsset|UpgradeBackup|RestoreBackup' -count=1
+
   backend-postgres-contract:
     name: Go Backend PostgreSQL Contract
     runs-on: ubuntu-latest

@@ -1,6 +1,5 @@
 import type {
   SystemUpgradeCheckApiData,
-  SystemUpgradeRunApiData,
   SystemUpgradeReleaseApiItem,
   SystemUpgradeVersionApiData,
 } from "@/api/types";
@@ -10,6 +9,8 @@ import { useNavigate } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import toast from "react-hot-toast";
 
+import { useSystemUpgrade } from "@/hooks/use-system-upgrade";
+import { upgradeMessage } from "@/utils/system-upgrade-monitor";
 import { Button } from "@/shadcn-bridge/heroui/button";
 import { Card, CardBody, CardHeader } from "@/shadcn-bridge/heroui/card";
 import { Input } from "@/shadcn-bridge/heroui/input";
@@ -36,7 +37,6 @@ import {
   getStorageSummary,
   getSystemUpgradeVersion,
   checkSystemUpgrade,
-  runSystemUpgrade,
   type AnnouncementData,
 } from "@/api";
 import { BackIcon, SettingsIcon } from "@/components/icons";
@@ -336,7 +336,9 @@ export default function ConfigPage() {
   const [systemUpgradeInfo, setSystemUpgradeInfo] =
     useState<SystemUpgradeVersionApiData | null>(null);
   const [systemUpgradeChecking, setSystemUpgradeChecking] = useState(false);
-  const [systemUpgradeExecuting, setSystemUpgradeExecuting] = useState(false);
+  const upgrade = useSystemUpgrade(isAdmin());
+  const systemUpgradeExecuting =
+    upgrade.submitting || Boolean(upgrade.job?.active);
   const [systemUpgradeLoading, setSystemUpgradeLoading] = useState(true);
   const [systemUpgradeModalOpen, setSystemUpgradeModalOpen] = useState(false);
   const [systemUpgradeReleases, setSystemUpgradeReleases] = useState<
@@ -363,16 +365,37 @@ export default function ConfigPage() {
   const canTriggerSystemUpgrade = Boolean(
     !systemUpgradeLoading &&
       !systemUpgradeChecking &&
-      !systemUpgradeExecuting &&
-      systemUpgradeInfo?.capability.capable !== false,
+      !upgrade.blocked &&
+      systemUpgradeInfo?.capability.capable === true,
   );
   const canOpenSystemUpgradeModal = Boolean(
     systemUpgradeInfo?.capability.capable &&
       systemUpgradeHasConfirmedUpdate &&
       !systemUpgradeLoading &&
       !systemUpgradeChecking &&
-      !systemUpgradeExecuting,
+      !upgrade.blocked,
   );
+
+  useEffect(() => {
+    if (upgrade.job?.stage !== "succeeded" || upgrade.uncertain) return;
+    setSystemUpgradeReleases([]);
+    setSystemUpgradeCheckedChannel(null);
+    setSystemUpgradeSelectedVersion("");
+    setSystemUpgradeInfo((previous) =>
+      previous
+        ? {
+            ...previous,
+            currentVersion: upgrade.currentVersion,
+            hasUpdate: false,
+          }
+        : previous,
+    );
+  }, [
+    upgrade.job?.id,
+    upgrade.job?.stage,
+    upgrade.currentVersion,
+    upgrade.uncertain,
+  ]);
 
   const canGoBack =
     typeof window !== "undefined" &&
@@ -572,6 +595,7 @@ export default function ConfigPage() {
   };
 
   const handleOpenSystemUpgradeModal = async () => {
+    if (upgrade.blocked) return;
     if (!canOpenSystemUpgradeModal) {
       const checked = await handleCheckSystemUpgrade();
 
@@ -583,26 +607,15 @@ export default function ConfigPage() {
   };
 
   const handleConfirmSystemUpgrade = async () => {
-    setSystemUpgradeExecuting(true);
-    try {
-      const response = await runSystemUpgrade(
-        systemUpgradeSelectedVersion || undefined,
-        updateChannel,
-      );
+    if (!canTriggerSystemUpgrade) return;
+    const submitted = await upgrade.submit(
+      systemUpgradeSelectedVersion || undefined,
+      updateChannel,
+    );
 
-      if (response.code === 0 && response.data) {
-        const data = response.data as SystemUpgradeRunApiData;
-
-        setSystemUpgradeModalOpen(false);
-        setSystemUpgradeSelectedVersion("");
-        toast.success(data.message || "升级已触发，请稍后刷新页面");
-      } else {
-        toast.error(response.msg || "面板升级失败");
-      }
-    } catch {
-      toast.error("面板升级失败，请重试");
-    } finally {
-      setSystemUpgradeExecuting(false);
+    if (submitted) {
+      setSystemUpgradeModalOpen(false);
+      setSystemUpgradeSelectedVersion("");
     }
   };
 
@@ -1647,6 +1660,87 @@ export default function ConfigPage() {
               </p>
             </div>
 
+            <div
+              aria-live="polite"
+              className="space-y-2 rounded-lg border border-divider bg-background p-4 text-sm"
+            >
+              <p className="font-medium">
+                {upgrade.submitting
+                  ? "正在提交升级任务..."
+                  : upgrade.job
+                    ? {
+                        preparing: "正在准备升级",
+                        pulling: "正在拉取镜像",
+                        applying: "正在应用升级",
+                        restarting: "正在重启服务",
+                        verifying: "正在验证运行版本",
+                        succeeded: "升级完成，运行版本已验证",
+                        failed: "升级失败",
+                        recovery_required: "升级中断，需要人工恢复",
+                      }[upgrade.job.stage] || "升级状态待确认"
+                    : upgrade.checking
+                      ? "正在恢复升级状态..."
+                      : upgrade.uncertain
+                        ? "升级状态待确认"
+                        : "暂无升级任务"}
+              </p>
+              {upgrade.job && (
+                <>
+                  <p className="break-words text-default-600">
+                    目标版本：{upgrade.job.targetVersion}
+                  </p>
+                  {upgrade.job.message && (
+                    <p className="break-words text-default-600">
+                      {upgradeMessage(upgrade.job.message)}
+                    </p>
+                  )}
+                  {upgrade.job.active && (
+                    <p className="text-default-500">
+                      升级期间请勿重复操作。后端重启可能短暂断开连接，本页面会自动重新连接并验证结果。
+                    </p>
+                  )}
+                  {upgrade.job.stage === "succeeded" && !upgrade.uncertain && (
+                    <p className="text-success">
+                      后端已验证运行版本 {upgrade.currentVersion}
+                      。请刷新页面以加载新版前端。
+                    </p>
+                  )}
+                  {(upgrade.job.requiresRecovery ||
+                    upgrade.job.stage === "recovery_required") && (
+                    <p className="text-danger">
+                      已阻止再次升级。请联系服务器管理员检查升级辅助容器日志和部署目录中的备份，确认服务与数据库状态后按部署文档恢复；不要删除备份或反复触发升级。
+                    </p>
+                  )}
+                  {upgrade.job.stage === "failed" && (
+                    <p className="text-danger">
+                      请先排查失败原因，再检查更新并重试。
+                    </p>
+                  )}
+                </>
+              )}
+              {upgrade.uncertain && !upgrade.checking && (
+                <p className="text-warning">
+                  暂时无法确认升级结果，可能正在重启或连接已中断。这不代表升级失败，请勿重复提交。
+                </p>
+              )}
+              {upgrade.paused && (
+                <p className="text-warning">
+                  自动查询已暂停，任务可能仍在运行。请检查服务连接后点击“重新查询状态”；不会重新发起升级。
+                </p>
+              )}
+              {upgrade.notice && (
+                <p className="text-danger">{upgrade.notice}</p>
+              )}
+              <Button
+                isDisabled={upgrade.checking || upgrade.submitting}
+                size="sm"
+                variant="flat"
+                onPress={upgrade.refresh}
+              >
+                重新查询状态
+              </Button>
+            </div>
+
             {systemUpgradeLoading ? (
               <div className="flex items-center gap-2 rounded-lg border border-divider bg-background px-4 py-3 text-sm text-default-500">
                 <Spinner size="sm" />
@@ -1658,7 +1752,9 @@ export default function ConfigPage() {
                   <div>
                     <p className="text-xs text-default-500">当前版本</p>
                     <p className="mt-1 font-medium">
-                      {systemUpgradeInfo?.currentVersion || "未获取到版本信息"}
+                      {upgrade.currentVersion ||
+                        systemUpgradeInfo?.currentVersion ||
+                        "未获取到版本信息"}
                     </p>
                   </div>
                   <div>
@@ -1776,6 +1872,7 @@ export default function ConfigPage() {
 
             <div className="flex flex-col gap-3 pt-1 sm:flex-row sm:justify-end">
               <Button
+                isDisabled={upgrade.blocked}
                 isLoading={systemUpgradeChecking}
                 variant="flat"
                 onPress={handleCheckSystemUpgrade}
@@ -2078,8 +2175,8 @@ export default function ConfigPage() {
                 </Button>
                 <Button
                   color="primary"
-                  isDisabled={systemUpgradeExecuting}
-                  isLoading={systemUpgradeExecuting}
+                  isDisabled={!canTriggerSystemUpgrade}
+                  isLoading={upgrade.submitting}
                   onPress={handleConfirmSystemUpgrade}
                 >
                   确认升级
