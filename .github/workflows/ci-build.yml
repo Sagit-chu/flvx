@@ -63,6 +63,9 @@ jobs:
       - name: Build
         run: go build -v ./...
 
+      - name: Test repository and SQLite upgrade migrations
+        run: go test ./internal/store/repo -count=1
+
       - name: Test panel upgrade lifecycle and permissions
         run: |
           go test ./internal/panelupgrade -count=1
