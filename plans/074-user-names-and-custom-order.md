@@ -64,11 +64,11 @@ Use Matt Pocock's vertical red-to-green cycles: one failing behavior test, minim
 
 ## Out of scope
 
-Production access or changes, external comments/issues/spec publication, push/PR/merge/release, personal per-admin preferences, drag while searching, server pagination/cross-page drag, field-based sorting, changing actual speed-limit enforcement, agent changes, and unrelated refactors.
+Production access or changes, external comments/issues/spec publication, personal per-admin preferences, drag while searching, server pagination/cross-page drag, field-based sorting, changing actual speed-limit enforcement, agent changes, and unrelated refactors. Push/PR/merge/release were excluded from implementation and authorized separately afterward as recorded below.
 
 ## Further notes
 
-Work is isolated on `fix/user-names-custom-order`; original checkout remains untouched. Local commits are permitted by the requested implementation workflow, but no publication is authorized. Existing assessment reproductions are available in a temporary isolated checkout for reference, not as final tests. PostgreSQL testing used an isolated, disposable local PostgreSQL 16.15 container with per-test schemas. No production database or user data was used.
+Work is isolated on `fix/user-names-custom-order`; original checkout remains untouched. Local commits were permitted by the implementation workflow; publication required the separate authorization recorded below. Existing assessment reproductions are available in a temporary isolated checkout for reference, not as final tests. PostgreSQL testing used an isolated, disposable local PostgreSQL 16.15 container with per-test schemas. No production database or user data was used.
 
 
 ## Verification results
@@ -91,4 +91,8 @@ Final implementation merge: `2ad30e4b2f587b0118cb53049194c915fb32565e`.
 - Linux amd64/arm64 binaries were cross-built, not run on those target machines. No live forwarding agents, production deployment, real traffic, Safari or physical mobile device were exercised. Mobile touch was tested through Chrome's emulated viewport and touch input.
 - PostgreSQL identity-column fallback was reviewed but does not have a dedicated fixture. Normal repository writes and imports are covered; external SQL that reserves sequence values inside an open transaction and later acquires tables in reverse order, or concurrent manual sequence-definition changes, are outside the tested contract. Negative/non-positive ID sequences are rejected with a rolled-back import.
 - Browser logs included existing React Router/dialog accessibility warnings and a password-manager-extension error. A development HMR hook-order error during the hook edit cleared on full reload; final page flows did not reproduce it.
-- All changes remain on a local branch. No push, pull request, issue comment, release or production change was performed.
+- At completion of local verification, all changes remained on a local branch. No push, pull request, issue comment, release or production change had been performed.
+
+## Publication stage
+
+After reviewing the PostgreSQL identity-column testing boundary, the user separately authorized pushing the branch, creating and merging a pull request, and publishing a new tag/release on 2026-11-10. Publication must respect required checks and branch protection. The tag workflow publishes versioned/latest images and release attachments; it does not deploy production services. Production access or changes remain out of scope.
