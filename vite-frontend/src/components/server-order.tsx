@@ -58,7 +58,7 @@ export function OrderItem({
           {...attributes}
           {...listeners}
           aria-label={`拖动排序：${label}`}
-          className="shrink-0 rounded p-1 text-default-500 hover:bg-default-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary disabled:opacity-40 disabled:cursor-not-allowed cursor-grab active:cursor-grabbing"
+          className={`inline-flex items-center justify-center shrink-0 rounded text-default-500 hover:bg-default-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary disabled:opacity-40 disabled:cursor-not-allowed cursor-grab active:cursor-grabbing ${row ? "p-1" : "h-8 w-8 [@media(pointer:coarse)]:h-11 [@media(pointer:coarse)]:w-11"}`}
           disabled={disabled}
           style={{ touchAction: "none" }}
           type="button"
