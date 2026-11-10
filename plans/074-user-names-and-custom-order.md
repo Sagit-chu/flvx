@@ -1,6 +1,6 @@
 # FLVX #574 / #575: current owner names and custom order
 
-Status: implementation. The user confirmed the three proposed test boundaries on 2026-11-10.
+Status: implemented and verified locally on 2026-11-10. The user confirmed the three test boundaries before implementation and later authorized the PostgreSQL import repair discovered during validation.
 Base: `3209ff8a59bf02287e6934d0b80b941006db239e` (main, verified 2026-11-10).
 Sources: https://github.com/Sagit-chu/flvx/issues/574 and https://github.com/Sagit-chu/flvx/issues/575.
 
@@ -29,6 +29,7 @@ Resolve a forwarding rule's current owner name by immutable user ID without recr
 13. As an operator upgrading an existing SQLite or PostgreSQL database, I retain the prior default order until I rearrange it.
 14. As an operator restoring a new backup, I retain its order; older backups remain importable.
 15. As a user, an administrative display-order change does not change my password, ownership, permissions, traffic totals, limits, or rule bindings.
+16. As an operator restoring PostgreSQL data, I can immediately create new records without restarting, with existing sequence allocations preserved and failed imports rolled back.
 
 ## Implementation decisions
 
@@ -45,7 +46,7 @@ Resolve a forwarding rule's current owner name by immutable user ID without recr
 - User and speed-limit backup DTOs, export mappings and import updates carry order. Missing old-backup fields must not accidentally zero an existing custom order. New records imported without rank follow a documented deterministic rule.
 - No new frontend test framework; use the repository's build/lint and isolated browser checks.
 
-## Testing decisions (proposed boundaries)
+## Testing decisions (confirmed boundaries)
 
 1. **Public HTTP API**: current-name responses, all rename entry points, ownership isolation, admin-only reorder, complete-set validation, failures/conflicts, and list/create/edit/delete behavior. This catches application behavior but not browser interactions or every database upgrade path.
 2. **Repository lifecycle and backup public interfaces**: fresh/legacy databases, restart persistence, old/new backup round trips and partial import behavior for SQLite and PostgreSQL. This catches persisted compatibility but not UI behavior. Observe through public reads/exports rather than implementation-coupled assertions where possible; legacy schema fixtures may require direct fixture setup.
@@ -58,7 +59,8 @@ Use Matt Pocock's vertical red-to-green cycles: one failing behavior test, minim
 - **T1 Current owner names**: implement #574 with API regression coverage and historical/backup cases. Independent.
 - **T2 Persistent order backend**: implement ordering models, migrations, endpoints, permissions, transaction/conflict handling and backup compatibility. Runs in an isolated worktree; integrate after T1 and resolve any shared repository-layer edits before reporting complete.
 - **T3 Drag order frontend**: implement both list views and failure/search behavior against the agreed API contract. Can proceed after T2 contract is pinned; no backend edits.
-- **T4 Verify and review**: integrate all slices, full backend checks, frontend checks, isolated SQLite/PG/browser verification where available, independent standards/spec reviews and fixes. Depends on T1–T3.
+- **T4 Verify and review**: integrate all slices, full backend checks, frontend checks, isolated SQLite/PG/browser verification, independent standards/spec reviews and fixes. Depends on T1–T3. Complete.
+- **T5 PostgreSQL import sequences**: user-authorized follow-on repair for the pre-existing explicit-ID import bug. Import takes the complete set of write-table locks with NOWAIT before any data writes, retries only pre-write lock contention within a bounded budget, and advances actual ID sequences transactionally without moving allocated IDs backward. Complete.
 
 ## Out of scope
 
@@ -66,4 +68,27 @@ Production access or changes, external comments/issues/spec publication, push/PR
 
 ## Further notes
 
-Work is isolated on `fix/user-names-custom-order`; original checkout remains untouched. Local commits are permitted by the requested implementation workflow, but no publication is authorized. Existing assessment reproductions are available in a temporary isolated checkout for reference, not as final tests. PostgreSQL currently has no supplied test DSN; any disposable local test database must be isolated from user data and reported explicitly.
+Work is isolated on `fix/user-names-custom-order`; original checkout remains untouched. Local commits are permitted by the requested implementation workflow, but no publication is authorized. Existing assessment reproductions are available in a temporary isolated checkout for reference, not as final tests. PostgreSQL testing used an isolated, disposable local PostgreSQL 16.15 container with per-test schemas. No production database or user data was used.
+
+
+## Verification results
+
+Final implementation merge: `2ad30e4b2f587b0118cb53049194c915fb32565e`.
+
+- Full backend suite passed with PostgreSQL enabled and the cache disabled: `FLVX_POSTGRES_TEST_DSN=... go test -count=1 ./...`.
+- Race-enabled owner-name, display-order and PostgreSQL backup-import contracts passed. The new PostgreSQL import contracts also passed three repeated race-enabled runs in their implementation worktree.
+- `go vet ./...`, native backend build and Linux amd64/arm64 cross-builds passed using Go 1.26.10.
+- Frontend `tsc --noEmit`, full `eslint .`, and production build passed using Node 24.22.1. The build still reports the existing outdated Browserslist data notice.
+- SQLite and PostgreSQL contracts cover three rename paths, old-name reuse/ownership isolation, historical fallback, previews, restart and old/new backups. Order contracts cover administrator checks, complete permutations, stale order/membership, concurrent creates/reorders, new-first and edit-preserved rank.
+- PostgreSQL import tests reproduce the prior 23505 failure and cover immediate public API creates without reopening the repository, all 11 explicit-ID tables, allocated/cached IDs, non-unit positive increments, unowned legacy defaults, search-path resolution, concurrent imports/creates, cascade-delete contention, bounded busy recovery, intermediate-sequence failure and commit-time rollback. Removing NOWAIT makes the contention regression fail.
+- Chrome tests against synthetic localhost data passed: user and limit card keyboard reorder; user and limit table pointer reorder; 390px viewport touch reorder; refresh persistence; 13-user creation without truncation; new-first and edit-preserved order; search-disabled handles; drag cancellation; a second client's conflict followed by authoritative recovery; transport failure and successful load-error retry.
+- The rendered rules page and owner filter show the current username for a historical rule whose stored snapshot still has the former name.
+- Restarting the final backend binary preserved the 13-user order, four-limit order and current-name projection.
+- Independent standards and requirements reviews passed after fixes. The recovered-load error is now cleared without hiding save warnings. The PostgreSQL lock-order and legacy-default findings were resolved and re-reviewed.
+
+## Validation limits
+
+- Linux amd64/arm64 binaries were cross-built, not run on those target machines. No live forwarding agents, production deployment, real traffic, Safari or physical mobile device were exercised. Mobile touch was tested through Chrome's emulated viewport and touch input.
+- PostgreSQL identity-column fallback was reviewed but does not have a dedicated fixture. Normal repository writes and imports are covered; external SQL that reserves sequence values inside an open transaction and later acquires tables in reverse order, or concurrent manual sequence-definition changes, are outside the tested contract. Negative/non-positive ID sequences are rejected with a rolled-back import.
+- Browser logs included existing React Router/dialog accessibility warnings and a password-manager-extension error. A development HMR hook-order error during the hook edit cleared on full reload; final page flows did not reproduce it.
+- All changes remain on a local branch. No push, pull request, issue comment, release or production change was performed.
