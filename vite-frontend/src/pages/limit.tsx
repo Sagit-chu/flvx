@@ -358,14 +358,18 @@ export default function LimitPage() {
                 >
                   <Card className="shadow-sm overflow-hidden h-full">
                     <CardHeader className="pb-2 md:pb-2">
-                      <OrderHandle />
-                      <div className="flex justify-between items-start w-full">
-                        <div>
-                          <h3 className="font-semibold text-foreground">
+                      <div className="flex items-center gap-2 w-full min-w-0">
+                        <div className="flex items-center gap-1 flex-1 min-w-0">
+                          <OrderHandle />
+                          <h3
+                            className="font-semibold text-foreground truncate"
+                            title={rule.name}
+                          >
                             {rule.name}
                           </h3>
                         </div>
                         <Chip
+                          className="shrink-0"
                           color={rule.status === 1 ? "success" : "danger"}
                           size="sm"
                           variant="flat"

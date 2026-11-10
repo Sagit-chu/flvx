@@ -2046,51 +2046,37 @@ func normalizeBatchFailureReason(reason string) string {
 	return trimmed
 }
 
+func (h *Handler) redeployTunnelConfiguration(tunnelID int64) error {
+	if _, err := h.getTunnelRecord(tunnelID); err != nil {
+		return err
+	}
+	if nftMode, entryNodeIDs, err := h.tunnelUsesNftables(tunnelID); err != nil {
+		return err
+	} else if nftMode {
+		if len(entryNodeIDs) == 0 {
+			return errors.New("nftables 转发缺少入口节点")
+		}
+		return h.reconcileNftablesNodeByRequest(entryNodeIDs[0])
+	}
+	return h.redeployTunnelAndForwards(tunnelID)
+}
+
 func (h *Handler) tunnelBatchRedeploy(w http.ResponseWriter, r *http.Request) {
 	ids := idsFromBody(r, w)
 	if ids == nil {
 		return
 	}
-	success := 0
-	fail := 0
-	failures := make([]batchFailureDetail, 0)
+	result := batchOperationResult{}
 	for _, tunnelID := range ids {
-		tunnel, tunnelErr := h.getTunnelRecord(tunnelID)
-		tunnelName := ""
-		if tunnelErr == nil && tunnel != nil {
-			tunnelName, _ = h.repo.GetTunnelName(tunnelID)
+		name, _ := h.repo.GetTunnelName(tunnelID)
+		if err := h.redeployTunnelConfiguration(tunnelID); err != nil {
+			result.FailCount++
+			result.Failures = appendBatchFailure(result.Failures, tunnelID, name, err)
+		} else {
+			result.SuccessCount++
 		}
-		if tunnelErr != nil {
-			fail++
-			failures = appendBatchFailure(failures, tunnelID, tunnelName, tunnelErr)
-			continue
-		}
-		if nftMode, entryNodeIDs, modeErr := h.tunnelUsesNftables(tunnelID); modeErr != nil {
-			fail++
-			failures = appendBatchFailure(failures, tunnelID, tunnelName, modeErr)
-			continue
-		} else if nftMode {
-			if len(entryNodeIDs) == 0 {
-				fail++
-				failures = appendBatchFailureReason(failures, tunnelID, tunnelName, "nftables 转发缺少入口节点")
-				continue
-			}
-			if reconcileErr := h.reconcileNftablesNodeByRequest(entryNodeIDs[0]); reconcileErr != nil {
-				fail++
-				failures = appendBatchFailure(failures, tunnelID, tunnelName, reconcileErr)
-				continue
-			}
-			success++
-			continue
-		}
-		if err := h.redeployTunnelAndForwards(tunnelID); err != nil {
-			fail++
-			failures = appendBatchFailure(failures, tunnelID, tunnelName, err)
-			continue
-		}
-		success++
 	}
-	response.WriteJSON(w, response.OK(batchOperationResult{SuccessCount: success, FailCount: fail, Failures: failures}))
+	response.WriteJSON(w, response.OK(result))
 }
 
 func (h *Handler) userTunnelAssign(w http.ResponseWriter, r *http.Request) {

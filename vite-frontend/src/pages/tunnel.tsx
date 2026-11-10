@@ -64,7 +64,6 @@ import {
   getNodeList,
   diagnoseTunnel,
   updateTunnelOrder,
-  batchRedeployTunnels,
   previewBatchTunnelDelete,
   previewTunnelDelete,
 } from "@/api";
@@ -74,6 +73,11 @@ import {
   getDiagnosisQualityDisplay,
   type DiagnosisResult,
 } from "@/pages/tunnel/diagnosis";
+import { useTunnelRedeploy } from "@/pages/tunnel/use-tunnel-redeploy";
+import {
+  TunnelRedeployStatus,
+  TunnelRedeploySummary,
+} from "@/pages/tunnel/redeploy-progress";
 import { diagnoseTunnelStream } from "@/api/diagnosis-stream";
 import {
   createTunnelFormDefaults,
@@ -455,6 +459,7 @@ export default function TunnelPage() {
     number | null
   >(null);
   const [batchLoading, setBatchLoading] = useState(false);
+  const redeploy = useTunnelRedeploy();
   const [batchProgress, setBatchProgress] = useState<BatchProgressState>({
     active: false,
     label: "",
@@ -1351,55 +1356,39 @@ export default function TunnelPage() {
   };
 
   const handleBatchRedeploy = async () => {
-    if (selectedIds.size === 0) return;
-    setBatchLoading(true);
-    setBatchProgress({
-      active: true,
-      label: `正在重新下发 ${selectedIds.size} 条隧道...`,
-      percent: 30,
-    });
+    if (selectedIds.size === 0 || batchLoading || redeploy.state?.running)
+      return;
     try {
-      const res = await batchRedeployTunnels(Array.from(selectedIds));
+      const result = await redeploy.run(Array.from(selectedIds));
 
-      if (res.code === 0) {
-        const result = res.data;
-
-        if (result.failCount === 0) {
-          toast.success(`成功重新下发 ${result.successCount} 项`);
-        } else {
-          const failures = extractBatchFailures(result);
-
-          if (failures.length > 0) {
-            openBatchResultModal(
-              "批量下发结果",
-              `成功 ${result.successCount} 项，失败 ${result.failCount} 项`,
-              failures,
-            );
-          } else {
-            toast.error(
-              buildBatchFailureMessage(
-                result,
-                `成功 ${result.successCount} 项，失败 ${result.failCount} 项`,
-              ),
-            );
-          }
-        }
-        setSelectedIds(new Set());
-        setSelectMode(false);
-        setBatchProgress({
-          active: true,
-          label: `重新下发完成：成功 ${result.successCount} 项，正在刷新列表...`,
-          percent: 100,
-        });
-        await refreshTunnelList(false);
+      if (!result) return;
+      if (result.failCount === 0) {
+        toast.success(`成功重新下发 ${result.successCount} 项`);
       } else {
-        toast.error(res.msg || "下发失败");
+        const failures = extractBatchFailures(result);
+
+        if (failures.length > 0) {
+          openBatchResultModal(
+            "批量下发结果",
+            `成功 ${result.successCount} 项，失败 ${result.failCount} 项`,
+            failures,
+          );
+        } else {
+          toast.error(
+            buildBatchFailureMessage(
+              result,
+              `成功 ${result.successCount} 项，失败 ${result.failCount} 项`,
+            ),
+          );
+        }
       }
+      setSelectedIds(new Set());
+      setSelectMode(false);
+      await refreshTunnelList(false);
     } catch (error) {
-      toast.error(extractApiErrorMessage(error, "下发失败"));
-    } finally {
-      setBatchProgress({ active: false, label: "", percent: 0 });
-      setBatchLoading(false);
+      toast.error(
+        extractApiErrorMessage(error, "下发进度中断，请检查结果后再重试"),
+      );
     }
   };
 
@@ -1707,7 +1696,11 @@ export default function TunnelPage() {
                 </Button>
                 <Button
                   color="danger"
-                  isDisabled={selectedIds.size === 0}
+                  isDisabled={
+                    selectedIds.size === 0 ||
+                    batchLoading ||
+                    redeploy.state?.running
+                  }
                   size="sm"
                   variant="flat"
                   onPress={handleOpenBatchDeleteModal}
@@ -1716,8 +1709,12 @@ export default function TunnelPage() {
                 </Button>
                 <Button
                   color="primary"
-                  isDisabled={selectedIds.size === 0}
-                  isLoading={batchLoading}
+                  isDisabled={
+                    selectedIds.size === 0 ||
+                    batchLoading ||
+                    redeploy.state?.running
+                  }
+                  isLoading={batchLoading || redeploy.state?.running}
                   size="sm"
                   variant="flat"
                   onPress={handleBatchRedeploy}
@@ -1788,6 +1785,11 @@ export default function TunnelPage() {
           />
         </div>
       )}
+
+      <TunnelRedeploySummary
+        state={redeploy.state}
+        onDismiss={redeploy.clear}
+      />
 
       {/* 隧道卡片网格 */}
       {tunnels.length > 0 ? (
@@ -1860,6 +1862,9 @@ export default function TunnelPage() {
                             {tunnel.name}
                           </span>
                         </div>
+                        <TunnelRedeployStatus
+                          row={redeploy.state?.rows[tunnel.id]}
+                        />
                       </TableCell>
                       <TableCell>
                         <Chip
@@ -1918,6 +1923,7 @@ export default function TunnelPage() {
                         <div className="flex flex-wrap items-center gap-1.5 min-w-max">
                           <Button
                             className="h-6 px-2 min-w-0 text-xs bg-indigo-50 text-indigo-600 hover:bg-indigo-100 dark:bg-indigo-950/30 dark:text-indigo-400"
+                            isDisabled={redeploy.state?.running}
                             size="sm"
                             variant="flat"
                             onPress={() => handleEdit(tunnel)}
@@ -1934,6 +1940,7 @@ export default function TunnelPage() {
                           </Button>
                           <Button
                             className="h-6 px-2 min-w-0 text-xs bg-rose-50 text-rose-600 hover:bg-rose-100 dark:bg-rose-950/30 dark:text-rose-400"
+                            isDisabled={redeploy.state?.running}
                             size="sm"
                             variant="flat"
                             onPress={() => handleDelete(tunnel)}
@@ -2015,6 +2022,9 @@ export default function TunnelPage() {
                           </CardHeader>
 
                           <CardBody className="pt-0 pb-3 md:pt-0 md:pb-3">
+                            <TunnelRedeployStatus
+                              row={redeploy.state?.rows[tunnel.id]}
+                            />
                             <div className="space-y-3">
                               {/* 拓扑结构 */}
                               <div className="pt-2 border-t border-divider">
@@ -2160,6 +2170,7 @@ export default function TunnelPage() {
                               <Button
                                 className="flex-1 min-h-8"
                                 color="primary"
+                                isDisabled={redeploy.state?.running}
                                 size="sm"
                                 startContent={
                                   <svg
@@ -2202,6 +2213,7 @@ export default function TunnelPage() {
                               <Button
                                 className="flex-1 min-h-8"
                                 color="danger"
+                                isDisabled={redeploy.state?.running}
                                 size="sm"
                                 startContent={
                                   <svg
