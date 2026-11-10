@@ -1,6 +1,6 @@
 # FLVX #574 / #575: current owner names and custom order
 
-Status: planning. Test boundaries awaiting confirmation before new tests are written.
+Status: implementation. The user confirmed the three proposed test boundaries on 2026-11-10.
 Base: `3209ff8a59bf02287e6934d0b80b941006db239e` (main, verified 2026-11-10).
 Sources: https://github.com/Sagit-chu/flvx/issues/574 and https://github.com/Sagit-chu/flvx/issues/575.
 
@@ -51,12 +51,12 @@ Resolve a forwarding rule's current owner name by immutable user ID without recr
 2. **Repository lifecycle and backup public interfaces**: fresh/legacy databases, restart persistence, old/new backup round trips and partial import behavior for SQLite and PostgreSQL. This catches persisted compatibility but not UI behavior. Observe through public reads/exports rather than implementation-coupled assertions where possible; legacy schema fixtures may require direct fixture setup.
 3. **Rendered browser UI**: table/card drag, touch/keyboard affordances, search-disabled state, recovery from failed saves, repeat actions, and navigation. This catches actual UI wiring, not production connectivity or real forwarding.
 
-Use Matt Pocock's vertical red-to-green cycles: one failing behavior test, minimum implementation, then the next behavior. Prefer existing contract fixtures and public interfaces. Review standards and requirements independently after implementation. Confirm these boundaries with the user before adding tests.
+Use Matt Pocock's vertical red-to-green cycles: one failing behavior test, minimum implementation, then the next behavior. Prefer existing contract fixtures and public interfaces. Review standards and requirements independently after implementation. These boundaries were confirmed by the user before implementation tests were added.
 
 ## Work graph
 
 - **T1 Current owner names**: implement #574 with API regression coverage and historical/backup cases. Independent.
-- **T2 Persistent order backend**: implement ordering models, migrations, endpoints, permissions, transaction/conflict handling and backup compatibility. Begins after T1 integration to avoid conflicting edits to the shared repository layer.
+- **T2 Persistent order backend**: implement ordering models, migrations, endpoints, permissions, transaction/conflict handling and backup compatibility. Runs in an isolated worktree; integrate after T1 and resolve any shared repository-layer edits before reporting complete.
 - **T3 Drag order frontend**: implement both list views and failure/search behavior against the agreed API contract. Can proceed after T2 contract is pinned; no backend edits.
 - **T4 Verify and review**: integrate all slices, full backend checks, frontend checks, isolated SQLite/PG/browser verification where available, independent standards/spec reviews and fixes. Depends on T1–T3.
 
