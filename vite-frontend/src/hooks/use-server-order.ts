@@ -7,6 +7,7 @@ import { arrayMove } from "@dnd-kit/sortable";
 interface Result {
   code: number;
   msg?: string;
+  transportError?: boolean;
 }
 
 // Keep one complete, authoritative snapshot. Filtering is presentation-only.
@@ -87,14 +88,16 @@ export function useServerOrder<T extends { id: number }>(
       if (!mounted.current) return;
       if (result.code !== 0) {
         setError(
-          result.code === 409
-            ? "列表已被其他操作更改，排序未保存，已重新获取服务器顺序。"
-            : `排序保存失败：${result.msg || "请重试"}。已重新获取服务器顺序。`,
+          result.transportError
+            ? "排序保存未确认，请检查重新加载后的服务器顺序再重试。"
+            : result.code === 409
+              ? "列表已被其他操作更改，排序未保存，请按重新加载后的顺序重试。"
+              : `排序保存失败：${result.msg || "请重试"}。请检查重新加载后的服务器顺序。`,
         );
       }
     } catch {
       if (mounted.current)
-        setError("排序保存未确认，已重新获取服务器顺序，请检查后重试。");
+        setError("排序保存未确认，请检查重新加载后的服务器顺序再重试。");
     } finally {
       if (mounted.current) {
         await reload();
