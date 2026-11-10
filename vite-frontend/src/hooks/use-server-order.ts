@@ -18,7 +18,8 @@ export function useServerOrder<T extends { id: number }>(
   const [items, setItems] = useState<T[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState("");
+  const [loadError, setLoadError] = useState("");
+  const [saveWarning, setSaveWarning] = useState("");
   const mounted = useRef(false);
   const request = useRef(0);
   const savingRef = useRef(false);
@@ -36,11 +37,12 @@ export function useServerOrder<T extends { id: number }>(
 
       if (!mounted.current || version !== request.current) return;
       setItems(rows);
+      setLoadError("");
     } catch {
       if (!mounted.current || version !== request.current) return;
       // Never expose a partial or unverified set as reorderable after failure.
       setItems([]);
-      setError("加载列表失败，请重试后再排序。");
+      setLoadError("加载列表失败，请重试后再排序。");
     } finally {
       if (mounted.current && version === request.current) setLoading(false);
     }
@@ -78,7 +80,7 @@ export function useServerOrder<T extends { id: number }>(
     if (from < 0 || to < 0) return;
     savingRef.current = true;
     setSaving(true);
-    setError("");
+    setSaveWarning("");
     try {
       const result = await saveOrder({
         ids: arrayMove(items, from, to).map((item) => item.id),
@@ -87,7 +89,7 @@ export function useServerOrder<T extends { id: number }>(
 
       if (!mounted.current) return;
       if (result.code !== 0) {
-        setError(
+        setSaveWarning(
           result.transportError
             ? "排序保存未确认，请检查重新加载后的服务器顺序再重试。"
             : result.code === 409
@@ -97,7 +99,7 @@ export function useServerOrder<T extends { id: number }>(
       }
     } catch {
       if (mounted.current)
-        setError("排序保存未确认，请检查重新加载后的服务器顺序再重试。");
+        setSaveWarning("排序保存未确认，请检查重新加载后的服务器顺序再重试。");
     } finally {
       if (mounted.current) {
         await reload();
@@ -112,7 +114,7 @@ export function useServerOrder<T extends { id: number }>(
     setItems,
     loading,
     saving,
-    error,
+    error: [saveWarning, loadError].filter(Boolean).join(" "),
     reload,
     onDragStart,
     reorder,

@@ -5,6 +5,7 @@ import { LayoutGrid, List } from "lucide-react";
 
 import { isAdmin } from "@/utils/auth";
 import { useServerOrder } from "@/hooks/use-server-order";
+import { getOrderDisabledReason } from "@/utils/server-order";
 import {
   OrderHandle,
   OrderItem,
@@ -989,15 +990,12 @@ export default function UserPage() {
     return userTunnels.some((ut) => ut.tunnelId === tunnelId);
   };
 
-  const orderReason = !isAdmin()
-    ? "仅管理员可调整全局顺序。"
-    : searchKeyword.length > 0
-      ? "搜索期间无法排序，请清空搜索后重试。"
-      : order.saving
-        ? "正在保存顺序，请稍候。"
-        : loading || userFormLoading || deleteLoading
-          ? "正在加载或更新列表，请稍候。"
-          : "";
+  const orderReason = getOrderDisabledReason({
+    isAdmin: isAdmin(),
+    searchKeyword,
+    saving: order.saving,
+    busy: loading || userFormLoading || deleteLoading,
+  });
   const orderDisabled = Boolean(orderReason);
 
   return (
