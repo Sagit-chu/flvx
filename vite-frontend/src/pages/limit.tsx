@@ -9,6 +9,7 @@ import {
   OrderStatus,
 } from "@/components/server-order";
 import { useServerOrder } from "@/hooks/use-server-order";
+import { getOrderDisabledReason } from "@/utils/server-order";
 import { isAdmin } from "@/utils/auth";
 import { AnimatedPage, StaggerList } from "@/components/animated-page";
 import { SearchBar } from "@/components/search-bar";
@@ -216,15 +217,12 @@ export default function LimitPage() {
     }
   };
 
-  const orderReason = !isAdmin()
-    ? "仅管理员可调整全局顺序。"
-    : searchKeyword.length > 0
-      ? "搜索期间无法排序，请清空搜索后重试。"
-      : order.saving
-        ? "正在保存顺序，请稍候。"
-        : loading || submitLoading || deleteLoading
-          ? "正在加载或更新列表，请稍候。"
-          : "";
+  const orderReason = getOrderDisabledReason({
+    isAdmin: isAdmin(),
+    searchKeyword,
+    saving: order.saving,
+    busy: loading || submitLoading || deleteLoading,
+  });
   const orderDisabled = Boolean(orderReason);
 
   return (
