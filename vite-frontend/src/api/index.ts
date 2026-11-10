@@ -619,3 +619,13 @@ export const assignMonitorPermission = (userId: number) =>
 
 export const removeMonitorPermission = (userId: number) =>
   Network.post("/monitor/permission/remove", { userId });
+
+// Complete ordered IDs plus the last observed server order for conflict detection.
+export interface OrderUpdatePayload {
+  ids: number[];
+  expectedIds: number[];
+}
+export const updateUserOrder = (data: OrderUpdatePayload) =>
+  Network.post("/user/update-order", data);
+export const updateSpeedLimitOrder = (data: OrderUpdatePayload) =>
+  Network.post("/speed-limit/update-order", data);

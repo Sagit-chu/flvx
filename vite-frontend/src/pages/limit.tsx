@@ -1,12 +1,16 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useMemo } from "react";
 import toast from "react-hot-toast";
 import { LayoutGrid, List } from "lucide-react";
 
 import {
-  AnimatedPage,
-  StaggerList,
-  StaggerItem,
-} from "@/components/animated-page";
+  OrderHandle,
+  OrderItem,
+  OrderList,
+  OrderStatus,
+} from "@/components/server-order";
+import { useServerOrder } from "@/hooks/use-server-order";
+import { isAdmin } from "@/utils/auth";
+import { AnimatedPage, StaggerList } from "@/components/animated-page";
 import { SearchBar } from "@/components/search-bar";
 import { Card, CardBody, CardHeader } from "@/shadcn-bridge/heroui/card";
 import { Button } from "@/shadcn-bridge/heroui/button";
@@ -24,11 +28,11 @@ import {
   TableHeader,
   TableColumn,
   TableBody,
-  TableRow,
   TableCell,
 } from "@/shadcn-bridge/heroui/table";
 import {
   createSpeedLimit,
+  updateSpeedLimitOrder,
   getSpeedLimitList,
   updateSpeedLimit,
   deleteSpeedLimit,
@@ -52,9 +56,17 @@ interface SpeedLimitForm {
   status: number;
 }
 
+const fetchOrderedRules = async (): Promise<SpeedLimitRule[]> => {
+  const response = await getSpeedLimitList();
+
+  if (response.code !== 0) throw new Error(response.msg);
+
+  return (response.data || []) as SpeedLimitRule[];
+};
+
 export default function LimitPage() {
-  const [loading, setLoading] = useState(true);
-  const [rules, setRules] = useState<SpeedLimitRule[]>([]);
+  const order = useServerOrder(fetchOrderedRules, updateSpeedLimitOrder);
+  const { items: rules, loading, reload: loadData } = order;
   const [searchKeyword, setSearchKeyword] = useLocalStorageState(
     "limit-search-keyword",
     "",
@@ -91,28 +103,6 @@ export default function LimitPage() {
 
   // 表单验证错误
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
-
-  useEffect(() => {
-    loadData();
-  }, []);
-
-  // 加载所有数据
-  const loadData = async () => {
-    setLoading(true);
-    try {
-      const rulesRes = await getSpeedLimitList();
-
-      if (rulesRes.code === 0) {
-        setRules(rulesRes.data || []);
-      } else {
-        toast.error(rulesRes.msg || "获取限速规则失败");
-      }
-    } catch {
-      toast.error("加载数据失败");
-    } finally {
-      setLoading(false);
-    }
-  };
 
   // 表单验证
   const validateForm = (): boolean => {
@@ -166,7 +156,7 @@ export default function LimitPage() {
 
   // 确认删除规则
   const confirmDelete = async () => {
-    if (!ruleToDelete) return;
+    if (!ruleToDelete || order.saving || deleteLoading) return;
 
     setDeleteLoading(true);
     try {
@@ -175,7 +165,7 @@ export default function LimitPage() {
       if (res.code === 0) {
         toast.success("删除成功");
         setDeleteModalOpen(false);
-        loadData();
+        await loadData();
       } else {
         toast.error(res.msg || "删除失败");
       }
@@ -188,7 +178,7 @@ export default function LimitPage() {
 
   // 提交表单
   const handleSubmit = async () => {
-    if (!validateForm()) return;
+    if (order.saving || !validateForm()) return;
 
     setSubmitLoading(true);
     try {
@@ -215,7 +205,7 @@ export default function LimitPage() {
       if (res.code === 0) {
         toast.success(isEdit ? "修改成功" : "创建成功");
         setModalOpen(false);
-        loadData();
+        await loadData();
       } else {
         toast.error(res.msg || "操作失败");
       }
@@ -226,9 +216,16 @@ export default function LimitPage() {
     }
   };
 
-  if (loading) {
-    return <PageLoadingState message="正在加载..." />;
-  }
+  const orderReason = !isAdmin()
+    ? "仅管理员可调整全局顺序。"
+    : searchKeyword.length > 0
+      ? "搜索期间无法排序，请清空搜索后重试。"
+      : order.saving
+        ? "正在保存顺序，请稍候。"
+        : loading || submitLoading || deleteLoading
+          ? "正在加载或更新列表，请稍候。"
+          : "";
+  const orderDisabled = Boolean(orderReason);
 
   return (
     <AnimatedPage className="px-3 lg:px-6 py-8">
@@ -263,172 +260,203 @@ export default function LimitPage() {
         </div>
       </div>
 
-      {/* 统一卡片网格 */}
-      {filteredRules.length > 0 ? (
-        viewMode === "list" ? (
-          <Card>
-            <Table
-              aria-label="限速规则列表"
-              className="overflow-x-auto min-w-full"
-              classNames={{
-                wrapper:
-                  "bg-transparent p-0 shadow-none border-none overflow-auto rounded-[24px]",
-                th: "bg-transparent text-default-600 font-semibold text-sm border-b border-white/20 dark:border-white/10 py-3 uppercase tracking-wider first:rounded-tl-[24px] last:rounded-tr-[24px]",
-                td: "py-3 border-b border-divider/50 group-data-[last=true]:border-b-0",
-                tr: "hover:bg-white/40 dark:hover:bg-white/10 transition-colors",
-              }}
-            >
-              <TableHeader>
-                <TableColumn>规则名称</TableColumn>
-                <TableColumn>速度限制</TableColumn>
-                <TableColumn>操作</TableColumn>
-              </TableHeader>
-              <TableBody items={filteredRules}>
-                {(rule) => (
-                  <TableRow key={rule.id}>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <div
-                          className={`shrink-0 w-2 h-2 rounded-full ${
-                            rule.status === 1 ? "bg-success" : "bg-danger"
-                          }`}
-                        />
-                        <span className="font-medium text-foreground text-sm">
-                          {rule.name}
+      <OrderStatus
+        error={order.error}
+        reason={orderReason}
+        retry={() => {
+          if (!order.saving) void loadData();
+        }}
+      />
+      <OrderList
+        key={`${viewMode}:${searchKeyword}:${orderDisabled}`}
+        ids={filteredRules.map((rule) => rule.id)}
+        onDragEnd={(event) => {
+          void order.reorder(event, orderDisabled);
+        }}
+        onDragStart={order.onDragStart}
+      >
+        {/* 统一卡片网格 */}
+        {loading ? (
+          <PageLoadingState message="正在加载..." />
+        ) : filteredRules.length > 0 ? (
+          viewMode === "list" ? (
+            <Card>
+              <Table
+                aria-label="限速规则列表"
+                className="overflow-x-auto min-w-full"
+                classNames={{
+                  wrapper:
+                    "bg-transparent p-0 shadow-none border-none overflow-auto rounded-[24px]",
+                  th: "bg-transparent text-default-600 font-semibold text-sm border-b border-white/20 dark:border-white/10 py-3 uppercase tracking-wider first:rounded-tl-[24px] last:rounded-tr-[24px]",
+                  td: "py-3 border-b border-divider/50 group-data-[last=true]:border-b-0",
+                  tr: "hover:bg-white/40 dark:hover:bg-white/10 transition-colors",
+                }}
+              >
+                <TableHeader>
+                  <TableColumn>规则名称</TableColumn>
+                  <TableColumn>速度限制</TableColumn>
+                  <TableColumn>操作</TableColumn>
+                </TableHeader>
+                <TableBody items={filteredRules}>
+                  {(rule) => (
+                    <OrderItem
+                      key={rule.id}
+                      row
+                      disabled={orderDisabled}
+                      id={rule.id}
+                      label={rule.name}
+                    >
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <OrderHandle />
+                          <div
+                            className={`shrink-0 w-2 h-2 rounded-full ${
+                              rule.status === 1 ? "bg-success" : "bg-danger"
+                            }`}
+                          />
+                          <span className="font-medium text-foreground text-sm">
+                            {rule.name}
+                          </span>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <span className="text-sm font-mono text-default-600">
+                          {rule.speed} Mbps
                         </span>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <span className="text-sm font-mono text-default-600">
-                        {rule.speed} Mbps
-                      </span>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex flex-wrap items-center gap-1.5 min-w-max">
-                        <Button
-                          className="h-6 px-2 min-w-0 text-xs bg-indigo-50 text-indigo-600 hover:bg-indigo-100 dark:bg-indigo-950/30 dark:text-indigo-400"
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex flex-wrap items-center gap-1.5 min-w-max">
+                          <Button
+                            className="h-6 px-2 min-w-0 text-xs bg-indigo-50 text-indigo-600 hover:bg-indigo-100 dark:bg-indigo-950/30 dark:text-indigo-400"
+                            size="sm"
+                            variant="flat"
+                            onPress={() => handleEdit(rule)}
+                          >
+                            编辑
+                          </Button>
+                          <Button
+                            className="h-6 px-2 min-w-0 text-xs bg-rose-50 text-rose-600 hover:bg-rose-100 dark:bg-rose-950/30 dark:text-rose-400"
+                            size="sm"
+                            variant="flat"
+                            onPress={() => handleDelete(rule)}
+                          >
+                            删除
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </OrderItem>
+                  )}
+                </TableBody>
+              </Table>
+            </Card>
+          ) : (
+            <StaggerList className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4">
+              {filteredRules.map((rule) => (
+                <OrderItem
+                  key={rule.id}
+                  disabled={orderDisabled}
+                  id={rule.id}
+                  label={rule.name}
+                >
+                  <Card className="shadow-sm overflow-hidden h-full">
+                    <CardHeader className="pb-2 md:pb-2">
+                      <OrderHandle />
+                      <div className="flex justify-between items-start w-full">
+                        <div>
+                          <h3 className="font-semibold text-foreground">
+                            {rule.name}
+                          </h3>
+                        </div>
+                        <Chip
+                          color={rule.status === 1 ? "success" : "danger"}
                           size="sm"
+                          variant="flat"
+                        >
+                          {rule.status === 1 ? "运行" : "异常"}
+                        </Chip>
+                      </div>
+                    </CardHeader>
+                    <CardBody className="pt-0 pb-3 md:pt-0 md:pb-3">
+                      <div className="space-y-3">
+                        <div className="flex justify-between items-center">
+                          <span className="text-small text-default-600">
+                            速度限制
+                          </span>
+                          <Chip color="secondary" size="sm" variant="flat">
+                            {rule.speed} Mbps
+                          </Chip>
+                        </div>
+                      </div>
+
+                      <div className="flex gap-2 mt-4">
+                        <Button
+                          className="flex-1"
+                          color="primary"
+                          size="sm"
+                          startContent={
+                            <svg
+                              aria-hidden="true"
+                              className="w-4 h-4"
+                              fill="currentColor"
+                              viewBox="0 0 20 20"
+                            >
+                              <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
+                            </svg>
+                          }
                           variant="flat"
                           onPress={() => handleEdit(rule)}
                         >
                           编辑
                         </Button>
                         <Button
-                          className="h-6 px-2 min-w-0 text-xs bg-rose-50 text-rose-600 hover:bg-rose-100 dark:bg-rose-950/30 dark:text-rose-400"
+                          className="flex-1"
+                          color="danger"
                           size="sm"
+                          startContent={
+                            <svg
+                              aria-hidden="true"
+                              className="w-4 h-4"
+                              fill="currentColor"
+                              viewBox="0 0 20 20"
+                            >
+                              <path
+                                clipRule="evenodd"
+                                d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z"
+                                fillRule="evenodd"
+                              />
+                              <path
+                                clipRule="evenodd"
+                                d="M10 18a8 8 0 100-16 8 8 0 000 16zM8 7a1 1 0 012 0v4a1 1 0 11-2 0V7zM12 7a1 1 0 012 0v4a1 1 0 11-2 0V7z"
+                                fillRule="evenodd"
+                              />
+                            </svg>
+                          }
                           variant="flat"
                           onPress={() => handleDelete(rule)}
                         >
                           删除
                         </Button>
                       </div>
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </Card>
+                    </CardBody>
+                  </Card>
+                </OrderItem>
+              ))}
+            </StaggerList>
+          )
         ) : (
-          <StaggerList className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4">
-            {filteredRules.map((rule) => (
-              <StaggerItem key={rule.id}>
-                <Card className="shadow-sm overflow-hidden h-full">
-                  <CardHeader className="pb-2 md:pb-2">
-                    <div className="flex justify-between items-start w-full">
-                      <div>
-                        <h3 className="font-semibold text-foreground">
-                          {rule.name}
-                        </h3>
-                      </div>
-                      <Chip
-                        color={rule.status === 1 ? "success" : "danger"}
-                        size="sm"
-                        variant="flat"
-                      >
-                        {rule.status === 1 ? "运行" : "异常"}
-                      </Chip>
-                    </div>
-                  </CardHeader>
-                  <CardBody className="pt-0 pb-3 md:pt-0 md:pb-3">
-                    <div className="space-y-3">
-                      <div className="flex justify-between items-center">
-                        <span className="text-small text-default-600">
-                          速度限制
-                        </span>
-                        <Chip color="secondary" size="sm" variant="flat">
-                          {rule.speed} Mbps
-                        </Chip>
-                      </div>
-                    </div>
-
-                    <div className="flex gap-2 mt-4">
-                      <Button
-                        className="flex-1"
-                        color="primary"
-                        size="sm"
-                        startContent={
-                          <svg
-                            aria-hidden="true"
-                            className="w-4 h-4"
-                            fill="currentColor"
-                            viewBox="0 0 20 20"
-                          >
-                            <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
-                          </svg>
-                        }
-                        variant="flat"
-                        onPress={() => handleEdit(rule)}
-                      >
-                        编辑
-                      </Button>
-                      <Button
-                        className="flex-1"
-                        color="danger"
-                        size="sm"
-                        startContent={
-                          <svg
-                            aria-hidden="true"
-                            className="w-4 h-4"
-                            fill="currentColor"
-                            viewBox="0 0 20 20"
-                          >
-                            <path
-                              clipRule="evenodd"
-                              d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z"
-                              fillRule="evenodd"
-                            />
-                            <path
-                              clipRule="evenodd"
-                              d="M10 18a8 8 0 100-16 8 8 0 000 16zM8 7a1 1 0 012 0v4a1 1 0 11-2 0V7zM12 7a1 1 0 012 0v4a1 1 0 11-2 0V7z"
-                              fillRule="evenodd"
-                            />
-                          </svg>
-                        }
-                        variant="flat"
-                        onPress={() => handleDelete(rule)}
-                      >
-                        删除
-                      </Button>
-                    </div>
-                  </CardBody>
-                </Card>
-              </StaggerItem>
-            ))}
-          </StaggerList>
-        )
-      ) : (
-        /* 空状态 */
-        <Card className="shadow-sm bg-default-50/50">
-          <CardBody className="text-center py-20 flex flex-col items-center justify-center min-h-[240px]">
-            <h3 className="text-xl font-medium text-foreground tracking-tight mb-2">
-              暂无限速规则
-            </h3>
-            <p className="text-default-500 text-sm max-w-xs mx-auto leading-relaxed">
-              还没有创建任何限速规则，点击上方按钮开始创建
-            </p>
-          </CardBody>
-        </Card>
-      )}
+          /* 空状态 */
+          <Card className="shadow-sm bg-default-50/50">
+            <CardBody className="text-center py-20 flex flex-col items-center justify-center min-h-[240px]">
+              <h3 className="text-xl font-medium text-foreground tracking-tight mb-2">
+                暂无限速规则
+              </h3>
+              <p className="text-default-500 text-sm max-w-xs mx-auto leading-relaxed">
+                还没有创建任何限速规则，点击上方按钮开始创建
+              </p>
+            </CardBody>
+          </Card>
+        )}
+      </OrderList>
 
       {/* 新增/编辑模态框 */}
       <Modal
@@ -497,6 +525,7 @@ export default function LimitPage() {
                 </Button>
                 <Button
                   color="primary"
+                  isDisabled={order.saving}
                   isLoading={submitLoading}
                   onPress={handleSubmit}
                 >
@@ -544,6 +573,7 @@ export default function LimitPage() {
                 </Button>
                 <Button
                   color="danger"
+                  isDisabled={order.saving}
                   isLoading={deleteLoading}
                   onPress={confirmDelete}
                 >
