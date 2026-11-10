@@ -914,7 +914,7 @@ func (r *Repository) ListUsers() ([]map[string]interface{}, error) {
 		return nil, errors.New("repository not initialized")
 	}
 	var users []model.User
-	if err := r.db.Where("role_id != ?", 0).Order("id DESC").Find(&users).Error; err != nil {
+	if err := r.db.Where("role_id != ?", 0).Order("display_order ASC, id DESC").Find(&users).Error; err != nil {
 		return nil, err
 	}
 	userIDs := make([]int64, 0, len(users))
@@ -954,7 +954,7 @@ func (r *Repository) ListSpeedLimits() ([]map[string]interface{}, error) {
 		return nil, errors.New("repository not initialized")
 	}
 	var limits []model.SpeedLimit
-	if err := r.db.Order("id DESC").Find(&limits).Error; err != nil {
+	if err := r.db.Order("display_order ASC, id DESC").Find(&limits).Error; err != nil {
 		return nil, err
 	}
 	items := make([]map[string]interface{}, 0, len(limits))
@@ -2092,7 +2092,8 @@ func (r *Repository) exportUsers() ([]model.UserBackup, error) {
 	out := make([]model.UserBackup, 0, len(users))
 	for _, u := range users {
 		b := model.UserBackup{
-			ID: u.ID, User: u.User, Pwd: u.Pwd, RoleID: u.RoleID,
+			DisplayOrder: &u.DisplayOrder,
+			ID:           u.ID, User: u.User, Pwd: u.Pwd, RoleID: u.RoleID,
 			ExpTime: u.ExpTime, Flow: u.Flow, FlowMiB: u.FlowMiB, InFlow: u.InFlow, OutFlow: u.OutFlow,
 			FlowResetTime: u.FlowResetTime, Num: u.Num,
 			CreatedTime: u.CreatedTime, Status: u.Status,
@@ -2289,7 +2290,8 @@ func (r *Repository) exportSpeedLimits() ([]model.SpeedLimitBackup, error) {
 	out := make([]model.SpeedLimitBackup, 0, len(sls))
 	for _, sl := range sls {
 		b := model.SpeedLimitBackup{
-			ID: sl.ID, Name: sl.Name, Speed: int64(sl.Speed),
+			DisplayOrder: &sl.DisplayOrder,
+			ID:           sl.ID, Name: sl.Name, Speed: int64(sl.Speed),
 			CreatedTime: sl.CreatedTime, Status: sl.Status,
 		}
 		if sl.UpdatedTime.Valid {
@@ -2373,6 +2375,17 @@ func (r *Repository) Import(backup *model.BackupData, types []string) (*model.Im
 	}
 
 	err := r.db.Transaction(func(tx *gorm.DB) error {
+		// Lock in a stable order before touching either membership.
+		if typeSet["users"] {
+			if err := lockDisplayOrder(tx, "user"); err != nil {
+				return err
+			}
+		}
+		if typeSet["speedLimits"] {
+			if err := lockDisplayOrder(tx, "speed_limit"); err != nil {
+				return err
+			}
+		}
 		now := unixMilliNow()
 
 		if typeSet["users"] && len(backup.Users) > 0 {
@@ -2477,12 +2490,17 @@ func importUsers(tx *gorm.DB, users []model.UserBackup, now int64) (int, error) 
 			Status:            status,
 			PasswordChangedAt: now,
 		}
+		// An omitted old-backup rank preserves existing order on conflict.
+		// New legacy records use rank zero and ID descending, matching upgrades.
+		columns := []string{"user", "pwd", "role_id", "exp_time", "flow", "flow_mib", "in_flow", "out_flow",
+			"flow_reset_time", "num", "updated_time", "status", "password_changed_at"}
+		if u.DisplayOrder != nil {
+			item.DisplayOrder = *u.DisplayOrder
+			columns = append(columns, "display_order")
+		}
 		err = tx.Clauses(clause.OnConflict{
-			Columns: []clause.Column{{Name: "id"}},
-			DoUpdates: clause.AssignmentColumns([]string{
-				"user", "pwd", "role_id", "exp_time", "flow", "flow_mib", "in_flow", "out_flow",
-				"flow_reset_time", "num", "updated_time", "status", "password_changed_at",
-			}),
+			Columns:   []clause.Column{{Name: "id"}},
+			DoUpdates: clause.AssignmentColumns(columns),
 		}).Create(&item).Error
 		if err != nil {
 			return count, err
@@ -2765,11 +2783,16 @@ func importSpeedLimits(tx *gorm.DB, speedLimits []model.SpeedLimitBackup, now in
 			UpdatedTime: sql.NullInt64{Int64: now, Valid: true},
 			Status:      sl.Status,
 		}
+		// An omitted old-backup rank preserves existing order on conflict.
+		// New legacy records use rank zero and ID descending, matching upgrades.
+		columns := []string{"name", "speed", "tunnel_id", "tunnel_name", "updated_time", "status"}
+		if sl.DisplayOrder != nil {
+			item.DisplayOrder = *sl.DisplayOrder
+			columns = append(columns, "display_order")
+		}
 		err := tx.Clauses(clause.OnConflict{
-			Columns: []clause.Column{{Name: "id"}},
-			DoUpdates: clause.AssignmentColumns([]string{
-				"name", "speed", "tunnel_id", "tunnel_name", "updated_time", "status",
-			}),
+			Columns:   []clause.Column{{Name: "id"}},
+			DoUpdates: clause.AssignmentColumns(columns),
 		}).Create(&item).Error
 		if err != nil {
 			return count, err

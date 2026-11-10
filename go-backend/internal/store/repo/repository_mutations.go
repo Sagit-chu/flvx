@@ -65,7 +65,7 @@ func (r *Repository) CreateUser(username, pwdHash string, roleID int, expTime, f
 		Status:            status,
 		PasswordChangedAt: now,
 	}
-	if err := r.db.Create(&user).Error; err != nil {
+	if err := createFirst(r.db, "user", &user, &user.DisplayOrder); err != nil {
 		return 0, err
 	}
 	return user.ID, nil
@@ -940,7 +940,7 @@ func (r *Repository) CreateSpeedLimit(name string, speed int, now int64, status 
 		UpdatedTime: sql.NullInt64{Int64: now, Valid: true},
 		Status:      status,
 	}
-	if err := r.db.Create(&sl).Error; err != nil {
+	if err := createFirst(r.db, "speed_limit", &sl, &sl.DisplayOrder); err != nil {
 		return 0, err
 	}
 	return sl.ID, nil
