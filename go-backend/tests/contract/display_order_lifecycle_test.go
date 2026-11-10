@@ -284,3 +284,84 @@ func orderTestDatabase(t *testing.T, dialect string) func() *repo.Repository {
 		return r
 	}
 }
+
+func TestDisplayOrderConcurrentCreate(t *testing.T) {
+	for _, dialect := range []string{"sqlite", "postgres"} {
+		t.Run(dialect, func(t *testing.T) {
+			for _, resource := range []string{"user", "speed-limit"} {
+				t.Run(resource, func(t *testing.T) {
+					open := orderTestDatabase(t, dialect)
+					r, other := open(), open()
+					create := func(db *repo.Repository, name string) (int64, error) {
+						if resource == "user" {
+							return db.CreateUser(name, "hash", 1, 0, 10, 1, 2, 1, 3, 0)
+						}
+						return db.CreateSpeedLimit(name, 100, 0, 1)
+					}
+					save := func(ids, expected []int64) error {
+						if resource == "user" {
+							return r.UpdateUserDisplayOrder(ids, expected)
+						}
+						return r.UpdateSpeedLimitDisplayOrder(ids, expected)
+					}
+					a, err := create(r, "a")
+					if err != nil {
+						t.Fatal(err)
+					}
+					b, err := create(r, "b")
+					if err != nil {
+						t.Fatal(err)
+					}
+					start := make(chan struct{})
+					saved := make(chan error, 1)
+					type creation struct {
+						id  int64
+						err error
+					}
+					created := make(chan creation, 1)
+					go func() { <-start; saved <- save([]int64{a, b}, []int64{b, a}) }()
+					go func() { <-start; id, err := create(other, "c"); created <- creation{id, err} }()
+					close(start)
+					saveErr, c := <-saved, <-created
+					if c.err != nil {
+						t.Fatal(c.err)
+					}
+					if saveErr != nil && !errors.Is(saveErr, repo.ErrDisplayOrderConflict) {
+						t.Fatalf("concurrent save: %v", saveErr)
+					}
+					var rows []map[string]interface{}
+					if resource == "user" {
+						rows, err = r.ListUsers()
+					} else {
+						rows, err = r.ListSpeedLimits()
+					}
+					if err != nil {
+						t.Fatal(err)
+					}
+					got := []int64{}
+					for _, row := range rows {
+						got = append(got, row["id"].(int64))
+					}
+					want := []int64{c.id, a, b}
+					if saveErr != nil {
+						want = []int64{c.id, b, a}
+					}
+					if !reflect.DeepEqual(got, want) {
+						t.Fatalf("concurrent create order %v want %v", got, want)
+					}
+					if resource == "user" {
+						err = r.DeleteUserCascade(c.id)
+					} else {
+						err = r.DeleteSpeedLimit(c.id)
+					}
+					if err != nil {
+						t.Fatal(err)
+					}
+					if err := save(got, got); !errors.Is(err, repo.ErrDisplayOrderConflict) {
+						t.Fatalf("deleted membership not rejected: %v", err)
+					}
+				})
+			}
+		})
+	}
+}
