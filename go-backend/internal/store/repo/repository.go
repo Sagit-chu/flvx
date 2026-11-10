@@ -2375,14 +2375,20 @@ func (r *Repository) Import(backup *model.BackupData, types []string) (*model.Im
 		typeSet[t] = true
 	}
 
-	err := r.db.Transaction(func(tx *gorm.DB) error {
-		// Lock in a stable order before touching either membership.
-		if typeSet["users"] {
+	err := backupImportTransaction(r.db, func(tx *gorm.DB) error {
+		result = &model.ImportResult{}
+		tables, err := lockPostgresBackupTables(tx, backup, typeSet)
+		if err != nil {
+			return err
+		}
+		// SQLite still needs its writer reservation for display order.
+		// PostgreSQL membership locks were taken with all imported tables above.
+		if tx.Dialector.Name() != "postgres" && typeSet["users"] {
 			if err := lockDisplayOrder(tx, "user"); err != nil {
 				return err
 			}
 		}
-		if typeSet["speedLimits"] {
+		if tx.Dialector.Name() != "postgres" && typeSet["speedLimits"] {
 			if err := lockDisplayOrder(tx, "speed_limit"); err != nil {
 				return err
 			}
@@ -2459,7 +2465,7 @@ func (r *Repository) Import(backup *model.BackupData, types []string) (*model.Im
 			}
 			result.ConfigsImported = count
 		}
-		return nil
+		return advancePostgresBackupSequences(tx, tables)
 	})
 	if err != nil {
 		return nil, err
