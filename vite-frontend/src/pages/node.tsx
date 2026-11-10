@@ -45,7 +45,6 @@ import { Chip } from "@/shadcn-bridge/heroui/chip";
 import { Switch } from "@/shadcn-bridge/heroui/switch";
 import { Spinner } from "@/shadcn-bridge/heroui/spinner";
 import { Alert } from "@/shadcn-bridge/heroui/alert";
-import { Progress } from "@/shadcn-bridge/heroui/progress";
 import { Accordion, AccordionItem } from "@/shadcn-bridge/heroui/accordion";
 import { Select, SelectItem } from "@/shadcn-bridge/heroui/select";
 import { Checkbox } from "@/shadcn-bridge/heroui/checkbox";
@@ -70,6 +69,10 @@ import {
   getConnectionStatusMeta,
   getRemoteSyncErrorMessage,
 } from "@/pages/node/display";
+import {
+  NodeUpgradeProgress,
+  type NodeUpgradeProgressState,
+} from "@/pages/node/upgrade-progress";
 import { tryCopyInstallCommand } from "@/pages/node/install-command";
 import {
   getNodeRenewalSnapshot,
@@ -422,7 +425,7 @@ export default function NodePage() {
   const [selectedVersion, setSelectedVersion] = useState("");
   const [batchUpgradeLoading, setBatchUpgradeLoading] = useState(false);
   const [upgradeProgress, setUpgradeProgress] = useState<
-    Record<number, { stage: string; percent: number; message: string }>
+    Record<number, NodeUpgradeProgressState>
   >({});
 
   const [infoPopoverPlacement, setInfoPopoverPlacement] = useState<
@@ -1120,6 +1123,13 @@ export default function NodePage() {
       const node = nodeList.find((n) => n.id === upgradeTargetNodeId);
 
       if (!node) return;
+      setUpgradeProgress((prev) => {
+        const next = { ...prev };
+
+        delete next[upgradeTargetNodeId];
+
+        return next;
+      });
       setNodeList((prev) =>
         prev.map((n) =>
           n.id === upgradeTargetNodeId ? { ...n, upgradeLoading: true } : n,
@@ -1160,6 +1170,13 @@ export default function NodePage() {
         return;
       }
 
+      setUpgradeProgress((prev) => {
+        const next = { ...prev };
+
+        selectedLocalIds.forEach((id) => delete next[id]);
+
+        return next;
+      });
       setBatchUpgradeLoading(true);
       setUpgradeModalOpen(false);
       try {
@@ -1956,6 +1973,11 @@ export default function NodePage() {
                       <span className="text-sm text-default-500">
                         {node.version || "-"}
                       </span>
+                      {!isRemoteNode && (
+                        <NodeUpgradeProgress
+                          progress={upgradeProgress[node.id]}
+                        />
+                      )}
                     </TableCell>
                     <TableCell>
                       <div className="flex flex-wrap items-center gap-1.5 min-w-max">
@@ -2261,19 +2283,9 @@ export default function NodePage() {
                                     {node.version || "未知"}
                                   </span>
                                 </div>
-                                {upgradeProgress[node.id] &&
-                                  upgradeProgress[node.id].percent < 100 && (
-                                    <div className="mt-1">
-                                      <Progress
-                                        showValueLabel
-                                        aria-label="升级进度"
-                                        color="warning"
-                                        label={upgradeProgress[node.id].message}
-                                        size="sm"
-                                        value={upgradeProgress[node.id].percent}
-                                      />
-                                    </div>
-                                  )}
+                                <NodeUpgradeProgress
+                                  progress={upgradeProgress[node.id]}
+                                />
                                 <div className="flex justify-between text-sm">
                                   <span className="text-default-600">
                                     开机时间
