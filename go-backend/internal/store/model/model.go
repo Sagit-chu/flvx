@@ -10,6 +10,7 @@ import "database/sql"
 // User maps to the "user" table. PostgreSQL treats "user" as a reserved
 // word, so TableName() is required for correct quoting.
 type User struct {
+	DisplayOrder      int64         `gorm:"not null;default:0"`
 	ID                int64         `gorm:"primaryKey;autoIncrement"`
 	User              string        `gorm:"column:user;type:varchar(100);not null"`
 	Pwd               string        `gorm:"type:varchar(100);not null"`
@@ -151,14 +152,15 @@ type NftCounterState struct {
 func (NftCounterState) TableName() string { return "nft_counter_state" }
 
 type SpeedLimit struct {
-	ID          int64          `gorm:"primaryKey;autoIncrement"`
-	Name        string         `gorm:"type:varchar(100);not null"`
-	Speed       int            `gorm:"not null"`
-	TunnelID    sql.NullInt64  `gorm:"column:tunnel_id"`
-	TunnelName  sql.NullString `gorm:"column:tunnel_name;type:varchar(100)"`
-	CreatedTime int64          `gorm:"column:created_time;not null"`
-	UpdatedTime sql.NullInt64  `gorm:"column:updated_time"`
-	Status      int            `gorm:"not null"`
+	DisplayOrder int64          `gorm:"not null;default:0"`
+	ID           int64          `gorm:"primaryKey;autoIncrement"`
+	Name         string         `gorm:"type:varchar(100);not null"`
+	Speed        int            `gorm:"not null"`
+	TunnelID     sql.NullInt64  `gorm:"column:tunnel_id"`
+	TunnelName   sql.NullString `gorm:"column:tunnel_name;type:varchar(100)"`
+	CreatedTime  int64          `gorm:"column:created_time;not null"`
+	UpdatedTime  sql.NullInt64  `gorm:"column:updated_time"`
+	Status       int            `gorm:"not null"`
 }
 
 func (SpeedLimit) TableName() string { return "speed_limit" }
@@ -417,6 +419,7 @@ type BackupData struct {
 }
 
 type UserBackup struct {
+	DisplayOrder    *int64 `json:"displayOrder,omitempty"`
 	ID              int64  `json:"id"`
 	User            string `json:"user"`
 	Pwd             string `json:"pwd"`
@@ -540,14 +543,15 @@ type UserTunnelBackup struct {
 }
 
 type SpeedLimitBackup struct {
-	ID          int64  `json:"id"`
-	Name        string `json:"name"`
-	Speed       int64  `json:"speed"`
-	TunnelID    *int64 `json:"tunnelId,omitempty"`
-	TunnelName  string `json:"tunnelName,omitempty"`
-	CreatedTime int64  `json:"createdTime"`
-	UpdatedTime int64  `json:"updatedTime,omitempty"`
-	Status      int    `json:"status"`
+	DisplayOrder *int64 `json:"displayOrder,omitempty"`
+	ID           int64  `json:"id"`
+	Name         string `json:"name"`
+	Speed        int64  `json:"speed"`
+	TunnelID     *int64 `json:"tunnelId,omitempty"`
+	TunnelName   string `json:"tunnelName,omitempty"`
+	CreatedTime  int64  `json:"createdTime"`
+	UpdatedTime  int64  `json:"updatedTime,omitempty"`
+	Status       int    `json:"status"`
 }
 
 type TunnelGroupBackup struct {
