@@ -248,6 +248,8 @@ func (h *Handler) Register(mux *http.ServeMux) {
 	mux.HandleFunc("/api/v1/forward/batch-resume", h.forwardBatchResume)
 	mux.HandleFunc("/api/v1/forward/batch-redeploy", h.forwardBatchRedeploy)
 	mux.HandleFunc("/api/v1/forward/batch-change-tunnel", h.forwardBatchChangeTunnel)
+	mux.HandleFunc("/api/v1/user/update-order", h.userDisplayOrder)
+	mux.HandleFunc("/api/v1/speed-limit/update-order", h.speedLimitDisplayOrder)
 	mux.HandleFunc("/api/v1/speed-limit/list", h.speedLimitList)
 	mux.HandleFunc("/api/v1/speed-limit/create", h.speedLimitCreate)
 	mux.HandleFunc("/api/v1/speed-limit/update", h.speedLimitUpdate)

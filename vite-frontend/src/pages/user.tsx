@@ -1,13 +1,18 @@
-import { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import toast from "react-hot-toast";
 import { parseDate } from "@internationalized/date";
 import { LayoutGrid, List } from "lucide-react";
 
+import { isAdmin } from "@/utils/auth";
+import { useServerOrder } from "@/hooks/use-server-order";
+import { getOrderDisabledReason } from "@/utils/server-order";
 import {
-  AnimatedPage,
-  StaggerList,
-  StaggerItem,
-} from "@/components/animated-page";
+  OrderHandle,
+  OrderItem,
+  OrderList,
+  OrderStatus,
+} from "@/components/server-order";
+import { AnimatedPage, StaggerList } from "@/components/animated-page";
 import { Button } from "@/shadcn-bridge/heroui/button";
 import { Card, CardBody, CardHeader } from "@/shadcn-bridge/heroui/card";
 import { Input } from "@/shadcn-bridge/heroui/input";
@@ -43,10 +48,10 @@ import {
   TunnelAssignItem,
   Tunnel,
   SpeedLimit,
-  Pagination as PaginationType,
 } from "@/types";
 import {
   getAllUsers,
+  updateUserOrder,
   createUser,
   updateUser,
   deleteUser,
@@ -145,8 +150,6 @@ const calculateTunnelUsedFlow = (tunnel: UserTunnel): number => {
   return inFlow + outFlow;
 };
 
-const USER_SEARCH_DEBOUNCE_MS = 250;
-
 const normalizeUserItem = (item: Partial<User>): User => {
   return {
     id: Number(item.id ?? 0),
@@ -191,10 +194,23 @@ const normalizeUserTunnelItem = (item: Partial<UserTunnel>): UserTunnel => {
   };
 };
 
+const fetchOrderedUsers = async (): Promise<User[]> => {
+  const response = await getAllUsers();
+
+  if (response.code !== 0) throw new Error(response.msg);
+
+  return (response.data || []).map((item) => normalizeUserItem(item));
+};
+
 export default function UserPage() {
   // 状态管理
-  const [users, setUsers] = useState<User[]>([]);
-  const [loading, setLoading] = useState(true);
+  const order = useServerOrder(fetchOrderedUsers, updateUserOrder);
+  const {
+    items: allUsers,
+    setItems: setUsers,
+    loading,
+    reload: loadUsers,
+  } = order;
   const [searchKeyword, setSearchKeyword] = useLocalStorageState(
     "user-search-keyword",
     "",
@@ -204,12 +220,18 @@ export default function UserPage() {
     "user-view-mode",
     "grid",
   );
-  const [pagination, setPagination] = useState<PaginationType>({
-    current: 1,
-    size: 10,
-    total: 0,
-  });
-  const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const users = useMemo(() => {
+    const keyword = searchKeyword.trim().toLowerCase();
+
+    return keyword
+      ? allUsers.filter(
+          (user) =>
+            user.user.trim().toLowerCase().includes(keyword) ||
+            (user.name || "").trim().toLowerCase().includes(keyword),
+        )
+      : allUsers;
+  }, [allUsers, searchKeyword]);
+  const [deleteLoading, setDeleteLoading] = useState(false);
 
   // 用户表单相关状态
   const {
@@ -359,37 +381,6 @@ export default function UserPage() {
     return !speedLimitIds.has(speedId);
   };
 
-  // 数据加载函数
-  const loadUsers = useCallback(
-    async (keywordOverride?: string) => {
-      setLoading(true);
-      try {
-        const keyword = keywordOverride ?? searchKeyword;
-        const response = await getAllUsers({
-          current: pagination.current,
-          size: pagination.size,
-          keyword,
-        });
-
-        if (response.code === 0) {
-          const nextUsers = Array.isArray(response.data)
-            ? response.data.map((item) => normalizeUserItem(item))
-            : [];
-
-          setUsers(nextUsers);
-          setPagination((prev) => ({ ...prev, total: nextUsers.length }));
-        } else {
-          toast.error(response.msg || "获取用户列表失败");
-        }
-      } catch {
-        toast.error("获取用户列表失败");
-      } finally {
-        setLoading(false);
-      }
-    },
-    [pagination.current, pagination.size],
-  );
-
   const loadTunnels = useCallback(async () => {
     try {
       const response = await getTunnelList();
@@ -483,40 +474,10 @@ export default function UserPage() {
     void loadMonitorPermissions();
   }, [loadMonitorPermissions, loadSpeedLimits, loadTunnels, loadUserGroups]);
 
-  useEffect(() => {
-    if (searchDebounceRef.current) {
-      clearTimeout(searchDebounceRef.current);
-    }
-
-    searchDebounceRef.current = setTimeout(() => {
-      setPagination((prev) => {
-        if (prev.current === 1) {
-          void loadUsers(searchKeyword);
-
-          return prev;
-        }
-
-        return { ...prev, current: 1 };
-      });
-    }, USER_SEARCH_DEBOUNCE_MS);
-
-    return () => {
-      if (searchDebounceRef.current) {
-        clearTimeout(searchDebounceRef.current);
-        searchDebounceRef.current = null;
-      }
-    };
-  }, [loadUsers, searchKeyword]);
-
-  // 用户管理操作
+  // Search is local to the complete server snapshot, so no partial response
+  // can replace the reorder set when a search is cleared.
   const handleSearch = () => {
-    if (searchDebounceRef.current) {
-      clearTimeout(searchDebounceRef.current);
-      searchDebounceRef.current = null;
-    }
-
-    setPagination((prev) => ({ ...prev, current: 1 }));
-    void loadUsers(searchKeyword);
+    void loadUsers();
   };
 
   const handleAdd = () => {
@@ -581,7 +542,8 @@ export default function UserPage() {
   };
 
   const handleConfirmDelete = async () => {
-    if (!userToDelete) return;
+    if (!userToDelete || order.saving || deleteLoading) return;
+    setDeleteLoading(true);
 
     try {
       const response = await deleteUser(userToDelete.id);
@@ -589,11 +551,7 @@ export default function UserPage() {
       if (response.code === 0) {
         toast.success("删除成功");
         onDeleteModalClose();
-        setUsers((prev) => removeItemsById(prev, [userToDelete.id]));
-        setPagination((prev) => ({
-          ...prev,
-          total: Math.max(prev.total - 1, 0),
-        }));
+        await loadUsers();
         setUserToDelete(null);
         if (currentUser?.id === userToDelete.id) {
           setCurrentUser(null);
@@ -604,10 +562,13 @@ export default function UserPage() {
       }
     } catch {
       toast.error("删除失败");
+    } finally {
+      setDeleteLoading(false);
     }
   };
 
   const handleSubmitUser = async () => {
+    if (order.saving) return;
     if (!userForm.user || (!userForm.pwd && !isEdit) || !userForm.expTime) {
       toast.error("请填写完整信息");
 
@@ -645,26 +606,7 @@ export default function UserPage() {
       if (response.code === 0) {
         toast.success(isEdit ? "更新成功" : "创建成功");
         onUserModalClose();
-        const responseUser = normalizeUserItem((response as any).data || {});
-
-        if (
-          isEdit &&
-          responseUser.id > 0 &&
-          pagination.current === 1 &&
-          !searchKeyword.trim()
-        ) {
-          setUsers((prev) => replaceItemById(prev, responseUser));
-        } else if (
-          !isEdit &&
-          responseUser.id > 0 &&
-          pagination.current === 1 &&
-          !searchKeyword.trim()
-        ) {
-          setUsers((prev) => [responseUser, ...prev].slice(0, pagination.size));
-          setPagination((prev) => ({ ...prev, total: prev.total + 1 }));
-        } else {
-          await loadUsers();
-        }
+        await loadUsers();
       } else {
         const userDisabled =
           isEdit &&
@@ -958,7 +900,7 @@ export default function UserPage() {
 
       if (response.code === 0) {
         toast.success("用户配额已重置");
-        await loadUsers(searchKeyword);
+        await loadUsers();
       } else {
         toast.error(response.msg || "重置用户配额失败");
       }
@@ -1048,6 +990,14 @@ export default function UserPage() {
     return userTunnels.some((ut) => ut.tunnelId === tunnelId);
   };
 
+  const orderReason = getOrderDisabledReason({
+    isAdmin: isAdmin(),
+    searchKeyword,
+    saving: order.saving,
+    busy: loading || userFormLoading || deleteLoading,
+  });
+  const orderDisabled = Boolean(orderReason);
+
   return (
     <AnimatedPage className="px-3 lg:px-6 py-8">
       {/* 页面头部 */}
@@ -1130,410 +1080,450 @@ export default function UserPage() {
       </div>
 
       {/* 用户列表 */}
-      {loading ? (
-        <PageLoadingState message="正在加载..." />
-      ) : users.length === 0 ? (
-        <Card className="shadow-sm border border-gray-200 dark:border-gray-700 bg-default-50/50">
-          <CardBody className="text-center py-20 flex flex-col items-center justify-center min-h-[240px]">
-            <h3 className="text-xl font-medium text-foreground tracking-tight mb-2">
-              暂无用户数据
-            </h3>
-            <p className="text-default-500 text-sm max-w-xs mx-auto leading-relaxed">
-              还没有创建任何用户，点击上方按钮开始创建
-            </p>
-          </CardBody>
-        </Card>
-      ) : viewMode === "list" ? (
-        <Card>
-          <Table
-            aria-label="用户列表"
-            className="overflow-x-auto min-w-full"
-            classNames={{
-              wrapper:
-                "bg-transparent p-0 shadow-none border-none overflow-auto rounded-2xl",
-              th: "bg-transparent text-default-600 font-semibold text-sm border-b border-white/20 dark:border-white/10 py-3 uppercase tracking-wider first:rounded-tl-[24px] last:rounded-tr-[24px]",
-              td: "py-3 border-b border-divider/50 group-data-[last=true]:border-b-0",
-              tr: "hover:bg-white/40 dark:hover:bg-white/10 transition-colors",
-            }}
-          >
-            <TableHeader>
-              <TableColumn>用户名</TableColumn>
-              <TableColumn>流量统计</TableColumn>
-              <TableColumn>配额限制</TableColumn>
-              <TableColumn>规则数量</TableColumn>
-              <TableColumn>到期时间</TableColumn>
-              <TableColumn>操作</TableColumn>
-            </TableHeader>
-            <TableBody items={users}>
-              {(user) => {
-                const userStatus = getUserStatus(user);
-                const expStatus = user.expTime
-                  ? getExpireStatus(user.expTime)
-                  : null;
-                const usedFlow = calculateUserTotalUsedFlow(user);
-
-                return (
-                  <TableRow key={user.id}>
-                    <TableCell>
-                      <div className="flex items-center gap-3">
-                        <div className="flex items-center justify-center shrink-0 w-10 h-10 rounded-full bg-primary text-white font-bold text-sm relative">
-                          {(user.name || user.user).slice(0, 2).toUpperCase()}
-                          <span
-                            className={`absolute bottom-0 right-0 w-3 h-3 border-2 border-white dark:border-zinc-900 rounded-full ${userStatus.color === "success" ? "bg-success" : "bg-danger"}`}
-                          />
-                        </div>
-                        <div className="flex flex-col">
-                          <span className="font-medium text-foreground text-sm">
-                            {user.name || user.user}
-                          </span>
-                          <span className="text-xs text-default-500">
-                            @{user.user}
-                          </span>
-                        </div>
-                        {user.disabledByQuota && (
-                          <Chip
-                            className="text-[10px] h-4 px-1 ml-1"
-                            color="danger"
-                            size="sm"
-                            variant="flat"
-                          >
-                            超额
-                          </Chip>
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex flex-col gap-0.5">
-                        <div className="flex items-center gap-1 text-xs">
-                          <span className="text-default-500">已用:</span>
-                          <span className="text-danger font-medium whitespace-nowrap">
-                            {formatFlow(usedFlow)}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-1 text-xs">
-                          <span className="text-default-500">限制:</span>
-                          <span className="text-default-700 font-medium whitespace-nowrap">
-                            {formatFlowLimit(user.flow, user.flowMiB)}
-                          </span>
-                        </div>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex flex-col gap-0.5 whitespace-nowrap text-[11px]">
-                        {(user.dailyQuotaGB ?? 0) > 0 ||
-                        (user.monthlyQuotaGB ?? 0) > 0 ? (
-                          <>
-                            <div className="flex gap-1 justify-between">
-                              <span className="text-default-500">日配额:</span>
-                              <span>
-                                {formatFlow(user.dailyUsedBytes ?? 0)} /{" "}
-                                {formatQuotaLimit(user.dailyQuotaGB)}
-                              </span>
-                            </div>
-                            <div className="flex gap-1 justify-between">
-                              <span className="text-default-500">月配额:</span>
-                              <span>
-                                {formatFlow(user.monthlyUsedBytes ?? 0)} /{" "}
-                                {formatQuotaLimit(user.monthlyQuotaGB)}
-                              </span>
-                            </div>
-                          </>
-                        ) : (
-                          <span className="text-default-400">无配额</span>
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <span className="text-sm font-medium">{user.num}</span>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex flex-col gap-1 items-start whitespace-nowrap">
-                        {user.expTime ? (
-                          <>
-                            <span className="text-sm">
-                              {new Date(user.expTime).toLocaleString()}
-                            </span>
-                            {expStatus && (
-                              <Chip
-                                className="h-5 px-1 text-[10px]"
-                                color={expStatus.color}
-                                size="sm"
-                                variant="flat"
-                              >
-                                {expStatus.text}
-                              </Chip>
-                            )}
-                          </>
-                        ) : (
-                          <span className="text-default-400 text-sm">
-                            无限期
-                          </span>
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex flex-wrap items-center gap-1.5 min-w-max">
-                        <Button
-                          className="h-6 px-2 min-w-0 text-xs bg-emerald-50 text-emerald-600 hover:bg-emerald-100 dark:bg-emerald-950/30 dark:text-emerald-400"
-                          size="sm"
-                          variant="flat"
-                          onPress={() => handleManageTunnels(user)}
-                        >
-                          权限
-                        </Button>
-                        <Button
-                          className="h-6 px-2 min-w-0 text-xs bg-amber-50 text-amber-600 hover:bg-amber-100 dark:bg-amber-950/30 dark:text-amber-400"
-                          size="sm"
-                          title="重置流量"
-                          variant="flat"
-                          onPress={() => handleResetFlow(user)}
-                        >
-                          重置
-                        </Button>
-                        <Button
-                          className="h-6 px-2 min-w-0 text-xs bg-indigo-50 text-indigo-600 hover:bg-indigo-100 dark:bg-indigo-950/30 dark:text-indigo-400"
-                          size="sm"
-                          variant="flat"
-                          onPress={() => handleEdit(user)}
-                        >
-                          编辑
-                        </Button>
-                        <Button
-                          className="h-6 px-2 min-w-0 text-xs bg-rose-50 text-rose-600 hover:bg-rose-100 dark:bg-rose-950/30 dark:text-rose-400"
-                          size="sm"
-                          variant="flat"
-                          onPress={() => handleDelete(user)}
-                        >
-                          删除
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                );
+      <OrderStatus
+        error={order.error}
+        reason={orderReason}
+        retry={() => {
+          if (!order.saving) void loadUsers();
+        }}
+      />
+      <OrderList
+        key={`${viewMode}:${searchKeyword}:${orderDisabled}`}
+        ids={users.map((user) => user.id)}
+        onDragEnd={(event) => {
+          void order.reorder(event, orderDisabled);
+        }}
+        onDragStart={order.onDragStart}
+      >
+        {loading ? (
+          <PageLoadingState message="正在加载..." />
+        ) : users.length === 0 ? (
+          <Card className="shadow-sm border border-gray-200 dark:border-gray-700 bg-default-50/50">
+            <CardBody className="text-center py-20 flex flex-col items-center justify-center min-h-[240px]">
+              <h3 className="text-xl font-medium text-foreground tracking-tight mb-2">
+                暂无用户数据
+              </h3>
+              <p className="text-default-500 text-sm max-w-xs mx-auto leading-relaxed">
+                还没有创建任何用户，点击上方按钮开始创建
+              </p>
+            </CardBody>
+          </Card>
+        ) : viewMode === "list" ? (
+          <Card>
+            <Table
+              aria-label="用户列表"
+              className="overflow-x-auto min-w-full"
+              classNames={{
+                wrapper:
+                  "bg-transparent p-0 shadow-none border-none overflow-auto rounded-2xl",
+                th: "bg-transparent text-default-600 font-semibold text-sm border-b border-white/20 dark:border-white/10 py-3 uppercase tracking-wider first:rounded-tl-[24px] last:rounded-tr-[24px]",
+                td: "py-3 border-b border-divider/50 group-data-[last=true]:border-b-0",
+                tr: "hover:bg-white/40 dark:hover:bg-white/10 transition-colors",
               }}
-            </TableBody>
-          </Table>
-        </Card>
-      ) : (
-        <StaggerList className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4">
-          {users.map((user) => {
-            const userStatus = getUserStatus(user);
-            const expStatus = user.expTime
-              ? getExpireStatus(user.expTime)
-              : null;
-            const usedFlow = calculateUserTotalUsedFlow(user);
-            const flowPercent =
-              user.flow > 0 && !(user.flow === 99999 && !user.flowMiB)
-                ? Math.min(
-                    (usedFlow / flowLimitBytes(user.flow, user.flowMiB)) * 100,
-                    100,
-                  )
-                : 0;
+            >
+              <TableHeader>
+                <TableColumn>用户名</TableColumn>
+                <TableColumn>流量统计</TableColumn>
+                <TableColumn>配额限制</TableColumn>
+                <TableColumn>规则数量</TableColumn>
+                <TableColumn>到期时间</TableColumn>
+                <TableColumn>操作</TableColumn>
+              </TableHeader>
+              <TableBody items={users}>
+                {(user) => {
+                  const userStatus = getUserStatus(user);
+                  const expStatus = user.expTime
+                    ? getExpireStatus(user.expTime)
+                    : null;
+                  const usedFlow = calculateUserTotalUsedFlow(user);
 
-            return (
-              <StaggerItem key={user.id}>
-                <Card className="overflow-hidden h-full">
-                  <CardHeader className="pb-2 md:pb-2">
-                    <div className="flex justify-between items-start w-full">
-                      <div className="flex items-center gap-3 flex-1 min-w-0">
-                        <div className="flex items-center justify-center shrink-0 w-10 h-10 rounded-full bg-primary text-white font-bold text-sm relative">
-                          {(user.name || user.user).slice(0, 2).toUpperCase()}
-                          <span
-                            className={`absolute bottom-0 right-0 w-3 h-3 border-2 border-white dark:border-zinc-900 rounded-full ${userStatus.color === "success" ? "bg-success" : "bg-danger"}`}
-                          />
+                  return (
+                    <OrderItem
+                      key={user.id}
+                      row
+                      disabled={orderDisabled}
+                      id={user.id}
+                      label={user.name || user.user}
+                    >
+                      <TableCell>
+                        <div className="flex items-center gap-3">
+                          <OrderHandle />
+                          <div className="flex items-center justify-center shrink-0 w-10 h-10 rounded-full bg-primary text-white font-bold text-sm relative">
+                            {(user.name || user.user).slice(0, 2).toUpperCase()}
+                            <span
+                              className={`absolute bottom-0 right-0 w-3 h-3 border-2 border-white dark:border-zinc-900 rounded-full ${userStatus.color === "success" ? "bg-success" : "bg-danger"}`}
+                            />
+                          </div>
+                          <div className="flex flex-col">
+                            <span className="font-medium text-foreground text-sm">
+                              {user.name || user.user}
+                            </span>
+                            <span className="text-xs text-default-500">
+                              @{user.user}
+                            </span>
+                          </div>
+                          {user.disabledByQuota && (
+                            <Chip
+                              className="text-[10px] h-4 px-1 ml-1"
+                              color="danger"
+                              size="sm"
+                              variant="flat"
+                            >
+                              超额
+                            </Chip>
+                          )}
                         </div>
-                        <div className="flex flex-col min-w-0">
-                          <h3 className="font-semibold text-foreground truncate text-sm">
-                            {user.name || user.user}
-                          </h3>
-                          <p className="text-xs text-default-500 truncate">
-                            @{user.user}
-                          </p>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex flex-col gap-0.5">
+                          <div className="flex items-center gap-1 text-xs">
+                            <span className="text-default-500">已用:</span>
+                            <span className="text-danger font-medium whitespace-nowrap">
+                              {formatFlow(usedFlow)}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-1 text-xs">
+                            <span className="text-default-500">限制:</span>
+                            <span className="text-default-700 font-medium whitespace-nowrap">
+                              {formatFlowLimit(user.flow, user.flowMiB)}
+                            </span>
+                          </div>
                         </div>
-                      </div>
-                      <div className="flex items-center gap-1.5 ml-2">
-                        <Chip
-                          className="text-xs"
-                          color={userStatus.color}
-                          size="sm"
-                          variant="flat"
-                        >
-                          {userStatus.text}
-                        </Chip>
-                        {user.disabledByQuota ? (
-                          <Chip
-                            className="text-xs"
-                            color="danger"
-                            size="sm"
-                            variant="flat"
-                          >
-                            配额超额
-                          </Chip>
-                        ) : null}
-                      </div>
-                    </div>
-                  </CardHeader>
-
-                  <CardBody className="pt-0 pb-3 md:pt-0 md:pb-3">
-                    <div className="space-y-2">
-                      {/* 流量信息 */}
-                      <div className="space-y-1.5">
-                        <div className="flex justify-between text-sm">
-                          <span className="text-default-600">流量限制</span>
-                          <span className="font-medium text-xs">
-                            {formatFlowLimit(user.flow, user.flowMiB)}
-                          </span>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex flex-col gap-0.5 whitespace-nowrap text-[11px]">
+                          {(user.dailyQuotaGB ?? 0) > 0 ||
+                          (user.monthlyQuotaGB ?? 0) > 0 ? (
+                            <>
+                              <div className="flex gap-1 justify-between">
+                                <span className="text-default-500">
+                                  日配额:
+                                </span>
+                                <span>
+                                  {formatFlow(user.dailyUsedBytes ?? 0)} /{" "}
+                                  {formatQuotaLimit(user.dailyQuotaGB)}
+                                </span>
+                              </div>
+                              <div className="flex gap-1 justify-between">
+                                <span className="text-default-500">
+                                  月配额:
+                                </span>
+                                <span>
+                                  {formatFlow(user.monthlyUsedBytes ?? 0)} /{" "}
+                                  {formatQuotaLimit(user.monthlyQuotaGB)}
+                                </span>
+                              </div>
+                            </>
+                          ) : (
+                            <span className="text-default-400">无配额</span>
+                          )}
                         </div>
-                        <div className="flex justify-between text-sm">
-                          <span className="text-default-600">已使用</span>
-                          <span className="font-medium text-xs text-danger">
-                            {formatFlow(usedFlow)}
-                          </span>
-                        </div>
-                        <Progress
-                          aria-label={`流量使用 ${flowPercent.toFixed(1)}%`}
-                          className="mt-1"
-                          color={
-                            flowPercent > 90
-                              ? "danger"
-                              : flowPercent > 70
-                                ? "warning"
-                                : "success"
-                          }
-                          size="sm"
-                          value={flowPercent}
-                        />
-                      </div>
-
-                      {/* 其他信息 */}
-                      <div className="space-y-1.5 pt-2 border-t border-divider">
-                        {(user.dailyQuotaGB ?? 0) > 0 ||
-                        (user.monthlyQuotaGB ?? 0) > 0 ||
-                        (user.disabledByQuota ?? 0) > 0 ? (
-                          <>
-                            <div className="flex justify-between text-sm">
-                              <span className="text-default-600">每日配额</span>
-                              <span className="font-medium text-xs">
-                                {formatFlow(Number(user.dailyUsedBytes ?? 0))} /{" "}
-                                {formatQuotaLimit(user.dailyQuotaGB)}
+                      </TableCell>
+                      <TableCell>
+                        <span className="text-sm font-medium">{user.num}</span>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex flex-col gap-1 items-start whitespace-nowrap">
+                          {user.expTime ? (
+                            <>
+                              <span className="text-sm">
+                                {new Date(user.expTime).toLocaleString()}
                               </span>
-                            </div>
-                            <div className="flex justify-between text-sm">
-                              <span className="text-default-600">每月配额</span>
-                              <span className="font-medium text-xs">
-                                {formatFlow(Number(user.monthlyUsedBytes ?? 0))}{" "}
-                                / {formatQuotaLimit(user.monthlyQuotaGB)}
-                              </span>
-                            </div>
-                          </>
-                        ) : null}
-                        <div className="flex justify-between text-sm">
-                          <span className="text-default-600">规则数量</span>
-                          <span className="font-medium text-xs">
-                            {user.num}
-                          </span>
-                        </div>
-                        <div className="flex justify-between text-sm">
-                          <span className="text-default-600">重置日期</span>
-                          <span className="text-xs">
-                            {user.flowResetTime === 0
-                              ? "不重置"
-                              : `每月${user.flowResetTime}号`}
-                          </span>
-                        </div>
-                        {user.expTime && (
-                          <div className="flex justify-between text-sm">
-                            <span className="text-default-600">过期时间</span>
-                            <div className="text-right">
-                              {expStatus && expStatus.color === "success" ? (
-                                <div className="text-xs">
-                                  {formatDate(user.expTime)}
-                                </div>
-                              ) : (
+                              {expStatus && (
                                 <Chip
-                                  className="text-xs"
-                                  color={expStatus?.color || "default"}
+                                  className="h-5 px-1 text-[10px]"
+                                  color={expStatus.color}
                                   size="sm"
                                   variant="flat"
                                 >
-                                  {expStatus?.text || "未知状态"}
+                                  {expStatus.text}
                                 </Chip>
                               )}
-                            </div>
+                            </>
+                          ) : (
+                            <span className="text-default-400 text-sm">
+                              无限期
+                            </span>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex flex-wrap items-center gap-1.5 min-w-max">
+                          <Button
+                            className="h-6 px-2 min-w-0 text-xs bg-emerald-50 text-emerald-600 hover:bg-emerald-100 dark:bg-emerald-950/30 dark:text-emerald-400"
+                            size="sm"
+                            variant="flat"
+                            onPress={() => handleManageTunnels(user)}
+                          >
+                            权限
+                          </Button>
+                          <Button
+                            className="h-6 px-2 min-w-0 text-xs bg-amber-50 text-amber-600 hover:bg-amber-100 dark:bg-amber-950/30 dark:text-amber-400"
+                            size="sm"
+                            title="重置流量"
+                            variant="flat"
+                            onPress={() => handleResetFlow(user)}
+                          >
+                            重置
+                          </Button>
+                          <Button
+                            className="h-6 px-2 min-w-0 text-xs bg-indigo-50 text-indigo-600 hover:bg-indigo-100 dark:bg-indigo-950/30 dark:text-indigo-400"
+                            size="sm"
+                            variant="flat"
+                            onPress={() => handleEdit(user)}
+                          >
+                            编辑
+                          </Button>
+                          <Button
+                            className="h-6 px-2 min-w-0 text-xs bg-rose-50 text-rose-600 hover:bg-rose-100 dark:bg-rose-950/30 dark:text-rose-400"
+                            size="sm"
+                            variant="flat"
+                            onPress={() => handleDelete(user)}
+                          >
+                            删除
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </OrderItem>
+                  );
+                }}
+              </TableBody>
+            </Table>
+          </Card>
+        ) : (
+          <StaggerList className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4">
+            {users.map((user) => {
+              const userStatus = getUserStatus(user);
+              const expStatus = user.expTime
+                ? getExpireStatus(user.expTime)
+                : null;
+              const usedFlow = calculateUserTotalUsedFlow(user);
+              const flowPercent =
+                user.flow > 0 && !(user.flow === 99999 && !user.flowMiB)
+                  ? Math.min(
+                      (usedFlow / flowLimitBytes(user.flow, user.flowMiB)) *
+                        100,
+                      100,
+                    )
+                  : 0;
+
+              return (
+                <OrderItem
+                  key={user.id}
+                  disabled={orderDisabled}
+                  id={user.id}
+                  label={user.name || user.user}
+                >
+                  <Card className="overflow-hidden h-full">
+                    <CardHeader className="pb-2 md:pb-2">
+                      <OrderHandle />
+                      <div className="flex justify-between items-start w-full">
+                        <div className="flex items-center gap-3 flex-1 min-w-0">
+                          <div className="flex items-center justify-center shrink-0 w-10 h-10 rounded-full bg-primary text-white font-bold text-sm relative">
+                            {(user.name || user.user).slice(0, 2).toUpperCase()}
+                            <span
+                              className={`absolute bottom-0 right-0 w-3 h-3 border-2 border-white dark:border-zinc-900 rounded-full ${userStatus.color === "success" ? "bg-success" : "bg-danger"}`}
+                            />
                           </div>
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="space-y-1.5 mt-3">
-                      {/* 第一行：编辑和重置 */}
-                      <div className="flex gap-1.5">
-                        <Button
-                          className="flex-1 min-h-8"
-                          color="primary"
-                          size="sm"
-                          startContent={<EditIcon className="w-3 h-3" />}
-                          variant="flat"
-                          onPress={() => handleEdit(user)}
-                        >
-                          编辑
-                        </Button>
-                        <Button
-                          className="flex-1 min-h-8"
-                          color="warning"
-                          size="sm"
-                          startContent={
-                            <svg
-                              aria-hidden="true"
-                              className="w-3 h-3"
-                              fill="currentColor"
-                              viewBox="0 0 20 20"
+                          <div className="flex flex-col min-w-0">
+                            <h3 className="font-semibold text-foreground truncate text-sm">
+                              {user.name || user.user}
+                            </h3>
+                            <p className="text-xs text-default-500 truncate">
+                              @{user.user}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-1.5 ml-2">
+                          <Chip
+                            className="text-xs"
+                            color={userStatus.color}
+                            size="sm"
+                            variant="flat"
+                          >
+                            {userStatus.text}
+                          </Chip>
+                          {user.disabledByQuota ? (
+                            <Chip
+                              className="text-xs"
+                              color="danger"
+                              size="sm"
+                              variant="flat"
                             >
-                              <path
-                                clipRule="evenodd"
-                                d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z"
-                                fillRule="evenodd"
-                              />
-                            </svg>
-                          }
-                          variant="flat"
-                          onPress={() => handleResetFlow(user)}
-                        >
-                          重置
-                        </Button>
+                              配额超额
+                            </Chip>
+                          ) : null}
+                        </div>
+                      </div>
+                    </CardHeader>
+
+                    <CardBody className="pt-0 pb-3 md:pt-0 md:pb-3">
+                      <div className="space-y-2">
+                        {/* 流量信息 */}
+                        <div className="space-y-1.5">
+                          <div className="flex justify-between text-sm">
+                            <span className="text-default-600">流量限制</span>
+                            <span className="font-medium text-xs">
+                              {formatFlowLimit(user.flow, user.flowMiB)}
+                            </span>
+                          </div>
+                          <div className="flex justify-between text-sm">
+                            <span className="text-default-600">已使用</span>
+                            <span className="font-medium text-xs text-danger">
+                              {formatFlow(usedFlow)}
+                            </span>
+                          </div>
+                          <Progress
+                            aria-label={`流量使用 ${flowPercent.toFixed(1)}%`}
+                            className="mt-1"
+                            color={
+                              flowPercent > 90
+                                ? "danger"
+                                : flowPercent > 70
+                                  ? "warning"
+                                  : "success"
+                            }
+                            size="sm"
+                            value={flowPercent}
+                          />
+                        </div>
+
+                        {/* 其他信息 */}
+                        <div className="space-y-1.5 pt-2 border-t border-divider">
+                          {(user.dailyQuotaGB ?? 0) > 0 ||
+                          (user.monthlyQuotaGB ?? 0) > 0 ||
+                          (user.disabledByQuota ?? 0) > 0 ? (
+                            <>
+                              <div className="flex justify-between text-sm">
+                                <span className="text-default-600">
+                                  每日配额
+                                </span>
+                                <span className="font-medium text-xs">
+                                  {formatFlow(Number(user.dailyUsedBytes ?? 0))}{" "}
+                                  / {formatQuotaLimit(user.dailyQuotaGB)}
+                                </span>
+                              </div>
+                              <div className="flex justify-between text-sm">
+                                <span className="text-default-600">
+                                  每月配额
+                                </span>
+                                <span className="font-medium text-xs">
+                                  {formatFlow(
+                                    Number(user.monthlyUsedBytes ?? 0),
+                                  )}{" "}
+                                  / {formatQuotaLimit(user.monthlyQuotaGB)}
+                                </span>
+                              </div>
+                            </>
+                          ) : null}
+                          <div className="flex justify-between text-sm">
+                            <span className="text-default-600">规则数量</span>
+                            <span className="font-medium text-xs">
+                              {user.num}
+                            </span>
+                          </div>
+                          <div className="flex justify-between text-sm">
+                            <span className="text-default-600">重置日期</span>
+                            <span className="text-xs">
+                              {user.flowResetTime === 0
+                                ? "不重置"
+                                : `每月${user.flowResetTime}号`}
+                            </span>
+                          </div>
+                          {user.expTime && (
+                            <div className="flex justify-between text-sm">
+                              <span className="text-default-600">过期时间</span>
+                              <div className="text-right">
+                                {expStatus && expStatus.color === "success" ? (
+                                  <div className="text-xs">
+                                    {formatDate(user.expTime)}
+                                  </div>
+                                ) : (
+                                  <Chip
+                                    className="text-xs"
+                                    color={expStatus?.color || "default"}
+                                    size="sm"
+                                    variant="flat"
+                                  >
+                                    {expStatus?.text || "未知状态"}
+                                  </Chip>
+                                )}
+                              </div>
+                            </div>
+                          )}
+                        </div>
                       </div>
 
-                      {/* 第二行：权限和删除 */}
-                      <div className="flex gap-1.5">
-                        <Button
-                          className="flex-1 min-h-8"
-                          color="success"
-                          size="sm"
-                          startContent={<SettingsIcon className="w-3 h-3" />}
-                          variant="flat"
-                          onPress={() => handleManageTunnels(user)}
-                        >
-                          权限
-                        </Button>
-                        <Button
-                          className="flex-1 min-h-8"
-                          color="danger"
-                          size="sm"
-                          startContent={<DeleteIcon className="w-3 h-3" />}
-                          variant="flat"
-                          onPress={() => handleDelete(user)}
-                        >
-                          删除
-                        </Button>
+                      <div className="space-y-1.5 mt-3">
+                        {/* 第一行：编辑和重置 */}
+                        <div className="flex gap-1.5">
+                          <Button
+                            className="flex-1 min-h-8"
+                            color="primary"
+                            size="sm"
+                            startContent={<EditIcon className="w-3 h-3" />}
+                            variant="flat"
+                            onPress={() => handleEdit(user)}
+                          >
+                            编辑
+                          </Button>
+                          <Button
+                            className="flex-1 min-h-8"
+                            color="warning"
+                            size="sm"
+                            startContent={
+                              <svg
+                                aria-hidden="true"
+                                className="w-3 h-3"
+                                fill="currentColor"
+                                viewBox="0 0 20 20"
+                              >
+                                <path
+                                  clipRule="evenodd"
+                                  d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z"
+                                  fillRule="evenodd"
+                                />
+                              </svg>
+                            }
+                            variant="flat"
+                            onPress={() => handleResetFlow(user)}
+                          >
+                            重置
+                          </Button>
+                        </div>
+
+                        {/* 第二行：权限和删除 */}
+                        <div className="flex gap-1.5">
+                          <Button
+                            className="flex-1 min-h-8"
+                            color="success"
+                            size="sm"
+                            startContent={<SettingsIcon className="w-3 h-3" />}
+                            variant="flat"
+                            onPress={() => handleManageTunnels(user)}
+                          >
+                            权限
+                          </Button>
+                          <Button
+                            className="flex-1 min-h-8"
+                            color="danger"
+                            size="sm"
+                            startContent={<DeleteIcon className="w-3 h-3" />}
+                            variant="flat"
+                            onPress={() => handleDelete(user)}
+                          >
+                            删除
+                          </Button>
+                        </div>
                       </div>
-                    </div>
-                  </CardBody>
-                </Card>
-              </StaggerItem>
-            );
-          })}
-        </StaggerList>
-      )}
+                    </CardBody>
+                  </Card>
+                </OrderItem>
+              );
+            })}
+          </StaggerList>
+        )}
+      </OrderList>
 
       {/* 用户表单模态框 */}
       <Modal
@@ -1784,6 +1774,7 @@ export default function UserPage() {
             <Button onPress={onUserModalClose}>取消</Button>
             <Button
               color="primary"
+              isDisabled={order.saving}
               isLoading={userFormLoading}
               onPress={handleSubmitUser}
             >
@@ -2347,7 +2338,12 @@ export default function UserPage() {
             <Button variant="light" onPress={onDeleteModalClose}>
               取消
             </Button>
-            <Button color="danger" onPress={handleConfirmDelete}>
+            <Button
+              color="danger"
+              isDisabled={order.saving}
+              isLoading={deleteLoading}
+              onPress={handleConfirmDelete}
+            >
               确认删除
             </Button>
           </ModalFooter>

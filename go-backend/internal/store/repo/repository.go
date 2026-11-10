@@ -914,7 +914,7 @@ func (r *Repository) ListUsers() ([]map[string]interface{}, error) {
 		return nil, errors.New("repository not initialized")
 	}
 	var users []model.User
-	if err := r.db.Where("role_id != ?", 0).Order("id DESC").Find(&users).Error; err != nil {
+	if err := r.db.Where("role_id != ?", 0).Order("display_order ASC, id DESC").Find(&users).Error; err != nil {
 		return nil, err
 	}
 	userIDs := make([]int64, 0, len(users))
@@ -954,7 +954,7 @@ func (r *Repository) ListSpeedLimits() ([]map[string]interface{}, error) {
 		return nil, errors.New("repository not initialized")
 	}
 	var limits []model.SpeedLimit
-	if err := r.db.Order("id DESC").Find(&limits).Error; err != nil {
+	if err := r.db.Order("display_order ASC, id DESC").Find(&limits).Error; err != nil {
 		return nil, err
 	}
 	items := make([]map[string]interface{}, 0, len(limits))
@@ -1001,7 +1001,8 @@ func (r *Repository) ListForwards() ([]map[string]interface{}, error) {
 
 	var rows []fwdRow
 	err := r.db.Model(&model.Forward{}).
-		Select("forward.id, forward.user_id, forward.user_name, forward.name, forward.tunnel_id, COALESCE(tunnel.name, '') AS tunnel_name, COALESCE(tunnel.traffic_ratio, 1.0) AS traffic_ratio, forward.remote_addr, COALESCE(forward.strategy, 'fifo') AS strategy, forward.in_flow, forward.out_flow, forward.created_time, forward.status, forward.inx, forward.speed_id, forward.max_conn, forward.ip_max_conn, forward.ip_speed_id, COALESCE(ip_speed_limit.name, '') AS ip_speed_limit_name, forward.proxy_protocol, forward.proxy_protocol_receive, forward.proxy_protocol_send").
+		Select("forward.id, forward.user_id, COALESCE(owner.\"user\", forward.user_name) AS user_name, forward.name, forward.tunnel_id, COALESCE(tunnel.name, '') AS tunnel_name, COALESCE(tunnel.traffic_ratio, 1.0) AS traffic_ratio, forward.remote_addr, COALESCE(forward.strategy, 'fifo') AS strategy, forward.in_flow, forward.out_flow, forward.created_time, forward.status, forward.inx, forward.speed_id, forward.max_conn, forward.ip_max_conn, forward.ip_speed_id, COALESCE(ip_speed_limit.name, '') AS ip_speed_limit_name, forward.proxy_protocol, forward.proxy_protocol_receive, forward.proxy_protocol_send").
+		Joins(`LEFT JOIN "user" AS owner ON owner.id = forward.user_id`).
 		Joins("LEFT JOIN tunnel ON tunnel.id = forward.tunnel_id").
 		Joins("LEFT JOIN speed_limit AS ip_speed_limit ON ip_speed_limit.id = forward.ip_speed_id").
 		Order("forward.inx ASC, forward.id ASC").
@@ -2092,7 +2093,8 @@ func (r *Repository) exportUsers() ([]model.UserBackup, error) {
 	out := make([]model.UserBackup, 0, len(users))
 	for _, u := range users {
 		b := model.UserBackup{
-			ID: u.ID, User: u.User, Pwd: u.Pwd, RoleID: u.RoleID,
+			DisplayOrder: &u.DisplayOrder,
+			ID:           u.ID, User: u.User, Pwd: u.Pwd, RoleID: u.RoleID,
 			ExpTime: u.ExpTime, Flow: u.Flow, FlowMiB: u.FlowMiB, InFlow: u.InFlow, OutFlow: u.OutFlow,
 			FlowResetTime: u.FlowResetTime, Num: u.Num,
 			CreatedTime: u.CreatedTime, Status: u.Status,
@@ -2289,7 +2291,8 @@ func (r *Repository) exportSpeedLimits() ([]model.SpeedLimitBackup, error) {
 	out := make([]model.SpeedLimitBackup, 0, len(sls))
 	for _, sl := range sls {
 		b := model.SpeedLimitBackup{
-			ID: sl.ID, Name: sl.Name, Speed: int64(sl.Speed),
+			DisplayOrder: &sl.DisplayOrder,
+			ID:           sl.ID, Name: sl.Name, Speed: int64(sl.Speed),
 			CreatedTime: sl.CreatedTime, Status: sl.Status,
 		}
 		if sl.UpdatedTime.Valid {
@@ -2372,7 +2375,24 @@ func (r *Repository) Import(backup *model.BackupData, types []string) (*model.Im
 		typeSet[t] = true
 	}
 
-	err := r.db.Transaction(func(tx *gorm.DB) error {
+	err := backupImportTransaction(r.db, func(tx *gorm.DB) error {
+		result = &model.ImportResult{}
+		tables, err := lockPostgresBackupTables(tx, backup, typeSet)
+		if err != nil {
+			return err
+		}
+		// SQLite still needs its writer reservation for display order.
+		// PostgreSQL membership locks were taken with all imported tables above.
+		if tx.Dialector.Name() != "postgres" && typeSet["users"] {
+			if err := lockDisplayOrder(tx, "user"); err != nil {
+				return err
+			}
+		}
+		if tx.Dialector.Name() != "postgres" && typeSet["speedLimits"] {
+			if err := lockDisplayOrder(tx, "speed_limit"); err != nil {
+				return err
+			}
+		}
 		now := unixMilliNow()
 
 		if typeSet["users"] && len(backup.Users) > 0 {
@@ -2445,7 +2465,7 @@ func (r *Repository) Import(backup *model.BackupData, types []string) (*model.Im
 			}
 			result.ConfigsImported = count
 		}
-		return nil
+		return advancePostgresBackupSequences(tx, tables)
 	})
 	if err != nil {
 		return nil, err
@@ -2477,12 +2497,17 @@ func importUsers(tx *gorm.DB, users []model.UserBackup, now int64) (int, error) 
 			Status:            status,
 			PasswordChangedAt: now,
 		}
+		// An omitted old-backup rank preserves existing order on conflict.
+		// New legacy records use rank zero and ID descending, matching upgrades.
+		columns := []string{"user", "pwd", "role_id", "exp_time", "flow", "flow_mib", "in_flow", "out_flow",
+			"flow_reset_time", "num", "updated_time", "status", "password_changed_at"}
+		if u.DisplayOrder != nil {
+			item.DisplayOrder = *u.DisplayOrder
+			columns = append(columns, "display_order")
+		}
 		err = tx.Clauses(clause.OnConflict{
-			Columns: []clause.Column{{Name: "id"}},
-			DoUpdates: clause.AssignmentColumns([]string{
-				"user", "pwd", "role_id", "exp_time", "flow", "flow_mib", "in_flow", "out_flow",
-				"flow_reset_time", "num", "updated_time", "status", "password_changed_at",
-			}),
+			Columns:   []clause.Column{{Name: "id"}},
+			DoUpdates: clause.AssignmentColumns(columns),
 		}).Create(&item).Error
 		if err != nil {
 			return count, err
@@ -2765,11 +2790,16 @@ func importSpeedLimits(tx *gorm.DB, speedLimits []model.SpeedLimitBackup, now in
 			UpdatedTime: sql.NullInt64{Int64: now, Valid: true},
 			Status:      sl.Status,
 		}
+		// An omitted old-backup rank preserves existing order on conflict.
+		// New legacy records use rank zero and ID descending, matching upgrades.
+		columns := []string{"name", "speed", "tunnel_id", "tunnel_name", "updated_time", "status"}
+		if sl.DisplayOrder != nil {
+			item.DisplayOrder = *sl.DisplayOrder
+			columns = append(columns, "display_order")
+		}
 		err := tx.Clauses(clause.OnConflict{
-			Columns: []clause.Column{{Name: "id"}},
-			DoUpdates: clause.AssignmentColumns([]string{
-				"name", "speed", "tunnel_id", "tunnel_name", "updated_time", "status",
-			}),
+			Columns:   []clause.Column{{Name: "id"}},
+			DoUpdates: clause.AssignmentColumns(columns),
 		}).Create(&item).Error
 		if err != nil {
 			return count, err

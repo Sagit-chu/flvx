@@ -37,8 +37,14 @@ func (r *Repository) ListForwardsByTunnelTx(tx *gorm.DB, tunnelID int64) ([]mode
 	if tx == nil {
 		return nil, errors.New("database unavailable")
 	}
-	var forwards []model.Forward
-	err := tx.Where("tunnel_id = ?", tunnelID).Order("id ASC").Find(&forwards).Error
+	var forwards []struct {
+		model.Forward
+		CurrentUserName string
+	}
+	err := tx.Model(&model.Forward{}).
+		Select(`forward.*, COALESCE(owner."user", forward.user_name) AS current_user_name`).
+		Joins(`LEFT JOIN "user" AS owner ON owner.id = forward.user_id`).
+		Where("forward.tunnel_id = ?", tunnelID).Order("forward.id ASC").Find(&forwards).Error
 	if err != nil {
 		return nil, err
 	}
@@ -48,7 +54,7 @@ func (r *Repository) ListForwardsByTunnelTx(tx *gorm.DB, tunnelID int64) ([]mode
 		rows = append(rows, model.ForwardRecord{
 			ID:                   f.ID,
 			UserID:               f.UserID,
-			UserName:             f.UserName,
+			UserName:             f.CurrentUserName,
 			Name:                 f.Name,
 			TunnelID:             f.TunnelID,
 			RemoteAddr:           f.RemoteAddr,
