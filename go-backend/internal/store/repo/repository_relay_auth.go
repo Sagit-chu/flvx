@@ -2,6 +2,8 @@ package repo
 
 import (
 	"errors"
+	"strconv"
+
 	"go-backend/internal/relaysecurity"
 	"go-backend/internal/store/model"
 	"gorm.io/gorm"
@@ -22,7 +24,8 @@ func (r *Repository) RelayEndpointCredentials(tx *gorm.DB, tunnelID, nodeID int6
 	err := find()
 	if errors.Is(err, gorm.ErrRecordNotFound) && create {
 		var existing int64
-		if e := db.Model(&model.ChainTunnel{}).Where("tunnel_id = ? AND node_id = ? AND chain_type = ?", tunnelID, nodeID, role).Count(&existing).Error; e != nil {
+		// chain_tunnel stores roles as text; relay_endpoint_auth uses integers.
+		if e := db.Model(&model.ChainTunnel{}).Where("tunnel_id = ? AND node_id = ? AND chain_type = ?", tunnelID, nodeID, strconv.Itoa(role)).Count(&existing).Error; e != nil {
 			return nil, e
 		}
 		if existing > 0 {

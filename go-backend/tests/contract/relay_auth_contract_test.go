@@ -11,11 +11,24 @@ import (
 	"time"
 
 	"go-backend/internal/auth"
+	httpserver "go-backend/internal/http"
+	"go-backend/internal/http/handler"
 	"go-backend/internal/store/repo"
 )
 
 func TestNewRelayTunnelEmitsMatchingPrivateEndpointAuthentication(t *testing.T) {
 	router, r := setupContractRouter(t, "relay-auth-contract")
+	assertNewRelayTunnelEndpointAuthentication(t, router, r)
+}
+
+func TestPostgresNewRelayTunnelEmitsMatchingPrivateEndpointAuthentication(t *testing.T) {
+	r := ownerNamesRepository(t, "postgres")()
+	router := httpserver.NewRouter(handler.New(r, "relay-auth-contract"), "relay-auth-contract")
+	assertNewRelayTunnelEndpointAuthentication(t, router, r)
+}
+
+func assertNewRelayTunnelEndpointAuthentication(t *testing.T, router http.Handler, r *repo.Repository) {
+	t.Helper()
 	server := httptest.NewServer(router)
 	defer server.Close()
 	token, err := auth.GenerateToken(1, "admin", 0, "relay-auth-contract")
