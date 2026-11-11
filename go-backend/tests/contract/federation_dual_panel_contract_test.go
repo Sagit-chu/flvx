@@ -440,13 +440,15 @@ func TestFederationDualPanelRemoteEntryRuntimeContract(t *testing.T) {
 func insertContractNode(t *testing.T, r *repo.Repository, name, ip, portRange, secret string, status int) int64 {
 	t.Helper()
 	now := time.Now().UnixMilli()
-	if err := r.DB().Exec(`
+	var id int64
+	if err := r.DB().Raw(`
 		INSERT INTO node(name, secret, server_ip, server_ip_v4, server_ip_v6, port, interface_name, version, http, tls, socks, created_time, updated_time, status, tcp_listen_addr, udp_listen_addr, inx)
 		VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-	`, name, secret, ip, ip, "", portRange, "", "v1", 1, 1, 1, now, now, status, "[::]", "[::]", 0).Error; err != nil {
+		RETURNING id
+	`, name, secret, ip, ip, "", portRange, "", "v1", 1, 1, 1, now, now, status, "[::]", "[::]", 0).Row().Scan(&id); err != nil {
 		t.Fatalf("insert node %s: %v", name, err)
 	}
-	return mustLastInsertID(t, r, name)
+	return id
 }
 
 func insertPeerShare(t *testing.T, r *repo.Repository, share *repo.PeerShare) int64 {
