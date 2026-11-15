@@ -18,7 +18,12 @@ var errBackupImportBusy = errors.New("database is busy; retry the backup import"
 func backupImportTransaction(db *gorm.DB, importRows func(*gorm.DB) error) error {
 	var err error
 	for attempt := 0; attempt < 10; attempt++ {
-		err = db.Transaction(importRows)
+		err = db.Transaction(func(tx *gorm.DB) error {
+			if err := lockPortAllocationTx(tx); err != nil {
+				return err
+			}
+			return importRows(tx)
+		})
 		if !errors.Is(err, errBackupImportBusy) {
 			return err
 		}
