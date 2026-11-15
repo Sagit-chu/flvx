@@ -1123,6 +1123,14 @@ func normalizeAndValidateConfigValue(key, value string) (string, error) {
 		}
 
 		return pngDataURLPrefix + payload, nil
+	case sequentialPortConfigKey:
+		normalized := strings.TrimSpace(strings.ToLower(value))
+		switch normalized {
+		case "true", "false":
+			return normalized, nil
+		default:
+			return "", fmt.Errorf("顺次分配端口开关配置值无效")
+		}
 	case monitorTunnelQualityEnabledConfigKey:
 		normalized := strings.TrimSpace(strings.ToLower(value))
 		switch normalized {

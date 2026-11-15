@@ -7,6 +7,9 @@ import (
 )
 
 func (r *Repository) QueueTunnelRuntimeCleanupTx(tx *gorm.DB, items []model.TunnelRuntimeCleanup) error {
+	if err := lockPortAllocationTx(tx); err != nil {
+		return err
+	}
 	for _, item := range items {
 		var node model.Node
 		if err := tx.Select("id", "is_remote").Where("id = ?", item.NodeID).First(&node).Error; err != nil {

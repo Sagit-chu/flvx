@@ -448,7 +448,14 @@ func (r *Repository) BeginTx() *gorm.DB {
 	if r == nil || r.db == nil {
 		return nil
 	}
-	return r.db.Begin()
+	tx := r.db.Begin()
+	if tx.Error == nil {
+		if err := lockPortAllocationTx(tx); err != nil {
+			tx.Rollback()
+			tx.AddError(err)
+		}
+	}
+	return tx
 }
 
 func (r *Repository) UpdateTunnelOrder(tunnelID int64, inx int, now int64) {
@@ -491,6 +498,18 @@ func (r *Repository) DeleteChainTunnelsByTunnelTx(tx *gorm.DB, tunnelID int64) e
 func (r *Repository) CreateChainTunnelTx(tx *gorm.DB, tunnelID int64, chainType string, nodeID int64, port sql.NullInt64, strategy string, inx int, protocol string, connectIp string) error {
 	if tx == nil {
 		return errors.New("database unavailable")
+	}
+	if port.Valid && port.Int64 > 0 {
+		if err := r.LockPortNodesTx(tx, []int64{nodeID}); err != nil {
+			return err
+		}
+		used, err := r.usedPortSetTx(tx, nodeID, 0, tunnelID)
+		if err != nil {
+			return err
+		}
+		if used[int(port.Int64)] {
+			return errors.New("端口已占用")
+		}
 	}
 	ct := model.ChainTunnel{
 		TunnelID:  tunnelID,
@@ -538,6 +557,9 @@ func (r *Repository) pickNodePortTx(tx *gorm.DB, nodeID int64, allocated map[int
 	if nodeID <= 0 {
 		return 0, errors.New("节点不存在")
 	}
+	if err := r.LockPortNodesTx(tx, []int64{nodeID}); err != nil {
+		return 0, err
+	}
 	if port, ok := allocated[nodeID]; ok && port > 0 {
 		return port, nil
 	}
@@ -556,47 +578,16 @@ func (r *Repository) pickNodePortTx(tx *gorm.DB, nodeID int64, allocated map[int
 		return 0, errors.New("节点端口已满，无可用端口")
 	}
 
-	used := make(map[int]struct{})
-
-	chainQuery := tx.Model(&model.ChainTunnel{}).Where("node_id = ? AND port > 0", nodeID)
-	if excludeTunnelID > 0 {
-		chainQuery = chainQuery.Where("tunnel_id != ?", excludeTunnelID)
-	}
-	var chainPorts []int
-	if err := chainQuery.Pluck("port", &chainPorts).Error; err != nil {
-		return 0, err
-	}
-	for _, p := range chainPorts {
-		if p > 0 {
-			used[p] = struct{}{}
-		}
-	}
-
-	var forwardPorts []int
-	if err := tx.Model(&model.ForwardPort{}).
-		Where("node_id = ? AND port > 0", nodeID).
-		Pluck("port", &forwardPorts).Error; err != nil {
-		return 0, err
-	}
-	for _, p := range forwardPorts {
-		if p > 0 {
-			used[p] = struct{}{}
-		}
-	}
-
-	pendingPorts, err := r.PendingTunnelCleanupPortsTx(tx, nodeID, excludeTunnelID)
+	used, err := r.usedPortSetTx(tx, nodeID, 0, excludeTunnelID)
 	if err != nil {
 		return 0, err
-	}
-	for _, port := range pendingPorts {
-		used[port] = struct{}{}
 	}
 	var available []int
 	for _, candidate := range candidates {
 		if candidate <= 0 {
 			continue
 		}
-		if _, ok := used[candidate]; ok {
+		if used[candidate] {
 			continue
 		}
 		available = append(available, candidate)
@@ -836,11 +827,64 @@ func (r *Repository) ReplaceForwardPorts(forwardID int64, entries []struct {
 	NodeID int64
 	Port   int
 	InIP   string
-}) error {
+}, sequential ...bool) error {
+	return r.replaceForwardPorts(forwardID, entries, len(sequential) > 0 && sequential[0], false)
+}
+
+// ReplaceForwardPortsIndividually preserves independent ports when adding entry nodes.
+func (r *Repository) ReplaceForwardPortsIndividually(forwardID int64, entries []struct {
+	NodeID int64
+	Port   int
+	InIP   string
+}, sequential bool) error {
+	return r.replaceForwardPorts(forwardID, entries, sequential, true)
+}
+
+func (r *Repository) replaceForwardPorts(forwardID int64, entries []struct {
+	NodeID int64
+	Port   int
+	InIP   string
+}, sequential, individually bool) error {
 	if r == nil || r.db == nil {
 		return errors.New("repository not initialized")
 	}
 	return r.db.Transaction(func(tx *gorm.DB) error {
+		ids := make([]int64, 0, len(entries))
+		autoIDs := []int64{}
+		for _, e := range entries {
+			ids = append(ids, e.NodeID)
+			if e.Port <= 0 {
+				autoIDs = append(autoIDs, e.NodeID)
+			}
+		}
+		if err := r.LockPortNodesTx(tx, ids); err != nil {
+			return err
+		}
+		autoPort := 0
+		if len(autoIDs) > 0 && !individually {
+			var err error
+			autoPort, err = r.selectForwardPortTx(tx, autoIDs, 0, forwardID, sequential)
+			if err != nil {
+				return err
+			}
+		}
+		entries = append(entries[:0:0], entries...)
+		for i := range entries {
+			if entries[i].Port <= 0 {
+				if individually {
+					var err error
+					entries[i].Port, err = r.selectForwardPortTx(tx, []int64{entries[i].NodeID}, 0, forwardID, sequential)
+					if err != nil {
+						return err
+					}
+				} else {
+					entries[i].Port = autoPort
+				}
+			}
+			if _, err := r.selectForwardPortTx(tx, []int64{entries[i].NodeID}, entries[i].Port, forwardID, false); err != nil {
+				return err
+			}
+		}
 		if err := tx.Where("forward_id = ?", forwardID).Delete(&model.ForwardPort{}).Error; err != nil {
 			return err
 		}
@@ -1362,13 +1406,21 @@ func (r *Repository) EnsureUserTunnelGrant(userID, tunnelID int64) (int64, bool,
 	return ut.ID, true, nil
 }
 
-func (r *Repository) CreateForwardTx(userID int64, userName, name string, tunnelID int64, remoteAddr, strategy string, now int64, inx int, entryNodeIDs []int64, port int, inIp string, speedID interface{}, maxConn int, ipMaxConn int, ipSpeedID interface{}, proxyProtocol int, proxyProtocolReceive int, proxyProtocolSend int) (int64, error) {
+func (r *Repository) CreateForwardTx(userID int64, userName, name string, tunnelID int64, remoteAddr, strategy string, now int64, inx int, entryNodeIDs []int64, port int, inIp string, speedID interface{}, maxConn int, ipMaxConn int, ipSpeedID interface{}, proxyProtocol int, proxyProtocolReceive int, proxyProtocolSend int, sequential ...bool) (int64, error) {
 	if r == nil || r.db == nil {
 		return 0, errors.New("repository not initialized")
 	}
 	_, proxyProtocolSend = normalizeForwardProxyProtocol(proxyProtocol, proxyProtocolReceive, proxyProtocolSend)
 	var forwardID int64
 	err := r.db.Transaction(func(tx *gorm.DB) error {
+		if err := r.LockPortNodesTx(tx, entryNodeIDs); err != nil {
+			return err
+		}
+		selectedPort, err := r.selectForwardPortTx(tx, entryNodeIDs, port, 0, len(sequential) > 0 && sequential[0])
+		if err != nil {
+			return err
+		}
+		port = selectedPort
 		fwd := model.Forward{
 			UserID:               userID,
 			UserName:             userName,

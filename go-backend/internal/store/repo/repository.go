@@ -1609,7 +1609,15 @@ func (r *Repository) CreatePeerShareRuntime(item *model.PeerShareRuntime) error 
 	if item == nil {
 		return errors.New("runtime item is nil")
 	}
-	return r.db.Create(item).Error
+	return r.db.Transaction(func(tx *gorm.DB) error {
+		if err := lockPortAllocationTx(tx); err != nil {
+			return err
+		}
+		if err := r.checkPeerRuntimePortTx(tx, item); err != nil {
+			return err
+		}
+		return tx.Create(item).Error
+	})
 }
 
 func (r *Repository) UpdatePeerShareRuntime(item *model.PeerShareRuntime) error {
@@ -1619,17 +1627,34 @@ func (r *Repository) UpdatePeerShareRuntime(item *model.PeerShareRuntime) error 
 	if item == nil {
 		return errors.New("runtime item is nil")
 	}
-	return r.db.Model(&model.PeerShareRuntime{}).Where("id = ?", item.ID).Updates(map[string]interface{}{
-		"reservation_id":     item.ReservationID,
-		"relay_auth":         item.RelayAuth,
-		"relay_auth_version": item.RelayAuthVersion,
-		"binding_id":         item.BindingID, "role": item.Role,
-		"chain_name": item.ChainName, "service_name": item.ServiceName,
-		"protocol": item.Protocol, "strategy": item.Strategy,
-		"port": item.Port, "target": item.Target,
-		"applied": item.Applied, "status": item.Status,
-		"updated_time": item.UpdatedTime,
-	}).Error
+	return r.db.Transaction(func(tx *gorm.DB) error {
+		if err := lockPortAllocationTx(tx); err != nil {
+			return err
+		}
+		var current model.PeerShareRuntime
+		if err := tx.Where("id = ?", item.ID).First(&current).Error; err != nil {
+			return err
+		}
+		if current.NodeID != item.NodeID {
+			return errors.New("runtime node cannot change")
+		}
+		if !(current.Status == 1 && current.Port == item.Port) {
+			if err := r.checkPeerRuntimePortTx(tx, item); err != nil {
+				return err
+			}
+		}
+		return tx.Model(&model.PeerShareRuntime{}).Where("id = ?", item.ID).Updates(map[string]interface{}{
+			"reservation_id":     item.ReservationID,
+			"relay_auth":         item.RelayAuth,
+			"relay_auth_version": item.RelayAuthVersion,
+			"binding_id":         item.BindingID, "role": item.Role,
+			"chain_name": item.ChainName, "service_name": item.ServiceName,
+			"protocol": item.Protocol, "strategy": item.Strategy,
+			"port": item.Port, "target": item.Target,
+			"applied": item.Applied, "status": item.Status,
+			"updated_time": item.UpdatedTime,
+		}).Error
+	})
 }
 
 func (r *Repository) MarkPeerShareRuntimeReleased(id int64, updatedTime int64) error {
@@ -2664,6 +2689,15 @@ func importTunnels(tx *gorm.DB, tunnels []model.TunnelBackup, now int64) (int, e
 			return count, err
 		}
 		for _, ct := range t.ChainTunnels {
+			if ct.Port > 0 {
+				used, err := (&Repository{}).usedPortSetTx(tx, ct.NodeID, 0, ct.TunnelID)
+				if err != nil {
+					return count, err
+				}
+				if used[ct.Port] {
+					return count, errors.New("导入链路端口已占用")
+				}
+			}
 			chainItem := model.ChainTunnel{
 				ID:        ct.ID,
 				TunnelID:  ct.TunnelID,
@@ -2735,6 +2769,13 @@ func importForwards(tx *gorm.DB, forwards []model.ForwardBackup, now int64) (int
 				return count, err
 			}
 			for _, fp := range *f.ForwardPorts {
+				used, err := (&Repository{}).usedPortSetTx(tx, fp.NodeID, f.ID, 0)
+				if err != nil {
+					return count, err
+				}
+				if used[fp.Port] {
+					return count, errors.New("导入转发端口已占用")
+				}
 				if err := tx.Create(&model.ForwardPort{ForwardID: f.ID, NodeID: fp.NodeID, Port: fp.Port}).Error; err != nil {
 					return count, err
 				}

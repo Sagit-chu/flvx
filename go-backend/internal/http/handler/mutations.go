@@ -9,7 +9,6 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"math/big"
 	"net"
 	"net/http"
 	"sort"
@@ -1315,13 +1314,13 @@ func (h *Handler) tunnelUpdate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	var runtimePending error
 	newEntryNodeIDs, _ = h.tunnelEntryNodeIDs(id)
 	if !sameInt64Set(oldEntryNodeIDs, newEntryNodeIDs) {
 		h.cleanupTunnelForwardRuntimesOnRemovedEntryNodes(id, oldEntryNodeIDs, newEntryNodeIDs)
-		h.syncTunnelForwardsEntryPorts(id, newEntryNodeIDs)
+		runtimePending = h.syncTunnelForwardsEntryPorts(id, newEntryNodeIDs)
 	}
 
-	var runtimePending error
 	if typeVal == 2 {
 		applyRuntime := h.applyTunnelRuntime
 		if oldTunnel != nil && oldTunnel.Type == 2 {
@@ -1329,9 +1328,9 @@ func (h *Handler) tunnelUpdate(w http.ResponseWriter, r *http.Request) {
 		}
 		createdChains, createdServices, applyErr := applyRuntime(runtimeState)
 		if isTunnelRuntimePending(applyErr) {
-			runtimePending = applyErr
+			runtimePending = errors.Join(runtimePending, applyErr)
 		}
-		if applyErr != nil && runtimePending == nil {
+		if applyErr != nil && !isTunnelRuntimePending(applyErr) {
 			updateProtocol := "tls"
 			if len(runtimeState.InNodes) > 0 && strings.TrimSpace(runtimeState.InNodes[0].Protocol) != "" {
 				updateProtocol = strings.TrimSpace(runtimeState.InNodes[0].Protocol)
@@ -1597,19 +1596,20 @@ func (h *Handler) validateTunnelEntryPortConflictsForNewEntriesTx(tx *gorm.DB, t
 	return nil
 }
 
-func (h *Handler) syncTunnelForwardsEntryPorts(tunnelID int64, entryNodeIDs []int64) {
+func (h *Handler) syncTunnelForwardsEntryPorts(tunnelID int64, entryNodeIDs []int64) error {
 	if h == nil || h.repo == nil || tunnelID <= 0 {
-		return
+		return nil
 	}
 	entryNodeIDs = uniqueInt64s(entryNodeIDs)
 	if len(entryNodeIDs) == 0 {
-		return
+		return nil
 	}
 
 	forwards, err := h.listForwardsByTunnel(tunnelID)
-	if err != nil || len(forwards) == 0 {
-		return
+	if err != nil {
+		return err
 	}
+	var syncErrors []error
 
 	allowInIP := len(entryNodeIDs) == 1
 	for i := range forwards {
@@ -1619,6 +1619,7 @@ func (h *Handler) syncTunnelForwardsEntryPorts(tunnelID int64, entryNodeIDs []in
 		}
 		oldPorts, err := h.listForwardPorts(f.ID)
 		if err != nil {
+			syncErrors = append(syncErrors, err)
 			continue
 		}
 		referencePort := pickForwardPortFromRecords(oldPorts)
@@ -1660,14 +1661,17 @@ func (h *Handler) syncTunnelForwardsEntryPorts(tunnelID int64, entryNodeIDs []in
 			}
 			entries = append(entries, forwardPortReplaceEntry{NodeID: nid, Port: port, InIP: inIP})
 		}
-		_ = h.repo.ReplaceForwardPorts(f.ID, entries)
+		if err := h.repo.ReplaceForwardPortsIndividually(f.ID, entries, h.isSequentialPortEnabled()); err != nil {
+			syncErrors = append(syncErrors, fmt.Errorf("转发 %s 入口端口更新失败: %w", f.Name, err))
+		}
 	}
+	return errors.Join(syncErrors...)
 }
 
 // resolvePortForNewEntryNode determines the port for a forward on a newly added
 // entry node. It tries to reuse referencePort (from existing entries); if that
-// port is out of range or already occupied, it picks a random available port
-// for this specific node.
+// port is out of range or already occupied, zero requests atomic allocation
+// when ReplaceForwardPorts persists the new entry. Explicit ports are rechecked there.
 func (h *Handler) resolvePortForNewEntryNode(nodeID int64, referencePort int, forwardID int64) int {
 	node, err := h.getNodeRecord(nodeID)
 	if err != nil {
@@ -1684,48 +1688,23 @@ func (h *Handler) resolvePortForNewEntryNode(nodeID int64, referencePort int, fo
 		}
 	}
 
-	// referencePort doesn't work for this node; pick a random one.
-	newPort := h.pickRandomPortForNode(nodeID)
-	if newPort > 0 {
-		return newPort
-	}
-	return referencePort // last resort fallback
+	// Defer fallback selection to the same transaction that saves the entries.
+	return 0
 }
 
-// pickRandomPortForNode picks a random available port from a single node's
-// port range, excluding ports already occupied by other forwards or chains.
-func (h *Handler) pickRandomPortForNode(nodeID int64) int {
-	portRange, err := h.repo.GetNodePortRange(nodeID)
+// sequentialPortConfigKey 是「未指定端口时按端口范围顺次分配」开关的配置键。
+const sequentialPortConfigKey = "sequential_port_enabled"
+
+// isSequentialPortEnabled 返回是否开启了顺次分配端口（默认关闭，保持随机分配）。
+func (h *Handler) isSequentialPortEnabled() bool {
+	if h == nil || h.repo == nil {
+		return false
+	}
+	value, err := h.repo.GetViteConfigValue(sequentialPortConfigKey)
 	if err != nil {
-		return 0
+		return false
 	}
-	if portRange == "" {
-		portRange = "1000-65535"
-	}
-
-	nodePorts, err := parsePorts(portRange)
-	if err != nil || len(nodePorts) == 0 {
-		return 0
-	}
-
-	used, err := h.getUsedPorts(nodeID)
-	if err != nil {
-		return 0
-	}
-
-	var available []int
-	for _, p := range nodePorts {
-		if !used[p] {
-			available = append(available, p)
-		}
-	}
-
-	if len(available) == 0 {
-		return 0
-	}
-
-	idx, _ := rand.Int(rand.Reader, big.NewInt(int64(len(available))))
-	return available[idx.Int64()]
+	return strings.EqualFold(strings.TrimSpace(value), "true")
 }
 
 func (h *Handler) tunnelDelete(w http.ResponseWriter, r *http.Request) {
@@ -2290,12 +2269,7 @@ func (h *Handler) forwardCreate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	port := asInt(req["inPort"], 0)
-	if port <= 0 {
-		port = h.pickTunnelPort(tunnelID)
-	}
-	if port <= 0 {
-		port = 10000
-	}
+	// A zero port is allocated and persisted atomically by the repository.
 	entryNodes, _ := h.tunnelEntryNodeIDs(tunnelID)
 	isNftTunnel, _, err := h.tunnelUsesNftables(tunnelID)
 	if err != nil {
@@ -2314,6 +2288,9 @@ func (h *Handler) forwardCreate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	for _, nodeID := range entryNodes {
+		if port <= 0 {
+			break // Repository validates all nodes while allocating atomically.
+		}
 		node, nodeErr := h.getNodeRecord(nodeID)
 		if nodeErr != nil {
 			continue
@@ -2346,7 +2323,7 @@ func (h *Handler) forwardCreate(w http.ResponseWriter, r *http.Request) {
 	proxyProtocolReceive := asInt(req["proxyProtocolReceive"], 0)
 	proxyProtocolSend := asInt(req["proxyProtocolSend"], proxyProtocol)
 
-	forwardID, err := h.repo.CreateForwardTx(userID, userName, name, tunnelID, remoteAddr, defaultString(asString(req["strategy"]), "fifo"), now, inx, entryNodes, port, inIp, nullableInt(speedID), maxConn, ipMaxConn, nullableInt(ipSpeedID), proxyProtocol, proxyProtocolReceive, proxyProtocolSend)
+	forwardID, err := h.repo.CreateForwardTx(userID, userName, name, tunnelID, remoteAddr, defaultString(asString(req["strategy"]), "fifo"), now, inx, entryNodes, port, inIp, nullableInt(speedID), maxConn, ipMaxConn, nullableInt(ipSpeedID), proxyProtocol, proxyProtocolReceive, proxyProtocolSend, h.isSequentialPortEnabled())
 	if err != nil {
 		response.WriteJSON(w, response.Err(-2, err.Error()))
 		return
@@ -2484,9 +2461,6 @@ func (h *Handler) forwardUpdate(w http.ResponseWriter, r *http.Request) {
 		if minPort.Valid {
 			port = int(minPort.Int64)
 		}
-		if port <= 0 {
-			port = h.pickTunnelPort(tunnelID)
-		}
 	}
 	hasInIP := false
 	inIp := ""
@@ -2511,6 +2485,9 @@ func (h *Handler) forwardUpdate(w http.ResponseWriter, r *http.Request) {
 		keptNodeIDs = diffInt64s(oldNodeIDs, removedNodeIDs)
 	}
 	for _, nodeID := range fwdEntryNodes {
+		if port <= 0 {
+			break // Repository validates all nodes while allocating atomically.
+		}
 		node, nodeErr := h.getNodeRecord(nodeID)
 		if nodeErr != nil {
 			continue
@@ -3033,9 +3010,6 @@ func (h *Handler) forwardBatchChangeTunnel(w http.ResponseWriter, r *http.Reques
 		if port.Valid {
 			p = int(port.Int64)
 		}
-		if p <= 0 {
-			p = h.pickTunnelPort(req.TargetTunnelID)
-		}
 		bctEntryNodes, _ := h.tunnelEntryNodeIDs(req.TargetTunnelID)
 		newNodeIDs := uniqueInt64s(bctEntryNodes)
 		removedNodeIDs := diffInt64s(oldNodeIDs, newNodeIDs)
@@ -3043,6 +3017,9 @@ func (h *Handler) forwardBatchChangeTunnel(w http.ResponseWriter, r *http.Reques
 		portRangeOk := true
 		var portRangeErr error
 		for _, nid := range bctEntryNodes {
+			if p <= 0 {
+				break // Repository validates all nodes while allocating atomically.
+			}
 			nd, ndErr := h.getNodeRecord(nid)
 			if ndErr != nil {
 				portRangeErr = ndErr
@@ -4972,75 +4949,6 @@ func (h *Handler) tunnelEntryNodeIDs(tunnelID int64) ([]int64, error) {
 	return h.repo.TunnelEntryNodeIDs(tunnelID)
 }
 
-func (h *Handler) pickTunnelPort(tunnelID int64) int {
-	entryNodes, err := h.tunnelEntryNodeIDs(tunnelID)
-	if err != nil || len(entryNodes) == 0 {
-		return 10000
-	}
-
-	var commonAvailable []int
-	firstNode := true
-
-	for _, nodeID := range entryNodes {
-		portRange, err := h.repo.GetNodePortRange(nodeID)
-		if err != nil {
-			continue
-		}
-		if portRange == "" {
-			portRange = "1000-65535"
-		}
-
-		nodePorts, err := parsePorts(portRange)
-		if err != nil {
-			continue
-		}
-
-		used, err := h.getUsedPorts(nodeID)
-		if err != nil {
-			continue
-		}
-
-		var available []int
-		for _, p := range nodePorts {
-			if !used[p] {
-				available = append(available, p)
-			}
-		}
-
-		if firstNode {
-			commonAvailable = available
-			firstNode = false
-		} else {
-			set := make(map[int]bool)
-			for _, p := range available {
-				set[p] = true
-			}
-			var newCommon []int
-			for _, p := range commonAvailable {
-				if set[p] {
-					newCommon = append(newCommon, p)
-				}
-			}
-			commonAvailable = newCommon
-		}
-
-		if len(commonAvailable) == 0 {
-			break
-		}
-	}
-
-	if len(commonAvailable) > 0 {
-		idx, _ := rand.Int(rand.Reader, big.NewInt(int64(len(commonAvailable))))
-		return commonAvailable[idx.Int64()]
-	}
-
-	return 10000
-}
-
-func (h *Handler) getUsedPorts(nodeID int64) (map[int]bool, error) {
-	return h.repo.GetUsedPortsOnNodeAsMap(nodeID)
-}
-
 func parsePorts(portRange string) ([]int, error) {
 	var ports []int
 	parts := strings.Split(portRange, ",")
@@ -5113,7 +5021,7 @@ func (h *Handler) replaceForwardPorts(forwardID, tunnelID int64, port int, inIp 
 	for i, nid := range entryNodes {
 		entries[i] = forwardPortReplaceEntry{NodeID: nid, Port: port, InIP: inIp}
 	}
-	return h.repo.ReplaceForwardPorts(forwardID, entries)
+	return h.repo.ReplaceForwardPorts(forwardID, entries, h.isSequentialPortEnabled())
 }
 
 func (h *Handler) replaceForwardPortsPreservingInIP(forwardID, tunnelID int64, port int, oldPorts []forwardPortRecord) error {
@@ -5122,7 +5030,7 @@ func (h *Handler) replaceForwardPortsPreservingInIP(forwardID, tunnelID int64, p
 		return err
 	}
 	entries := buildForwardPortEntriesWithPreservedInIP(entryNodes, oldPorts, port)
-	return h.repo.ReplaceForwardPorts(forwardID, entries)
+	return h.repo.ReplaceForwardPorts(forwardID, entries, h.isSequentialPortEnabled())
 }
 
 func (h *Handler) replaceForwardPortsWithRecords(forwardID int64, ports []forwardPortRecord) error {
@@ -5130,7 +5038,7 @@ func (h *Handler) replaceForwardPortsWithRecords(forwardID int64, ports []forwar
 	for i, fp := range ports {
 		entries[i] = forwardPortReplaceEntry{NodeID: fp.NodeID, Port: fp.Port, InIP: fp.InIP}
 	}
-	return h.repo.ReplaceForwardPorts(forwardID, entries)
+	return h.repo.ReplaceForwardPorts(forwardID, entries, h.isSequentialPortEnabled())
 }
 
 func (h *Handler) rollbackForwardMutation(oldForward *forwardRecord, oldPorts []forwardPortRecord) {

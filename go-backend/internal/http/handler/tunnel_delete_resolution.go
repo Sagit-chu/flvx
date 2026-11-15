@@ -500,10 +500,7 @@ func (h *Handler) planSingleTunnelDeleteForwardMigration(forward *forwardRecord,
 		targetPort = int(minPort.Int64)
 	}
 	if targetPort <= 0 {
-		targetPort = h.pickTunnelPort(targetTunnelID)
-	}
-	if targetPort <= 0 {
-		targetPort = 10000
+		return tunnelForwardMigrationPlan{}, errors.New("转发入口端口无效，请先修复该规则")
 	}
 
 	hasCustomInIP := false

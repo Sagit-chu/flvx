@@ -190,7 +190,7 @@ func TestPostgresBackupImportAdvancesEveryExplicitIDTable(t *testing.T) {
 		{"tunnel", func() error { _, err := r.CreateTunnelTx(r.DB(), "new", 1, 1, 0, 0, 1, nil, 0, "", "", 0); return err }},
 		{"chain tunnel", func() error { return r.CreateChainTunnelTx(r.DB(), 1, "1", 2, sql.NullInt64{}, "", 1, "tls", "") }},
 		{"forward", func() error {
-			_, err := r.CreateForwardTx(1, "old", "new", 1, "127.0.0.1:80", "", 0, 0, nil, 0, "", nil, 0, 0, nil, 0, 0, 0)
+			_, err := r.CreateForwardTx(1, "old", "new", 1, "127.0.0.1:80", "", 0, 0, []int64{1}, 12346, "", nil, 0, 0, nil, 0, 0, 0)
 			return err
 		}},
 		{"user tunnel", func() error { return r.InsertUserTunnel(2, 1, nil, 0, 0, 0, 0, 1) }},
@@ -426,6 +426,9 @@ func TestPostgresBackupImportAvoidsCascadeDeleteDeadlock(t *testing.T) {
 			r := ownerNamesRepository(t, "postgres")()
 			user, err := r.CreateUser("delete-me", "hash", 1, 0, 0, 0, 0, 1, 0, 0)
 			if err != nil {
+				t.Fatal(err)
+			}
+			if err := r.DB().Create(&model.Node{ID: 1, Name: "entry", Port: "10000-20000"}).Error; err != nil {
 				t.Fatal(err)
 			}
 			forward, err := r.CreateForwardTx(user, "delete-me", "old", 1, "127.0.0.1:80", "", 0, 0, []int64{1}, 12345, "", nil, 0, 0, nil, 0, 0, 0)

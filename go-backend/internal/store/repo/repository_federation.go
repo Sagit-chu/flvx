@@ -146,19 +146,13 @@ func (r *Repository) CreateFederationTunnel(name string, tunnelType int, protoco
 		InIP:        sql.NullString{String: "", Valid: false},
 	}
 	err := r.db.Transaction(func(tx *gorm.DB) error {
+		if err := lockPortAllocationTx(tx); err != nil {
+			return err
+		}
 		if err := tx.Create(&tunnel).Error; err != nil {
 			return err
 		}
-		ct := model.ChainTunnel{
-			TunnelID:  tunnel.ID,
-			ChainType: "1",
-			NodeID:    nodeID,
-			Port:      sql.NullInt64{Int64: int64(remotePort), Valid: true},
-			Strategy:  sql.NullString{String: "fifo", Valid: true},
-			Inx:       sql.NullInt64{Int64: 0, Valid: true},
-			Protocol:  sql.NullString{String: protocol, Valid: true},
-		}
-		if err := tx.Create(&ct).Error; err != nil {
+		if err := r.CreateChainTunnelTx(tx, tunnel.ID, "1", nodeID, sql.NullInt64{Int64: int64(remotePort), Valid: true}, "fifo", 0, protocol, ""); err != nil {
 			return err
 		}
 		return nil

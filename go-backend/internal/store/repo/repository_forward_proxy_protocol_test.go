@@ -160,6 +160,9 @@ func TestForwardRepositoryPersistsPerIPLimits(t *testing.T) {
 	defer r.Close()
 
 	now := time.Now().UnixMilli()
+	if err := r.db.Create(&model.Node{ID: 3, Port: "1000-65535"}).Error; err != nil {
+		t.Fatal(err)
+	}
 	forwardID, err := r.CreateForwardTx(1, "admin", "per-ip-forward", 2, "1.1.1.1:443", "fifo", now, 1, []int64{3}, 24000, "", nil, 0, 5, int64(21), 0, 0, 0)
 	if err != nil {
 		t.Fatalf("CreateForwardTx: %v", err)
@@ -224,6 +227,9 @@ func TestForwardRepositoryPersistsProxyProtocolReceiveAndSend(t *testing.T) {
 	defer r.Close()
 
 	now := time.Now().UnixMilli()
+	if err := r.db.Create(&model.Node{ID: 3, Port: "1000-65535"}).Error; err != nil {
+		t.Fatal(err)
+	}
 	forwardID, err := r.CreateForwardTx(1, "admin", "proxy-protocol-forward", 2, "1.1.1.1:443", "fifo", now, 1, []int64{3}, 24000, "", nil, 0, 0, nil, 0, 1, 2)
 	if err != nil {
 		t.Fatalf("CreateForwardTx: %v", err)
@@ -301,7 +307,10 @@ func TestRollbackForwardFieldsRestoresPerIPLimits(t *testing.T) {
 	defer r.Close()
 
 	now := time.Now().UnixMilli()
-	forwardID, err := r.CreateForwardTx(1, "admin", "rollback-per-ip-forward", 2, "1.1.1.1:443", "fifo", now, 1, nil, 0, "", nil, 7, 5, int64(21), 2, 0, 2)
+	if err := r.db.Create(&model.Node{ID: 3, Port: "1000-65535"}).Error; err != nil {
+		t.Fatal(err)
+	}
+	forwardID, err := r.CreateForwardTx(1, "admin", "rollback-per-ip-forward", 2, "1.1.1.1:443", "fifo", now, 1, []int64{3}, 24000, "", nil, 7, 5, int64(21), 2, 0, 2)
 	if err != nil {
 		t.Fatalf("CreateForwardTx: %v", err)
 	}
