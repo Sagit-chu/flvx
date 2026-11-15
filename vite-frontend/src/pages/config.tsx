@@ -29,7 +29,6 @@ import {
 } from "@/shadcn-bridge/heroui/modal";
 import {
   updateConfigs,
-  activateLicense,
   exportBackup,
   importBackup,
   getAnnouncement,
@@ -151,7 +150,7 @@ const CONFIG_ITEMS: ConfigItem[] = [
   {
     key: "hide_footer_brand",
     label: "隐藏页面底部 FLVX 版权信息",
-    description: "需商业版授权才能生效",
+    description: "开启后隐藏页面底部的 FLVX 版权信息",
     type: "switch",
   },
   {
@@ -231,6 +230,13 @@ const CONFIG_ITEMS: ConfigItem[] = [
       "开启后，普通用户创建或编辑规则时可将目标地址指向 127.0.0.1、10.x.x.x、172.16-31.x.x、192.168.x.x 等本地或内网地址。默认关闭以降低开放代理风险。",
     type: "switch",
   },
+  {
+    key: "sequential_port_enabled",
+    label: "顺次分配入口端口",
+    description:
+      "开启后，创建规则时如果不指定入口端口，将从节点端口范围内按从小到大的顺序分配第一个空闲端口（例如范围 100-1000，已用 100、101、103，则下一个为 102，再下一个为 104）。关闭时为随机分配。",
+    type: "switch",
+  },
 ];
 
 const BACKUP_TYPE_OPTIONS = [
@@ -271,9 +277,8 @@ const getInitialConfigs = (): Record<string, string> => {
     "github_proxy_enabled",
     "github_proxy_url",
     "allow_local_remote_addr",
-    "is_commercial",
-    "license_expiry",
     "hide_footer_brand",
+    "sequential_port_enabled",
   ];
   const initialConfigs: Record<string, string> = {};
 
@@ -311,9 +316,6 @@ export default function ConfigPage() {
   const [importSelectorOpen, setImportSelectorOpen] = useState(false);
   const [importFileName, setImportFileName] = useState("");
   const backupFileInputRef = useRef<HTMLInputElement>(null);
-
-  const [activatingLicense, setActivatingLicense] = useState(false);
-  const [licenseKeyInput, setLicenseKeyInput] = useState("");
 
   const logoFileInputRef = useRef<HTMLInputElement>(null);
   const faviconFileInputRef = useRef<HTMLInputElement>(null);
@@ -619,31 +621,6 @@ export default function ConfigPage() {
     }
   };
 
-  const handleActivateLicense = async () => {
-    if (!licenseKeyInput.trim()) {
-      toast.error("请输入有效的商业授权码");
-
-      return;
-    }
-    setActivatingLicense(true);
-    try {
-      const res = await activateLicense(licenseKeyInput.trim());
-
-      if (res.code === 0) {
-        toast.success("商业版授权激活成功！");
-        setLicenseKeyInput("");
-        await loadConfigs();
-        window.dispatchEvent(new CustomEvent("configUpdated"));
-      } else {
-        toast.error(res.msg || "授权激活失败");
-      }
-    } catch (e: any) {
-      toast.error(e.message || "授权激活出错");
-    } finally {
-      setActivatingLicense(false);
-    }
-  };
-
   const handleConfigChange = (key: string, value: string) => {
     const newConfigs = { ...configs, [key]: value };
 
@@ -763,7 +740,7 @@ export default function ConfigPage() {
 
   // 检查配置项是否应该显示（依赖检查）
   const shouldShowItem = (item: ConfigItem): boolean => {
-    // 隐藏商业版专属的设置项，它们会在专门的卡片中展示
+    // 品牌相关设置项在「白标与品牌设置」卡片中单独展示
     if (
       ["app_name", "app_logo", "app_favicon", "hide_footer_brand"].includes(
         item.key,
@@ -1093,7 +1070,6 @@ export default function ConfigPage() {
     const value = (configs[key] || "").trim();
     const uploading = brandUploading[key] === true;
     const isLogo = key === "app_logo";
-    const isCommercialDisabled = configs.is_commercial !== "true";
 
     return (
       <div
@@ -1107,7 +1083,7 @@ export default function ConfigPage() {
           ref={getBrandInputRef(key)}
           accept={BRAND_FILE_ACCEPT}
           className="hidden"
-          disabled={uploading || isCommercialDisabled}
+          disabled={uploading}
           type="file"
           onChange={(event) => {
             void handleBrandFileChange(key, event);
@@ -1117,7 +1093,6 @@ export default function ConfigPage() {
         <div className="flex flex-wrap items-center gap-2">
           <Button
             color="primary"
-            isDisabled={isCommercialDisabled}
             isLoading={uploading}
             size="sm"
             variant="flat"
@@ -1159,10 +1134,6 @@ export default function ConfigPage() {
   const renderConfigItem = (item: ConfigItem) => {
     const isChanged =
       hasChanges && configs[item.key] !== originalConfigs[item.key];
-    const isCommercialDisabled =
-      ["app_name", "app_logo", "app_favicon", "hide_footer_brand"].includes(
-        item.key,
-      ) && configs.is_commercial !== "true";
 
     switch (item.type) {
       case "bg_image":
@@ -1199,12 +1170,8 @@ export default function ConfigPage() {
                 ? "border-warning-300 data-[hover=true]:border-warning-400"
                 : "",
             }}
-            description={
-              isCommercialDisabled ? "需商业版授权才能修改此项" : undefined
-            }
             endContent={isTunnelQualityInterval ? "秒" : undefined}
             errorMessage={intervalError || undefined}
-            isDisabled={isCommercialDisabled}
             isInvalid={Boolean(intervalError)}
             max={
               isTunnelQualityInterval
@@ -1233,7 +1200,6 @@ export default function ConfigPage() {
             classNames={{
               wrapper: isChanged ? "border-warning-300" : "",
             }}
-            isDisabled={isCommercialDisabled}
             isSelected={configs[item.key] === "true"}
             size="sm"
             onValueChange={(checked) =>
@@ -1469,80 +1435,44 @@ export default function ConfigPage() {
         <CardHeader className="pb-6">
           <div className="flex items-center w-full">
             <div>
-              <h2 className="text-xl font-semibold">商业版授权</h2>
+              <h2 className="text-xl font-semibold">白标与品牌设置</h2>
               <p className="text-sm text-gray-600 dark:text-gray-400">
-                激活商业版授权以解锁自定义品牌功能（替换
-                Logo、应用名称，移除底部版权信息等）
+                自定义应用名称、Logo、浏览器图标，并可隐藏底部版权信息
               </p>
             </div>
           </div>
         </CardHeader>
         <Divider />
         <CardBody className="pt-8">
-          <div className="flex items-end gap-3 max-w-lg mb-6">
-            <Input
-              description={
-                configs.is_commercial === "true"
-                  ? configs.license_expiry && configs.license_expiry !== "never"
-                    ? `已激活商业版授权 (有效期至: ${new Date(configs.license_expiry).toLocaleDateString()})`
-                    : "已激活商业版授权 (永久有效)"
-                  : "需商业授权才能修改站名、图标并隐藏页脚品牌"
-              }
-              isDisabled={configs.is_commercial === "true"}
-              label="授权激活码"
-              placeholder="请输入 FLVX- 开头的商业授权码"
-              value={licenseKeyInput}
-              variant="bordered"
-              onChange={(e) => setLicenseKeyInput(e.target.value)}
-            />
-            <Button
-              className="mb-6"
-              color="primary"
-              isDisabled={
-                configs.is_commercial === "true" || !licenseKeyInput.trim()
-              }
-              isLoading={activatingLicense}
-              onPress={handleActivateLicense}
-            >
-              {configs.is_commercial === "true" ? "已授权" : "激活授权"}
-            </Button>
-          </div>
-
-          {configs.is_commercial === "true" && (
-            <div className="space-y-6">
-              <Divider className="my-2" />
-              <h3 className="text-md font-medium text-default-700">
-                白标与品牌设置
-              </h3>
-              {CONFIG_ITEMS.filter((item) =>
-                [
-                  "app_name",
-                  "app_logo",
-                  "app_favicon",
-                  "hide_footer_brand",
-                ].includes(item.key),
-              ).map((item, index) => (
-                <div key={item.key}>
-                  <div className="grid grid-cols-1 gap-6 md:grid-cols-[1fr_2fr]">
-                    <div className="space-y-1">
-                      <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                        {item.label}
-                      </label>
-                      {item.description && (
-                        <p className="text-xs text-gray-500 dark:text-gray-400">
-                          {item.description}
-                        </p>
-                      )}
-                    </div>
-                    <div className="flex items-start">
-                      {renderConfigItem(item)}
-                    </div>
+          <div className="space-y-6">
+            {CONFIG_ITEMS.filter((item) =>
+              [
+                "app_name",
+                "app_logo",
+                "app_favicon",
+                "hide_footer_brand",
+              ].includes(item.key),
+            ).map((item, index) => (
+              <div key={item.key}>
+                <div className="grid grid-cols-1 gap-6 md:grid-cols-[1fr_2fr]">
+                  <div className="space-y-1">
+                    <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                      {item.label}
+                    </label>
+                    {item.description && (
+                      <p className="text-xs text-gray-500 dark:text-gray-400">
+                        {item.description}
+                      </p>
+                    )}
                   </div>
-                  {index < 3 && <Divider className="mt-6" />}
+                  <div className="flex items-start">
+                    {renderConfigItem(item)}
+                  </div>
                 </div>
-              ))}
-            </div>
-          )}
+                {index < 3 && <Divider className="mt-6" />}
+              </div>
+            ))}
+          </div>
         </CardBody>
       </Card>
 

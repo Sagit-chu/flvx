@@ -481,12 +481,16 @@ func seedData(db *gorm.DB) {
 	db.Where("id = ?", 1).FirstOrCreate(&appNameConfig)
 	now := time.Now().UnixMilli()
 	for name, value := range map[string]string{
-		"is_commercial":     "false",
+		"is_commercial":     "true",
 		"hide_footer_brand": "false",
 	} {
 		cfg := model.ViteConfig{Name: name, Value: value, Time: now}
 		db.Where("name = ?", name).FirstOrCreate(&cfg)
 	}
+	// 授权校验已移除：所有部署一律视为商业版，同时修正旧数据库里残留的 false。
+	db.Model(&model.ViteConfig{}).
+		Where("name = ? AND value <> ?", "is_commercial", "true").
+		Updates(map[string]interface{}{"value": "true", "time": now})
 }
 
 // ─── User Queries ────────────────────────────────────────────────────

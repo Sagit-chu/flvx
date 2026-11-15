@@ -21,7 +21,7 @@ func (h *Handler) StartBackgroundJobs() {
 	ctx, cancel := context.WithCancel(context.Background())
 	h.jobsCancel = cancel
 	h.jobsStarted = true
-	h.jobsWG.Add(9)
+	h.jobsWG.Add(8)
 	h.jobsMu.Unlock()
 
 	go h.runHourlyStatsLoop(ctx)
@@ -30,7 +30,6 @@ func (h *Handler) StartBackgroundJobs() {
 	go h.runMetricsIngestion(ctx)
 	go h.runHealthChecks(ctx)
 	go h.runTunnelQualityProber(ctx)
-	go h.runValidateLicenseJob(ctx)
 	go h.runNftablesTrafficCollectLoop(ctx)
 	go h.runFederationCleanupRetryLoop(ctx)
 }
@@ -77,69 +76,6 @@ func (h *Handler) retryPendingPeerShareOperations() {
 		if err := h.retryPendingPeerShareRoleRuntimesOnNode(nodeID); err != nil {
 			log.Printf("peer share role retry failed node_id=%d err=%v", nodeID, err)
 		}
-	}
-}
-
-func (h *Handler) runValidateLicenseJob(ctx context.Context) {
-	defer h.jobsWG.Done()
-	h.validateLicenseJob()
-	ticker := time.NewTicker(12 * time.Hour)
-	defer ticker.Stop()
-
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case <-ticker.C:
-			h.validateLicenseJob()
-		}
-	}
-}
-
-func (h *Handler) validateLicenseJob() {
-	if h == nil || h.repo == nil {
-		return
-	}
-	h.licenseValidationMu.Lock()
-	defer h.licenseValidationMu.Unlock()
-
-	key, _ := h.repo.GetViteConfigValue("license_key")
-
-	if key == "" {
-		return // Nothing to validate
-	}
-
-	valResp, err := h.validateLicenseForMachine(key)
-
-	if err != nil {
-		// Network and decode failures have no validation response, so retain the
-		// current state as a grace period. A rejected machine binding still has
-		// the original invalid response and must not stay commercially enabled.
-		if licenseValidationErrorIsDefinitive(valResp, err) {
-			now := time.Now().UnixMilli()
-			_ = h.repo.UpsertConfig("is_commercial", "false", now)
-		}
-		return
-	}
-
-	if !valResp.Meta.Valid {
-		// License is invalid (e.g., revoked, suspended, expired). Downgrade the system.
-		now := time.Now().UnixMilli()
-		_ = h.repo.UpsertConfig("is_commercial", "false", now)
-	} else {
-		now := time.Now().UnixMilli()
-		expiry := valResp.Data.Attributes.Expiry
-		if expiry == "" {
-			expiry = "never"
-		}
-		licenseState := map[string]string{
-			"is_commercial":  "true",
-			"license_expiry": expiry,
-		}
-		if valResp.MachineID != "" {
-			licenseState["license_machine_id"] = valResp.MachineID
-		}
-		_ = h.repo.UpsertConfigs(licenseState, now)
 	}
 }
 

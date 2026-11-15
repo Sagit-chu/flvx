@@ -9,7 +9,7 @@ COPY . .
 ARG TARGETOS
 ARG TARGETARCH
 ARG KEYGEN_ACCOUNT_ID
-RUN CGO_ENABLED=0 GOOS=${TARGETOS:-linux} env ${TARGETARCH:+GOARCH=${TARGETARCH}} go build -ldflags="-X 'go-backend/internal/license.AccountID=${KEYGEN_ACCOUNT_ID}'" -o /out/paneld ./cmd/paneld
+RUN CGO_ENABLED=0 GOOS=${TARGETOS:-linux} env ${TARGETARCH:+GOARCH=${TARGETARCH}} go build -o /out/paneld ./cmd/paneld
 
 FROM docker:27-cli AS dockercli
 
