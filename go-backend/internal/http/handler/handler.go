@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"encoding/base64"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -27,8 +26,6 @@ import (
 	"go-backend/internal/security"
 	"go-backend/internal/store/repo"
 	"go-backend/internal/ws"
-
-	"github.com/google/uuid"
 )
 
 type Handler struct {
@@ -48,12 +45,10 @@ type Handler struct {
 	passkeyMu      sync.Mutex
 	passkeyPending map[string]passkeyCeremony
 
-	jobsMu              sync.Mutex
-	jobsCancel          context.CancelFunc
-	jobsStarted         bool
-	jobsWG              sync.WaitGroup
-	fingerprintMu       sync.Mutex
-	licenseValidationMu sync.Mutex
+	jobsMu      sync.Mutex
+	jobsCancel  context.CancelFunc
+	jobsStarted bool
+	jobsWG      sync.WaitGroup
 
 	upgradeMu                   sync.Mutex
 	systemUpgradeMu             sync.Mutex
@@ -88,10 +83,6 @@ type nameRequest struct {
 type configSingleRequest struct {
 	Name  string `json:"name"`
 	Value string `json:"value"`
-}
-
-type licenseActivateRequest struct {
-	LicenseKey string `json:"license_key"`
 }
 
 type changePasswordRequest struct {
@@ -187,7 +178,6 @@ func (h *Handler) Register(mux *http.ServeMux) {
 	mux.HandleFunc("/api/v1/system/check-updates", h.systemCheckUpdates)
 	mux.HandleFunc("/api/v1/system/upgrade", h.systemUpgrade)
 	mux.HandleFunc("/api/v1/system/upgrade/status", h.systemUpgradeStatus)
-	mux.HandleFunc("/api/v1/license/activate", h.licenseActivate)
 	mux.HandleFunc("/api/v1/backup/export", h.backupExport)
 	mux.HandleFunc("/api/v1/backup/import", h.backupImport)
 	mux.HandleFunc("/api/v1/backup/restore", h.backupImport)
@@ -905,79 +895,6 @@ func (h *Handler) flowUpload(w http.ResponseWriter, r *http.Request) {
 	_, _ = w.Write([]byte("ok"))
 }
 
-func (h *Handler) getOrCreateMachineFingerprint() (string, error) {
-	h.fingerprintMu.Lock()
-	defer h.fingerprintMu.Unlock()
-
-	fp, err := h.repo.GetViteConfigValue("machine_fingerprint")
-	if fp != "" {
-		return fp, nil
-	}
-	if err != nil && !errors.Is(err, sql.ErrNoRows) {
-		return "", err
-	}
-
-	newFp := uuid.New().String()
-	now := time.Now().UnixMilli()
-	if err := h.repo.UpsertConfig("machine_fingerprint", newFp, now); err != nil {
-		return "", err
-	}
-	return newFp, nil
-}
-
-func (h *Handler) licenseActivate(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		response.WriteJSON(w, response.ErrDefault("请求失败"))
-		return
-	}
-
-	var req licenseActivateRequest
-	if err := decodeJSON(r.Body, &req); err != nil {
-		response.WriteJSON(w, response.ErrDefault("授权码不能为空"))
-		return
-	}
-
-	key := strings.TrimSpace(req.LicenseKey)
-	if key == "" {
-		response.WriteJSON(w, response.ErrDefault("授权码不能为空"))
-		return
-	}
-	h.licenseValidationMu.Lock()
-	defer h.licenseValidationMu.Unlock()
-
-	valResp, err := h.validateLicenseForMachine(key)
-	if err != nil {
-		log.Printf("license activation failed: %v", err)
-		response.WriteJSON(w, response.ErrDefault(licenseValidationErrorMessage(err)))
-		return
-	}
-
-	if !valResp.Meta.Valid {
-		response.WriteJSON(w, response.ErrDefault("授权码无效或已过期 (Code: "+valResp.Meta.Code+")"))
-		return
-	}
-
-	now := time.Now().UnixMilli()
-	expiry := valResp.Data.Attributes.Expiry
-	if expiry == "" {
-		expiry = "never"
-	}
-	licenseState := map[string]string{
-		"license_key":    key,
-		"is_commercial":  "true",
-		"license_expiry": expiry,
-	}
-	if valResp.MachineID != "" {
-		licenseState["license_machine_id"] = valResp.MachineID
-	}
-	if err := h.repo.UpsertConfigs(licenseState, now); err != nil {
-		response.WriteJSON(w, response.Err(-2, err.Error()))
-		return
-	}
-
-	response.WriteJSON(w, response.OKEmpty())
-}
-
 func (h *Handler) updateConfigs(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		response.WriteJSON(w, response.ErrDefault("请求失败"))
@@ -994,14 +911,6 @@ func (h *Handler) updateConfigs(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	isCommercial, _ := h.repo.GetViteConfigValue("is_commercial")
-	protectedKeys := map[string]bool{
-		"app_name":          true,
-		"app_logo":          true,
-		"app_favicon":       true,
-		"hide_footer_brand": true,
-	}
-
 	now := time.Now().UnixMilli()
 	for k, v := range payload {
 		key := strings.TrimSpace(k)
@@ -1014,11 +923,6 @@ func (h *Handler) updateConfigs(w http.ResponseWriter, r *http.Request) {
 		}
 		if repo.IsSystemManagedConfigKey(key) {
 			response.WriteJSON(w, response.ErrDefault("该配置由系统管理"))
-			return
-		}
-
-		if protectedKeys[key] && isCommercial != "true" {
-			response.WriteJSON(w, response.ErrDefault("需要商业版授权"))
 			return
 		}
 
@@ -1060,12 +964,6 @@ func (h *Handler) updateSingleConfig(w http.ResponseWriter, r *http.Request) {
 	}
 	if repo.IsSystemManagedConfigKey(name) {
 		response.WriteJSON(w, response.ErrDefault("该配置由系统管理"))
-		return
-	}
-
-	isCommercial, _ := h.repo.GetViteConfigValue("is_commercial")
-	if (name == "app_name" || name == "app_logo" || name == "app_favicon" || name == "hide_footer_brand") && isCommercial != "true" {
-		response.WriteJSON(w, response.ErrDefault("需要商业版授权"))
 		return
 	}
 
@@ -1123,6 +1021,14 @@ func normalizeAndValidateConfigValue(key, value string) (string, error) {
 		}
 
 		return pngDataURLPrefix + payload, nil
+	case sequentialPortConfigKey:
+		normalized := strings.TrimSpace(strings.ToLower(value))
+		switch normalized {
+		case "true", "false":
+			return normalized, nil
+		default:
+			return "", fmt.Errorf("顺次分配端口开关配置值无效")
+		}
 	case monitorTunnelQualityEnabledConfigKey:
 		normalized := strings.TrimSpace(strings.ToLower(value))
 		switch normalized {

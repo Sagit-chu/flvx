@@ -335,9 +335,6 @@ export const runSystemUpgrade = (
     { timeout: 60 * 1000 },
   );
 
-export const activateLicense = (licenseKey: string) =>
-  Network.post("/license/activate", { license_key: licenseKey });
-
 export const exportBackupData = () => Network.post("/backup/export");
 export const importBackupData = (data: BackupImportPayload) =>
   Network.post("/backup/import", data);

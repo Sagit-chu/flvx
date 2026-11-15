@@ -1724,8 +1724,38 @@ func (h *Handler) pickRandomPortForNode(nodeID int64) int {
 		return 0
 	}
 
+	if h.isSequentialPortEnabled() {
+		return lowestPort(available)
+	}
+
 	idx, _ := rand.Int(rand.Reader, big.NewInt(int64(len(available))))
 	return available[idx.Int64()]
+}
+
+// sequentialPortConfigKey 是「未指定端口时按端口范围顺次分配」开关的配置键。
+const sequentialPortConfigKey = "sequential_port_enabled"
+
+// isSequentialPortEnabled 返回是否开启了顺次分配端口（默认关闭，保持随机分配）。
+func (h *Handler) isSequentialPortEnabled() bool {
+	if h == nil || h.repo == nil {
+		return false
+	}
+	value, err := h.repo.GetViteConfigValue(sequentialPortConfigKey)
+	if err != nil {
+		return false
+	}
+	return strings.EqualFold(strings.TrimSpace(value), "true")
+}
+
+// lowestPort 返回候选端口中最小的一个（会先排序，不依赖端口范围的书写顺序）。
+// 已占用端口由调用方事先剔除，所以中间被释放出来的空位会被优先补上。
+func lowestPort(ports []int) int {
+	if len(ports) == 0 {
+		return 0
+	}
+	sorted := append([]int(nil), ports...)
+	sort.Ints(sorted)
+	return sorted[0]
 }
 
 func (h *Handler) tunnelDelete(w http.ResponseWriter, r *http.Request) {
@@ -5030,6 +5060,9 @@ func (h *Handler) pickTunnelPort(tunnelID int64) int {
 	}
 
 	if len(commonAvailable) > 0 {
+		if h.isSequentialPortEnabled() {
+			return lowestPort(commonAvailable)
+		}
 		idx, _ := rand.Int(rand.Reader, big.NewInt(int64(len(commonAvailable))))
 		return commonAvailable[idx.Int64()]
 	}
