@@ -231,6 +231,13 @@ const CONFIG_ITEMS: ConfigItem[] = [
       "开启后，普通用户创建或编辑规则时可将目标地址指向 127.0.0.1、10.x.x.x、172.16-31.x.x、192.168.x.x 等本地或内网地址。默认关闭以降低开放代理风险。",
     type: "switch",
   },
+  {
+    key: "sequential_port_enabled",
+    label: "顺次分配入口端口",
+    description:
+      "开启后，创建规则时如果不指定入口端口，将从节点端口范围内按从小到大的顺序分配第一个空闲端口（例如范围 100-1000，已用 100、101、103，则下一个为 102，再下一个为 104）。关闭时为随机分配。",
+    type: "switch",
+  },
 ];
 
 const BACKUP_TYPE_OPTIONS = [
@@ -274,6 +281,7 @@ const getInitialConfigs = (): Record<string, string> => {
     "is_commercial",
     "license_expiry",
     "hide_footer_brand",
+    "sequential_port_enabled",
   ];
   const initialConfigs: Record<string, string> = {};
 
